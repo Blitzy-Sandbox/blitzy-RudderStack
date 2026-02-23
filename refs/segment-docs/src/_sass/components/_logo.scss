@@ -1,0 +1,11 @@
+.logo {
+  display: block;
+  
+  @include breakpoint(large up)  {
+    padding: 22px 16px;
+  }
+
+  &:hover {
+    text-decoration: none;
+  }
+}

@@ -1,0 +1,5 @@
+.integration {
+  & > * + * {
+    margin-top: 33px;
+  }
+}

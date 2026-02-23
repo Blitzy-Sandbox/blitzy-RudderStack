@@ -1,0 +1,409 @@
+{
+	"create_time": "2019-07-29T22:48:36.000Z",
+	"display_name": "Docs",
+	"name": "workspaces/segment_prod/tracking-plans/rs_1Ohr9MJskSjbjKIZJ8ixf5dIAJ1",
+	"rules": {
+		"events": [
+			{
+				"name": "Docs Searched",
+				"rules": {
+					"$schema": "http://json-schema.org/draft-07/schema#",
+					"labels": {
+					},
+					"properties": {
+						"context": {
+						},
+						"properties": {
+							"properties": {
+								"query": {
+									"description": "",
+									"type": "string"
+								}
+							},
+							"required": [
+								"query"
+							],
+							"type": "object"
+						},
+						"traits": {
+							"type": "object"
+						}
+					},
+					"required": [
+						"properties"
+					],
+					"type": "object"
+				},
+				"version": 1
+			},
+			{
+				"description": "User submits comments after their thumbs/down rating",
+				"name": "Feedback Comment Provided",
+				"rules": {
+					"$schema": "http://json-schema.org/draft-07/schema#",
+					"labels": {
+					},
+					"properties": {
+						"context": {
+						},
+						"properties": {
+							"properties": {
+								"comment": {
+									"description": "the comment",
+									"type": "string"
+								},
+								"helpful": {
+									"description": "the rating given prior to the comment",
+									"type": "boolean"
+								},
+								"section": {
+									"description": "Was the feedback form in the right-nav or footer clicked?",
+									"type": "string"
+								},
+								"title": {
+									"description": "",
+									"type": "string"
+								}
+							},
+							"type": "object"
+						},
+						"traits": {
+							"type": "object"
+						}
+					},
+					"type": "object"
+				},
+				"version": 1
+			},
+			{
+				"description": "User submits a thumbs up/down rating for a docs article",
+				"name": "Feedback Provided",
+				"rules": {
+					"$schema": "http://json-schema.org/draft-07/schema#",
+					"labels": {
+					},
+					"properties": {
+						"context": {
+						},
+						"properties": {
+							"properties": {
+								"comment": {
+									"description": "",
+									"type": "string"
+								},
+								"helpful": {
+									"description": "Boolean representing the value of the feedback, true is helpful, false is not helpful",
+									"type": "boolean"
+								},
+								"section": {
+									"description": "Was the feedback form in the right-nav or footer clicked?",
+									"pattern": "right-nav|footer",
+									"type": "string"
+								},
+								"title": {
+									"description": "",
+									"type": "string"
+								}
+							},
+							"required": [
+								"helpful",
+								"section",
+								"title"
+							],
+							"type": "object"
+						},
+						"traits": {
+							"type": "object"
+						}
+					},
+					"required": [
+						"properties"
+					],
+					"type": "object"
+				},
+				"version": 1
+			},
+			{
+				"name": "Home Button Clicked",
+				"rules": {
+					"$schema": "http://json-schema.org/draft-07/schema#",
+					"labels": {
+					},
+					"properties": {
+						"context": {
+						},
+						"properties": {
+							"type": "object"
+						},
+						"traits": {
+							"type": "object"
+						}
+					},
+					"type": "object"
+				},
+				"version": 1
+			},
+			{
+				"name": "Lead Captured",
+				"rules": {
+					"$schema": "http://json-schema.org/draft-07/schema#",
+					"labels": {
+					},
+					"properties": {
+						"context": {
+						},
+						"properties": {
+							"properties": {
+								"email": {
+									"description": "",
+									"type": "string"
+								},
+								"location": {
+									"description": "",
+									"type": "string"
+								},
+								"url": {
+									"description": "",
+									"type": "string"
+								}
+							},
+							"required": [
+								"email",
+								"location",
+								"url"
+							],
+							"type": "object"
+						},
+						"traits": {
+							"type": "object"
+						}
+					},
+					"required": [
+						"properties"
+					],
+					"type": "object"
+				},
+				"version": 1
+			},
+			{
+				"description": "User clicks one of the navigation elements like the home button, ToC, or searches",
+				"name": "Navigation Control Used",
+				"rules": {
+					"$schema": "http://json-schema.org/draft-07/schema#",
+					"labels": {
+					},
+					"properties": {
+						"context": {
+						},
+						"properties": {
+							"properties": {
+								"control_value": {
+									"description": "Name of control used",
+									"type": "string"
+								},
+								"search_value": {
+									"description": "Value of search term if search bar is used",
+									"type": "string"
+								}
+							},
+							"required": [
+								"control_value"
+							],
+							"type": "object"
+						},
+						"traits": {
+							"type": "object"
+						}
+					},
+					"required": [
+						"properties"
+					],
+					"type": "object"
+				},
+				"version": 1
+			},
+			{
+				"name": "Page Viewed",
+				"rules": {
+					"$schema": "http://json-schema.org/draft-07/schema#",
+					"labels": {
+					},
+					"properties": {
+						"context": {
+						},
+						"properties": {
+							"properties": {
+								"browser_language": {
+									"description": "Custom property to identify user's browser language",
+									"type": "string"
+								},
+								"frontmatter": {
+									"description": "Custom property to add additional frontmatter context to each page call",
+									"type": "string"
+								},
+								"ip": {
+									"description": "",
+									"type": "string"
+								},
+								"name": {
+									"description": "",
+									"type": "string"
+								},
+								"path": {
+									"description": "",
+									"type": "string"
+								},
+								"referrer": {
+									"description": "",
+									"type": "string"
+								},
+								"search": {
+									"description": "",
+									"type": "string"
+								},
+								"timestamp": {
+									"description": "",
+									"type": "string"
+								},
+								"timezone": {
+									"description": "",
+									"type": "string"
+								},
+								"title": {
+									"description": "",
+									"type": "string"
+								},
+								"url": {
+									"description": "",
+									"type": "string"
+								}
+							},
+							"type": "object"
+						},
+						"traits": {
+							"type": "object"
+						}
+					},
+					"type": "object"
+				},
+				"version": 1
+			},
+			{
+				"name": "Scroll to Top Clicked",
+				"rules": {
+					"$schema": "http://json-schema.org/draft-07/schema#",
+					"labels": {
+					},
+					"properties": {
+						"context": {
+						},
+						"properties": {
+							"type": "object"
+						},
+						"traits": {
+							"type": "object"
+						}
+					},
+					"type": "object"
+				},
+				"version": 1
+			},
+			{
+				"description": "User scrolled to the bottom of the page",
+				"name": "Scrolled To Bottom",
+				"rules": {
+					"$schema": "http://json-schema.org/draft-07/schema#",
+					"labels": {
+					},
+					"properties": {
+						"context": {
+						},
+						"properties": {
+							"properties": {
+								"url": {
+									"description": "",
+									"type": "string"
+								}
+							},
+							"required": [
+								"url"
+							],
+							"type": "object"
+						},
+						"traits": {
+							"type": "object"
+						}
+					},
+					"required": [
+						"properties"
+					],
+					"type": "object"
+				},
+				"version": 1
+			},
+			{
+				"description": "Table of Contents Clicked",
+				"name": "TOC Clicked",
+				"rules": {
+					"$schema": "http://json-schema.org/draft-07/schema#",
+					"labels": {
+					},
+					"properties": {
+						"context": {
+						},
+						"properties": {
+							"properties": {
+								"link": {
+									"description": "link clicked",
+									"type": "string"
+								},
+								"name": {
+									"description": "name of the link clicked",
+									"type": "string"
+								},
+								"url": {
+									"description": "The url of the page (hostname + path)",
+									"type": "string"
+								}
+							},
+							"required": [
+								"link",
+								"name",
+								"url"
+							],
+							"type": "object"
+						},
+						"traits": {
+							"type": "object"
+						}
+					},
+					"required": [
+						"properties"
+					],
+					"type": "object"
+				},
+				"version": 1
+			}
+		],
+		"global": {
+			"$schema": "http://json-schema.org/draft-07/schema#",
+			"properties": {
+				"context": {
+					"type": "object"
+				},
+				"properties": {
+					"type": "object"
+				},
+				"traits": {
+					"type": "object"
+				}
+			},
+			"type": "object"
+		},
+		"group_traits": [
+		],
+		"identify_traits": [
+		]
+	},
+	"update_time": "2020-08-03T16:55:35.000Z"
+}

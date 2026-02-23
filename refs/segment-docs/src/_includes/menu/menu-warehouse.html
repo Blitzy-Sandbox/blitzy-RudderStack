@@ -1,0 +1,33 @@
+{% assign activeState = false %}
+{% assign currentSlug = page.url | split: "/" | last %}
+{% assign currentIntegration = site.data.catalog.warehouse.items | where: "slug", currentSlug | first %}
+
+<div class="sidebar sidebar--dark">
+  <div class="sidebar__content">
+    <nav class="menu">
+      <ul class="menu__list list list--unstyle">
+        <li class="menu-item">
+          <a href="{{ site.baseurl }}/connections/storage/catalog/" class="menu-item__link menu-item__link--small menu-item__link--back">
+            {% include icons/symbols/arrow-left.svg %}
+            <span>Back to Connections</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  
+    <nav class="menu menu--compact">
+      {% assign integrations = site.data.catalog.warehouse.items %}
+      <ul class="menu__list list list--unstyle" data-ref="accordion[body]">
+        {% for integration in integrations %}
+          {% if integration.hidden != true %}
+            <li class="menu-item menu-item--left-aligned menu-item--compact">
+              <a href="{{ site.baseurl }}/{{ integration.url }}/" class="menu-item__link">
+                {{ integration.display_name }}
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </nav>
+  </div>
+</div>

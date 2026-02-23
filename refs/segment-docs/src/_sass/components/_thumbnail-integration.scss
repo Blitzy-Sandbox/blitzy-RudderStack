@@ -1,0 +1,64 @@
+.thumbnail-integration {
+  $this: &;
+
+  position: relative;
+  height: 100%;
+  min-height: 95px;
+  max-height: 220px;
+  padding: 20px;
+  background-color: color(white);
+  border: 1px solid color(gray-400);
+  border-radius: 8px;
+  transition: 200ms ease;
+
+  @include breakpoint(medium up)  {
+    padding: 30px;
+  }
+
+  &:hover {
+    border: 1px solid color(gray-100);
+    border-color: color(gray-500);
+    text-decoration: none;
+  }
+
+  &__content {
+    width: 100%;
+    text-align: center;
+
+    @include breakpoint(medium up)  {
+      text-align: left;
+    }
+  }
+
+  &__logo-wrapper {
+    #{$this}__logo {
+      max-width: 35px;
+      max-height: 35px;
+      margin: 0;
+      border: none!important;
+
+      @include breakpoint(medium up)  {
+        max-width: 35px;
+        max-height: 35px;
+        margin: 0;
+        border: none!important;
+      }
+    }
+  }
+
+  &__label {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(-8px, 8px);
+    padding: 3px 8px;
+    background-color: #E7E4F9;
+    border-radius: 4px;
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    color: #6E62B6;
+  }
+}

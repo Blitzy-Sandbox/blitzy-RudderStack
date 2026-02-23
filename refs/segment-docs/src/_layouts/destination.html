@@ -1,0 +1,36 @@
+---
+layout: integration
+---
+<div class="markdown">
+   
+  
+{% if page.hide-dossier != true %}
+  {% capture destination-dossier %}{% include content/destination-dossier.html %}{% endcapture %}
+  {{destination-dossier | markdownify}}
+
+{% endif %}
+
+{% if page.deprecated == true %}
+  {% capture deprecation-note %}{% include content/deprecated.md %}{% endcapture %}
+  {{deprecation-note | markdownify}}
+{% endif %}
+
+{% if page.versions %}
+{% include content/actions-classic.md %}
+
+{% endif %}
+  
+
+{% if page.maintenance == true %}
+  {% capture maintenance-mode %}{% include content/destination-maintenance.md %}{% endcapture %}
+  {{maintenance-mode | markdownify}}
+{% endif %}
+
+  {{ content }}
+
+{% unless page.hide-boilerplate == true %}
+  {% capture destination-footer %}{% include content/destination-footer.md  %}{% endcapture %}
+  {{ destination-footer | markdownify }}
+{% endunless %}
+
+</div>

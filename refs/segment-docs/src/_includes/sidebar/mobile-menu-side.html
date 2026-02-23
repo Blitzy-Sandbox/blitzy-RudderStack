@@ -1,0 +1,12 @@
+<div class="mobile-menu-side">
+  {%- unless page.hide_toc -%}
+    {% include sidebar/menu-side.html class="mobile-menu-side__list" anchor_class="mobile-menu-side__link" html=content h_min=2 h_max=2 %}
+  {%- endunless -%}
+
+  {% if page.related %}
+    {% include sidebar/related-content.html items=page.related %}
+  {% endif %}
+
+
+  <hr class="mobile-menu-side__divider">
+</div>

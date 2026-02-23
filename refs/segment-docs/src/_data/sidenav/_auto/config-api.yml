@@ -1,0 +1,13 @@
+sections:
+- section_title: Config Api
+  section:
+  - path: /config-api
+    title: Config API Overview
+  - path: /config-api/api-design
+    title: API Design
+  - path: /config-api/authentication
+    title: Authentication
+  - path: /config-api/reference
+    title: Reference
+  - path: /config-api/tutorial-javascript-google-analytics
+    title: Creating a Javascript web source and Google Analytics destination

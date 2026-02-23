@@ -1,0 +1,63 @@
+sections:
+- section_title: false
+  section_col: 12
+  section:
+  - name: Getting started with Segment
+    icon: getting-started.svg
+    description: "Learn about Segment, plan and work through a basic implementation, and explore features and extensions."
+    path: /getting-started/
+- section_title: How can Segment help you?
+  section_col: 6
+  section:
+  - name: Simplify data collection
+    icon: connections.svg
+    description: "Integrate the tools you need for analytics, growth, marketing, and more."
+    path: /connections/
+  - name: Protect data integrity
+    icon: protocols.svg
+    description: "Prevent data quality issues with a tracking schema and enforcement with Protocols."
+    path: /protocols/
+  - name: Personalize experiences
+    icon: engage.svg
+    description: "Build audiences and journeys from real-time customer data to personalize experiences on every channel."
+    path: /engage/
+  - name: Respect users' privacy
+    icon: privacy.svg
+    description: "Keep customer data private with Segment's data discovery and policy enforcement tools."
+    path: /privacy/
+
+- section_title: Get Data into Segment
+  section_description: "The Segment Spec helps you identify, capture, and format meaningful data for use with Segment libraries and APIs as well as downstream tools."
+  section_col: 4
+  section:
+  - name: Segment calls
+    description: "Use Track, Page, Identify, and other Segment tracking calls."
+    path: /connections/spec/
+  - name: Common traits
+    description: "Save time by letting Segment calls collect information for you."
+    path: /connections/spec/common/
+  - name: Use case specs
+    description: "Use our business-case specs to ensure that your tools get the most from your data."
+    path: /connections/spec/semantic/
+
+- section_title: Learning about Segment
+  section_col: 6
+  section:
+  - name: Segment for Developers
+    icon: git-repo.svg
+    description: "The basics of your Segment implementation."
+    path: /guides/intro-impl/
+  - name: How-To Guides
+    icon: book.svg
+    description: "Over a dozen how-to guides that help you accomplish common tasks."
+    path: /guides/how-to-guides/
+
+- section_title: Connect your app to Segment
+  section_col: 4
+  section:
+  - name: JavaScript
+    path: /connections/sources/catalog/libraries/website/javascript/
+  - name: Swift
+    path: /connections/sources/catalog/libraries/mobile/swift-ios/
+  - name: All other Sources
+    path: /connections/sources/catalog/

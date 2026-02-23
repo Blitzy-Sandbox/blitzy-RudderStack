@@ -1,0 +1,114 @@
+<!-- in the file we're pulling from the API, "name" corresponds with the path to the yml blob for a specific destination.-->
+{% assign thisDestination = page.id %}
+
+{% assign overrideInfo = site.data.catalog.overrides.items % | where: "id", thisDestination | first %}
+
+{% if page.private %}
+{% assign destinationInfo = site.data.catalog.destinations_private.items | where: "id", thisDestination | first %}
+{% else %}
+{% assign destinationInfo = site.data.catalog.destinations.items | where: "id", thisDestination | first %}
+
+{% endif %}
+
+{% comment %}There are probably prettier ways to generate a list of links to these methods, but this was good enough for me.{% endcomment %}
+{% assign destMethods = "" | split: ", " %}
+{% assign methodName = "" | split: " " %}
+{% for method in destinationInfo.methods %}
+{%if method[1]%}
+{% assign methodName = method[0] | split: "_" | first | capitalize%}
+{% assign methodUrl = '<a href="/docs/connections/spec/' | append: methodName | downcase%}
+{% assign methodUrl = methodUrl | append: '/">' %}
+{% assign methodHTML = methodUrl | append: methodName %}
+{% assign methodHTML = methodHTML | append: '</a>' %}
+{% assign destMethods = destMethods | push: methodHTML %} {%endif%}
+
+{% if page.cmode-override %}
+{% assign connectionModes = overrideInfo.connection_modes %}
+{% else %}
+{% assign connectionModes = destinationInfo.connection_modes %}
+{% endif %}
+
+
+
+{% if page.name-override %}
+{% assign previous_names = overrideInfo.previous_names %}
+{% else %}
+{% assign previous_names = destinationInfo.previous_names %}
+{% endif %}
+
+{% assign components = destinationInfo.components %}
+{% endfor %}
+{% assign destMethods = destMethods| reverse %}
+
+
+{% if page.id %}
+
+<div class="quick-info">
+  <div class="qi-content">
+<h6>Destination Info</h6>
+<ul class="qi">
+  {% if destMethods.size > 0 %}{% unless page.id == '645d5fc12eb891cf0a93fe4b' or page.id == '652d4cf5e00c0147e6eaf5e7' %}<li>Accepts {% for method in destMethods%}{% if destMethods.size == 1 %}{{method}} calls.{% else %}{% unless forloop.last == true %}{{method}}, {% endunless %}{% if forloop.last == true%}and {{method}} calls{%endif%}{% endif %}{% endfor %}</li>{% endunless %}{% endif %}
+  {% if page.id == '652d4cf5e00c0147e6eaf5e7' %} <li>Accepts <a href="/docs/connections/spec/identify/">Identify</a> and <a href="/docs/connections/spec/track/">Track</a> calls. </li>{% endif %}
+  {% if previous_names.size == 1 or components.size == 0 %}
+    <li>Refer to it as {% if page.id == '5f7dd6d21ad74f3842b1fc47' %}<strong>Actions Amplitude</strong> {% else %}<strong>{{previous_names | join: '</strong>, or <strong>' }}</strong>{% endif %} in the <a href="/docs/guides/filtering-data/#filtering-with-the-integrations-object">Integrations object</a></li>
+  {% else %}
+   {% if connectionModes.cloud.web == true or connectionModes.cloud.mobile == true or connectionModes.cloud.server == true %} <li>In Cloud-mode, refer to it as <strong>{{previous_names | join: '</strong>, or <strong>' }}</strong> in the <a href="/docs/guides/filtering-data/#filtering-with-the-integrations-object">Integrations object</a></li>{%endif%}
+   {% if connectionModes.device.web == true or connectionModes.device.mobile == true or connectionModes.device.server == true %} <li>In Device-mode, refer to it as <strong>{{previous_names | first}}</strong> in the <a href="/docs/guides/filtering-data/#filtering-with-the-integrations-object">Integrations object</a> </li>{%endif%}
+  {% endif %}
+  {% if connectionModes.cloud.web == true %}
+    {% unless connectionModes.cloud.mobile == true or connectionModes.cloud.server == true or connectionModes.device.web == true or connectionModes.device.mobile == true or connectionModes.device.server == true %}
+      <li>This destination is not compatible with <a href="/docs/connections/functions/insert-functions/">Destination Insert Functions.</a></li>
+      {% endunless %}    
+    {% endif %}
+  {% unless page.id == '66b1f528d26440823fb27af9' %}{% if destinationInfo.partnerOwned == true %}
+    <li>This integration is <strong>partner owned</strong>. Please reach out to the partner's support for any issues.</li>
+    {% endif %}{% endunless %}
+  {% if thisDestination == '64c031541451bb784943f809' or thisDestination == '63e42d44b0a59908dc4cacc6' or thisDestination == '642440d46b66b3eeac42b581' %} <li>This destination is <b>not</b> supported in EU workspaces. For more information, see the <a href="/docs/guides/regional-segment/">Regional Segment</a> documentation.</li> {% endif %}
+  {% if destinationInfo.status == "PUBLIC_BETA" %}<li>This destination is in <span class="release-pill">Beta</span></li>{% endif %}
+  {% if page.engage == true %}<li>This destination is <b>only</b> compatible with <a href="/docs/engage">Twilio Engage</a>.</li>{% endif %}
+</ul>
+{% if components.size > 0%}
+{% unless page.hide-components %}
+<h6>Components</h6>
+<ul class="components-list">
+{%for component in components %}
+{% unless component.code contains "/segmentio/" %}
+<li><a href="{{component.code}}" target="_blank">{% if component.type == "IOS" %}iOS{%else%}{{component.type | capitalize}}{%endif%}</a></li>
+{% else %}
+<li>{% if component.type == "IOS" %}iOS{%else%}{{component.type | capitalize}}{%endif%}</li>
+{% endunless %}
+{% endfor %}
+</ul>
+{% endunless %}
+</div>
+{% unless page.hide-cmodes or page.engage %}
+<div class="qi-content">
+<h6>Connection Modes <a href="/docs/connections/destinations/#connection-modes"><img src="/docs/images/help.svg"/></a></h6>
+<table>
+<thead>
+  <tr>
+    <th>Device-mode</th>
+    <th>Cloud-mode</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td> {% if connectionModes.device.web == true %} <img src="/docs/images/supported.svg" /> {% else %}<img src="/docs/images/unsupported.svg" />{% endif %} Web</td>
+    <td> {% if connectionModes.cloud.web == true %} <img src="/docs/images/supported.svg" /> {% else %}<img src="/docs/images/unsupported.svg" />{% endif %} Web</td>
+  </tr>
+  <tr>
+    <td>{% if connectionModes.device.mobile == true %} <img src="/docs/images/supported.svg" /> {% else %}<img src="/docs/images/unsupported.svg" />{% endif %} Mobile</td>
+    <td>{% if connectionModes.cloud.mobile == true %} <img src="/docs/images/supported.svg" /> {% else %}<img src="/docs/images/unsupported.svg" />{% endif %} Mobile</td>
+  </tr>
+  <tr>
+    <td> <img src="/docs/images/unsupported.svg" /> Server</td>
+    <td> {% if connectionModes.cloud.server == true %} <img src="/docs/images/supported.svg" /> {% else %}<img src="/docs/images/unsupported.svg" />{% endif %} Server</td>
+  </tr>
+</tbody>
+</table>
+</div>
+{% endunless %}
+{% endif %}
+</div>
+
+{% endif %}

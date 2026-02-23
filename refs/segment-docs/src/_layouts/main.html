@@ -1,0 +1,28 @@
+---
+layout: default
+---
+
+<div class="docs">
+  <div class="stage">
+    <div class="docs__aside stage__aside">
+      <div class="docs__logotype">
+        {% include_cached navbar/logo.html %}
+      </div>
+
+      {% assign currentPage = page.url | downcase | split: "/" %}
+      {% if currentPage[1] == 'glossary' %}
+        {% include menu/menu-glossary.html %}
+      {% elsif currentPage[1] == 'partners' %}
+        {% include menu/menu-partners.html %}
+      {% else %}
+        {% include menu/menu.html %}
+      {% endif %}
+    </div>
+
+    {{ content }}
+  </div>
+
+  <footer>
+    {% include_cached components/footer.html %}
+  </footer>
+</div>

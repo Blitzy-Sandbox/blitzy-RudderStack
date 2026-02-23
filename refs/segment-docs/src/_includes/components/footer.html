@@ -1,0 +1,74 @@
+<div class="footer">
+  <div class="footer__container">
+    {% include icons/segment.svg %}
+    <div class="footer__content">
+      <div class="flex flex--wrap waffle waffle--large">
+        {% for nav in site.data.nav.sections %}
+          <div class="flex__column">
+            <div class="nav">
+              <p class="nav__title">{{ nav.section_title }}</p>
+
+              <ul class="nav-list flex flex--stack waffle">
+                {% for item in nav.section %}
+                  <li>
+                    <a class="nav-list__link" href="{{ item.path }}">{{ item.title }}</a>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>  
+  </div>
+
+  <div class="footer__aside">
+    <div class="footer__container">
+      <div class="footer__body flex flex--inline flex--stack flex--queue@large waffle waffle--large">
+        <div class="flex__column">
+          <div class="nav">
+            <ul class="nav-list flex flex--stack flex--queue@large waffle waffle--xlarge@large">
+              <li class="flex__column flex__column--shrink">
+                <p>© {{ site.time | date: "%Y" }} Twilio Inc. All Rights Reserved. </p>
+              </li>
+              
+              <li class="flex__column flex__column--shrink">
+                <a class="nav-list__link" href="https://www.twilio.com/en-us/legal/privacy">Privacy</a>
+              </li>
+
+              <li class="flex__column flex__column--shrink">
+                <a class="nav-list__link" href="https://www.twilio.com/en-us/legal/tos">Terms</a>
+              </li>
+
+              <li class="flex__column flex__column--shrink">
+                <a class="nav-list__link" href="#" id="open-consent-manager">Website Data Collection</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="flex__column flex__column--shrink">
+          <ul class="social-list social-list--dark flex flex--inline flex--middle gutter gutter--xlarge">
+            <li>
+              <a href="https://www.linkedin.com/company/segment-io/" class="social-list__link">
+                {% include icons/socials/linkedin.svg %}
+              </a>
+            </li>
+
+            <li>
+              <a href="https://x.com/segment" class="social-list__link">
+                {% include icons/socials/x.svg %}
+              </a>
+            </li>
+
+            <li>
+              <a href="https://github.com/segmentio" class="social-list__link">
+                {% include icons/socials/github.svg %}
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

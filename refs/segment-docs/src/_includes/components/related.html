@@ -1,0 +1,11 @@
+<h2 id="further-reading">Further reading</h2>
+
+<div class="related-list">
+  {% for related_url in include.items %}
+    {% assign subpage = site.pages | where: 'url', related_url | first %}
+
+    {% if subpage.title %}
+      {% include components/reference-button.html variant="related" href=subpage.url icon=subpage.icon title=subpage.title description=subpage.excerpt %}
+    {% endif %}
+  {% endfor %}
+</div>

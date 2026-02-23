@@ -1,0 +1,11 @@
+<div class="list-steps">
+  <div class="list-steps__number">{{ include.number }}</div>
+
+  <div class="list-steps__content">
+    {% if include.heading %}
+      <h5 class="list-steps__heading">{{ include.heading }}</h5>
+    {% endif %}
+
+    <p>{{ include.content | markdownify }}</p>
+  </div>
+</div>

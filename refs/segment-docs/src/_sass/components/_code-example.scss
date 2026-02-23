@@ -1,0 +1,49 @@
+.code-example {
+  &__nav {
+    $nav: &;
+
+    & > * + * {
+      margin-left: 10px;
+    }
+
+    &-item {
+      border-radius: 4px;
+
+      $item: &;
+
+      &--active {
+        background-color: color(primary-lighter);
+
+        #{$nav}-link {
+          color: color(primary);
+        }
+      }
+    }
+
+    &-link {
+      padding: 8px 16px;
+      display: block;
+      color: color(gray-700);
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 500;
+
+      &:hover {
+        color: color(primary);
+        text-decoration: none;
+      }
+    }
+  }
+
+  &__tab {
+    display: none;
+
+    &--active {
+      display: block;
+    }
+  }
+
+  &__body {
+    margin-top: 15px;
+  }
+}

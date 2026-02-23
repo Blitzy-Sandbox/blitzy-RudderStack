@@ -1,0 +1,6 @@
+extends: existence
+message: 'Link to Segment docs "%s" should be relative.'
+level: warning
+scope: raw
+raw:
+  - '(segment.com\/docs.[^)]*)'

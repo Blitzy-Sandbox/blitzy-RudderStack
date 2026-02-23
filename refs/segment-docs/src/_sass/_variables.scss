@@ -1,0 +1,162 @@
+/// Collection of colors.
+///
+/// @type {Map}
+$color-values: (
+  primary-lighter: #ebf0ff,
+  primary-light: #d6e0ff,
+  primary: #3366ff,
+  primary-dark: #2952cc,
+  secondary-light: #dcf2ea,
+  secondary: #52bd94,
+  secondary-dark: #317159,
+  twilio-red: #ef373c,
+  twilio-secondary: #000434,
+
+  gray-900: #101840,
+  gray-800: #474d66,
+  gray-700: #696f8c,
+  gray-600: #8f95b2,
+  gray-500: #c1c4d6,
+  gray-400: #d8dae5,
+  gray-300: #e6e8f0,
+  gray-200: #edeff5,
+  gray-100: #f4f6fa,
+  gray-50: #fafbff,
+
+  code-gray: #474d66,   
+  code-green: #6fba97,
+  code-blue: #2e98df,
+  code-violet: #9166ca,
+  code-pink: #ff678d,
+  code-red: #d52039,
+  code-orange: #f89c56,
+  code-background: #eceef0,
+
+  info-light: #f3f6ff,
+  info: #3366ff,
+  info-dark: #2952cc,
+  success-light: #f5fbf8,
+  success: #52bd94,
+  success-dark: #317159,
+  warning-light: #FFFAF1,
+  warning: #ffb020,
+  warning-dark: #996A13,
+  error-light: #fdf4f4,
+  error: #d14343,
+  error-dark: #a73636,
+  
+  black: #000000,
+  white: #ffffff
+) !default;
+
+/// Collection of breakpoints.
+///
+/// @type {Map}
+$breakpoint-sizes: (
+  xsmall: 420px,
+  small: 576px,
+  medium: 768px,
+  large: 992px,
+  xlarge: 1200px,
+  xxlarge: 1440px
+) !default;
+
+/// Collection of flex sizes by breakpoint.
+///
+/// @type {Map}
+$flex-sizes: (
+  xsmall: 420px,
+  small: 576px,
+  medium: 768px,
+  large: 992px,
+  xlarge: 1200px,
+  xxlarge: 1440px
+) !default;
+
+/// Number of columns per flex.
+///
+/// @type {Number}
+$flex-columns: 12 !default;
+
+/// Collection of gutter sizes.
+///
+/// @type {Map}
+$gutter-sizes: (
+  none: 0,
+  small: 0.3rem,
+  medium: 0.5rem,
+  large: 1rem,
+  xlarge: 1.5rem,
+) !default;
+
+/// Default gutter size.
+///
+/// @type {Keyword}
+$gutter-size: medium !default;
+
+/// Collection of waffle sizes.
+///
+/// @type {Map}
+$waffle-sizes: (
+  none: 0,
+  small: 0.3rem,
+  medium: 0.5rem,
+  large: 1rem,
+  xlarge: 1.5rem,
+  xxlarge: 3rem,
+) !default;
+
+/// Default gutter size.
+///
+/// @type {Keyword}
+$waffle-size: medium !default;
+
+/// Offset value between breakpoints ranges.
+///
+/// @type {Value}
+$breakpoint-offset: 1px;
+
+/// Base font size set on the root html element.
+///
+/// @type {Value}
+$font-size: 16px !default;
+
+/// Base font weight set on the root html element.
+///
+/// @type {Value}
+$font-weight: 400 !default;
+
+/// Base line height determines the basic unit of vertical rhythm.
+///
+/// @type {Number}
+$font-line-height: 26px !default;
+
+/// Base font size set on the root html element.
+///
+/// @type {Color}
+$font-color: map-get($color-values, gray-800) !default;
+
+/// Default font family.
+///
+/// @type {Value|Values}
+$font-family-primary: "Twilio Sans Text", "SF Pro Text", BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif !default;
+
+/// Monospace font family.
+///
+/// @type {Value|Values}
+$font-family-monospace: "Twilio Sans Mono", "Droid Sans Mono", "Lucida Console", "Monaco", monospace !default;
+
+/// Font weight of headings.
+///
+/// @type {Number|Keyword}
+$heading-font-weight: 500 !default;
+
+/// Font family of headings.
+///
+/// @type {Keyword|Values}
+$heading-font-family: "Twilio Sans Text", "SF Pro Text", sans-serif !default;
+
+/// Color of headings.
+///
+/// @type {Color}
+$heading-color: map-get($color-values, gray-900) !default;

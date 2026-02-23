@@ -1,0 +1,31 @@
+<div class="widget">
+  <p class="widget__heading">Was this page helpful?</p>
+
+  <div class="flex">
+    <div class="flex__column flex__column--6">
+      <button class="feedback-box__button button button-fill button-fill--white gutter gutter--small" data-section="right-bar" data-feedback-button="helpful" data-active-class="button-fill--secondary">
+        <span class="button__icon">
+          {% include icons/symbols/thumb-up.svg %}
+        </span>
+
+        <span>Yes</span>
+      </button>
+    </div>
+
+    <div class="flex__column flex__column--6">
+      <button class="feedback-box__button button button-fill button-fill--white gutter gutter--small" data-section="right-nav" data-feedback-button="unhelpful" data-active-class="button-fill--gray">
+        <span class="button__icon">
+          {% include icons/symbols/thumb-down.svg %}
+        </span>
+
+        <span>No</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="widget__content" data-feedback-content hidden>
+    <p>Thanks for your feedback!</p>
+
+    <p>Can we improve<br> this doc? <br><a href="#" data-feedback-button="alternate">Send us feedback!</a></p>
+  </div>
+</div>

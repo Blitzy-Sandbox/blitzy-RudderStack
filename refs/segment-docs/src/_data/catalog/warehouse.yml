@@ -1,0 +1,223 @@
+# Manually generated
+items:
+- display_name: Amazon S3
+  slug: amazon-s3
+  name: catalog/warehouses/amazon-s3
+  description: >-
+    Our Amazon S3 copies our log files of your raw API calls from our S3 bucket
+    to yours, where you can then perform custom analysis on them.
+  url: connections/storage/catalog/amazon-s3
+  status: DEPRECATED
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo:
+    url: 'https://d3hotuclm6if1r.cloudfront.net/logos/amazon-s3-default.svg'
+  mark:
+    url: 'https://cdn.filepicker.io/api/file/R1EKddJ1SnGECiHtdUlY'
+- display_name: AWS S3
+  slug: aws-s3
+  name: catalog/warehouses/aws-s3
+  description: >-
+    The AWS S3 destination provides a more secure way to store data in your AWS S3 buckets.
+  url: connections/storage/catalog/aws-s3
+  status: PUBLIC
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo:
+    url: 'https://d3hotuclm6if1r.cloudfront.net/logos/amazon-s3-default.svg'
+  mark:
+    url: 'https://cdn.filepicker.io/api/file/R1EKddJ1SnGECiHtdUlY'
+- display_name: Azure Synapse Analytics Warehouse
+  slug: azuresqldw
+  name: catalog/warehouses/azuresqldw
+  description: ''
+  url: connections/storage/catalog/azuresqldw
+  status: PUBLIC
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo:
+    url: 'https://cdn.filepicker.io/api/file/VKbuWjNjQPKOnOWijFe4'
+  mark:
+    url: 'https://cdn.filepicker.io/api/file/EUJvt69Q7qMqCvGrVtiu'
+  categories:
+    - Warehouses
+- display_name: BigQuery
+  slug: bigquery
+  name: catalog/warehouses/bigquery
+  description: ''
+  url: connections/storage/catalog/bigquery
+  status: PUBLIC
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo:
+    url: 'https://cdn.filepicker.io/api/file/bDzeRa75SZc6FfgfoUK6'
+  mark:
+    url: 'https://cdn.filepicker.io/api/file/Vk6iFlMvQeynbg30ZEtt'
+  categories:
+    - Warehouses
+- display_name: Databricks 
+  slug: databricks
+  name: catalog/warehouses/databricks
+  description: ''
+  url: connections/storage/catalog/databricks
+  status: PUBLIC
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo: 
+    url: 'https://images.ctfassets.net/h6ufgtwb6nv1/4vYEAgYz6nGLC9F64Jxeb6/fcf3ecdae5386f806ae72eb39ce07094/db.svg?w=256&q=75'
+  mark: 
+    url: ''
+  categories: 
+    - Warehouses
+- display_name: Google Cloud Storage
+  slug: google-cloud-storage
+  name: catalog/warehouses/google-cloud-storage
+  description: ''
+  url: connections/storage/catalog/google-cloud-storage
+  status: PUBLIC_BETA
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo:
+    url: 'https://cdn.filepicker.io/api/file/G6kRHZtSoaEslLkENhPC'
+  mark:
+    url: ''
+  categories:
+    - Warehouses
+- display_name: IBM Db2 Warehouse
+  slug: db2
+  name: catalog/warehouses/db2
+  description: ''
+  url: connections/storage/catalog/db2
+  status: PUBLIC
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo:
+    url: 'https://image.ibb.co/i4rS3K/IBM_Db2_logotype_pos_RGB.jpg'
+  mark:
+    url: ''
+  categories:
+    - Warehouses
+- display_name: Postgres
+  slug: postgres
+  name: catalog/warehouses/postgres
+  description: ''
+  url: connections/storage/catalog/postgres
+  status: PUBLIC
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo:
+    url: 'https://d3hotuclm6if1r.cloudfront.net/logos/postgres-default.svg'
+  mark:
+    url: ''
+  categories:
+    - Warehouses
+- display_name: Redshift
+  slug: redshift
+  name: catalog/warehouses/redshift
+  description: ''
+  url: connections/storage/catalog/redshift
+  status: PUBLIC
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo:
+    url: 'https://d3hotuclm6if1r.cloudfront.net/logos/redshift-default.svg'
+  mark:
+    url: ''
+  categories:
+    - Warehouses
+- display_name: Segment Data Lakes
+  slug: data-lakes
+  name: catalog/warehouse/data-lakes
+  description: ''
+  url: connections/storage/catalog/data-lakes
+  status: PUBLIC
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo:
+    url: 'https://cdn.filepicker.io/api/file/YR7dKXAiQWyYvBiVOZNX'
+  mark:
+    url: 'https://cdn.filepicker.io/api/file/zKQw43MuQjmTtXBXs4VL'
+  categories:
+    - Warehouses
+- display_name: Snowflake
+  slug: snowflake
+  name: catalog/warehouses/snowflake
+  description: ''
+  url: connections/storage/catalog/snowflake
+  status: PUBLIC
+  endpoints:
+  - us
+  - eu
+  regions:
+  - us
+  - eu
+  logo:
+    url: 'https://cdn.filepicker.io/api/file/JrQWOYvMRRCVvSHp4HL0'
+  mark:
+    url: 'https://cdn.filepicker.io/api/file/OBhrGoCRKaSyvAhDX3fw'
+  categories:
+    - Warehouses
+
+  settings:
+  - name: bucket
+    display_name: Bucket Name
+    type: STRING
+    deprecated: false
+    required: true
+    string_validators:
+      regexp: ''
+    description: Your S3 bucket name.
+    settings: []
+  - name: useServerSideEncryption
+    display_name: Use Server Side Encryption?
+    type: BOOLEAN
+    deprecated: false
+    required: false
+    description: >-
+      If you enable this setting, the data we copy to your bucket will be
+      encrypted at rest using S3-Managed  encryption keys. For more information,
+      see
+      [here](https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html).
+    settings: []
+  previous_names:
+  - Amazon S3

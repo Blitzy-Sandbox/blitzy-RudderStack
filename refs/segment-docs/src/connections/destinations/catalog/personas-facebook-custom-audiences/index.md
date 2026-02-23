@@ -1,0 +1,149 @@
+---
+title: 'Facebook Custom Audiences Destination'
+strat: facebook
+hide-boilerplate: true
+redirect_from: '/connections/destinations/catalog/personas-facebook-ads/'
+id: 5a4d24dcc5836400017188f6
+engage: true
+---
+## Overview
+
+The Facebook Custom Audiences Destination is one of the most popular Engage Destinations. It has a variety of use cases related to suppression, acquisition (using lookalikes), retargeting, and more.
+
+This Destination can send audiences (lists of users) created in Engage to Facebook Custom Audiences as a **User-List**. Once you set this up, Segment sends an initial list of users to Facebook, and then keeps it up-to-date as new users enter or exit that audience.
+
+This allows you to run advertising campaigns in Facebook without having to manually find and upload a refreshed a csv of users. We currently support Facebook Custom Audiences for Known Users.
+
+
+## Other Facebook Destinations Supported by Segment
+This page is about the **Facebook Custom Audiences** destination developed specifically for use with [Engage](/docs/engage/). No other sources support this destination. For documentation on other Facebook destinations, see the pages linked below.
+
+| **Facebook Destination**                                                                                                      | Supported by Engage |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| **[Facebook App Events](/docs/connections/destinations/catalog/facebook-app-events/){:target="_blank"}**                      | Yes                 |
+| **[Facebook Offline Conversions](/docs/connections/destinations/catalog/facebook-offline-conversions/){:target="_blank"}**    | Yes                 |
+| **[Facebook Pixel](/docs/connections/destinations/catalog/facebook-pixel/){:target="_blank"}**                                | No                  |
+| **[Facebook Custom Audiences](/docs/connections/destinations/catalog/personas-facebook-custom-audiences/){:target="_blank"}** | Yes                 |
+| **[Facebook Conversions API](/docs/connections/destinations/catalog/actions-facebook-conversions-api/){:target="_blank"}**    | Yes                 |
+
+<!-- TODO: make this an include --->
+
+## Details
+
+
+- **Supports Engage**: Yes
+- **Engage Destination type**: List
+- **Must create audience_name field before Engage can update those values?**: No, Engage creates the audience for you.
+- **Audience appears as**: As a Facebook Custom Audience
+- **Destination rate limit**: None
+- **Lookback window allowed**: Yes
+- **Identifiers required** : Email or Mobile Device ID (IDFA)
+- **Identifiers accepted** : Email and Mobile Device ID (IDFA). Other identifiers can be sent through [Additional Traits Matching](#additional-traits-matching).
+- **Client or Server-Side Connection**: Server-side
+- **Minimum audience size required**: 100
+
+## Use Cases: Known Users
+
+Facebook Custom Audiences allows you to efficiently run several marketing and advertising operations. The list below contains the most popular use cases when you know personally identifiable information (PII) about your users, such as email address, name, phone number, etc. Facebook takes the data that you send to Facebook Custom Audiences and matches it to the users that are on Facebook to enable these use cases.
+
+1. **Suppression Audiences.** Create an audience of users that signed up, purchased a product, or otherwise performed some conversion event. Getting those users into Facebook in a timely manner (hourly syncs) prevents you from spending money targeting users that already converted. You can do this by creating an Audience in Engage, and syncing it to the Facebook Custom Audience Destination.
+
+2. **Lookalikes & Seed Audiences.** You can use Engage to create a detailed profile of your most loyal customers (sometimes called a “seed audience”) and then send this list of customers to Facebook. In Facebook, you can then use Facebook's lookalike audiencing features to find similar users to target. For example, you might want to create a group of high-value users that have spent a certain amount of money on your product, and then use Facebook audiences to find similar users.
+
+3. **Re-targeting Audiences.** You can use Engage to target users who completed some initial action, but didn't follow through on a purchase or other conversion event. You can create audiences to re-target these individuals and remind them to complete the purchase or other process.
+
+## Use Cases - Anonymous Users (Facebook Pixel support only)
+
+Sometimes, users visit your website and perform high-intent activities such as looking at a product or pricing page multiple times, but they don't convert (buy), and they don't provide any personally identifiable information so you can contact them.
+
+Facebook offers the Facebook Pixel, which allows you to retarget these types of anonymous users with advertising. This works by identifying users based on a cookie set in their browser. You can create a Website Custom Audience in Facebook for this use case.
+
+## How it works
+
+**Every time you create an audience in Engage and connect it to Engage Facebook Custom Audiences, Segment does the following**:
+
+1. Creates a Facebook Custom Audience (of type Customer List) with a name that matches the Engage Audience.
+2. Adds any users that fit the audience definition, based on the matching identifiers that Facebook supports (hashed). Facebook uses these identifiers to match users to Facebook users in their ads system.
+3. Once the audience is configured, Segment checks which users still fit the audience definition based on the same identifiers, and adds or remove users from the audience, every hour.
+{% include content/sync-frequency-note.md %}
+> success "Tip:"
+> You can use the Audience History feature in Facebook to see this change over time.
+
+
+## Set up
+
+> success ""
+> Before you start, make sure you have a Facebook Ads account with “Advertiser” or “Admin” access to link Engage to Facebook Ads.
+
+### 1. Authorize Facebook Custom Audiences
+
+- Go to your Space in your Segment Workspace and click Engage Settings.
+- Go to the Destinations tab and click “Add Destination”. 
+- Select the Facebook Custom Audiences option, and click **Configure Facebook Custom Audiences**.
+- Authorize Facebook Ads and select a Facebook account ID to sync to.
+
+> info ""
+> Add the destination within the Engage space and not through the connections pipeline to ensure proper configuration.
+
+### 2. Create an audience in Engage & connect to Facebook
+
+- Go to the Audience Builder in Engage and create a new Audience with your desired event and trait criteria.
+- Go to your Space, and select the Facebook destination you added to connect the audience to Facebook.
+- Give the audience a name and description, and click **Create**.
+- Your audience starts syncing from Engage to Facebook Ads.
+
+> info ""
+> If you change the name of the audience in Engage, it will not be reflected in Facebook.
+
+### 3. Verify that the audience appears in Facebook
+
+Once created, the audience should be available in Facebook in ten minutes unless it's unusually large.
+
+- From within Facebook Ads, go to **Business Manager > All tools > Assets > Audiences**.
+- Click the Facebook audience name that matches your Engage audience name, and check **Audience History** to see how many users were added.
+
+![A screenshot of the Audiences page in Facebook Ads.](images/fb_ca_final.png)
+
+
+## Additional Traits Matching
+
+[Trait Enrichment](/docs/engage/trait-activation/trait-enrichment/) allows you to send an expanded list of identifiers or traits to Facebook, so that Facebook can try to use these additional data points to match to their user profiles. If you have this feature enabled and implemented any of these traits in your Segment tracking, Engage can send this data to Facebook. Segment can now also sync multiple emails if the profile contains more than one. Additionally as part of this feature, Segment hashes fields before sending them downstream to Facebook, if required. (See the table below for hashing requirements.) Note that the trait data implemented in your Segment tracking must match the naming convention and format specified in the table below, otherwise Segment can't send it to Facebook.
+
+
+| **Name**    | **Trait Key formats supported**                              | **Facebook Keys**  | **FB Hashing Required** | **FB Guidelines**     |
+| ----------- | ------------------------------------------------------------ | -------------------- | ----------------------- | --------------------- |
+| Email       |                                                              | EMAIL                | Yes (Segment does the hashing for you. In case you are *already* hashing emails, emails will get sent to Facebook double-hashed. Facebook will still match on double-hashed emails, but this is *not* recommended.                  | Trim leading, trail whitespace, and convert all characters to lowercase.                                                                                  |
+| Mobile ID   |                                                              | MADID                | No                  | Use all lowercase, keep hyphens.                                                                                                                          |
+| First Name  | first_name<br>firstname<br>firstName<br>first                | FN                   | Yes                 | Use `a`-`z` only. Lowercase only, no punctuation. Special characters in UTF8 format.                                                                      |
+| Last Name   | last_name<br>lastname<br>lastName<br>last                    | LN                   | Yes                 | Use `a`-`z` only. Lowercase only, no punctuation. Special characters in UTF8 format.                                                                      |
+| Phone       | phone<br>phone_number<br>phonenumber<br>phoneNumber          | PHONE (+12023095976) | Yes                 | Remove symbols, letters, and any leading zeroes. You should prefix the country code if `COUNTRY` field is not specified.                                  |
+| Gender      | gender<br>gen                                                | GEN                  | Yes                 | Use these values: `m` for male and `f` for female.                                                                                                        |
+| Birth Year  | birth_year                                                   | DOBY                 | Yes                 | Use the YYYY format from 1900 to current year.                                                                                                            |
+| Birth Month | birth_month                                                  | DOBM                 | Yes                 | Use the MM format: `01` to `12`.                                                                                                                          |
+| Birth Day   | birthday<br>birth_day<br>date_of_birth<br>DOB<br>dateOfBirth | DOBD                 | Yes                 | Use the DD format: `01` to `31`.                                                                                                                          |
+| State       | state<br>address_state                                       | ST                   | Yes                 | Use the 2-character ANSI abbreviation code, lowercase. Normalize states outside U.S. in lowercase, no punctuation, no special characters, no white space. |
+| City        | city<br>address_city                                         | CT                   | Yes                 | Use `a`-`z` only. Lowercase only, no punctuation, no special characters, no white space.                                                                  |
+| Zipcode     | zip<br>zip_code<br>zipCode                                   | ZIP                  | Yes                 | Use lowercase, no white space. Use only the first 5 digits for U.S. Use Area/District/Sector format for the UK.                                           |
+| Country     | country_code<br>countryCode                                  | COUNTRY              | Yes                 | Use 2-letter country codes (lowercase) in ISO 3166-1 alpha-2.                                                                                             |
+
+
+## Troubleshooting
+
+### Not seeing an audience in Facebook
+
+If syncs to the destination are failing, this might be due to an authorization error. Whoever created the destination account needs to accept the TOS. The account manager then needs to log in to their Facebook account, navigate to **Audiences > Search Audience** and click **Accept Terms**.
+
+### Audience size smaller than expected
+
+Segment sends lists of users with identifiers that Facebook supports to Facebook. The matching logic itself occurs within Facebook. Facebook is more likely to be able to match a user profile if you track as many identifiers as possible, including email, mobile advertising identifiers (IDFA, Google advertising ID), and others. If Facebook is unable to identify users based on the data that you provide, then the match rate will be low.
+
+For example, many B2B SaaS businesses have users that sign up for their products with a work email address, like `jane.doe@segment.com`. However, most Facebook users sign up for Facebook with a personal email only, like `janedoe@gmail.com`. If you only provide the work email address, and no other identifiers, then Facebook can't match your user to the Jane Doe Facebook profile. This is the case for all identifiers - Facebook must have the identifier somewhere in a user's profile, or else they can't match on it.
+
+### Why are all of my audiences connected to Facebook failing with an 'Internal Error' message?
+
+Most likely, this is due to your Facebook account needing to be reauthorized, sometimes due to a password change. Reauthorize the Facebook destination connection. If the error persists, contact Segment Support.
+
+Note, emails must be in a plain text format. Facebook also provides these guidelines for the emails that you send to them: trim leading, trail whitespace, and convert all characters to lowercase.
+
+### Do you support LTV audiences?
+Facebook has a feature called [value-based audiences](https://developers.facebook.com/docs/marketing-api/audiences/guides/value-based-lookalike-audiences/){:target="_blank"} where you can send an additional field like LTV, to tell Facebook how to optimize their advertising based on a customer's value. The Facebook Custom Audiences destination does not support value based audiences. If you're interested in this feature, [contact Segment support](https://segment.com/help/contact/){:target="_blank"}.

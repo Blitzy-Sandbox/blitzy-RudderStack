@@ -1,0 +1,53 @@
+.field {
+  $this: &;
+
+  position: relative;
+
+  &__input {
+    display: block;
+    padding: 8px 14px;
+  }
+
+  &--expand {
+    #{$this}__input {
+      width: 100%;
+    }
+  }
+
+  &--icon {
+    position: relative;
+    z-index: 0;
+
+    #{$this}__input {
+      padding-left: 32px;
+      padding-right: 32px;
+    }
+
+    #{$this}__icon {
+      position: absolute;
+      top: 50%;
+      z-index: 1;
+      max-width: 12px;
+      max-height: 12px;
+      color: color(gray-600);
+      transform: translateY(-50%);
+
+      &--left {
+        left: 12px;
+      }
+
+      &--right {
+        right: 12px;
+      }
+    }
+
+    #{$this}__button {
+      color: color(gray-700);
+      cursor: pointer;
+
+      @include breakpoint(large up)  {
+        display: none;
+      }
+    }
+  }
+}

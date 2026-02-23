@@ -1,0 +1,46 @@
+.footer {
+  padding-top: 20px;
+  background-color: color(gray-900);
+  font-size: 16px;
+  color: color(white);
+  text-align: center;
+
+  @include breakpoint(large up)  {
+    padding-top: 60px;
+    text-align: left;
+  }
+
+  &__container {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+
+  &__content {
+    display: none;
+
+    @include breakpoint(large up)  {
+      display: block;
+      margin-top: 80px;
+    }
+  }
+
+  &__aside {
+    padding: 32px 0;
+
+    @include breakpoint(large up)  {
+      border-top: 1px solid color(gray-800);
+      margin-top: 60px;
+    }
+  }
+
+  &__body {
+    @include breakpoint(large up)  {
+      width: 100%;
+    }
+  }
+}

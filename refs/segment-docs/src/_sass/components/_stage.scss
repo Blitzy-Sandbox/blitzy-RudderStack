@@ -1,0 +1,26 @@
+.stage {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  @include breakpoint(large up) {
+    min-height: calc(100vh - 475px); /* height of footer */
+  }
+
+  &__aside {
+    display: none;
+    flex: 0 0 216px;
+    max-width: 216px;
+
+    @include breakpoint(large up) {
+      display: block;
+    }
+  }
+
+  &__body {
+    flex: 1;
+    max-width: 100%;
+    min-width: 0;
+  }
+}

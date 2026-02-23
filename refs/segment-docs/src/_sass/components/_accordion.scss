@@ -1,0 +1,71 @@
+.accordion {
+  $this: &;
+
+  &__item {
+    margin-top: 25px;
+
+    & + & {
+      border-top: 1px solid color(gray-300);
+      margin-top: 0;
+    }
+  }
+
+  &__heading {
+    padding-right: 20px;
+    font-size: 16px;
+    font-weight: 500;
+    color: color(gray-800);
+    line-height: 1.71;
+    position: relative;
+    margin: 17px 0;
+    cursor: pointer;
+
+    @include breakpoint(medium up)  {
+      padding-right: 40px;
+    }
+  }
+
+  &__body {
+    display: none;
+    padding-bottom: 20px;
+
+    @include breakpoint(medium up)  {
+      padding-right: 45px;
+    }
+  }
+
+  &__link {
+    display: inline-block;
+    margin-top: 7px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: underline;
+  }
+
+  &__icon {
+    width: 10px;
+    color: color(gray-600);
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+
+    @include breakpoint(medium up)  {
+      right: 20px;
+    }
+  }
+
+  &--active {
+    #{$this}__icon {
+      transform: translateY(-50%) rotate(180deg);
+    }
+
+    #{$this}__heading {
+      margin-bottom: 12px;
+    }
+
+    #{$this}__body {
+      display: block;
+    }
+  }
+}

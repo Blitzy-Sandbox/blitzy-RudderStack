@@ -1,0 +1,431 @@
+# This file is manually generated.
+items:
+- slug: woopra
+  id: 54521fdc25e721e32a72ef05
+  connection_modes:
+    device:
+      web: true
+      mobile: false
+      server: false
+    cloud:
+      web: false
+      mobile: true
+      server: true
+- slug: moengage
+  id: 55b280290a20f4e22f0fb3d6
+  connection_modes:
+    device:
+      web: true
+      mobile: true
+      server: true
+    cloud:
+      web: true
+      mobile: true
+      server: true
+- slug: drip
+  id: 54521fd525e721e32a72eeaa
+  connection_modes:
+    device:
+      web: true
+      mobile: true
+      server: false
+    cloud:
+      web: false
+      mobile: true
+      server: true
+- slug: webengage
+  id: 54521fdc25e721e32a72ef02
+  connection_modes: 
+    device: 
+      web: true
+      mobile: true
+      server: false
+    cloud:
+      web: false
+      mobile: false
+      server: true
+- slug: clevertap
+  id: 5711271880412f644ff13150
+  connection_modes:
+    device:
+      web: true
+      mobile: true
+      server: false
+    cloud:
+      web: false
+      mobile: true
+      server: true
+- slug: criteo-app-web-events
+  id: 5787cc5180412f644ff14d7e
+  connection_modes:
+    device:
+      web: true
+      mobile: false
+      server: false
+    cloud:
+      web: false
+      mobile: true
+      server: false
+- slug: doubleclick-floodlight
+  id: 57ab9dfc80412f644ff2004c
+  connection_modes:
+    device:
+      web: true
+      mobile: false
+      server: false
+    cloud:
+      web: false
+      mobile: true
+      server: true
+- slug: singular
+  id: 5c768ec31413290001ebdd2e
+  connection_modes:
+    device:
+      web: false
+      mobile: true
+      server: false
+    cloud:
+      web: false
+      mobile: true
+      server: false
+- slug: intercom
+  id: 54521fd725e721e32a72eec6
+  connection_modes:
+    device:
+      web: true
+      mobile: true
+      server: false
+    cloud:
+      web: false
+      mobile: true
+      server: true
+- slug: hubspot
+  id: 54521fd725e721e32a72eec1
+  display_name: HubSpot
+  previous_names:
+  - HubSpot
+  components:
+  - type: WEB
+  - type: CLOUD
+  connection_modes:
+    device:
+      web: true
+      mobile: false
+      server: false
+    cloud:
+      web: false
+      mobile: true
+      server: true
+    summary: >-
+      is available in device-mode for Analytics.js only, and is availble in cloud-mode for Mobile and Server sources. Page calls are supported from Device-mode connections only.
+    cmode_type: mixed
+    case: '6'
+- slug: iterable
+  id: 54521fd925e721e32a72eecc
+  display_name: Iterable
+  components:
+  - type: WEB
+  - type: CLOUD
+  connection_modes:
+    device:
+      web: false
+      mobile: false
+      server: false
+    cloud:
+      web: true
+      mobile: true
+      server: true
+    summary: >-
+      accepts cloud-mode data from all Segment source types. It does not offer device-mode connections.
+    cmode_type: mixed
+    case: '5'
+- slug: google-ads-gtag
+  id: 5a03bfe73156760001ab34ec
+  previous_names:
+  - Google AdWords New
+- slug: klaviyo
+  id: 54521fd825e721e32a72eec8
+  display_name: Klaviyo
+  previous_names:
+  - Klaviyo
+  components:
+  - code: 'https://github.com/segment-integrations/analytics.js-integration-klaviyo'
+    type: browser
+  - code: 'https://github.com/segmentio/integrations/tree/master/integrations/klaviyo'
+    type: server
+  connection_modes:
+    device:
+      web: true
+      mobile: false
+      server: false
+    cloud:
+      web: false
+      mobile: true
+      server: true
+    summary: >-
+      accepts data in cloud-mode from web and mobile sources, and can accept data in device-mode from Analytics.js sources.
+    cmode_type: mixed
+    case: '10'
+- slug: friendbuy
+  id: 59ce9468cf711e00014a9c12
+  display_name: Friendbuy (Legacy)
+  name: Friendbuy (Legacy)
+  previous_names:
+  - FriendBuy
+  - Friendbuy (Legacy)
+  components:
+  - code: https://github.com/segment-integrations/analytics.js-integration-friendbuy
+    type: browser
+  connection_modes:
+    device:
+      web: true
+      mobile: false
+      server: false
+    cloud:
+      web: false
+      mobile: false
+      server: false
+    summary: accepts device-mode data only from Analytics.js.
+    cmode_type: device-only
+    case: '2'
+  settings:
+  - name: siteId
+    type: string
+    defaultValue: ''
+    description: >-
+      This is your **Site ID**. It is used to identify your account in our
+      platform so we can properly attribute referral data. You can find your
+      Site ID in the in Friendbuy web application at **Settings > Integration
+      Code**
+    required: true
+    label: Site ID
+  - name: siteWideWidgets
+    type: mixed
+    defaultValue: []
+    description: >-
+      By default, Friendbuy recommends you add a site wide overlay widget. You
+      can enter any of these site wide widgets here and we will load them any
+      time we receive a `.page()` call. *Note*: If you have custom widgets
+      mapped to named pages in the *Widgets* setting and you have provided a
+      site wide widget, we will load both.
+    required: false
+    label: Site Wide Widgets
+  - name: widgets
+    type: mixed
+    defaultValue: []
+    description: Map your page calls to specific FriendBuy Widgets.
+    required: false
+    label: Page Widgets
+- slug: google-ads-classic
+  id: 54521fd525e721e32a72ee92
+  display_name: Google Ads (Classic)
+  name: Google Ads (Classic)
+  hidden: false
+  url: connections/destinations/catalog/google-ads-classic
+  previous_names:
+  - AdWords
+  - Google Ads (Classic)
+  website: https://adwords.google.com
+  status: PUBLIC
+  categories:
+  - Advertising
+  logo:
+    url: https://cdn.filepicker.io/api/file/O54PEswFQAC7ZZDLSBZ5
+  mark:
+    url: https://cdn.filepicker.io/api/file/R5kQQ2DMR0CuNdDbzPvr
+  methods:
+    track: true
+    identify: false
+    group: false
+    alias: false
+    page: true
+  platforms:
+    browser: true
+    mobile: true
+    server: true
+  components:
+  - code: https://github.com/segment-integrations/analytics.js-integration-adwords
+    type: browser
+  - code: >-
+      https://github.com/segmentio/integrations/tree/master/integrations/google-adwords
+    type: server
+  browserUnbundlingSupported: false
+  browserUnbundlingPublic: true
+  replay: false
+  connection_modes:
+    device:
+      web: true
+      mobile: false
+      server: false
+    cloud:
+      web: false
+      mobile: true
+      server: false
+    summary: >-
+      accepts data in cloud-mode from all mobile sources, and can accept data in
+      device-mode from Analytics.js sources.
+    cmode_type: mixed
+    case: '9'
+  settings:
+  - name: conversionId
+    type: string
+    defaultValue: ''
+    description: >-
+      Your AdWords conversion identifier. It looks like `983265867`. You can opt
+      to override this on a per-event basis but at the very least this
+      conversion ID will serve as the ID used in page calls.
+    required: true
+    label: Conversion ID
+  - name: correctLat
+    type: boolean
+    defaultValue: true
+    description: >-
+      Enable this to set Limit Ad Tracking to `true` when
+      context.device.adTrackingEnabled is `false`.
+    required: true
+    label: Correct LAT Behavior
+  - name: eventMappings
+    type: mixed
+    defaultValue: []
+    description: AdWords behavior for each of your Segment Events is defined here.
+    required: true
+    label: Event Mappings
+  - name: linkId
+    type: string
+    defaultValue: ''
+    description: >-
+      The AdWords Link Id associated with Segment. The process for obtaining
+      this can be found
+      [here](https://support.google.com/adwords/answer/7365001). To create this
+      Link Id, you must input Segment's Provider Id: **7552494388**
+
+
+      **Important:** this setting is required only if you are using the new
+      AdWords for mobile implementations.
+    required: true
+    label: Link Id
+  - name: pageRemarketing
+    type: boolean
+    defaultValue: false
+    description: Enable this to send a remarketing tag with your page calls
+    required: true
+    label: Page Remarketing
+  - name: trackAttributionData
+    type: boolean
+    defaultValue: false
+    description: >-
+      If this setting is enabled, Segment will send successfully attributed
+      `Application Installed` events from AdWords as `Install Attributed` events
+      back into this source. These events will contain data about the AdWords
+      campaign that lead to the conversion. You can learn more about these
+      events [here](https://segment.com/docs/spec/mobile/#install-attributed).
+
+
+      **Important:** this feature is only available if you are using the new
+      AdWords version.
+    required: true
+    label: Track Attribution Data
+  - name: version
+    type: select
+    defaultValue: ''
+    description: >-
+      The current version of your AdWords account. If you have migrated your
+      AdWords account to the **new** AdWords interface at any point, you are
+      using version 2. Otherwise, please select version 1.
+    required: true
+    label: Version
+  - name: zeroedAttribution
+    type: boolean
+    defaultValue: false
+    description: >-
+      With the update to use analytics-ios v4.x SDK if adTrackingEnabled is set
+      to false, the advertisingId key will be deleted from the event. These
+      events will fail when sent to Google Adwords. To prevent these event
+      failures in this scenario enable this setting to set the IDFA to be zero'd
+      out (ie. '00000000-0000-0000-0000-000000000000') when sent to Google
+      Adwords. 
+    required: false
+    label: >-
+      Fallback to Zeroed IDFA when advertisingId key not present (Server-Side
+      Only)
+- slug: actions-intercom-web
+  id: 62d9daff84a6bf190da9f592
+  display_name: Intercom Web (Actions)
+  name: Intercom Web (Actions)
+  hidden: false
+  endpoints:
+  - EU
+  - US
+  regions:
+  - us-west-2
+  - eu-west-1
+  url: connections/destinations/catalog/actions-intercom-web
+  previous_names:
+  - Intercom Web (Actions)
+  website: http://www.intercom.com
+  status: PUBLIC
+  categories:
+  - Customer Success
+  - Livechat
+  - Email Marketing
+  logo:
+    url: https://cdn.filepicker.io/api/file/PLYt4sbQsa4vXGtq0oxe
+  mark:
+    url: https://cdn.filepicker.io/api/file/TPPTdCreS9SO46zTF0ax
+  methods:
+    track: true
+    identify: true
+    group: true
+    alias: true
+    screen: false
+    page: true
+  platforms:
+    browser: true
+    mobile: false
+    server: false
+    warehouse: false
+  components: []
+  browserUnbundlingSupported: false
+  browserUnbundlingPublic: false
+  replay: false
+  connection_modes:
+    device:
+      web: false
+      mobile: false
+      server: false
+    cloud:
+      web: true
+      mobile: false
+      server: false
+  settings:
+  - name: activator
+    type: string
+    defaultValue: '#IntercomDefaultWidget'
+    description: >-
+      By default, Intercom will inject their own inbox button onto the page, but
+      you can choose to use your own custom button instead by providing a CSS
+      selector, e.g. #my-button. You must have the "Show the Messenger Launcher"
+      setting disabled for this to work. The default value is
+      #IntercomDefaultWidget.
+    required: true
+    label: Custom Inbox Button Selector
+  - name: apiBase
+    type: select
+    defaultValue: https://api-iam.intercom.io
+    description: The regional API to use for processing the data
+    required: true
+    label: Regional Data Hosting
+  - name: appId
+    type: string
+    defaultValue: ''
+    description: >-
+      The app_id of your Intercom app which will indicate where to store any
+      data.
+    required: true
+    label: App ID
+  - name: richLinkProperties
+    type: array
+    defaultValue: ''
+    description: A list of rich link property keys.
+    required: true
+    label: Rich Link Properties

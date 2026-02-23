@@ -1,0 +1,53 @@
+.docs {
+  &__aside {
+    position: relative;
+    z-index: 0;
+
+    &:after {
+      content: "";
+      display: block;
+      position: absolute;
+      top: 0;
+      right: 0;
+      z-index: -1;
+      width: 100vw;
+      height: 100%;
+      background-color: color(gray-50);
+      border-right: 1px solid color(gray-300);
+    }
+  }
+
+  &__navbar {
+    position: relative;
+    z-index: 1;
+    padding: 16px 40px;
+    display: none;
+
+    @include breakpoint(large up)  {
+      display: block;
+    }
+
+    &:after {
+      content: "";
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -1;
+      width: 100%;
+      height: 100%;
+      background-color: color(gray-50);
+      border-bottom: 1px solid color(gray-300);
+
+      @include breakpoint(xlarge up) {
+        width: 100vw;
+      }
+    }
+  }
+
+  &__sidebar {
+    & > * + * {
+      margin-top: 74px;
+    }
+  }
+}

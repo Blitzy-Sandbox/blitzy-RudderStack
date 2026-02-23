@@ -1,0 +1,8 @@
+.nav-list {
+  padding-left: 0;
+  list-style: none;
+
+  &__link {
+    color: color(gray-600);
+  }
+}

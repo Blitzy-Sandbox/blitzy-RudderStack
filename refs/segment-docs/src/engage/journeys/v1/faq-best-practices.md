@@ -1,0 +1,108 @@
+---
+title: Journeys Best Practices and FAQs
+plan: engage-foundations
+redirect_from:
+  - '/personas/journeys/faq-best-practices/'
+  - '/engage/journeys/faq-best-practices'
+---
+
+## Best practices
+
+### Enforce exclusivity in multi-branch splits
+
+When you create a multi-branch split, do not create overlapping conditions that might lead a user to qualify for more than one step at a time.
+
+For example:
+  - In the case where a multi-branch split is based on the conditions `registration form submitted` and `webinar attended`, a user may satisfy both conditions, and therefore is eligible for both paths.
+  - To set a priority, branch 2 should then be `who performed registration form submitted and did not perform webinar attended` to ensure mutual exclusivity.
+
+### Add time windows whenever possible
+
+Add time windows when defining conditions to enforce funnel constraints in a journey, rather than using an unbounded event condition which operates on the entire history of the user profile. For example, to check if a user has completed an order since receiving an email triggered 7 days ago, use the condition “Order Completed at least 1 time within 7 days.”
+
+### Suppress targeting with journey lists
+
+Unlike lists associated with Engage Audiences, users who are added to a journey list cannot be subsequently removed. Lists are typically associated with advertising campaigns, and you must take additional steps if you wish to ensure that users do not continue to be targeted with ads after they achieve some goal. A typical implementation pattern is:
+1. Use a send to destination step to add users to the initial targeting list.
+2. Create additional journey steps to model the conditions where a user should be removed from targeting. Create a second send to destination step for the removal list.
+3. When configuring targeting conditions in the destination interface, use boolean logic to include only those users who are in the initial list AND NOT in the removal list.
+
+### Review your journey in drafts first
+
+Save your journey in a draft state so that you can review before you publish it. Once you publish a journey, you cannot edit select portions of the journey and Journeys sends data to destinations.
+
+### Know how to incorporate historical data
+
+Aside from the entry condition, all journey step conditions are triggered by future events and existing trait memberships. Event-based conditions only evaluate events that occur *after* the journey is published.
+
+When you [include historical data](/docs/engage/journeys/build-journey/#using-historical-data-for-the-entry-step) in a journey's entry condition, Unify identifies users who previously satisfied the entry condition and adds them to entry. For example, to evaluate if a user has ever used a discount code mid-journey, create and configure a [Computed Trait](/docs/engage/audiences/computed-traits/#conditions) to select for `discount_used = true` to use in your journey.
+
+Including historical data doesn't impact any additional journey steps, however. To include historical data in post-entry conditions, use the following table to identify which conditions will automatically include historical data:
+
+| Condition Type     | Automatic Historical Data Inclusion |
+| ------------------ | ----------------------------------- |
+| Audience Reference | Yes                                 |
+| Computed Trait     | No                                  |
+| Event              | No                                  |
+| Custom Trait       | No                                  |
+
+
+To include historical data based on custom traits or events that predate the journey, first build an Audience that includes the targeted data by following these steps:
+
+1. Create a standard Engage Audience **outside of the Journeys builder**.
+2. Add conditions that include the historical event or custom trait you want to include in the journey.
+3. After you've created the Audience, return to Journeys and create a **Part of an Audience** condition that references the audience you created in Step 2.
+
+For example, to include `custom trait = ABC` in a journey, create an Audience called `ABC` that includes that custom trait, then add the journey condition **Part of Audience** `ABC`.
+
+Using the **Part of Audience** condition, Journeys then populates the custom trait as if it were using historical data.
+
+### Use dev spaces and data warehouse destinations to test journeys
+
+Follow these best practices to test your journeys:
+
+- While in the process of configuring a journey, use dev Spaces to model that journey without affecting production data.
+- Connect a data warehouse to each step of the journey to test for success or failure of that step.
+- For early version journeys, scaffold Send to Destination steps without connecting to your production advertising or messaging destinations.
+- Verify individual users' progress through the journey in the Profile explorer view.
+
+## FAQs
+
+#### How often do Journeys run?
+
+Journeys run in real time, like real-time Audiences in Engage. This means that users will progress through Journeys as Segment receives new events.
+
+#### Can a user re-enter a journey?
+
+Yes. Users must first exit a journey, however, before entering it again. To learn more about journey re-entry, read the [journey re-entry section](/docs/engage/journeys/build-journey/#journey-re-entry) of the [build a Journey](/docs/engage/journeys/build-journey/) page.
+
+#### What destinations does Journeys support?
+
+Journeys supports all Engage destinations, including Destination Functions. Read more in [Send data to destinations](/docs/engage/journeys/send-data/) .
+
+#### What are the reporting capabilities of Journeys?
+
+When building a journey, if you check **Use historical data**, you can see the estimated number of users in the initial cohort.
+
+Once published, Journeys displays the number of users are in each step of the journey at any given time.
+
+#### How are users sent to downstream destinations?
+
+The data type you send to a destination depends on whether the destination is an Event Destination or a List Destination.
+
+#### Which roles can access Journeys?
+For Engage customers, users with either the Engage User or Engage Admin roles can create, edit, and delete journeys. Users with the Engage Read-only role are restricted to view-only access.
+
+#### Why am I seeing duplicate entry or exit events?
+
+Journeys triggers audience or trait-related events for each email `external_id` on a profile. If a profile has two email addresses, you'll see two Audience Entered and two Audience Exited events for each journey step. Journeys sends both email addresses to downstream destinations.
+
+#### How quickly do user profiles move through Journeys?
+
+It may take up to five minutes for a user profile to enter each step of a journey, including the entry condition. For journey steps that reference a batch audience or SQL trait, Journeys processes user profiles at the same rate as the audience or trait computation. Visit the Engage docs to [learn more about compute times](/docs/engage/audiences/#understanding-compute-times).
+
+#### How can I ensure consistent user evaluation in journey entry conditions that use historical data?
+
+When you publish a journey, the entry step begins evaluating users in real time while the historical data backfill runs separately. If a user's events or traits span both real-time and historical data, they might qualify for the journey immediately, even if their full historical data would have disqualified them.
+
+To prevent inconsistencies, you can manually create an audience that includes the same conditions as the journey's entry step. This ensures that it evaluates both real-time and historical data. You can then use this pre-built audience as the journey's entry condition. This approach guarantees that Segment evaluates users consistently across both data sources.
