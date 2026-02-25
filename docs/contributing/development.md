@@ -815,13 +815,15 @@ curl http://localhost:8080/docs
 
 Recommended VS Code extensions for RudderStack development:
 
-| Extension | Purpose |
-|-----------|---------|
-| [Go](https://marketplace.visualstudio.com/items?itemName=golang.go) | Go language support (IntelliSense, debugging, testing) |
-| [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) | Docker Compose and container management |
-| [YAML](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) | YAML language support for config files |
-| [Protocol Buffers](https://marketplace.visualstudio.com/items?itemName=zxh404.vscode-proto3) | Proto3 syntax highlighting and linting |
-| [Mermaid](https://marketplace.visualstudio.com/items?itemName=bierner.markdown-mermaid) | Mermaid diagram preview in Markdown |
+| Extension | Extension ID | Purpose |
+|-----------|-------------|---------|
+| [Go](https://marketplace.visualstudio.com/items?itemName=golang.go) | `golang.go` | Go language support (IntelliSense, debugging, testing) |
+| [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) | `ms-azuretools.vscode-docker` | Docker Compose and container management |
+| [YAML](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) | `redhat.vscode-yaml` | YAML language support for config files |
+| [Protocol Buffers](https://marketplace.visualstudio.com/items?itemName=zxh404.vscode-proto3) | `zxh404.vscode-proto3` | Proto3 syntax highlighting and linting |
+| [Mermaid](https://marketplace.visualstudio.com/items?itemName=bierner.markdown-mermaid) | `bierner.markdown-mermaid` | Mermaid diagram preview in Markdown |
+
+> **Tip:** You can install these extensions directly from the VS Code command palette using `ext install <Extension ID>` (e.g., `ext install golang.go`). The marketplace URLs above require a browser to resolve and may not respond to automated HTTP HEAD requests.
 
 Recommended VS Code `settings.json` configuration:
 

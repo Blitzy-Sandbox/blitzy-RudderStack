@@ -434,10 +434,12 @@ Each warehouse connector has a configurable maximum for concurrent load operatio
 | MSSQL | `Warehouse.mssql.maxParallelLoads` | 3 | Max concurrent bulk inserts |
 | Azure Synapse | `Warehouse.azure_synapse.maxParallelLoads` | 3 | Max concurrent COPY INTO commands |
 | ClickHouse | `Warehouse.clickhouse.maxParallelLoads` | 3 | Max concurrent inserts |
+| Databricks (DeltaLake) | `Warehouse.deltalake.maxParallelLoads` | 8 | Max concurrent COPY INTO / MERGE operations (code-level default) |
+| Datalake (S3/GCS/Azure) | `Warehouse.s3_datalake.maxParallelLoads` | 8 | Max concurrent Parquet file writes (code-level default) |
 
-> Source: config/config.yaml:162–183
+> Source: config/config.yaml:162–183, warehouse/integrations/config/config.go:8–19
 
-**Note:** BigQuery's default of 20 reflects its serverless architecture, which can handle significantly higher concurrency than traditional RDBMS-based warehouses. See [Warehouse Sync Guide](./warehouse-sync.md) for detailed per-connector operational configuration.
+**Note:** BigQuery's default of 20 reflects its serverless architecture, which can handle significantly higher concurrency than traditional RDBMS-based warehouses. Databricks (DeltaLake) and Datalake (S3/GCS/Azure) use the code-level default of 8 as no explicit override is defined in `config/config.yaml`; the Datalake config key shown above (`s3_datalake`) applies to S3-backed datalakes, with `gcs_datalake` and `azure_datalake` variants available for GCS and Azure backends respectively. See [Warehouse Sync Guide](./warehouse-sync.md) for detailed per-connector operational configuration.
 
 ---
 

@@ -491,10 +491,11 @@ dependencies {
     implementation 'com.rudderstack.android.sdk:core:1.+'
 }
 
-// Also add the RudderStack Maven repository if not already present:
+// RudderStack packages are published to Maven Central:
 repositories {
     mavenCentral()
-    maven { url 'https://dl.bintray.com/rudderstack/rudderstack' }
+    // Note: The legacy Bintray repository (dl.bintray.com) was sunset in May 2021.
+    // All RudderStack Android SDK versions from 1.0.10+ are available exclusively on Maven Central.
 }
 ```
 

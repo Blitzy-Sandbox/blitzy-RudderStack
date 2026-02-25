@@ -433,7 +433,7 @@ The SDK automatically populates the `context` object on every event with device,
 | `context.library.name` | SDK library name | `"analytics-kotlin"` |
 | `context.library.version` | SDK library version | `"1.16.0"` |
 
-> **Note:** The `context.device.advertisingId` field is only populated if `useAdvertisingIdForDeviceId` is enabled and the Google Play Services Ads library is included. From Analytics-Android v4.10.1+, the Android ID (`Settings.Secure.ANDROID_ID`) is no longer collected to comply with Google's [User Data Policy](https://support.google.com/googleplay/android-developer/answer/10144311).
+> **Note:** The `context.device.advertisingId` field is only populated if `useAdvertisingIdForDeviceId` is enabled and the Google Play Services Ads library is included. From Analytics-Android v4.10.1+, the Android ID (`Settings.Secure.ANDROID_ID`) is no longer collected to comply with Google's [User Data Policy](https://support.google.com/googleplay/android-developer/answer/10144311?hl=en) (see also: [Google Play Policies](https://developer.android.com/distribute/play-policies)).
 
 *Reference: `refs/segment-docs/src/connections/sources/catalog/libraries/mobile/android/index.md`*
 *Cross-reference: [Common Fields](../../api-reference/event-spec/common-fields.md) for the full context specification*
