@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-Common questions from developers and operators working with RudderStack CDP (`rudder-server` v1.68.1). This FAQ covers deployment options, Segment API compatibility, warehouse sync behavior, transformation capabilities, performance tuning, authentication, and troubleshooting.
+Common questions from developers and operators working with RudderStack CDP (`rudder-server` v1.68.1). This FAQ covers deployment and setup, Segment API compatibility, warehouse sync, transformations, performance and capacity, operations, and troubleshooting.
 
 > **Configuration details:** For complete parameter documentation, see [Configuration Reference](./config-reference.md) and [Environment Variables Reference](./env-var-reference.md).
 >
@@ -15,7 +15,8 @@ Common questions from developers and operators working with RudderStack CDP (`ru
 - [Warehouse Sync](#warehouse-sync)
 - [Transformations](#transformations)
 - [Performance and Capacity](#performance-and-capacity)
-- [Operations and Troubleshooting](#operations-and-troubleshooting)
+- [Operations](#operations)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -396,7 +397,7 @@ Per-destination throttling can also be applied at the `destinationID` level for 
 
 ---
 
-## Operations and Troubleshooting
+## Operations
 
 ### **Q: How does event replay work?**
 
@@ -485,6 +486,8 @@ Metrics can be exported to a StatsD-compatible backend by setting the `STATSD_SE
 > Source: `config/config.yaml:227-245` — Diagnostics and RuntimeStats configuration; `config/sample.env:21` — `STATSD_SERVER_URL`; `config/config.yaml:5` — `statsTagsFormat: influxdb`
 
 ---
+
+## Troubleshooting
 
 ### **Q: What logging options are available?**
 
