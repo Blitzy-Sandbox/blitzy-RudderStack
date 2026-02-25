@@ -305,11 +305,11 @@ if reply.Valid {
 
 ---
 
-## rudder-cli Command Reference
+## rudder-cli Command Reference (v0.1.1)
 
-`rudder-cli` is the official command-line interface for administering a running RudderStack server. It connects to the Admin RPC Server over the UNIX domain socket and provides operator-friendly commands for logging management and warehouse operations.
+`rudder-cli` (current version: **v0.1.1**) is the official command-line interface for administering a running RudderStack server. It connects to the Admin RPC Server over the UNIX domain socket and provides operator-friendly commands for logging management and warehouse operations.
 
-Source: `cmd/rudder-cli/main.go:15-19`
+Source: `cmd/rudder-cli/main.go:15-19` (version defined at `cmd/rudder-cli/main.go:18`)
 
 ### Tool Metadata
 
@@ -698,6 +698,37 @@ rudder logging-config
 # Or use the --server-dir flag
 rudder --server-dir /var/run/rudder logging-config
 ```
+
+---
+
+## Security Considerations
+
+The Admin RPC Server provides **privileged operations** — including log level changes, direct warehouse SQL queries, upload triggers, and configuration tests — over an **unauthenticated** UNIX domain socket. There is no built-in authentication or authorization layer for Admin RPC calls; any process with filesystem access to the socket can invoke any registered method.
+
+> **⚠️ Important:** Access to the UNIX domain socket `/tmp/rudder-server.sock` (or `<RUDDER_TMPDIR>/rudder-server.sock`) should be restricted via filesystem permissions to prevent unauthorized administrative operations.
+
+Source: `admin/admin.go:114-145`
+
+### Recommended Security Practices
+
+| Practice | Implementation | Rationale |
+|----------|----------------|-----------|
+| **Restrict socket permissions** | `chmod 0600 /tmp/rudder-server.sock` or `chmod 0660` with a dedicated group | Limits socket access to the owning user (or group), preventing unauthorized local processes from invoking admin methods |
+| **Use a dedicated service user** | Run `rudder-server` under a dedicated non-root user (e.g., `rudder`) | Ensures the socket is owned by a specific user, providing clear access control boundaries |
+| **Custom socket directory** | Set `RUDDER_TMPDIR=/var/run/rudder` with restricted directory permissions (`chmod 0700`) | Moves the socket out of the world-readable `/tmp` directory into a controlled location |
+| **Container isolation** | Ensure the socket file is not exposed outside the container via volume mounts | Prevents external access to privileged operations in containerized deployments |
+| **Kubernetes Pod Security** | Use `securityContext` with `readOnlyRootFilesystem` where possible, and avoid sharing the socket via `emptyDir` volumes across containers | Limits socket exposure in multi-container pod configurations |
+
+### Risk Assessment
+
+The following Admin RPC methods carry elevated risk if accessed by unauthorized parties:
+
+| Method | Risk | Impact |
+|--------|------|--------|
+| `Admin.SetLogLevel` | Medium | Could enable verbose logging (`DEBUG`/`EVENT`) causing performance degradation or filling disk space |
+| `Warehouse.Query` | **High** | Executes arbitrary SQL against configured warehouses — potential data exfiltration |
+| `Warehouse.TriggerUpload` | Medium | Could trigger unscheduled warehouse syncs, impacting warehouse costs and performance |
+| `Warehouse.ConfigurationTest` | Low | Could reveal warehouse connectivity details through error messages |
 
 ---
 

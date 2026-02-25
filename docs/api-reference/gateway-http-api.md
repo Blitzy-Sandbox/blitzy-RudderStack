@@ -89,10 +89,12 @@ The identify call lets you associate a visiting user to their actions and record
 | `userId` | string | No* | Unique identifier for a particular user in your database |
 | `anonymousId` | string | No* | Sets the user ID for cases where there is no unique identifier for the user |
 | `context` | object | No | Dictionary of information that provides context about a message |
-| `traits` | object | No | Dictionary of user traits (email, name, plan, etc.) |
+| `context.traits` | object | No | User traits (email, name, plan, etc.) passed within the context object |
 | `timestamp` | string (date-time) | No | The timestamp of the message's arrival |
 
 *At least one of `userId` or `anonymousId` is required.
+
+> **Segment Compatibility Note:** The Segment Spec documents a top-level `traits` field for identify calls. In the RudderStack OpenAPI specification, traits are defined under `context.traits`. Segment SDKs sending top-level `traits` will have them processed correctly — see the [Identify Event Spec](event-spec/identify.md) for the full Segment parity analysis.
 
 Source: `gateway/openapi.yaml:688-721`
 
@@ -960,7 +962,7 @@ Source: `gateway/handle_http_pixel.go:36-89`, `gateway/handle_http_pixel.go:92-1
 
 Webhook endpoints allow external services to push event data directly into RudderStack. Unlike standard event endpoints, webhook sources are configured per-source in the control plane and use a flexible authentication scheme that accepts the WriteKey via either HTTP Basic Auth or a query parameter.
 
-> Source: `gateway/handle_http_auth.go:60-96`
+> Source: `gateway/handle_http_auth.go:64-96`
 
 **Authentication:** `webhookAuth` — WriteKey via Basic Auth header **OR** `?writeKey=` query parameter
 

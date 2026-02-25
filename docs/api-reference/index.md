@@ -399,6 +399,91 @@ sequenceDiagram
     end
 ```
 
+### Replay Source Auth Flow
+
+```mermaid
+sequenceDiagram
+    participant C as Replay Service
+    participant GW as Gateway
+    participant SrcAuth as sourceIDAuth Middleware
+    participant ReplayAuth as replaySourceIDAuth Middleware
+    participant Cfg as Backend Config<br/>(sourceIDSourceMap)
+
+    C->>GW: POST /internal/v1/replay<br/>X-Rudder-Source-Id: <source_id>
+    GW->>ReplayAuth: replaySourceIDAuth(handler)
+    ReplayAuth->>SrcAuth: Compose: sourceIDAuth(replayCheck)
+    SrcAuth->>SrcAuth: Extract Source ID from header
+    alt No Source ID
+        SrcAuth-->>C: 401 — NoSourceIdInHeader
+    end
+    SrcAuth->>Cfg: Lookup sourceID in sourceIDSourceMap
+    alt Source ID Not Found
+        SrcAuth-->>C: 401 — InvalidSourceID
+    else Source ID Found
+        Cfg-->>SrcAuth: AuthRequestContext
+        alt Source Disabled
+            SrcAuth-->>C: 404 — SourceDisabled
+        else Source Enabled
+            SrcAuth->>ReplayAuth: Pass to replay check
+            ReplayAuth->>Cfg: Check s.IsReplaySource()
+            alt Not a Replay Source
+                ReplayAuth-->>C: 401 — InvalidReplaySource
+            else Is Replay Source
+                ReplayAuth->>GW: delegate.ServeHTTP(w, r)
+                GW-->>C: 200 OK
+            end
+        end
+    end
+```
+
+### Source + Destination ID Auth Flow
+
+```mermaid
+sequenceDiagram
+    participant C as rETL Service
+    participant GW as Gateway
+    participant SrcAuth as sourceIDAuth Middleware
+    participant DestAuth as authDestIDForSource Middleware
+    participant Cfg as Backend Config
+
+    C->>GW: POST /internal/v1/retl<br/>X-Rudder-Source-Id + X-Rudder-Destination-Id
+    GW->>SrcAuth: sourceDestIDAuth(handler)<br/>= sourceIDAuth(authDestIDForSource(handler))
+    SrcAuth->>SrcAuth: Extract Source ID from header
+    alt No Source ID
+        SrcAuth-->>C: 401 — NoSourceIdInHeader
+    end
+    SrcAuth->>Cfg: Lookup sourceID in sourceIDSourceMap
+    alt Source ID Not Found
+        SrcAuth-->>C: 401 — InvalidSourceID
+    else Source ID Found
+        Cfg-->>SrcAuth: AuthRequestContext
+        alt Source Disabled
+            SrcAuth-->>C: 404 — SourceDisabled
+        else Source Enabled
+            SrcAuth->>DestAuth: Pass to destination auth
+            DestAuth->>DestAuth: Extract Destination ID from header
+            alt No Dest ID AND requireDestinationIdHeader=false
+                DestAuth->>GW: delegate.ServeHTTP (skip dest check)
+                GW-->>C: 200 OK
+            else No Dest ID AND requireDestinationIdHeader=true
+                DestAuth-->>C: 400 — NoDestinationIDInHeader
+            else Dest ID Present
+                DestAuth->>Cfg: Find destination in source config
+                alt Destination Not Found
+                    DestAuth-->>C: 400 — InvalidDestinationID
+                else Destination Found
+                    alt Destination Disabled
+                        DestAuth-->>C: 404 — DestinationDisabled
+                    else Destination Enabled
+                        DestAuth->>GW: delegate.ServeHTTP(w, r)
+                        GW-->>C: 200 OK
+                    end
+                end
+            end
+        end
+    end
+```
+
 ---
 
 ## Endpoint Authentication Matrix
