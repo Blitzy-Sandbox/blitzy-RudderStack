@@ -9,6 +9,7 @@ Thanks for taking the time and for your help in improving this project!
 - [Submitting a Pull Request](#submitting-a-pull-request)
 - [Committing](#committing)
 - [Installing and Setting Up RudderStack](#installing-and-setting-up-rudderstack)
+- [Contributing Documentation](#contributing-documentation)
 - [Getting Help](#getting-help)
 
 ## RudderStack Contributor Agreement
@@ -43,6 +44,44 @@ We prefer squash or rebase commits so that all changes from a branch are committ
 ## Installing and setting up RudderStack
 
 To contribute to this project, you may need to install RudderStack on your machine. You can do so by following our [**docs**](https://docs.rudderstack.com/get-started/installing-and-setting-up-rudderstack) and set up RudderStack in no time.
+
+## Contributing documentation
+
+All project documentation lives in the [`docs/`](docs/) directory and is authored in Markdown (`.md`) format. Architectural and workflow diagrams use [Mermaid](https://mermaid-js.github.io/) syntax embedded directly in Markdown files. Contributions that improve, expand, or correct the documentation are welcome alongside code contributions.
+
+### Documentation style guide
+
+Documentation should follow the established patterns used in the repository:
+
+- **Comprehensive architecture with component breakdowns** — as demonstrated in [`services/oauth/README.md`](services/oauth/README.md).
+- **Developer onboarding with architecture diagrams, interfaces, and examples** — as demonstrated in [`router/batchrouter/asyncdestinationmanager/README.md`](router/batchrouter/asyncdestinationmanager/README.md).
+
+### Documentation types
+
+The documentation set covers the following categories:
+
+- **Architecture docs** — System design, data flows, component relationships, and deployment topologies.
+- **API references** — Endpoint specifications, request/response schemas, authentication, and error codes.
+- **Integration guides** — Source SDK setup, destination connector configuration, and warehouse connector guides.
+- **Operational guides** — Warehouse sync, event replay, capacity planning, and privacy compliance.
+- **Gap analysis reports** — Feature-by-feature comparison between RudderStack and Segment capabilities.
+
+### Documentation PR requirements
+
+When submitting a documentation pull request, ensure the following:
+
+- Follow Markdown formatting with proper heading hierarchy (`#` for titles, `##` for sections, `###` for subsections).
+- Include Mermaid diagrams for all architectural and workflow documentation (use triple-backtick `mermaid` code blocks).
+- Provide source code citations for technical details in the format `Source: /path/to/file.go:LineRange`.
+- Use consistent terminology from the unified glossary ([`docs/reference/glossary.md`](docs/reference/glossary.md)).
+- Include code examples in Go, JavaScript, and Python with appropriate syntax highlighting.
+
+### Documentation resources
+
+- [Documentation Home](docs/README.md) — Documentation landing page and navigation hub.
+- [Development Guide](docs/contributing/development.md) — Development environment setup and build guide.
+- [Destination Onboarding](docs/contributing/destination-onboarding.md) — New destination connector onboarding guide.
+- [Testing Guide](docs/contributing/testing.md) — Test infrastructure and guidelines.
 
 ## Getting help
 
