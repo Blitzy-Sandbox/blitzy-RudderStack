@@ -116,18 +116,18 @@ When `verify-ca` is selected, the connector writes SSL key files to a destinatio
 
 The following configuration parameters control PostgreSQL connector behavior. These are set in `config.yaml` under the `Warehouse.postgres` namespace or via environment variables.
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.postgres.maxParallelLoads` | `3` | `int` | Maximum number of tables loaded in parallel during a single upload cycle. Controls concurrency to avoid overwhelming the PostgreSQL server. |
-| `Warehouse.postgres.enableSQLStatementExecutionPlan` | `false` | `bool` | When enabled, logs SQL execution plans for debugging slow queries. |
-| `Warehouse.postgres.allowMerge` | `true` | `bool` | Enables merge (delete-then-insert) behavior for deduplication. When `false`, all loads use append-only mode. |
-| `Warehouse.postgres.enableDeleteByJobs` | `false` | `bool` | Enables the `DeleteBy` operation for job-based data cleanup. Used for source-specific data purging by `context_sources_job_run_id`. |
-| `Warehouse.postgres.numWorkersDownloadLoadFiles` | `1` | `int` | Number of parallel workers for downloading staging load files from object storage before loading. |
-| `Warehouse.postgres.slowQueryThreshold` | `5m` | `duration` | Queries exceeding this duration are logged as slow queries by the SQL middleware layer. |
-| `Warehouse.postgres.txnRollbackTimeout` | `30s` | `duration` | Timeout for transaction rollback operations. Prevents indefinite waits during error recovery. |
-| `Warehouse.postgres.skipDedupDestinationIDs` | `[]` | `[]string` | List of destination IDs for which deduplication (merge) is skipped, reverting to append-only behavior. |
-| `Warehouse.postgres.skipComputingUserLatestTraits` | `false` | `bool` | When `true`, skips the expensive UNION-based latest-traits computation for the `users` table, loading user data via the standard `loadTable` path instead. |
-| `Warehouse.postgres.skipComputingUserLatestTraitsWorkspaceIDs` | `[]` | `[]string` | List of workspace IDs for which latest-traits computation is skipped, allowing per-workspace optimization. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.postgres.maxParallelLoads` | `3` | int | ≥ 1 | Maximum number of tables loaded in parallel during a single upload cycle. Controls concurrency to avoid overwhelming the PostgreSQL server. |
+| `Warehouse.postgres.enableSQLStatementExecutionPlan` | `false` | bool | `true` / `false` | When enabled, logs SQL execution plans for debugging slow queries. |
+| `Warehouse.postgres.allowMerge` | `true` | bool | `true` / `false` | Enables merge (delete-then-insert) behavior for deduplication. When `false`, all loads use append-only mode. |
+| `Warehouse.postgres.enableDeleteByJobs` | `false` | bool | `true` / `false` | Enables the `DeleteBy` operation for job-based data cleanup. Used for source-specific data purging by `context_sources_job_run_id`. |
+| `Warehouse.postgres.numWorkersDownloadLoadFiles` | `1` | int | ≥ 1 | Number of parallel workers for downloading staging load files from object storage before loading. |
+| `Warehouse.postgres.slowQueryThreshold` | `5m` | duration | ≥ 0s | Queries exceeding this duration are logged as slow queries by the SQL middleware layer. |
+| `Warehouse.postgres.txnRollbackTimeout` | `30s` | duration | ≥ 0s | Timeout for transaction rollback operations. Prevents indefinite waits during error recovery. |
+| `Warehouse.postgres.skipDedupDestinationIDs` | `[]` | []string | Destination ID list | List of destination IDs for which deduplication (merge) is skipped, reverting to append-only behavior. |
+| `Warehouse.postgres.skipComputingUserLatestTraits` | `false` | bool | `true` / `false` | When `true`, skips the expensive UNION-based latest-traits computation for the `users` table, loading user data via the standard `loadTable` path instead. |
+| `Warehouse.postgres.skipComputingUserLatestTraitsWorkspaceIDs` | `[]` | []string | Workspace ID list | List of workspace IDs for which latest-traits computation is skipped, allowing per-workspace optimization. |
 
 > Source: `warehouse/integrations/postgres/postgres.go:154-171`, `config/config.yaml:168-170`
 

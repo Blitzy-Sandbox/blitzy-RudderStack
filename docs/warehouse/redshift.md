@@ -111,28 +111,28 @@ This enables Redshift Workload Management (WLM) rules to be applied to all Rudde
 
 The following configuration parameters control the behavior of the Redshift connector. Parameters are set in `config/config.yaml` under the `Warehouse.redshift` namespace or via environment variables.
 
-| Parameter | Config Key | Default | Type | Description |
-|-----------|-----------|---------|------|-------------|
-| Max Parallel Loads | `Warehouse.redshift.maxParallelLoads` | `3` | `int` | Maximum number of tables loaded concurrently during a warehouse sync. Increase for clusters with higher concurrency capacity. |
-| Allow Merge | `Warehouse.redshift.allowMerge` | `true` | `bool` | Enables merge (dedup) loading strategy. When `false`, all tables use append-only loading. |
-| Dedup Window | `Warehouse.redshift.dedupWindow` | `false` | `bool` | When `true`, limits dedup DELETE operations to a time window instead of scanning the entire table. Reduces query cost for large tables. |
-| Dedup Window Hours | `Warehouse.redshift.dedupWindowInHours` | `720` (30 days) | `time.Duration` (hours) | The lookback window for dedup DELETE operations when `dedupWindow` is enabled. Only rows with `received_at` within this window are considered for deduplication. |
-| Slow Query Threshold | `Warehouse.redshift.slowQueryThreshold` | `5m` | `time.Duration` | Queries exceeding this threshold are logged as slow queries for monitoring and debugging. |
-| Skip Dedup Destination IDs | `Warehouse.redshift.skipDedupDestinationIDs` | `nil` | `[]string` | List of destination IDs for which deduplication is skipped, forcing append-only behavior. |
-| Skip Computing User Latest Traits | `Warehouse.redshift.skipComputingUserLatestTraits` | `false` | `bool` | When `true`, skips the expensive `FIRST_VALUE` window function computation for the users table. Reduces load time but users table may contain stale trait values. |
-| Enable Delete By Jobs | `Warehouse.redshift.enableDeleteByJobs` | `false` | `bool` | Enables source-job-based deletion. When `true`, rows from previous job runs are cleaned up based on `context_sources_job_run_id` and `context_sources_task_run_id`. |
-| Load By Folder Path | `Warehouse.redshift.loadByFolderPath` | `false` | `bool` | When `true`, uses S3 folder path for COPY instead of manifest-based loading. Useful when manifest generation encounters issues. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.redshift.maxParallelLoads` | `3` | int | ≥ 1 | Maximum number of tables loaded concurrently during a warehouse sync. Increase for clusters with higher concurrency capacity. |
+| `Warehouse.redshift.allowMerge` | `true` | bool | `true` / `false` | Enables merge (dedup) loading strategy. When `false`, all tables use append-only loading. |
+| `Warehouse.redshift.dedupWindow` | `false` | bool | `true` / `false` | When `true`, limits dedup DELETE operations to a time window instead of scanning the entire table. Reduces query cost for large tables. |
+| `Warehouse.redshift.dedupWindowInHours` | `720` (30 days) | duration (hours) | ≥ 0 | The lookback window for dedup DELETE operations when `dedupWindow` is enabled. Only rows with `received_at` within this window are considered for deduplication. |
+| `Warehouse.redshift.slowQueryThreshold` | `5m` | duration | ≥ 0s | Queries exceeding this threshold are logged as slow queries for monitoring and debugging. |
+| `Warehouse.redshift.skipDedupDestinationIDs` | `nil` | []string | Destination ID list | List of destination IDs for which deduplication is skipped, forcing append-only behavior. |
+| `Warehouse.redshift.skipComputingUserLatestTraits` | `false` | bool | `true` / `false` | When `true`, skips the expensive `FIRST_VALUE` window function computation for the users table. Reduces load time but users table may contain stale trait values. |
+| `Warehouse.redshift.enableDeleteByJobs` | `false` | bool | `true` / `false` | Enables source-job-based deletion. When `true`, rows from previous job runs are cleaned up based on `context_sources_job_run_id` and `context_sources_task_run_id`. |
+| `Warehouse.redshift.loadByFolderPath` | `false` | bool | `true` / `false` | When `true`, uses S3 folder path for COPY instead of manifest-based loading. Useful when manifest generation encounters issues. |
 
 **Global Warehouse Parameters Affecting Redshift:**
 
-| Parameter | Config Key | Default | Type | Description |
-|-----------|-----------|---------|------|-------------|
-| Upload Frequency | `Warehouse.uploadFreq` | `1800s` (30 min) | `time.Duration` | Interval between warehouse sync cycles |
-| Number of Workers | `Warehouse.noOfWorkers` | `8` | `int` | Number of concurrent warehouse upload workers across all destinations |
-| Min Retry Attempts | `Warehouse.minRetryAttempts` | `3` | `int` | Minimum number of retry attempts for failed uploads |
-| Min Upload Backoff | `Warehouse.minUploadBackoff` | `60s` | `time.Duration` | Minimum backoff duration between upload retries |
-| Max Upload Backoff | `Warehouse.maxUploadBackoff` | `1800s` | `time.Duration` | Maximum backoff duration between upload retries |
-| Staging Files Batch Size | `Warehouse.stagingFilesBatchSize` | `960` | `int` | Number of staging files processed per upload batch |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.uploadFreq` | `1800s` (30 min) | duration | > 0s | Interval between warehouse sync cycles |
+| `Warehouse.noOfWorkers` | `8` | int | ≥ 1 | Number of concurrent warehouse upload workers across all destinations |
+| `Warehouse.minRetryAttempts` | `3` | int | ≥ 1 | Minimum number of retry attempts for failed uploads |
+| `Warehouse.minUploadBackoff` | `60s` | duration | ≥ 0s | Minimum backoff duration between upload retries |
+| `Warehouse.maxUploadBackoff` | `1800s` | duration | ≥ 0s | Maximum backoff duration between upload retries |
+| `Warehouse.stagingFilesBatchSize` | `960` | int | ≥ 1 | Number of staging files processed per upload batch |
 
 > Source: `warehouse/integrations/redshift/redshift.go:184-192` (connector config), `config/config.yaml:145-161` (global warehouse config)
 
@@ -706,3 +706,18 @@ flowchart TD
 - `skipDedupDestinationIDs` provides backward-compatible per-destination dedup bypass
 
 > Source: `warehouse/integrations/redshift/redshift.go:1500-1525`
+
+---
+
+## Identity Resolution
+
+Redshift is **not** included in the `IdentityEnabledWarehouses` list. The identity resolution operations are no-ops for Redshift:
+
+- `LoadIdentityMergeRulesTable` — No-op (identity merge rules are not loaded to Redshift)
+- `LoadIdentityMappingsTable` — No-op (identity mappings are not loaded to Redshift)
+
+Identity resolution for Redshift warehouse destinations is not supported. Cross-touchpoint user unification must be handled at the application layer or via external identity processing pipelines. Only Snowflake and BigQuery support dedicated identity resolution tables.
+
+For full identity resolution documentation, see the [Warehouse Overview](overview.md) and [Identity Resolution](../guides/identity/identity-resolution.md).
+
+> Source: `warehouse/integrations/redshift/redshift.go:1442-1462`

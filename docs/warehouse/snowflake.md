@@ -145,43 +145,43 @@ The following parameters control the Snowflake connector's behavior. Parameters 
 
 ### Connector-Specific Parameters
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.snowflake.maxParallelLoads` | `3` | int | Maximum number of tables loaded concurrently during a single upload job. Higher values increase throughput but consume more Snowflake warehouse credits. |
-| `Warehouse.snowflake.allowMerge` | `true` | bool | Enables the merge (deduplication) loading strategy. When `false`, all tables use append-only mode regardless of table type. |
-| `Warehouse.snowflake.enableDeleteByJobs` | `false` | bool | Enables the `DeleteBy` operation, which removes stale records from tables based on source job metadata (`context_sources_job_run_id`, `context_sources_task_run_id`). |
-| `Warehouse.snowflake.slowQueryThreshold` | `5m` | duration | Queries exceeding this duration are logged as slow queries for monitoring. Format: Go duration string (e.g., `5m`, `10m`, `1h`). |
-| `Warehouse.snowflake.appendOnlyTables` | `[]` (nil) | string slice | List of table names that should always use append-only loading, bypassing the merge strategy even when merge is enabled. Table names are case-sensitive (UPPERCASE in Snowflake). |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.snowflake.maxParallelLoads` | `3` | int | ≥ 1 | Maximum number of tables loaded concurrently during a single upload job. Higher values increase throughput but consume more Snowflake warehouse credits. |
+| `Warehouse.snowflake.allowMerge` | `true` | bool | `true` / `false` | Enables the merge (deduplication) loading strategy. When `false`, all tables use append-only mode regardless of table type. |
+| `Warehouse.snowflake.enableDeleteByJobs` | `false` | bool | `true` / `false` | Enables the `DeleteBy` operation, which removes stale records from tables based on source job metadata (`context_sources_job_run_id`, `context_sources_task_run_id`). |
+| `Warehouse.snowflake.slowQueryThreshold` | `5m` | duration | ≥ 0s | Queries exceeding this duration are logged as slow queries for monitoring. Format: Go duration string (e.g., `5m`, `10m`, `1h`). |
+| `Warehouse.snowflake.appendOnlyTables` | `[]` (nil) | string slice | Table name list | List of table names that should always use append-only loading, bypassing the merge strategy even when merge is enabled. Table names are case-sensitive (UPPERCASE in Snowflake). |
 
 > Source: `warehouse/integrations/snowflake/snowflake.go:186-191` (New constructor config reads)
 
 ### Privilege Validation Parameters
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.snowflake.privileges.fetchSchema.enabled` | `false` | bool | When enabled, the connector validates schema-level privileges before fetching schema metadata. Adds a `SHOW GRANTS ON SCHEMA` check during connection testing. |
-| `Warehouse.snowflake.privileges.fetchSchema.required` | `["USAGE"]` | string slice | List of required privilege types that the user's role must possess on the schema. Only checked when `fetchSchema.enabled` is `true`. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.snowflake.privileges.fetchSchema.enabled` | `false` | bool | `true` / `false` | When enabled, the connector validates schema-level privileges before fetching schema metadata. Adds a `SHOW GRANTS ON SCHEMA` check during connection testing. |
+| `Warehouse.snowflake.privileges.fetchSchema.required` | `["USAGE"]` | string slice | Snowflake privilege names | List of required privilege types that the user's role must possess on the schema. Only checked when `fetchSchema.enabled` is `true`. |
 
 > Source: `warehouse/integrations/snowflake/snowflake.go:199-200`
 
 ### Debug and Diagnostics Parameters
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.snowflake.debugDuplicateWorkspaceIDs` | `[]` (nil) | string slice | Workspace IDs for which duplicate row sampling is enabled during merge operations. Used for diagnostics only. |
-| `Warehouse.snowflake.debugDuplicateTables` | `[]` (nil) | string slice | Table names (case-insensitive, normalized to UPPERCASE) for which duplicate sampling is enabled. |
-| `Warehouse.snowflake.debugDuplicateIntervalInDays` | `30` | int | Lookback window in days for duplicate row sampling queries. |
-| `Warehouse.snowflake.debugDuplicateLimit` | `100` | int | Maximum number of duplicate rows to sample per table per upload. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.snowflake.debugDuplicateWorkspaceIDs` | `[]` (nil) | string slice | Workspace ID list | Workspace IDs for which duplicate row sampling is enabled during merge operations. Used for diagnostics only. |
+| `Warehouse.snowflake.debugDuplicateTables` | `[]` (nil) | string slice | Table name list | Table names (case-insensitive, normalized to UPPERCASE) for which duplicate sampling is enabled. |
+| `Warehouse.snowflake.debugDuplicateIntervalInDays` | `30` | int | ≥ 1 | Lookback window in days for duplicate row sampling queries. |
+| `Warehouse.snowflake.debugDuplicateLimit` | `100` | int | ≥ 1 | Maximum number of duplicate rows to sample per table per upload. |
 
 > Source: `warehouse/integrations/snowflake/snowflake.go:193-198`
 
 ### Merge Window Parameters
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.snowflake.mergeWindow.<destID>.tables` | `[]` (nil) | string slice | Tables for which the merge window optimization is applied (scoped to a specific destination ID). |
-| `Warehouse.snowflake.mergeWindow.<destID>.duration` | `720h` (30 days) | duration | Time window applied to the merge join condition. Only rows within this window are considered for matching. |
-| `Warehouse.snowflake.mergeWindow.<destID>.column` | `"RECEIVED_AT"` | string | Column used for the merge window filter condition. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.snowflake.mergeWindow.<destID>.tables` | `[]` (nil) | string slice | Table name list | Tables for which the merge window optimization is applied (scoped to a specific destination ID). |
+| `Warehouse.snowflake.mergeWindow.<destID>.duration` | `720h` (30 days) | duration | > 0s | Time window applied to the merge join condition. Only rows within this window are considered for matching. |
+| `Warehouse.snowflake.mergeWindow.<destID>.column` | `"RECEIVED_AT"` | string | Valid column name | Column used for the merge window filter condition. |
 
 > Source: `warehouse/integrations/snowflake/snowflake.go:465-477`
 

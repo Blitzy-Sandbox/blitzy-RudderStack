@@ -110,16 +110,16 @@ CREATE OR REPLACE TABLE <namespace>.<table>
 
 ### Tuning Parameters
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.deltalake.allowMerge` | `true` | bool | Enable MERGE-based deduplication loading strategy |
-| `Warehouse.deltalake.enablePartitionPruning` | `true` | bool | Enable partition pruning for date-based partitions |
-| `Warehouse.deltalake.slowQueryThreshold` | `5m` | duration | Threshold for logging slow SQL queries |
-| `Warehouse.deltalake.maxRetries` | `10` | int | Maximum number of retry attempts for transient failures |
-| `Warehouse.deltalake.retryMinWait` | `1s` | duration | Minimum wait time between retries |
-| `Warehouse.deltalake.retryMaxWait` | `300s` | duration | Maximum wait time between retries (exponential backoff cap) |
-| `Warehouse.deltalake.maxErrorLength` | `65536` | int | Maximum error message length in bytes (64 KB); longer messages are truncated |
-| `Warehouse.deltalake.loadTableStrategy` | `MERGE` | string | Default load table strategy |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.deltalake.allowMerge` | `true` | bool | `true` / `false` | Enable MERGE-based deduplication loading strategy |
+| `Warehouse.deltalake.enablePartitionPruning` | `true` | bool | `true` / `false` | Enable partition pruning for date-based partitions |
+| `Warehouse.deltalake.slowQueryThreshold` | `5m` | duration | ≥ 0s | Threshold for logging slow SQL queries |
+| `Warehouse.deltalake.maxRetries` | `10` | int | ≥ 0 | Maximum number of retry attempts for transient failures |
+| `Warehouse.deltalake.retryMinWait` | `1s` | duration | ≥ 0s | Minimum wait time between retries |
+| `Warehouse.deltalake.retryMaxWait` | `300s` | duration | ≥ 0s | Maximum wait time between retries (exponential backoff cap) |
+| `Warehouse.deltalake.maxErrorLength` | `65536` | int | ≥ 1 | Maximum error message length in bytes (64 KB); longer messages are truncated |
+| `Warehouse.deltalake.loadTableStrategy` | `MERGE` | string | `"MERGE"`, `"APPEND"` | Default load table strategy |
 
 > Source: `warehouse/integrations/deltalake/deltalake.go:136-161`, `config/config.yaml:182-183`
 
@@ -584,12 +584,12 @@ The `force = true` copy option is critical for backfill — without it, Databric
 
 The warehouse service controls load parallelism through global and per-connector settings:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `Warehouse.noOfWorkers` | `8` | Number of concurrent warehouse worker routines |
-| `Warehouse.noOfSlaveWorkerRoutines` | `4` | Number of slave worker goroutines (distributed mode) |
-| `Warehouse.uploadFreq` | `1800s` | Upload frequency (time between upload cycles) |
-| `Warehouse.stagingFilesBatchSize` | `960` | Maximum staging files per upload batch |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.noOfWorkers` | `8` | int | ≥ 1 | Number of concurrent warehouse worker routines |
+| `Warehouse.noOfSlaveWorkerRoutines` | `4` | int | ≥ 1 | Number of slave worker goroutines (distributed mode) |
+| `Warehouse.uploadFreq` | `1800s` | duration | > 0s | Upload frequency (time between upload cycles) |
+| `Warehouse.stagingFilesBatchSize` | `960` | int | ≥ 1 | Maximum staging files per upload batch |
 
 For Databricks specifically, parallel load behavior is controlled by the number of table uploads processed concurrently within each upload cycle. Unlike some other warehouse connectors, the Delta Lake connector does not have a dedicated `maxParallelLoads` setting in the default configuration — parallelism is governed by the global `Warehouse.noOfWorkers` setting.
 
@@ -646,6 +646,21 @@ Key metrics emitted by the Databricks connector:
 | SQL query duration | Histogram | (via `sqlmiddleware`) | Query execution time, with slow query logging above `slowQueryThreshold` |
 
 > Source: `warehouse/integrations/deltalake/deltalake.go:1225-1233`, `warehouse/integrations/deltalake/deltalake.go:394-404`
+
+---
+
+## Identity Resolution
+
+Databricks (Delta Lake) is **not** included in the `IdentityEnabledWarehouses` list. The identity resolution operations are no-ops for Databricks:
+
+- `LoadIdentityMergeRulesTable` — No-op (identity merge rules are not loaded to Delta Lake)
+- `LoadIdentityMappingsTable` — No-op (identity mappings are not loaded to Delta Lake)
+
+Identity resolution for Databricks warehouse destinations is not supported. Cross-touchpoint user unification must be handled at the application layer or via external identity processing pipelines (e.g., Databricks notebooks or Spark jobs operating on the Delta tables). Only Snowflake and BigQuery support dedicated identity resolution tables.
+
+For full identity resolution documentation, see the [Warehouse Overview](overview.md) and [Identity Resolution](../guides/identity/identity-resolution.md).
+
+> Source: `warehouse/integrations/deltalake/deltalake.go:1274-1306`
 
 ---
 

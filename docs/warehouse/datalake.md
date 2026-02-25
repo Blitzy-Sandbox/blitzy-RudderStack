@@ -112,13 +112,13 @@ Where `WAREHOUSE_DATALAKE_FOLDER_NAME` defaults to `rudder-datalake`.
 
 The following parameters are configured in `config/config.yaml` or via environment variables:
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.s3_datalake.maxParallelLoads` | `8` | int | Maximum number of parallel table load operations for S3 Datalake destinations |
-| `Warehouse.gcs_datalake.maxParallelLoads` | `8` | int | Maximum number of parallel table load operations for GCS Datalake destinations |
-| `Warehouse.azure_datalake.maxParallelLoads` | `8` | int | Maximum number of parallel table load operations for Azure Datalake destinations |
-| `Warehouse.s3_datalake.columnCountLimit` | `10000` | int | Maximum number of columns allowed per table for S3 Datalake destinations |
-| `WAREHOUSE_DATALAKE_FOLDER_NAME` | `"rudder-datalake"` | string | Root folder name in object storage for datalake table data |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.s3_datalake.maxParallelLoads` | `8` | int | ≥ 1 | Maximum number of parallel table load operations for S3 Datalake destinations |
+| `Warehouse.gcs_datalake.maxParallelLoads` | `8` | int | ≥ 1 | Maximum number of parallel table load operations for GCS Datalake destinations |
+| `Warehouse.azure_datalake.maxParallelLoads` | `8` | int | ≥ 1 | Maximum number of parallel table load operations for Azure Datalake destinations |
+| `Warehouse.s3_datalake.columnCountLimit` | `10000` | int | ≥ 1 | Maximum number of columns allowed per table for S3 Datalake destinations |
+| `WAREHOUSE_DATALAKE_FOLDER_NAME` | `"rudder-datalake"` | string | Valid folder name | Root folder name in object storage for datalake table data |
 
 > Source: `warehouse/integrations/config/config.go:17-18,31`, `warehouse/utils/utils.go:613`
 
@@ -547,10 +547,10 @@ When the column count approaches this limit, consider:
 
 The encoding factory controls Parquet file generation behavior:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `Warehouse.parquetParallelWriters` | Hot-reloadable | Number of parallel Parquet writers for staging file generation |
-| `Warehouse.disableParquetColumnIndex` | Hot-reloadable | Disables Parquet column index generation for reduced file sizes |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.parquetParallelWriters` | `8` | int64 | ≥ 1 | Number of parallel Parquet writers for staging file generation. Hot-reloadable. |
+| `Warehouse.disableParquetColumnIndex` | `true` | bool | `true` / `false` | Disables Parquet column index generation for reduced file sizes. Hot-reloadable. |
 
 For large-volume datalake workloads, consider:
 - Increasing `parquetParallelWriters` to improve staging file generation throughput
@@ -577,15 +577,15 @@ Storage class selection is managed at the bucket/container level or through life
 
 General warehouse sync parameters that affect Datalake operation:
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.uploadFreq` | `1800s` (30 min) | duration | Frequency of warehouse upload cycles |
-| `Warehouse.noOfWorkers` | `8` | int | Number of warehouse worker routines |
-| `Warehouse.stagingFilesBatchSize` | `960` | int | Number of staging files processed per upload batch |
-| `Warehouse.minRetryAttempts` | `3` | int | Minimum retry attempts before marking an upload as failed |
-| `Warehouse.retryTimeWindow` | `180m` | duration | Time window within which retries are attempted |
-| `Warehouse.minUploadBackoff` | `60s` | duration | Minimum backoff between upload retry attempts |
-| `Warehouse.maxUploadBackoff` | `1800s` | duration | Maximum backoff between upload retry attempts |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.uploadFreq` | `1800s` (30 min) | duration | > 0s | Frequency of warehouse upload cycles |
+| `Warehouse.noOfWorkers` | `8` | int | ≥ 1 | Number of warehouse worker routines |
+| `Warehouse.stagingFilesBatchSize` | `960` | int | ≥ 1 | Number of staging files processed per upload batch |
+| `Warehouse.minRetryAttempts` | `3` | int | ≥ 1 | Minimum retry attempts before marking an upload as failed |
+| `Warehouse.retryTimeWindow` | `180m` | duration | > 0s | Time window within which retries are attempted |
+| `Warehouse.minUploadBackoff` | `60s` | duration | ≥ 0s | Minimum backoff between upload retry attempts |
+| `Warehouse.maxUploadBackoff` | `1800s` | duration | ≥ 0s | Maximum backoff between upload retry attempts |
 
 > Source: `config/config.yaml:145-161`
 
@@ -613,6 +613,22 @@ The key difference is that the `exported_data` state does not perform actual dat
 Column count validation is also **skipped** for Datalake destinations, as the column limit is enforced separately.
 
 > Source: `warehouse/router/state_export_data.go:785-850`
+
+---
+
+## Identity Resolution
+
+The Datalake connector is **not** included in the `IdentityEnabledWarehouses` list. Identity resolution operations are not supported for Datalake destinations:
+
+- `LoadIdentityMergeRulesTable` — Not implemented for Datalake
+- `LoadIdentityMappingsTable` — Not implemented for Datalake
+- `DownloadIdentityRules` — Not implemented for Datalake (explicitly listed as unsupported in the connector)
+
+Datalake destinations serve as append-only, columnar storage backends optimized for analytical queries. Cross-touchpoint identity unification must be handled by downstream processing pipelines (e.g., Spark, Athena) operating on the exported Parquet data. Only Snowflake and BigQuery support dedicated identity resolution tables.
+
+For full identity resolution documentation, see the [Warehouse Overview](overview.md) and [Identity Resolution](../guides/identity/identity-resolution.md).
+
+> Source: `warehouse/integrations/datalake/datalake.go:71-134`
 
 ---
 

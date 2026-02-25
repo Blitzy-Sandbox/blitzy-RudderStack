@@ -1,6 +1,6 @@
 # Warehouse Service Architecture
 
-The RudderStack warehouse service is a self-contained pipeline component responsible for loading event data into warehouse destinations. It operates as a modular orchestrator spanning 22+ sub-packages, supporting 9 warehouse connectors with configurable operational modes, a 7-state upload state machine, and both gRPC and HTTP API surfaces.
+The RudderStack warehouse service is a self-contained pipeline component responsible for loading event data into warehouse destinations. It operates as a modular orchestrator spanning 20+ sub-packages, supporting 9 warehouse connectors with configurable operational modes, a 7-state upload state machine, and both gRPC and HTTP API surfaces.
 
 The warehouse service runs as part of the RudderStack server process (in embedded mode) or as independent master/slave nodes for distributed deployments. It receives staging files from the Processor, transforms them into load files, and executes warehouse-specific loading operations with automatic schema evolution, identity resolution, and archival.
 
@@ -203,19 +203,21 @@ flowchart LR
 
 ### Mode Configuration Reference
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.mode` | `"embedded"` | string | Operational mode: `embedded`, `master`, `slave`, `master_slave`, `embedded_master` |
-| `Warehouse.runningMode` | `""` | string | Running mode: `"degraded"` or empty for normal operation |
-| `WAREHOUSE_JOBS_DB_HOST` | `"localhost"` | string | PostgreSQL host for warehouse jobs database |
-| `WAREHOUSE_JOBS_DB_PORT` | `5432` | int | PostgreSQL port |
-| `WAREHOUSE_JOBS_DB_USER` | `"ubuntu"` | string | PostgreSQL user |
-| `WAREHOUSE_JOBS_DB_PASSWORD` | `"ubuntu"` | string | PostgreSQL password |
-| `WAREHOUSE_JOBS_DB_DB_NAME` | `"ubuntu"` | string | PostgreSQL database name |
-| `WAREHOUSE_JOBS_DB_SSL_MODE` | `"disable"` | string | PostgreSQL SSL mode |
-| `Warehouse.maxOpenConnections` | `20` | int | Maximum PostgreSQL connection pool size |
-| `Warehouse.webPort` | `8082` | int | HTTP API listen port |
-| `Warehouse.dbHandleTimeout` | `5m` | duration | Database query timeout |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.mode` | `"embedded"` | string | `embedded`, `master`, `slave`, `master_slave`, `embedded_master` | Operational mode |
+| `Warehouse.runningMode` | `""` | string | `""`, `"degraded"` | Running mode: `"degraded"` or empty for normal operation |
+| `WAREHOUSE_JOBS_DB_HOST` | `"localhost"` | string | Valid hostname/IP | PostgreSQL host for warehouse jobs database |
+| `WAREHOUSE_JOBS_DB_PORT` | `5432` | int | 1–65535 | PostgreSQL port |
+| `WAREHOUSE_JOBS_DB_USER` | `"ubuntu"` | string | Valid username | PostgreSQL user |
+| `WAREHOUSE_JOBS_DB_PASSWORD` | `"ubuntu"` | string | Valid password | PostgreSQL password |
+| `WAREHOUSE_JOBS_DB_DB_NAME` | `"ubuntu"` | string | Valid database name | PostgreSQL database name |
+| `WAREHOUSE_JOBS_DB_SSL_MODE` | `"disable"` | string | `disable`, `require`, `verify-ca`, `verify-full` | PostgreSQL SSL mode |
+| `Warehouse.maxOpenConnections` | `20` | int | ≥ 1 | Maximum PostgreSQL connection pool size |
+| `Warehouse.webPort` | `8082` | int | 1–65535 | HTTP API listen port |
+| `Warehouse.dbHandleTimeout` | `5m` | duration | ≥ 0s | Database query timeout |
+
+> **⚠️ Security Advisory:** The default PostgreSQL credentials (`WAREHOUSE_JOBS_DB_USER="ubuntu"`, `WAREHOUSE_JOBS_DB_PASSWORD="ubuntu"`) are intended for development only. **Override these with secure credentials in production deployments.**
 
 > Source: `warehouse/app.go:111-124`
 
@@ -459,7 +461,7 @@ The gRPC server implements the `WarehouseServer` interface defined in `proto/war
 
 ## Sub-Package Reference
 
-The warehouse service spans 22+ sub-packages, each responsible for a bounded slice of the warehouse loading pipeline:
+The warehouse service spans 20+ sub-packages, each responsible for a bounded slice of the warehouse loading pipeline:
 
 | Package | Path | Purpose |
 |---------|------|---------|
@@ -606,11 +608,11 @@ The `CronArchiver` function runs as a background goroutine in master mode. It ex
 
 ### Configuration
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `Warehouse.archiveUploadRelatedRecords` | `true` | Enable archival of completed upload records |
-| `Warehouse.Archiver.backupRowsBatchSize` | `100` | Number of records per archival batch |
-| `Warehouse.Archiver.canDeleteUploads` | Varies | Enable deletion of expired uploads |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.archiveUploadRelatedRecords` | `true` | bool | `true` / `false` | Enable archival of completed upload records |
+| `Warehouse.Archiver.backupRowsBatchSize` | `100` | int | ≥ 1 | Number of records per archival batch |
+| `Warehouse.Archiver.canDeleteUploads` | Varies | bool | `true` / `false` | Enable deletion of expired uploads |
 
 > Source: `warehouse/archive/cron.go:10-33`, `warehouse/archive/archiver.go:63-96`
 
@@ -622,69 +624,71 @@ The following table provides a comprehensive reference of all warehouse-level co
 
 ### Core Configuration
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.mode` | `"embedded"` | string | Operational mode: `embedded`, `master`, `slave`, `master_slave`, `embedded_master` |
-| `Warehouse.runningMode` | `""` | string | Running mode: `"degraded"` or empty for normal operation |
-| `Warehouse.webPort` | `8082` | int | HTTP API listen port |
-| `Warehouse.dbHandleTimeout` | `5m` | duration | Database query timeout for all warehouse DB operations |
-| `Warehouse.maxOpenConnections` | `20` | int | Maximum PostgreSQL connection pool size |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.mode` | `"embedded"` | string | `embedded`, `master`, `slave`, `master_slave`, `embedded_master` | Operational mode |
+| `Warehouse.runningMode` | `""` | string | `""`, `"degraded"` | Running mode: `"degraded"` or empty for normal operation |
+| `Warehouse.webPort` | `8082` | int | 1–65535 | HTTP API listen port |
+| `Warehouse.dbHandleTimeout` | `5m` | duration | ≥ 0s | Database query timeout for all warehouse DB operations |
+| `Warehouse.maxOpenConnections` | `20` | int | ≥ 1 | Maximum PostgreSQL connection pool size |
 
 ### Database Configuration
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `WAREHOUSE_JOBS_DB_HOST` | `"localhost"` | string | PostgreSQL host for warehouse jobs database |
-| `WAREHOUSE_JOBS_DB_PORT` | `5432` | int | PostgreSQL port |
-| `WAREHOUSE_JOBS_DB_USER` | `"ubuntu"` | string | PostgreSQL user |
-| `WAREHOUSE_JOBS_DB_PASSWORD` | `"ubuntu"` | string | PostgreSQL password |
-| `WAREHOUSE_JOBS_DB_DB_NAME` | `"ubuntu"` | string | PostgreSQL database name |
-| `WAREHOUSE_JOBS_DB_SSL_MODE` | `"disable"` | string | PostgreSQL SSL mode (`disable`, `require`, `verify-ca`, `verify-full`) |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `WAREHOUSE_JOBS_DB_HOST` | `"localhost"` | string | Valid hostname/IP | PostgreSQL host for warehouse jobs database |
+| `WAREHOUSE_JOBS_DB_PORT` | `5432` | int | 1–65535 | PostgreSQL port |
+| `WAREHOUSE_JOBS_DB_USER` | `"ubuntu"` | string | Valid username | PostgreSQL user |
+| `WAREHOUSE_JOBS_DB_PASSWORD` | `"ubuntu"` | string | Valid password | PostgreSQL password |
+| `WAREHOUSE_JOBS_DB_DB_NAME` | `"ubuntu"` | string | Valid database name | PostgreSQL database name |
+| `WAREHOUSE_JOBS_DB_SSL_MODE` | `"disable"` | string | `disable`, `require`, `verify-ca`, `verify-full` | PostgreSQL SSL mode |
+
+> **⚠️ Security Advisory:** The default PostgreSQL credentials (`WAREHOUSE_JOBS_DB_USER="ubuntu"`, `WAREHOUSE_JOBS_DB_PASSWORD="ubuntu"`) are intended for development only. **Override these with secure credentials in production deployments.**
 
 ### Upload Scheduling
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.uploadFreqInS` | `1800` | int (seconds) | Default upload frequency when no destination-level schedule is configured |
-| `Warehouse.uploadFreq` | `1800s` | duration | Upload frequency (alternate key) |
-| `Warehouse.noOfWorkers` | `8` | int | Number of worker goroutines per destination router |
-| `Warehouse.mainLoopSleep` | `5s` | duration | Sleep interval between main scheduling loop iterations |
-| `Warehouse.stagingFilesBatchSize` | `960` | int | Maximum number of staging files grouped into a single upload batch |
-| `Warehouse.enableJitterForSyncs` | `false` | bool | Add random jitter to sync schedules to prevent thundering herd |
-| `Warehouse.warehouseSyncFreqIgnore` | `false` | bool | Ignore destination-configured sync frequency; use `uploadFreqInS` instead |
-| `Warehouse.uploadBufferTimeInMin` | `180m` | duration | Buffer time for upload scheduling decisions |
-| `Warehouse.maxParallelJobCreation` | `8` | int | Maximum concurrent upload job creation operations |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.uploadFreqInS` | `1800` | int (seconds) | ≥ 1 | Default upload frequency when no destination-level schedule is configured |
+| `Warehouse.uploadFreq` | `1800s` | duration | > 0s | Upload frequency (alternate key) |
+| `Warehouse.noOfWorkers` | `8` | int | ≥ 1 | Number of worker goroutines per destination router |
+| `Warehouse.mainLoopSleep` | `5s` | duration | > 0s | Sleep interval between main scheduling loop iterations |
+| `Warehouse.stagingFilesBatchSize` | `960` | int | ≥ 1 | Maximum number of staging files grouped into a single upload batch |
+| `Warehouse.enableJitterForSyncs` | `false` | bool | `true` / `false` | Add random jitter to sync schedules to prevent thundering herd |
+| `Warehouse.warehouseSyncFreqIgnore` | `false` | bool | `true` / `false` | Ignore destination-configured sync frequency; use `uploadFreqInS` instead |
+| `Warehouse.uploadBufferTimeInMin` | `180m` | duration | ≥ 0s | Buffer time for upload scheduling decisions |
+| `Warehouse.maxParallelJobCreation` | `8` | int | ≥ 1 | Maximum concurrent upload job creation operations |
 
 ### Slave Configuration
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.noOfSlaveWorkerRoutines` | `4` | int | Number of concurrent worker goroutines per slave node |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.noOfSlaveWorkerRoutines` | `4` | int | ≥ 1 | Number of concurrent worker goroutines per slave node |
 
 ### Retry and Backoff
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.retryTimeWindow` | `180m` | duration | Maximum time window for retrying failed uploads |
-| `Warehouse.minRetryAttempts` | `3` | int | Minimum retry attempts before aborting |
-| `Warehouse.minUploadBackoff` | `60s` | duration | Minimum backoff between upload retries |
-| `Warehouse.maxUploadBackoff` | `1800s` | duration | Maximum backoff between upload retries |
-| `Warehouse.maxFailedCountForJob` | `128` | int | Maximum failure count before a job is permanently aborted |
-| `Warehouse.cronTrackerRetries` | `5` | int | Number of retries for cron tracker operations |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.retryTimeWindow` | `180m` | duration | > 0s | Maximum time window for retrying failed uploads |
+| `Warehouse.minRetryAttempts` | `3` | int | ≥ 1 | Minimum retry attempts before aborting |
+| `Warehouse.minUploadBackoff` | `60s` | duration | ≥ 0s | Minimum backoff between upload retries |
+| `Warehouse.maxUploadBackoff` | `1800s` | duration | ≥ 0s | Maximum backoff between upload retries |
+| `Warehouse.maxFailedCountForJob` | `128` | int | ≥ 1 | Maximum failure count before a job is permanently aborted |
+| `Warehouse.cronTrackerRetries` | `5` | int | ≥ 0 | Number of retries for cron tracker operations |
 
 ### Identity Resolution
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.enableIDResolution` | `false` | bool | Enable identity resolution for supported warehouses |
-| `Warehouse.populateHistoricIdentities` | `false` | bool | Backfill historic identity data when identity resolution is enabled |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.enableIDResolution` | `false` | bool | `true` / `false` | Enable identity resolution for supported warehouses |
+| `Warehouse.populateHistoricIdentities` | `false` | bool | `true` / `false` | Backfill historic identity data when identity resolution is enabled |
 
 ### Archival
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.archiveUploadRelatedRecords` | `true` | bool | Enable archival of completed upload records to object storage |
-| `Warehouse.Archiver.backupRowsBatchSize` | `100` | int | Number of records per archival batch |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.archiveUploadRelatedRecords` | `true` | bool | `true` / `false` | Enable archival of completed upload records to object storage |
+| `Warehouse.Archiver.backupRowsBatchSize` | `100` | int | ≥ 1 | Number of records per archival batch |
 
 ### Per-Destination Parallel Loads
 
@@ -700,19 +704,19 @@ The following table provides a comprehensive reference of all warehouse-level co
 
 ### ClickHouse-Specific Configuration
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.clickhouse.queryDebugLogs` | `false` | bool | Enable ClickHouse query debug logging |
-| `Warehouse.clickhouse.blockSize` | `1000` | int | ClickHouse block size for batch inserts |
-| `Warehouse.clickhouse.poolSize` | `10` | int | ClickHouse connection pool size |
-| `Warehouse.clickhouse.disableNullable` | `false` | bool | Disable nullable columns in ClickHouse |
-| `Warehouse.clickhouse.enableArraySupport` | `false` | bool | Enable array column support for ClickHouse |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.clickhouse.queryDebugLogs` | `false` | bool | `true` / `false` | Enable ClickHouse query debug logging |
+| `Warehouse.clickhouse.blockSize` | `1000` | int | ≥ 1 | ClickHouse block size for batch inserts |
+| `Warehouse.clickhouse.poolSize` | `10` | int | ≥ 1 | ClickHouse connection pool size |
+| `Warehouse.clickhouse.disableNullable` | `false` | bool | `true` / `false` | Disable nullable columns in ClickHouse |
+| `Warehouse.clickhouse.enableArraySupport` | `false` | bool | `true` / `false` | Enable array column support for ClickHouse |
 
 ### Databricks-Specific Configuration
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.deltalake.loadTableStrategy` | `"MERGE"` | string | Load strategy: `MERGE` (dedup) or `APPEND` |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.deltalake.loadTableStrategy` | `"MERGE"` | string | `"MERGE"`, `"APPEND"` | Load strategy: `MERGE` (dedup) or `APPEND` |
 
 > Source: `warehouse/app.go:111-124`, `config/config.yaml:145-184`, `warehouse/router/router.go:702-722`
 

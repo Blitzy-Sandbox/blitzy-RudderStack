@@ -102,14 +102,14 @@ RudderStack uploads staging files to Azure Blob Storage or ADLS Gen2 before load
 
 The following configuration parameters control the Azure Synapse connector's behavior. Parameters are set in `config/config.yaml` under the `Warehouse.azure_synapse` namespace or via corresponding environment variables.
 
-| Parameter | Config Key | Default | Type | Description |
-|-----------|-----------|---------|------|-------------|
-| **Max Parallel Loads** | `Warehouse.azure_synapse.maxParallelLoads` | `3` | `int` | Maximum number of tables loaded concurrently during a single upload cycle. Higher values increase throughput but consume more SQL pool connections. |
-| **Column Count Limit** | `Warehouse.azure_synapse.columnCountLimit` | `1024` | `int` | Maximum number of columns allowed per table. Tables exceeding this limit will not accept new columns via schema evolution. Azure Synapse supports up to 1024 columns per table. |
-| **Download Workers** | `Warehouse.azure_synapse.numWorkersDownloadLoadFiles` | `1` | `int` | Number of concurrent workers used to download load files from object storage before bulk copy. Increase for higher throughput when network bandwidth permits. |
-| **Slow Query Threshold** | `Warehouse.azure_synapse.slowQueryThreshold` | `5m` | `duration` | Queries exceeding this duration are flagged in logs as slow queries. Useful for identifying performance bottlenecks in the bulk copy or merge operations. |
-| **Table Name Limit** | (hardcoded) | `127` | `int` | Maximum length for table names, including staging table names. Azure Synapse enforces a 128-character identifier limit; the connector uses 127 to allow for prefix characters. |
-| **Default Varchar Length** | (hardcoded) | `512` | `int` | Default maximum length for `varchar` columns when the column length is not explicitly set in the warehouse schema. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.azure_synapse.maxParallelLoads` | `3` | int | ≥ 1 | Maximum number of tables loaded concurrently during a single upload cycle. Higher values increase throughput but consume more SQL pool connections. |
+| `Warehouse.azure_synapse.columnCountLimit` | `1024` | int | ≥ 1 | Maximum number of columns allowed per table. Tables exceeding this limit will not accept new columns via schema evolution. Azure Synapse supports up to 1024 columns per table. |
+| `Warehouse.azure_synapse.numWorkersDownloadLoadFiles` | `1` | int | ≥ 1 | Number of concurrent workers used to download load files from object storage before bulk copy. Increase for higher throughput when network bandwidth permits. |
+| `Warehouse.azure_synapse.slowQueryThreshold` | `5m` | duration | ≥ 0s | Queries exceeding this duration are flagged in logs as slow queries. Useful for identifying performance bottlenecks in the bulk copy or merge operations. |
+| Table Name Limit (hardcoded) | `127` | int | Fixed | Maximum length for table names, including staging table names. Azure Synapse enforces a 128-character identifier limit; the connector uses 127 to allow for prefix characters. |
+| Default Varchar Length (hardcoded) | `512` | int | Fixed | Default maximum length for `varchar` columns when the column length is not explicitly set in the warehouse schema. |
 
 > Source: `warehouse/integrations/azure-synapse/azure-synapse.go:39-44` (constants), `warehouse/integrations/azure-synapse/azure-synapse.go:127-138` (New constructor), `warehouse/integrations/config/config.go:25` (columnCountLimit), `config/config.yaml:173-174`
 
@@ -519,6 +519,21 @@ Azure Synapse dedicated SQL pools use DWU (Data Warehouse Units) as a measure of
 The `connectTimeout` is applied as the `dial timeout` parameter in the SQL Server connection URL. If your Synapse SQL pool is configured with auto-pause, ensure the timeout is long enough to allow the pool to resume (typically 5-10 minutes).
 
 > Source: `warehouse/integrations/azure-synapse/azure-synapse.go:157-159` (dial timeout)
+
+---
+
+## Identity Resolution
+
+Azure Synapse is **not** included in the `IdentityEnabledWarehouses` list. The identity resolution operations are no-ops for Azure Synapse:
+
+- `LoadIdentityMergeRulesTable` — No-op (identity merge rules are not loaded to Azure Synapse)
+- `LoadIdentityMappingsTable` — No-op (identity mappings are not loaded to Azure Synapse)
+
+Identity resolution for Azure Synapse warehouse destinations is not supported. Cross-touchpoint user unification must be handled at the application layer or via external identity processing pipelines. Only Snowflake and BigQuery support dedicated identity resolution tables.
+
+For full identity resolution documentation, see the [Warehouse Overview](overview.md) and [Identity Resolution](../guides/identity/identity-resolution.md).
+
+> Source: `warehouse/integrations/azure-synapse/azure-synapse.go:1058-1068`
 
 ---
 

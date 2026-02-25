@@ -117,12 +117,12 @@ type EventReader interface {
 
 The following configuration parameters control encoding behavior. All parameters are set via `config/config.yaml` or equivalent environment variables.
 
-| Parameter | Default | Type | Reloadable | Description |
-|-----------|---------|------|------------|-------------|
-| `Warehouse.maxStagingFileReadBufferCapacityInK` | `10240` | int | No | Maximum staging file read buffer capacity in kilobytes (10 MB default). Controls the `bufio.Scanner` buffer size for JSON reader to handle large JSON lines without truncation. |
-| `Warehouse.parquetParallelWriters` | `8` | int64 | Yes | Number of parallel goroutine writers used by the Parquet CSVWriter from `parquet-go`. Higher values improve write throughput at the cost of memory. |
-| `Warehouse.disableParquetColumnIndex` | `true` | bool | Yes | When `true`, disables Parquet column statistics index generation. Reduces file size and write latency for staging files where column-level filtering is not required. |
-| `Warehouse.deltalake.useParquetLoadFiles` | `false` | bool | No | When `true`, Databricks (Delta Lake) destinations use Parquet load files instead of the default CSV format. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.maxStagingFileReadBufferCapacityInK` | `10240` | int | ≥ 1 | Maximum staging file read buffer capacity in kilobytes (10 MB default). Controls the `bufio.Scanner` buffer size for JSON reader to handle large JSON lines without truncation. Not reloadable. |
+| `Warehouse.parquetParallelWriters` | `8` | int64 | ≥ 1 | Number of parallel goroutine writers used by the Parquet CSVWriter from `parquet-go`. Higher values improve write throughput at the cost of memory. Hot-reloadable. |
+| `Warehouse.disableParquetColumnIndex` | `true` | bool | `true` / `false` | When `true`, disables Parquet column statistics index generation. Reduces file size and write latency for staging files where column-level filtering is not required. Hot-reloadable. |
+| `Warehouse.deltalake.useParquetLoadFiles` | `false` | bool | `true` / `false` | When `true`, Databricks (Delta Lake) destinations use Parquet load files instead of the default CSV format. Not reloadable. |
 
 > Source: `warehouse/encoding/encoding.go:29-34`, `warehouse/utils/utils.go:816-818`
 

@@ -86,16 +86,16 @@ curl -X POST http://localhost:8082/v1/warehouse/validate \
 
 The following configuration parameters control BigQuery connector behavior. These are set in `config/config.yaml` under the `Warehouse.bigquery` namespace.
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.bigquery.setUsersLoadPartitionFirstEventFilter` | `true` | `bool` | Enables partition filter optimization for the users table during load operations. When enabled, queries against the users table use first-event-based partition filters to reduce scan costs. |
-| `Warehouse.bigquery.customPartitionsEnabled` | `false` | `bool` | Enables custom date/time column-based partitioning for tables. When disabled, tables use BigQuery's default ingestion-time partitioning. See [Custom Partitioning](#custom-partitioning). |
-| `Warehouse.bigquery.enableDeleteByJobs` | `false` | `bool` | Enables job-based deletion support for the `DeleteBy` operation. When disabled, `DeleteBy` SQL statements are logged but not executed. Used for source-level data cleanup operations. |
-| `Warehouse.bigquery.customPartitionsEnabledWorkspaceIDs` | `[]` (empty) | `[]string` | List of workspace IDs for which custom partitioning is enabled, even if the global `customPartitionsEnabled` flag is `false`. Allows selective rollout of custom partitioning per workspace. |
-| `Warehouse.bigquery.slowQueryThreshold` | `5m` | `duration` | Threshold duration for slow query logging. Queries exceeding this duration are logged by the middleware layer with query text and execution time. |
-| `Warehouse.bigquery.loadByFolderPath` | `false` | `bool` | Enables folder-path-based loading optimization. When enabled, the connector loads all JSON files from a GCS folder path using a wildcard (`/*`) instead of listing individual file URIs. Reduces API overhead for tables with many staging files. |
-| `Warehouse.bigquery.maxParallelLoads` | `20` | `int` | Maximum number of tables that can be loaded in parallel during a single upload cycle. BigQuery's high default (20) reflects its ability to handle concurrent load jobs efficiently. |
-| `Warehouse.bigquery.columnCountLimit` | `10000` | `int` | Maximum number of columns allowed per table. Aligns with BigQuery's native column limit. Tables exceeding this limit trigger a `ColumnCountError`. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.bigquery.setUsersLoadPartitionFirstEventFilter` | `true` | bool | `true` / `false` | Enables partition filter optimization for the users table during load operations. When enabled, queries against the users table use first-event-based partition filters to reduce scan costs. |
+| `Warehouse.bigquery.customPartitionsEnabled` | `false` | bool | `true` / `false` | Enables custom date/time column-based partitioning for tables. When disabled, tables use BigQuery's default ingestion-time partitioning. See [Custom Partitioning](#custom-partitioning). |
+| `Warehouse.bigquery.enableDeleteByJobs` | `false` | bool | `true` / `false` | Enables job-based deletion support for the `DeleteBy` operation. When disabled, `DeleteBy` SQL statements are logged but not executed. Used for source-level data cleanup operations. |
+| `Warehouse.bigquery.customPartitionsEnabledWorkspaceIDs` | `[]` (empty) | []string | Workspace ID list | List of workspace IDs for which custom partitioning is enabled, even if the global `customPartitionsEnabled` flag is `false`. Allows selective rollout of custom partitioning per workspace. |
+| `Warehouse.bigquery.slowQueryThreshold` | `5m` | duration | ≥ 0s | Threshold duration for slow query logging. Queries exceeding this duration are logged by the middleware layer with query text and execution time. |
+| `Warehouse.bigquery.loadByFolderPath` | `false` | bool | `true` / `false` | Enables folder-path-based loading optimization. When enabled, the connector loads all JSON files from a GCS folder path using a wildcard (`/*`) instead of listing individual file URIs. Reduces API overhead for tables with many staging files. |
+| `Warehouse.bigquery.maxParallelLoads` | `20` | int | ≥ 1 | Maximum number of tables that can be loaded in parallel during a single upload cycle. BigQuery's high default (20) reflects its ability to handle concurrent load jobs efficiently. |
+| `Warehouse.bigquery.columnCountLimit` | `10000` | int | ≥ 1 | Maximum number of columns allowed per table. Aligns with BigQuery's native column limit. Tables exceeding this limit trigger a `ColumnCountError`. |
 
 > Source: `warehouse/integrations/bigquery/bigquery.go:47-55` (config struct), `warehouse/integrations/bigquery/bigquery.go:130-135` (initialization), `config/config.yaml:166-167`, `warehouse/integrations/config/config.go:26`
 

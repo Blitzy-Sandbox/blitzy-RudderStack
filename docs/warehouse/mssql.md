@@ -84,27 +84,27 @@ The following configuration parameters control MSSQL connector behavior. Paramet
 
 ### MSSQL-Specific Parameters
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.mssql.maxParallelLoads` | `3` | int | Maximum number of tables loaded in parallel during a warehouse upload job. Controls concurrency of the loading phase. |
-| `Warehouse.mssql.enableDeleteByJobs` | `false` | bool | Enables delete-by-job support. When `true`, the `DeleteBy` method executes cleanup queries that delete rows from previous job runs based on `context_sources_job_run_id`, `context_sources_task_run_id`, and `context_source_id`. |
-| `Warehouse.mssql.numWorkersDownloadLoadFiles` | `1` | int | Number of concurrent workers used to download staging (load) files from object storage before the CopyIn phase. |
-| `Warehouse.mssql.slowQueryThreshold` | `5m` | duration | Queries exceeding this threshold are logged as slow queries by the SQL query wrapper middleware. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.mssql.maxParallelLoads` | `3` | int | ≥ 1 | Maximum number of tables loaded in parallel during a warehouse upload job. Controls concurrency of the loading phase. |
+| `Warehouse.mssql.enableDeleteByJobs` | `false` | bool | `true` / `false` | Enables delete-by-job support. When `true`, the `DeleteBy` method executes cleanup queries that delete rows from previous job runs based on `context_sources_job_run_id`, `context_sources_task_run_id`, and `context_source_id`. |
+| `Warehouse.mssql.numWorkersDownloadLoadFiles` | `1` | int | ≥ 1 | Number of concurrent workers used to download staging (load) files from object storage before the CopyIn phase. |
+| `Warehouse.mssql.slowQueryThreshold` | `5m` | duration | ≥ 0s | Queries exceeding this threshold are logged as slow queries by the SQL query wrapper middleware. |
 
 > Source: `warehouse/integrations/mssql/mssql.go:132-143`, `config/config.yaml:171-172`
 
 ### General Warehouse Parameters (Applicable to MSSQL)
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.uploadFreq` | `1800s` | duration | Interval between warehouse upload cycles. |
-| `Warehouse.noOfWorkers` | `8` | int | Number of concurrent warehouse worker goroutines. |
-| `Warehouse.stagingFilesBatchSize` | `960` | int | Maximum number of staging files processed per upload batch. |
-| `Warehouse.minRetryAttempts` | `3` | int | Minimum number of retry attempts for failed uploads before marking as aborted. |
-| `Warehouse.retryTimeWindow` | `180m` | duration | Time window within which failed uploads are retried. |
-| `Warehouse.minUploadBackoff` | `60s` | duration | Minimum backoff duration between upload retry attempts. |
-| `Warehouse.maxUploadBackoff` | `1800s` | duration | Maximum backoff duration between upload retry attempts. |
-| `Warehouse.enableIDResolution` | `false` | bool | Enables identity resolution table injection during schema consolidation. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.uploadFreq` | `1800s` | duration | > 0s | Interval between warehouse upload cycles. |
+| `Warehouse.noOfWorkers` | `8` | int | ≥ 1 | Number of concurrent warehouse worker goroutines. |
+| `Warehouse.stagingFilesBatchSize` | `960` | int | ≥ 1 | Maximum number of staging files processed per upload batch. |
+| `Warehouse.minRetryAttempts` | `3` | int | ≥ 1 | Minimum number of retry attempts for failed uploads before marking as aborted. |
+| `Warehouse.retryTimeWindow` | `180m` | duration | > 0s | Time window within which failed uploads are retried. |
+| `Warehouse.minUploadBackoff` | `60s` | duration | ≥ 0s | Minimum backoff duration between upload retry attempts. |
+| `Warehouse.maxUploadBackoff` | `1800s` | duration | ≥ 0s | Maximum backoff duration between upload retry attempts. |
+| `Warehouse.enableIDResolution` | `false` | bool | `true` / `false` | Enables identity resolution table injection during schema consolidation. |
 
 > Source: `config/config.yaml:145-161`
 
@@ -538,3 +538,18 @@ The cleanup process:
 This ensures that the SQL Server database does not accumulate orphaned staging tables over time.
 
 > Source: `warehouse/integrations/mssql/mssql.go:919-960`, `warehouse/integrations/mssql/mssql.go:1025-1043`
+
+---
+
+## Identity Resolution
+
+MSSQL (SQL Server) is **not** included in the `IdentityEnabledWarehouses` list. The identity resolution operations are no-ops for MSSQL:
+
+- `LoadIdentityMergeRulesTable` — No-op (identity merge rules are not loaded to MSSQL)
+- `LoadIdentityMappingsTable` — No-op (identity mappings are not loaded to MSSQL)
+
+Although the `Warehouse.enableIDResolution` configuration parameter is available in the general warehouse config, enabling it has no effect for MSSQL destinations because the connector does not implement identity table loading. Cross-touchpoint user unification must be handled at the application layer or via external identity processing pipelines. Only Snowflake and BigQuery support dedicated identity resolution tables.
+
+For full identity resolution documentation, see the [Warehouse Overview](overview.md) and [Identity Resolution](../guides/identity/identity-resolution.md).
+
+> Source: `warehouse/integrations/mssql/mssql.go:1002-1010`

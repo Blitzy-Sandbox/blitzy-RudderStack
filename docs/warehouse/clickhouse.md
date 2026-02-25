@@ -89,26 +89,24 @@ For workspaces requiring bulk loading via the ClickHouse S3 engine, add the work
 
 The following parameters control ClickHouse connector behavior. All parameters are prefixed with `Warehouse.clickhouse.` in `config/config.yaml` or set via environment variables.
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.clickhouse.maxParallelLoads` | `3` | int | Maximum number of tables loaded in parallel during a single upload cycle |
-| `Warehouse.clickhouse.queryDebugLogs` | `"false"` | string | Enable ClickHouse driver-level query debug logging |
-| `Warehouse.clickhouse.blockSize` | `"1000000"` | string | ClickHouse block size for batch inserts (rows per block) |
-| `Warehouse.clickhouse.poolSize` | `"100"` | string | Connection pool size for the ClickHouse driver |
-| `Warehouse.clickhouse.readTimeout` | `"300"` | string | Read timeout in seconds for ClickHouse connections |
-| `Warehouse.clickhouse.writeTimeout` | `"1800"` | string | Write timeout in seconds for ClickHouse connections (30 minutes default) |
-| `Warehouse.clickhouse.compress` | `false` | bool | Enable compression for data transmitted to ClickHouse |
-| `Warehouse.clickhouse.disableNullable` | `false` | bool | Disable `Nullable()` wrappers on columns for non-identifies/non-users tables. When enabled, columns use default values instead of NULL |
-| `Warehouse.clickhouse.execTimeOutInSeconds` | `600` | duration (seconds) | Timeout for individual SQL statement execution (10 minutes) |
-| `Warehouse.clickhouse.commitTimeOutInSeconds` | `600` | duration (seconds) | Timeout for transaction commit operations (10 minutes) |
-| `Warehouse.clickhouse.loadTableFailureRetries` | `3` | int | Number of retry attempts for failed table load operations |
-| `Warehouse.clickhouse.numWorkersDownloadLoadFiles` | `8` | int | Number of parallel workers for downloading load files from object storage |
-| `Warehouse.clickhouse.s3EngineEnabledWorkspaceIDs` | `[]` (empty) | string slice | List of workspace IDs that use S3 engine for bulk loading instead of CSV insert |
-| `Warehouse.clickhouse.slowQueryThreshold` | `5m` | duration | Threshold for logging slow queries |
-| `Warehouse.clickhouse.disableLoadTableStats` | `false` | bool | Disable pre/post load row count tracking (can be set per workspace) |
-| `Warehouse.clickhouse.maxLoadDelay` | `0` | duration (seconds) | Maximum random delay before starting a table load (jitter for load distribution, per workspace) |
-
-> **Note:** The config file at `config/config.yaml` uses simplified defaults (e.g., `blockSize: 1000`, `poolSize: 10`) while the Go code constructor uses the full defaults shown above.
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.clickhouse.maxParallelLoads` | `3` | int | ≥ 1 | Maximum number of tables loaded in parallel during a single upload cycle |
+| `Warehouse.clickhouse.queryDebugLogs` | `"false"` | string | `"true"` / `"false"` | Enable ClickHouse driver-level query debug logging |
+| `Warehouse.clickhouse.blockSize` | `1000` | int | ≥ 1 | ClickHouse block size for batch inserts (rows per block). The Go code constructor falls back to `1000000` if no config value is set, but the default in `config/config.yaml` is `1000`. |
+| `Warehouse.clickhouse.poolSize` | `10` | int | ≥ 1 | Connection pool size for the ClickHouse driver. The Go code constructor falls back to `100` if no config value is set, but the default in `config/config.yaml` is `10`. |
+| `Warehouse.clickhouse.readTimeout` | `"300"` | string | ≥ `"0"` (seconds) | Read timeout in seconds for ClickHouse connections |
+| `Warehouse.clickhouse.writeTimeout` | `"1800"` | string | ≥ `"0"` (seconds) | Write timeout in seconds for ClickHouse connections (30 minutes default) |
+| `Warehouse.clickhouse.compress` | `false` | bool | `true` / `false` | Enable compression for data transmitted to ClickHouse |
+| `Warehouse.clickhouse.disableNullable` | `false` | bool | `true` / `false` | Disable `Nullable()` wrappers on columns for non-identifies/non-users tables. When enabled, columns use default values instead of NULL |
+| `Warehouse.clickhouse.execTimeOutInSeconds` | `600` | duration (seconds) | ≥ 0 | Timeout for individual SQL statement execution (10 minutes) |
+| `Warehouse.clickhouse.commitTimeOutInSeconds` | `600` | duration (seconds) | ≥ 0 | Timeout for transaction commit operations (10 minutes) |
+| `Warehouse.clickhouse.loadTableFailureRetries` | `3` | int | ≥ 0 | Number of retry attempts for failed table load operations |
+| `Warehouse.clickhouse.numWorkersDownloadLoadFiles` | `8` | int | ≥ 1 | Number of parallel workers for downloading load files from object storage |
+| `Warehouse.clickhouse.s3EngineEnabledWorkspaceIDs` | `[]` (empty) | string slice | Workspace ID list | List of workspace IDs that use S3 engine for bulk loading instead of CSV insert |
+| `Warehouse.clickhouse.slowQueryThreshold` | `5m` | duration | ≥ 0s | Threshold for logging slow queries |
+| `Warehouse.clickhouse.disableLoadTableStats` | `false` | bool | `true` / `false` | Disable pre/post load row count tracking (can be set per workspace) |
+| `Warehouse.clickhouse.maxLoadDelay` | `0` | duration (seconds) | ≥ 0 | Maximum random delay before starting a table load (jitter for load distribution, per workspace) |
 
 > Source: `warehouse/integrations/clickhouse/clickhouse.go:213-250`, `config/config.yaml:175-181`
 
@@ -493,8 +491,8 @@ To enable S3 engine loading, add the workspace ID to `s3EngineEnabledWorkspaceID
 
 ### Connection Pool and Block Size
 
-- **`poolSize`** (default: `"100"`): Number of connections in the ClickHouse driver connection pool. Increase for high-concurrency workloads.
-- **`blockSize`** (default: `"1000000"`): Number of rows per ClickHouse block during insert. Larger blocks improve throughput but require more memory.
+- **`poolSize`** (default: `10` per `config/config.yaml`; Go code fallback: `100`): Number of connections in the ClickHouse driver connection pool. Increase for high-concurrency workloads.
+- **`blockSize`** (default: `1000` per `config/config.yaml`; Go code fallback: `1000000`): Number of rows per ClickHouse block during insert. Larger blocks improve throughput but require more memory.
 
 ### Timeout Tuning
 
@@ -596,6 +594,22 @@ ALTER TABLE "namespace"."table_name" [ON CLUSTER "cluster_name"]
 Column types follow the same nullable and `SimpleAggregateFunction` wrapping rules as table creation.
 
 > Source: `warehouse/integrations/clickhouse/clickhouse.go:931-965`
+
+---
+
+## Identity Resolution
+
+ClickHouse is **not** included in the `IdentityEnabledWarehouses` list. The identity resolution operations are no-ops for ClickHouse:
+
+- `LoadIdentityMergeRulesTable` — No-op (identity merge rules are not loaded to ClickHouse)
+- `LoadIdentityMappingsTable` — No-op (identity mappings are not loaded to ClickHouse)
+- `DownloadIdentityRules` — Not implemented for ClickHouse
+
+Identity resolution for ClickHouse warehouse destinations is not supported. Cross-touchpoint user unification must be handled at the application layer or via external identity processing pipelines. Only Snowflake and BigQuery support dedicated identity resolution tables.
+
+For full identity resolution documentation, see the [Warehouse Overview](overview.md) and [Identity Resolution](../guides/identity/identity-resolution.md).
+
+> Source: `warehouse/integrations/clickhouse/clickhouse.go:1145-1155`
 
 ---
 
