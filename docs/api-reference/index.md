@@ -75,6 +75,8 @@ RudderStack's Gateway implements **five authentication schemes**, each tailored 
 
 Source: `gateway/handle_http_auth.go`
 
+> For a comprehensive view of the security architecture including encryption, SSRF protection, and OAuth flows, see [Security Architecture](../architecture/security.md).
+
 ### Authentication Scheme Overview
 
 | # | Scheme | Method | Used By | Primary Header / Parameter |

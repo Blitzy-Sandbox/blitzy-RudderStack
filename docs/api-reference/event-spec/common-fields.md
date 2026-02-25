@@ -154,6 +154,26 @@ Source: `gateway/types.go:19-31` — The `webRequestT` struct captures `reqType`
 
 ---
 
+## Identities
+
+Every API call must include at least one of the two primary identity fields: `anonymousId` or `userId`. These fields link events to user profiles and enable cross-session identity stitching.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `anonymousId` | String | Conditional | Pseudo-unique substitute for a `userId` when no permanent identifier is available. Generated automatically by client SDKs using UUIDv4. At least one of `anonymousId` or `userId` must be present in every call. |
+| `userId` | String | Conditional | Permanent, database-level unique identifier for the user. Should persist across sessions and devices. At least one of `userId` or `anonymousId` must be present. |
+
+**Identity Resolution Behavior:**
+
+- When **only `anonymousId`** is provided (e.g., first visit before login), all events are attributed to the anonymous profile.
+- When **only `userId`** is provided (common in server-side calls), events are attributed directly to the known user.
+- When **both** are provided (e.g., post-login identify call), RudderStack associates the anonymous activity with the known user, enabling cross-session identity stitching.
+- The [Alias](alias.md) call can merge two previously separate user identifiers when a user identity migration is needed.
+
+Source: `gateway/openapi.yaml:688-732` — `userId` and `anonymousId` field definitions across all event schemas
+
+---
+
 ## Context
 
 Context is a dictionary of extra information that provides useful context about a datapoint — for example, the user's `ip` address or `locale`. Context fields should **only** be used for their intended meaning as documented below.
