@@ -38,6 +38,8 @@
     ·
     <a href="https://www.rudderstack.com/docs/">Documentation</a>
     ·
+    <a href="docs/README.md">Docs</a>
+    ·
     <a href="https://github.com/rudderlabs/rudder-server/blob/master/CHANGELOG.md">Changelog</a>
     ·
     <a href="https://www.rudderstack.com/blog/">Blog</a>
@@ -110,6 +112,35 @@ A high-level view of RudderStack’s architecture is shown below:
 ![Architecture](resources/rudder-server-architecture.png)
 
 For more details on the various architectural components, refer to our [**documentation**](https://www.rudderstack.com/docs/get-started/rudderstack-architecture/).
+
+For detailed architecture documentation, see the [Architecture Overview](docs/architecture/overview.md). See also: [Data Flow](docs/architecture/data-flow.md) | [Pipeline Stages](docs/architecture/pipeline-stages.md) | [Deployment Topologies](docs/architecture/deployment-topologies.md) | [Warehouse State Machine](docs/architecture/warehouse-state-machine.md)
+
+## 📚 Documentation
+
+Comprehensive documentation is available in the [`docs/`](docs/README.md) directory, covering architecture, API references, integration guides, operational runbooks, and Segment parity analysis.
+
+| Category | Description |
+|----------|-------------|
+| **[Gap Report](docs/gap-report/index.md)** | Segment parity gap analysis and sprint roadmap |
+| **[Architecture](docs/architecture/overview.md)** | System architecture, data flows, deployment topologies |
+| **[API Reference](docs/api-reference/index.md)** | HTTP API, Event Spec, gRPC API, error codes |
+| **[Getting Started](docs/guides/getting-started/installation.md)** | Installation, configuration, first events |
+| **[Migration Guide](docs/guides/migration/segment-migration.md)** | Segment-to-RudderStack migration |
+| **[Source SDKs](docs/guides/sources/javascript-sdk.md)** | JavaScript, iOS, Android, server-side SDK guides |
+| **[Destinations](docs/guides/destinations/index.md)** | Stream, cloud, and warehouse destination guides |
+| **[Transformations](docs/guides/transformations/overview.md)** | Custom transforms and Functions |
+| **[Governance](docs/guides/governance/tracking-plans.md)** | Tracking plans, consent, event filtering |
+| **[Identity](docs/guides/identity/identity-resolution.md)** | Identity resolution and profiles |
+| **[Operations](docs/guides/operations/warehouse-sync.md)** | Warehouse sync, replay, capacity planning |
+| **[Warehouse Connectors](docs/warehouse/overview.md)** | Per-warehouse setup and configuration guides |
+| **[Reference](docs/reference/config-reference.md)** | Configuration, environment variables, glossary |
+| **[Contributing](docs/contributing/development.md)** | Development setup, destination onboarding, testing |
+
+### Segment Parity Gap Report
+
+A comprehensive gap analysis comparing RudderStack capabilities against Twilio Segment features is available in the [Gap Report](docs/gap-report/index.md). This covers event spec parity, destination catalog coverage, transformation/Functions, Protocols enforcement, identity resolution, and warehouse sync.
+
+> **Note:** Segment Engage/Campaigns and Reverse ETL are planned for Phase 2.
 
 ## Contribute
 
