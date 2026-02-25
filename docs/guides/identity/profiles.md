@@ -333,9 +333,9 @@ For the complete gap analysis with remediation recommendations, see [Identity Pa
 
 The following configuration parameters affect profile and identity resolution behavior:
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.enableIDResolution` | `false` | bool | Enable identity merge rules and mappings tables in the warehouse schema. When enabled, `rudder_identity_merge_rules` and `rudder_identity_mappings` tables are created during warehouse sync. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.enableIDResolution` | `false` | bool | `true` / `false` | Enable identity merge rules and mappings tables in the warehouse schema. When enabled, `rudder_identity_merge_rules` and `rudder_identity_mappings` tables are created during warehouse sync. |
 
 Source: `warehouse/utils/utils.go:196` — `enableIDResolution = config.GetBoolVar(false, "Warehouse.enableIDResolution")`
 

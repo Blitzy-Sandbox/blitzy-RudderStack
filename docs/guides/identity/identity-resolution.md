@@ -289,9 +289,9 @@ JOIN schema_name.rudder_identity_mappings m
 
 ### Configuration Parameters
 
-| Parameter | Default | Type | Description |
-|-----------|---------|------|-------------|
-| `Warehouse.enableIDResolution` | `false` | bool | Master switch to enable identity resolution in warehouse sync |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `Warehouse.enableIDResolution` | `false` | bool | `true` / `false` | Master switch to enable identity resolution in warehouse sync |
 
 Source: `warehouse/utils/utils.go:196` — `enableIDResolution = config.GetBoolVar(false, "Warehouse.enableIDResolution")`
 

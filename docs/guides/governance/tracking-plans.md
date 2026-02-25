@@ -104,12 +104,12 @@ Tracking plans are assigned per-source through the Control Plane backend-config.
 
 ### Configuration Parameters
 
-| Parameter | Location | Type | Default | Description |
-|-----------|----------|------|---------|-------------|
-| `trackingPlanId` | Source Config (event metadata) | string | `""` (none) | Unique identifier for the tracking plan assigned to this source. When empty, validation is skipped entirely for this source. |
-| `trackingPlanVersion` | Source Config (event metadata) | integer | `0` (none) | Version number of the tracking plan. Included in violation annotations and metric tags for audit and debugging. |
-| `MergedTpConfig` | Source Config (event metadata) | object | `{}` | Merged tracking plan configuration object containing validation rules, settings, and the `propagateValidationErrors` flag. |
-| `propagateValidationErrors` | `MergedTpConfig` map entry | string | `""` (enabled) | Controls whether violation errors are injected into the event context. Set to `"false"` to suppress violation errors from the event payload. Any other value (including empty/absent) enables propagation. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `trackingPlanId` | `""` (none) | string | Any non-empty string | Unique identifier for the tracking plan assigned to this source (via Source Config / event metadata). When empty, validation is skipped entirely for this source. |
+| `trackingPlanVersion` | `0` (none) | integer | ≥ 0 | Version number of the tracking plan (via Source Config / event metadata). Included in violation annotations and metric tags for audit and debugging. |
+| `MergedTpConfig` | `{}` | object | Valid JSON object | Merged tracking plan configuration object (via Source Config / event metadata) containing validation rules, settings, and the `propagateValidationErrors` flag. |
+| `propagateValidationErrors` | `""` (enabled) | string | `"false"` to suppress; any other value to enable | Controls whether violation errors are injected into the event context (key within `MergedTpConfig`). Set to `"false"` to suppress violation errors from the event payload. Any other value (including empty/absent) enables propagation. |
 
 Source: `processor/trackingplan.go:26-49` (`reportViolations` function — `propagateValidationErrors` check), `processor/trackingplan.go:80-81` (`trackingPlanID` and `trackingPlanVersion` extraction from metadata)
 

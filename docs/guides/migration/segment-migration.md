@@ -724,8 +724,8 @@ Notable differences between Segment and RudderStack to be aware of during and af
 | **Transformation** | Segment Functions (JS runtime) | User Transforms / Destination Transforms (JS/Python) | Different authoring interface; similar capability |
 | **Protocols** | Segment Protocols (schema enforcement, anomaly detection) | Tracking Plans (schema enforcement) | Similar validation capability; anomaly detection is partial |
 | **Identity Resolution** | Segment Unify (identity graph, profile sync, traits) | Warehouse Identity Resolution (`warehouse/identity/`) | Partial parity — warehouse-scoped identity merge |
-| **Engage/Campaigns** | Segment Engage (audiences, journeys, campaigns) | Not available in Phase 1 | Explicitly out of scope for Phase 1 |
-| **Reverse ETL** | Segment Reverse ETL (warehouse to destinations) | Not available in Phase 1 | Explicitly out of scope for Phase 1 |
+| **Engage/Campaigns** | Segment Engage (audiences, journeys, campaigns) | Phase 2 item — not available in Phase 1 | Phase 2 item — explicitly out of scope for Phase 1 |
+| **Reverse ETL** | Segment Reverse ETL (warehouse to destinations) | Phase 2 item — not available in Phase 1 | Phase 2 item — explicitly out of scope for Phase 1 |
 | **Connection Modes** | Cloud mode and device mode | Cloud mode (all events route through Gateway) | Server-side routing only; no direct client-to-destination |
 | **Replay** | Limited event replay | Full replay via Archiver (gzipped JSONL, 10-day retention) | Enhanced replay capability with source/date/hour organization |
 | **Additional Endpoints** | N/A | Beacon (`/beacon/v1/*`), Pixel (`/pixel/v1/*`), Webhook | RudderStack-only ingestion features |

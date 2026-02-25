@@ -354,14 +354,14 @@ All consent management configuration is managed through the **Control Plane** an
 
 ### Destination Configuration Parameters
 
-| Parameter | Location | Type | Scope | Description |
-|-----------|----------|------|-------|-------------|
-| `consentManagement` | Destination Config | `object[]` | Per source–destination pair (GCM) | Array of provider configurations, each containing a `provider` name, `resolutionStrategy`, and `consents` list. |
-| `consentManagement[].provider` | Destination Config | `string` | Per provider entry | Provider key name (e.g., `"oneTrust"`, `"ketch"`, or any custom name). Must be non-empty. |
-| `consentManagement[].resolutionStrategy` | Destination Config | `string` | Per provider entry | Resolution strategy for this provider: `"or"` or `"and"`. |
-| `consentManagement[].consents` | Destination Config | `object[]` | Per provider entry | Array of consent objects, each containing a `consent` string field. Empty consent strings are filtered out. |
-| `oneTrustCookieCategories` | Destination Config | `object[]` | Per destination (legacy) | Array of OneTrust cookie category objects, each containing an `oneTrustCookieCategory` string field. |
-| `ketchConsentPurposes` | Destination Config | `object[]` | Per destination (legacy) | Array of Ketch purpose objects, each containing a `purpose` string field. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `consentManagement` | `[]` (empty) | `object[]` | Array of provider config objects | Array of provider configurations (Destination Config, per source–destination pair for GCM), each containing a `provider` name, `resolutionStrategy`, and `consents` list. |
+| `consentManagement[].provider` | (required) | `string` | Any non-empty string (e.g., `"oneTrust"`, `"ketch"`, custom) | Provider key name for this consent entry. Must be non-empty. |
+| `consentManagement[].resolutionStrategy` | `"and"` | `string` | `"or"` \| `"and"` | Resolution strategy for this provider: `"or"` requires at least one consent; `"and"` requires all consents. |
+| `consentManagement[].consents` | `[]` (empty) | `object[]` | Array of `{ "consent": "<id>" }` objects | Array of consent objects, each containing a `consent` string field. Empty consent strings are filtered out. |
+| `oneTrustCookieCategories` | `[]` (empty) | `object[]` | Array of `{ "oneTrustCookieCategory": "<id>" }` objects | Legacy OneTrust cookie category objects (Destination Config, per destination). |
+| `ketchConsentPurposes` | `[]` (empty) | `object[]` | Array of `{ "purpose": "<id>" }` objects | Legacy Ketch purpose objects (Destination Config, per destination). |
 
 ### Internal Configuration Maps
 

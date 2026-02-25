@@ -143,78 +143,25 @@ Source: `processor/trackingplan.go:66-69`
 
 ### Validation Flow
 
-The `validateEvents()` function implements the complete tracking plan validation workflow. The following steps are executed for each batch of events:
+Layer 2 validation is implemented by the `validateEvents()` function in the Processor. At a high level, events are grouped by `sourceID`, checked for a configured `TrackingPlanID`, sent to the Transformer service for JSON Schema validation, and annotated with violation metadata before continuing through the pipeline. A fail-open safety mechanism ensures events are never lost even if the Transformer service returns unexpected results.
 
-**Step 1 — Group events by sourceId.** Events arriving at the Pre-Transform stage are organized into groups keyed by `sourceID`. Each source group is validated independently against its own tracking plan configuration.
-
-**Step 2 — Look up TrackingPlanID.** For each source group, the Processor reads the `TrackingPlanID` from the first event's metadata (`eventList[0].Metadata.TrackingPlanID`). This metadata originates from the backend-config, which is polled by the Processor at regular intervals.
-
-**Step 3 — Skip if no tracking plan.** If `trackingPlanID == ""` (empty string), the entire event group is passed through to the next pipeline stage without any validation. This is the common case for sources that do not have tracking plan enforcement enabled.
-
-**Step 4 — Call the Transformer service.** If a `TrackingPlanID` is configured, the Processor invokes `proc.transformerClients.TrackingPlan().Validate(context.TODO(), eventList)`, sending the full event list to the Transformer service for JSON Schema validation. The validation time is recorded via `validationStat.tpValidationTime.Since(validationStart)`.
-
-**Step 5 — Safety check (input/output count match).** The Processor verifies that `len(response.Events) + len(response.FailedEvents)` equals `len(eventList)`. If these counts do not match, the Transformer response is discarded and the **original events are used unmodified** — this is the fail-open safety mechanism that prevents data loss due to Transformer service errors or version mismatches.
-
-**Step 6 — Enhance with violation metadata.** `enhanceWithViolation()` iterates over both `response.Events` and `response.FailedEvents`, calling `reportViolations()` for each event to inject tracking plan metadata and violation errors into the event's `context` object.
-
-**Step 7 — Report violations to event context.** `reportViolations()` adds `trackingPlanId`, `trackingPlanVersion`, and `violationErrors` to each event's context. This step is controlled by the `propagateValidationErrors` configuration setting — see [Violation Reporting](#violation-reporting) below.
-
-**Step 8 — Record validation metrics.** `newValidationStat()` creates tagged metrics for the validation batch, recording input event counts, success/failure/filtered counts, and validation timing. Metrics are tagged with `destination`, `destType`, `source`, `workspaceId`, `trackingPlanId`, and `trackingPlanVersion`.
+The complete eight-step validation workflow — including event grouping, Transformer service integration, safety checks, violation enhancement via `enhanceWithViolation()`, propagation control via `propagateValidationErrors`, and metrics emission — is documented in detail in the [Tracking Plans Guide — Validation Process](./tracking-plans.md#validation-process).
 
 Source: `processor/trackingplan.go:69-142` (`validateEvents` function)
 
 ### Violation Reporting
 
-The `reportViolations()` function controls how violation metadata is propagated into the event payload. It operates on individual `TransformerResponse` events and modifies their `Output` map's `context` object.
+When validation detects violations, the `reportViolations()` function injects `trackingPlanId`, `trackingPlanVersion`, and `violationErrors` into the event's `context` object. Propagation can be suppressed by setting `propagateValidationErrors` to `"false"` in the tracking plan's `MergedTpConfig`. Violation metadata flows through all remaining pipeline stages and is available to downstream destinations for data quality analytics.
 
-**What gets injected into event context:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `trackingPlanId` | string | The tracking plan ID that was applied during validation |
-| `trackingPlanVersion` | integer | The version of the tracking plan that was used |
-| `violationErrors` | array | Array of violation error objects from the Transformer's validation response |
-
-**Propagation control:**
-
-The `propagateValidationErrors` key in the event's `MergedTpConfig` map controls whether violation metadata is added to the event context:
-
-| `propagateValidationErrors` Value | Behavior |
-|-----------------------------------|----------|
-| `"false"` (exact string match) | Violation errors are **suppressed** — `reportViolations()` returns immediately without modifying the event context |
-| `""` (empty / absent) | Violation errors are **propagated** — all three fields are added to the event context |
-| Any other value (e.g., `"true"`) | Violation errors are **propagated** — same behavior as empty/absent |
-
-**Context handling:** If the event's `Output` map does not contain a `context` key, a new `map[string]any` is created and populated with the three fields. If `context` exists but cannot be type-asserted to `map[string]any`, the function returns without modification (defensive handling for malformed event structures).
-
-The violation information flows through the remaining pipeline stages (User Transform → Destination Transform → Store → Router) and is available to all downstream destinations. This enables destination-side analytics on data quality without blocking event delivery.
+For the complete violation enhancement process, context field reference, propagation control truth table, and context handling details, see the [Tracking Plans Guide — Violation Handling](./tracking-plans.md#violation-handling).
 
 Source: `processor/trackingplan.go:26-49` (`reportViolations` function), `processor/trackingplan.go:54-64` (`enhanceWithViolation` function)
 
 ### Validation Metrics
 
-The `TrackingPlanStatT` struct tracks five metrics per validation batch:
+The Processor emits five counters and timers per validation batch via the `TrackingPlanStatT` struct: `proc_num_tp_input_events`, `proc_num_tp_output_success_events`, `proc_num_tp_output_failed_events`, `proc_num_tp_output_filtered_events`, and `proc_tp_validation` (timer). All metrics are tagged with `destination`, `destType`, `source`, `workspaceId`, `trackingPlanId`, and `trackingPlanVersion` for fine-grained monitoring. Validation results are also reported to the `TRACKINGPLAN_VALIDATOR` processing unit in the enterprise reporting service.
 
-| Metric Field | Stat Name | Type | Description |
-|-------------|-----------|------|-------------|
-| `numEvents` | `proc_num_tp_input_events` | Counter | Total number of events submitted for validation |
-| `numValidationSuccessEvents` | `proc_num_tp_output_success_events` | Counter | Events that passed tracking plan validation |
-| `numValidationFailedEvents` | `proc_num_tp_output_failed_events` | Counter | Events that failed tracking plan validation (violations detected) |
-| `numValidationFilteredEvents` | `proc_num_tp_output_filtered_events` | Counter | Events filtered out by tracking plan rules |
-| `tpValidationTime` | `proc_tp_validation` | Timer | Time spent in the Transformer service validation call |
-
-**Metric tags:** All metrics are tagged with the following dimensions for filtering and aggregation:
-
-| Tag | Source | Description |
-|-----|--------|-------------|
-| `destination` | `metadata.DestinationID` | Destination ID for the event |
-| `destType` | `metadata.DestinationType` | Destination type (e.g., `GA4`, `AMPLITUDE`) |
-| `source` | `metadata.SourceID` | Source ID that generated the event |
-| `workspaceId` | `metadata.WorkspaceID` | Workspace ID owning the source |
-| `trackingPlanId` | `metadata.TrackingPlanID` | Tracking plan applied to the source |
-| `trackingPlanVersion` | `metadata.TrackingPlanVersion` (string) | Version of the tracking plan |
-
-**Reporting integration:** Validation results are reported to the `TRACKINGPLAN_VALIDATOR` processing unit in the enterprise reporting service. When reporting is enabled (`proc.isReportingEnabled()`), success metrics, failed metrics, and filtered metrics are appended to the validation report. The `sourcePipelineSteps` map is updated with `trackingPlanValidation = true` for each validated source, enabling the reporting service to distinguish validated flows from unvalidated ones.
+For the complete metric definitions, tag reference, and monitoring recommendations, see the [Tracking Plans Guide — Statistics and Monitoring](./tracking-plans.md#statistics-and-monitoring).
 
 Source: `processor/trackingplan.go:16-22` (`TrackingPlanStatT` struct), `processor/trackingplan.go:145-168` (`newValidationStat` function)
 
@@ -224,14 +171,14 @@ Source: `processor/trackingplan.go:16-22` (`TrackingPlanStatT` struct), `process
 
 Tracking plan validation is configured through the **Control Plane / backend-config system**, not through local configuration files. The following parameters control validation behavior:
 
-| Parameter | Location | Type | Default | Description |
-|-----------|----------|------|---------|-------------|
-| `trackingPlanId` | Source config (event metadata) | string | `""` (none) | Tracking plan identifier assigned per source write key. When empty, validation is skipped entirely for this source. |
-| `trackingPlanVersion` | Source config (event metadata) | integer | `0` (none) | Version number of the tracking plan being enforced. Included in violation annotations and metric tags for audit and debugging. |
-| `MergedTpConfig` | Source config (event metadata) | object | `{}` | Merged tracking plan configuration object containing validation settings. |
-| `propagateValidationErrors` | Key within `MergedTpConfig` map | string | `""` (enabled) | Controls whether violation errors are injected into the event context. Set to `"false"` to suppress violation errors from the event payload. Any other value (including empty/absent) enables propagation. |
+| Parameter | Default | Type | Range | Description |
+|-----------|---------|------|-------|-------------|
+| `trackingPlanId` | `""` (none) | string | Any non-empty string | Tracking plan identifier assigned per source write key (via Source Config / event metadata). When empty, validation is skipped entirely for this source. |
+| `trackingPlanVersion` | `0` (none) | integer | ≥ 0 | Version number of the tracking plan being enforced (via Source Config / event metadata). Included in violation annotations and metric tags for audit and debugging. |
+| `MergedTpConfig` | `{}` | object | Valid JSON object | Merged tracking plan configuration object (via Source Config / event metadata) containing validation settings. |
+| `propagateValidationErrors` | `""` (enabled) | string | `"false"` to suppress; any other value to enable | Controls whether violation errors are injected into the event context (key within `MergedTpConfig`). Set to `"false"` to suppress violation errors from the event payload. Any other value (including empty/absent) enables propagation. |
 
-> **Note:** Tracking plan configuration is managed through the Control Plane and delivered to the RudderStack server via the backend-config subscription. The Processor polls backend-config at regular intervals (default: every 5 seconds) and reads tracking plan metadata from each event's metadata at runtime. There are no local `config.yaml` parameters for tracking plan assignment.
+> **Note:** Tracking plan configuration is managed through the Control Plane and delivered to the RudderStack server via the backend-config subscription. The Processor polls backend-config at regular intervals (default: every 5 seconds) and reads tracking plan metadata from each event's metadata at runtime. There are no local `config.yaml` parameters for tracking plan assignment. For the complete parameter reference with detailed behavioral documentation, see the [Tracking Plans Guide — Configuration](./tracking-plans.md#configuration).
 
 Source: `processor/trackingplan.go:27-29` (`propagateValidationErrors` check), `processor/trackingplan.go:80-81` (`trackingPlanID` and `trackingPlanVersion` extraction)
 
