@@ -46,7 +46,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/docker/docker v28.3.3+incompatible
 	github.com/duckdb/duckdb-go/v2 v2.5.0
-	github.com/evanphx/json-patch v0.5.2
+	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/fsouza/fake-gcs-server v1.53.1
 	github.com/go-chi/chi/v5 v5.2.5
