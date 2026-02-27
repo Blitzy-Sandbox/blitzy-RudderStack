@@ -5943,8 +5943,12 @@ var _ = Describe("Processor Semantic Event Categories", Ordered, func() {
 					fmt.Sprintf("property %q should be an array", key))
 				Expect(actualArr).To(HaveLen(len(v)),
 					fmt.Sprintf("array property %q should have correct length", key))
-				expectedJSON, _ := jsonrs.Marshal(v)
-				actualJSON, _ := jsonrs.Marshal(actualArr)
+				expectedJSON, err := jsonrs.Marshal(v)
+				Expect(err).ToNot(HaveOccurred(),
+					fmt.Sprintf("failed to marshal expected array for property %q", key))
+				actualJSON, err := jsonrs.Marshal(actualArr)
+				Expect(err).ToNot(HaveOccurred(),
+					fmt.Sprintf("failed to marshal actual array for property %q", key))
 				Expect(string(actualJSON)).To(Equal(string(expectedJSON)),
 					fmt.Sprintf("array property %q should match", key))
 			default:
