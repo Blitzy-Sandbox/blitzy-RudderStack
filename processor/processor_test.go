@@ -5751,3 +5751,319 @@ func TestStoreMessageMerge(t *testing.T) {
 		start:          time.UnixMicro(99999999),
 	})
 }
+
+// Describe block for validating that Segment Spec semantic event categories
+// (E-Commerce v2, Video, Mobile lifecycle) pass through the Processor pipeline
+// without modification or rejection. The Processor treats semantic event names
+// as opaque strings — destination-specific mapping is handled by the external
+// Transformer service (ES-002).
+var _ = Describe("Processor Semantic Event Categories", Ordered, func() {
+	initProcessor()
+
+	var c *testContext
+
+	prepareHandle := func(proc *Handle) *Handle {
+		isolationStrategy, err := isolation.GetStrategy(isolation.ModeNone)
+		Expect(err).To(BeNil())
+		proc.isolationStrategy = isolationStrategy
+		proc.config.enableConcurrentStore = config.SingleValueLoader(false)
+		return proc
+	}
+
+	BeforeEach(func() {
+		c = &testContext{}
+		c.Setup()
+	})
+
+	AfterEach(func() {
+		c.Finish()
+	})
+
+	// semanticTrackEventTest is a shared helper that verifies a single semantic
+	// track event flows through the Processor pipeline and arrives at the
+	// destination transform stage with its event name, type, and properties
+	// fully preserved. It:
+	//   1. Constructs a Gateway batch payload containing one track event with
+	//      the given semantic event name and properties.
+	//   2. Injects the payload into a mock Gateway jobs DB as an unprocessed job.
+	//   3. Wires a dynamic destination transform that captures the
+	//      TransformerEvent delivered to the destination client.
+	//   4. Runs the Processor's handlePendingGatewayJobs loop.
+	//   5. Asserts that exactly one event was captured and that the event name,
+	//      type ("track"), destination, and every property key/value survived
+	//      the pipeline without alteration.
+	semanticTrackEventTest := func(eventName string, properties map[string]any) {
+		eventData := mockEventData{
+			id:                "1",
+			jobid:             1010,
+			originalTimestamp: "2000-01-02T01:23:45",
+			sentAt:            "2000-01-02 01:23",
+			integrations:      map[string]bool{"All": true},
+		}
+
+		// Build the batch payload with the semantic track event
+		payload := createBatchPayload(
+			WriteKeyEnabledNoUT,
+			"2001-01-02T02:23:45.000Z",
+			[]mockEventData{eventData},
+			createMessagePayloadWithoutSources,
+		)
+		// Inject track event type and semantic event name
+		payload, _ = sjson.SetBytes(payload, "batch.0.type", "track")
+		payload, _ = sjson.SetBytes(payload, "batch.0.event", eventName)
+		payload, _ = sjson.SetBytes(payload, "batch.0.userId", "test-user-semantic-1")
+		payload, _ = sjson.SetBytes(payload, "batch.0.anonymousId", "anon-id-semantic-1")
+
+		// Serialize and inject properties as raw JSON to preserve structure
+		propsJSON, err := jsonrs.Marshal(properties)
+		Expect(err).To(BeNil())
+		payload, _ = sjson.SetRawBytes(payload, "batch.0.properties", propsJSON)
+
+		unprocessedJobsList := []*jobsdb.JobT{
+			{
+				UUID:          uuid.New(),
+				JobID:         1010,
+				CreatedAt:     time.Date(2020, 0o4, 28, 23, 26, 0o0, 0o0, time.UTC),
+				ExpireAt:      time.Date(2020, 0o4, 28, 23, 26, 0o0, 0o0, time.UTC),
+				CustomVal:     gatewayCustomVal[0],
+				EventPayload:  payload,
+				EventCount:    1,
+				LastJobStatus: jobsdb.JobStatusT{},
+				Parameters:    createBatchParameters(SourceIDEnabledNoUT),
+			},
+		}
+
+		// Wire up mock transformer clients with a dynamic destination transform
+		// that captures events for post-run assertions.
+		mockTransformerClients := transformer.NewSimpleClients()
+		processor := prepareHandle(NewHandle(config.Default, mockTransformerClients))
+
+		var capturedEvents []types.TransformerEvent
+		mockTransformerClients.WithDynamicDestinationTransform(
+			func(ctx context.Context, events []types.TransformerEvent) types.Response {
+				defer GinkgoRecover()
+				capturedEvents = append(capturedEvents, events...)
+
+				// Return a pass-through response so the pipeline completes
+				// without errors. The Metadata is replayed from the input
+				// so that downstream store expectations are satisfied.
+				responses := make([]types.TransformerResponse, len(events))
+				for i, event := range events {
+					responses[i] = types.TransformerResponse{
+						Output:   event.Message,
+						Metadata: event.Metadata,
+					}
+				}
+				return types.Response{Events: responses}
+			},
+		)
+
+		// --- Mock expectations (same ordering pattern as existing tests) ---
+
+		c.mockGatewayJobsDB.EXPECT().GetUnprocessed(
+			gomock.Any(),
+			jobsdb.GetQueryParams{
+				CustomValFilters: gatewayCustomVal,
+				JobsLimit:        processor.config.maxEventsToProcess.Load(),
+				EventsLimit:      processor.config.maxEventsToProcess.Load(),
+				PayloadSizeLimit: processor.payloadLimit.Load(),
+			},
+		).Return(jobsdb.JobsResult{Jobs: unprocessedJobsList}, nil).Times(1)
+
+		// Router store: the transformed event is written to the router jobs DB.
+		c.mockRouterJobsDB.EXPECT().WithStoreSafeTx(gomock.Any(), gomock.Any()).Times(1).
+			Do(func(ctx context.Context, f func(jobsdb.StoreSafeTx) error) {
+				_ = f(jobsdb.EmptyStoreSafeTx())
+			}).Return(nil)
+		callStoreRouter := c.mockRouterJobsDB.EXPECT().StoreInTx(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+
+		// Archival: archival DB receives a copy of the processed event.
+		c.mockArchivalDB.EXPECT().WithStoreSafeTx(gomock.Any(), gomock.Any()).AnyTimes().
+			Do(func(ctx context.Context, f func(jobsdb.StoreSafeTx) error) {
+				_ = f(jobsdb.EmptyStoreSafeTx())
+			}).Return(nil)
+		c.mockArchivalDB.EXPECT().StoreInTx(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+
+		// Gateway status update: mark the original job as succeeded.
+		c.mockGatewayJobsDB.EXPECT().WithUpdateSafeTx(gomock.Any(), gomock.Any()).
+			Do(func(ctx context.Context, f func(tx jobsdb.UpdateSafeTx) error) {
+				_ = f(jobsdb.EmptyUpdateSafeTx())
+			}).Return(nil).Times(1)
+		c.mockGatewayJobsDB.EXPECT().UpdateJobStatusInTx(
+			gomock.Any(), gomock.Any(), gomock.Len(len(unprocessedJobsList)),
+		).Times(1).After(callStoreRouter).
+			Do(func(ctx context.Context, txn jobsdb.UpdateSafeTx, statuses []*jobsdb.JobStatusT) {
+				assertJobStatus(unprocessedJobsList[0], statuses[0], jobsdb.Succeeded.State)
+			})
+
+		// Execute the processor pipeline
+		processorSetupAndAssertJobHandling(processor, c)
+
+		// ---- Post-run assertions on captured events ----
+
+		Expect(capturedEvents).To(HaveLen(1),
+			"exactly one event should reach destination transform")
+		capturedEvent := capturedEvents[0]
+
+		// Semantic event name must be preserved as an opaque string.
+		// The Processor does NOT transform event names — that responsibility
+		// belongs to the external Transformer service (port 9090).
+		Expect(capturedEvent.Message["event"]).To(Equal(eventName),
+			"semantic event name should be preserved without modification")
+
+		// The type field must remain "track" for all semantic events.
+		Expect(capturedEvent.Message["type"]).To(Equal("track"),
+			"event type should remain 'track'")
+
+		// The event should be routed to the correct destination.
+		Expect(capturedEvent.Destination.ID).To(Equal(DestinationIDEnabledA),
+			"event should be routed to the enabled destination")
+
+		// All properties must be preserved without alteration.
+		eventProps, ok := capturedEvent.Message["properties"].(map[string]any)
+		Expect(ok).To(BeTrue(), "properties field should be a map[string]any")
+		for key, expected := range properties {
+			Expect(eventProps).To(HaveKey(key),
+				fmt.Sprintf("property %q should be present", key))
+			switch v := expected.(type) {
+			case float64:
+				Expect(eventProps[key]).To(BeNumerically("==", v),
+					fmt.Sprintf("numeric property %q should match", key))
+			case bool:
+				Expect(eventProps[key]).To(Equal(v),
+					fmt.Sprintf("boolean property %q should match", key))
+			case string:
+				Expect(eventProps[key]).To(Equal(v),
+					fmt.Sprintf("string property %q should match", key))
+			case []any:
+				// For array properties (e.g., products), verify the array
+				// length and deep-compare via JSON round-trip.
+				actualArr, arrOK := eventProps[key].([]any)
+				Expect(arrOK).To(BeTrue(),
+					fmt.Sprintf("property %q should be an array", key))
+				Expect(actualArr).To(HaveLen(len(v)),
+					fmt.Sprintf("array property %q should have correct length", key))
+				expectedJSON, _ := jsonrs.Marshal(v)
+				actualJSON, _ := jsonrs.Marshal(actualArr)
+				Expect(string(actualJSON)).To(Equal(string(expectedJSON)),
+					fmt.Sprintf("array property %q should match", key))
+			default:
+				Expect(eventProps[key]).To(Equal(expected),
+					fmt.Sprintf("property %q should match", key))
+			}
+		}
+	}
+
+	// ─────────────────────────────────────────────────────────
+	// E-Commerce v2 Semantic Events
+	// Reference: refs/segment-docs/src/connections/spec/ecommerce/v2.md
+	// ─────────────────────────────────────────────────────────
+	Context("E-Commerce v2 semantic events", func() {
+		BeforeEach(func() {
+			// Crash recovery check — required by processor.Setup internals
+			c.mockGatewayJobsDB.EXPECT().DeleteExecuting().Times(1)
+		})
+
+		It("should pass through Order Completed event without modification", func() {
+			semanticTrackEventTest("Order Completed", map[string]any{
+				"orderId":  "order-abc-123",
+				"revenue":  52.0,
+				"total":    58.5,
+				"currency": "USD",
+				"shipping": 3.5,
+				"tax":      3.0,
+				"discount": 0.0,
+				"coupon":   "SUMMER2024",
+				"products": []any{
+					map[string]any{
+						"product_id": "prod-001",
+						"sku":        "SKU-WIDGET-A",
+						"name":       "Premium Widget",
+						"price":      26.0,
+						"quantity":    2.0,
+					},
+				},
+			})
+		})
+
+		It("should pass through Product Viewed event without modification", func() {
+			semanticTrackEventTest("Product Viewed", map[string]any{
+				"product_id": "prod-456",
+				"sku":        "SKU-GADGET-B",
+				"name":       "Deluxe Gadget",
+				"category":   "Gadgets",
+				"price":      79.99,
+				"brand":      "GadgetCo",
+				"variant":    "Red",
+				"url":        "https://example.com/products/deluxe-gadget",
+				"image_url":  "https://example.com/images/deluxe-gadget.png",
+			})
+		})
+
+		It("should pass through Cart Viewed event without modification", func() {
+			semanticTrackEventTest("Cart Viewed", map[string]any{
+				"cart_id": "cart-789",
+				"products": []any{
+					map[string]any{
+						"product_id": "prod-001",
+						"sku":        "SKU-WIDGET-A",
+						"name":       "Widget A",
+						"price":      25.0,
+						"quantity":    1.0,
+					},
+					map[string]any{
+						"product_id": "prod-002",
+						"sku":        "SKU-WIDGET-B",
+						"name":       "Widget B",
+						"price":      35.0,
+						"quantity":    2.0,
+					},
+				},
+			})
+		})
+	})
+
+	// ─────────────────────────────────────────────────────────
+	// Video Semantic Events
+	// Reference: refs/segment-docs/src/connections/spec/video.md
+	// ─────────────────────────────────────────────────────────
+	Context("Video semantic events", func() {
+		BeforeEach(func() {
+			c.mockGatewayJobsDB.EXPECT().DeleteExecuting().Times(1)
+		})
+
+		It("should pass through Video Playback Started event without modification", func() {
+			semanticTrackEventTest("Video Playback Started", map[string]any{
+				"session_id":       "sess-video-001",
+				"content_asset_id": "asset-vod-42",
+				"video_player":     "youtube",
+				"position":         0.0,
+				"total_length":     392.0,
+				"sound":            88.0,
+				"full_screen":      false,
+				"ad_enabled":       true,
+				"quality":          "hd1080",
+			})
+		})
+	})
+
+	// ─────────────────────────────────────────────────────────
+	// Mobile Lifecycle Semantic Events
+	// Reference: refs/segment-docs/src/connections/spec/mobile.md
+	// ─────────────────────────────────────────────────────────
+	Context("Mobile lifecycle semantic events", func() {
+		BeforeEach(func() {
+			c.mockGatewayJobsDB.EXPECT().DeleteExecuting().Times(1)
+		})
+
+		It("should pass through Application Opened event without modification", func() {
+			semanticTrackEventTest("Application Opened", map[string]any{
+				"from_background":       false,
+				"referring_application": "com.example.referrer",
+				"url":                   "myapp://deeplink/home",
+				"version":               "3.1.0",
+				"build":                 "4567",
+			})
+		})
+	})
+})
