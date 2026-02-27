@@ -132,6 +132,10 @@ func setupEventSpecParity(svcCtx context.Context, cancel context.CancelFunc, t *
 	// Configure database connectivity for the RudderStack server.
 	t.Setenv("JOBS_DB_HOST", postgresContainer.Host)
 	t.Setenv("JOBS_DB_PORT", postgresContainer.Port)
+	t.Setenv("JOBS_DB_USER", postgresContainer.User)
+	t.Setenv("JOBS_DB_PASSWORD", postgresContainer.Password)
+	t.Setenv("JOBS_DB_DB_NAME", postgresContainer.Database)
+	t.Setenv("JOBS_DB_SSL_MODE", "disable")
 	t.Setenv("WAREHOUSE_JOBS_DB_HOST", postgresContainer.Host)
 	t.Setenv("WAREHOUSE_JOBS_DB_PORT", postgresContainer.Port)
 
@@ -176,6 +180,7 @@ func setupEventSpecParity(svcCtx context.Context, cancel context.CancelFunc, t *
 
 	t.Log("workspace config path:", workspaceConfigPath)
 	t.Setenv("RSERVER_BACKEND_CONFIG_CONFIG_JSONPATH", workspaceConfigPath)
+	t.Setenv("RSERVER_BACKEND_CONFIG_CONFIG_FROM_FILE", "true")
 	t.Setenv("RUDDER_TMPDIR", t.TempDir())
 
 	t.Logf("--- Setup done (%s)", time.Since(setupStart))

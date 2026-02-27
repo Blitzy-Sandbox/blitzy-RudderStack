@@ -408,6 +408,10 @@ func setupMainFlow(svcCtx context.Context, cancel context.CancelFunc, t *testing
 
 	t.Setenv("JOBS_DB_HOST", postgresContainer.Host)
 	t.Setenv("JOBS_DB_PORT", postgresContainer.Port)
+	t.Setenv("JOBS_DB_USER", postgresContainer.User)
+	t.Setenv("JOBS_DB_PASSWORD", postgresContainer.Password)
+	t.Setenv("JOBS_DB_DB_NAME", postgresContainer.Database)
+	t.Setenv("JOBS_DB_SSL_MODE", "disable")
 	t.Setenv("WAREHOUSE_JOBS_DB_HOST", postgresContainer.Host)
 	t.Setenv("WAREHOUSE_JOBS_DB_PORT", postgresContainer.Port)
 	t.Setenv("DEST_TRANSFORM_URL", transformerContainer.TransformerURL)
@@ -463,6 +467,7 @@ func setupMainFlow(svcCtx context.Context, cancel context.CancelFunc, t *testing
 
 	t.Log("workspace config path:", workspaceConfigPath)
 	t.Setenv("RSERVER_BACKEND_CONFIG_CONFIG_JSONPATH", workspaceConfigPath)
+	t.Setenv("RSERVER_BACKEND_CONFIG_CONFIG_FROM_FILE", "true")
 
 	t.Setenv("RUDDER_TMPDIR", t.TempDir())
 
