@@ -923,6 +923,18 @@ ul.nav-tabs {
     },
     "library" : {
       "$ref" : "#/components/schemas/BatchPayload_batch_inner_context_library"
+    },
+    "userAgent" : {
+      "type" : "string",
+      "description" : "User agent string of the device making the request."
+    },
+    "userAgentData" : {
+      "$ref" : "#/components/schemas/IdentifyPayload_context_userAgentData"
+    },
+    "channel" : {
+      "type" : "string",
+      "description" : "Channel of the event source. Auto-populated by SDKs as \"server\", \"browser\", or \"mobile\".",
+      "enum" : [ "server", "browser", "mobile" ]
     }
   }
 };
@@ -1004,6 +1016,18 @@ ul.nav-tabs {
     },
     "library" : {
       "$ref" : "#/components/schemas/IdentifyPayload_context_library"
+    },
+    "userAgent" : {
+      "type" : "string",
+      "description" : "User agent string of the device making the request."
+    },
+    "userAgentData" : {
+      "$ref" : "#/components/schemas/IdentifyPayload_context_userAgentData"
+    },
+    "channel" : {
+      "type" : "string",
+      "description" : "Channel of the event source. Auto-populated by SDKs as \"server\", \"browser\", or \"mobile\".",
+      "enum" : [ "server", "browser", "mobile" ]
     }
   },
   "description" : "Dictionary of information that provides context about a message."
@@ -1023,6 +1047,78 @@ ul.nav-tabs {
     "trait1" : {
       "type" : "string",
       "description" : "New value for trait1."
+    }
+  }
+};
+    defs["IdentifyPayload_context_userAgentData"] = {
+  "type" : "object",
+  "properties" : {
+    "brands" : {
+      "type" : "array",
+      "description" : "Array of brand/version objects from the User-Agent Client Hints API.",
+      "items" : {
+        "$ref" : "#/components/schemas/IdentifyPayload_context_userAgentData_brands_inner"
+      }
+    },
+    "mobile" : {
+      "type" : "boolean",
+      "description" : "Whether the device is a mobile device."
+    },
+    "platform" : {
+      "type" : "string",
+      "description" : "Operating system platform name."
+    },
+    "bitness" : {
+      "type" : "string",
+      "description" : "CPU architecture bitness (e.g., \"64\")."
+    },
+    "model" : {
+      "type" : "string",
+      "description" : "Device model identifier."
+    },
+    "platformVersion" : {
+      "type" : "string",
+      "description" : "Operating system version."
+    },
+    "uaFullVersion" : {
+      "type" : "string",
+      "description" : "Full browser version string."
+    },
+    "fullVersionList" : {
+      "type" : "array",
+      "description" : "Array of brand/version objects with full version information.",
+      "items" : {
+        "$ref" : "#/components/schemas/IdentifyPayload_context_userAgentData_fullVersionList_inner"
+      }
+    },
+    "wow64" : {
+      "type" : "boolean",
+      "description" : "Whether the browser is running in WoW64 mode."
+    }
+  },
+  "description" : "Structured Client Hints API data from the browser. Contains low-entropy fields (brands, mobile, platform) and optional high-entropy fields."
+};
+    defs["IdentifyPayload_context_userAgentData_brands_inner"] = {
+  "type" : "object",
+  "properties" : {
+    "brand" : {
+      "type" : "string",
+      "description" : "Browser brand name."
+    },
+    "version" : {
+      "type" : "string",
+      "description" : "Browser brand version."
+    }
+  }
+};
+    defs["IdentifyPayload_context_userAgentData_fullVersionList_inner"] = {
+  "type" : "object",
+  "properties" : {
+    "brand" : {
+      "type" : "string"
+    },
+    "version" : {
+      "type" : "string"
     }
   }
 };
@@ -1122,6 +1218,18 @@ ul.nav-tabs {
     },
     "library" : {
       "$ref" : "#/components/schemas/IdentifyPayload_context_library"
+    },
+    "userAgent" : {
+      "type" : "string",
+      "description" : "User agent string of the device making the request."
+    },
+    "userAgentData" : {
+      "$ref" : "#/components/schemas/IdentifyPayload_context_userAgentData"
+    },
+    "channel" : {
+      "type" : "string",
+      "description" : "Channel of the event source. Auto-populated by SDKs as \"server\", \"browser\", or \"mobile\".",
+      "enum" : [ "server", "browser", "mobile" ]
     }
   },
   "description" : "Dictionary of information that provides context about a message."
@@ -1247,13 +1355,38 @@ ul.nav-tabs {
  -d '{
   &quot;previousId&quot; : &quot;previousId&quot;,
   &quot;context&quot; : {
+    &quot;userAgentData&quot; : {
+      &quot;bitness&quot; : &quot;bitness&quot;,
+      &quot;brands&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platformVersion&quot; : &quot;platformVersion&quot;,
+      &quot;mobile&quot; : true,
+      &quot;model&quot; : &quot;model&quot;,
+      &quot;uaFullVersion&quot; : &quot;uaFullVersion&quot;,
+      &quot;wow64&quot; : true,
+      &quot;fullVersionList&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platform&quot; : &quot;platform&quot;
+    },
     &quot;traits&quot; : {
       &quot;trait1&quot; : &quot;trait1&quot;
     },
     &quot;library&quot; : {
       &quot;name&quot; : &quot;name&quot;
     },
-    &quot;ip&quot; : &quot;ip&quot;
+    &quot;ip&quot; : &quot;ip&quot;,
+    &quot;channel&quot; : &quot;server&quot;,
+    &quot;userAgent&quot; : &quot;userAgent&quot;
   },
   &quot;userId&quot; : &quot;userId&quot;,
   &quot;timestamp&quot; : &quot;2000-01-23T04:56:07.000+00:00&quot;
@@ -1971,13 +2104,38 @@ $(document).ready(function() {
   &quot;batch&quot; : [ {
     &quot;anonymousId&quot; : &quot;anonymousId&quot;,
     &quot;context&quot; : {
+      &quot;userAgentData&quot; : {
+        &quot;bitness&quot; : &quot;bitness&quot;,
+        &quot;brands&quot; : [ {
+          &quot;brand&quot; : &quot;brand&quot;,
+          &quot;version&quot; : &quot;version&quot;
+        }, {
+          &quot;brand&quot; : &quot;brand&quot;,
+          &quot;version&quot; : &quot;version&quot;
+        } ],
+        &quot;platformVersion&quot; : &quot;platformVersion&quot;,
+        &quot;mobile&quot; : true,
+        &quot;model&quot; : &quot;model&quot;,
+        &quot;uaFullVersion&quot; : &quot;uaFullVersion&quot;,
+        &quot;wow64&quot; : true,
+        &quot;fullVersionList&quot; : [ {
+          &quot;brand&quot; : &quot;brand&quot;,
+          &quot;version&quot; : &quot;version&quot;
+        }, {
+          &quot;brand&quot; : &quot;brand&quot;,
+          &quot;version&quot; : &quot;version&quot;
+        } ],
+        &quot;platform&quot; : &quot;platform&quot;
+      },
       &quot;traits&quot; : {
         &quot;trait1&quot; : &quot;trait1&quot;
       },
       &quot;library&quot; : {
         &quot;name&quot; : &quot;name&quot;
       },
-      &quot;ip&quot; : &quot;ip&quot;
+      &quot;ip&quot; : &quot;ip&quot;,
+      &quot;channel&quot; : &quot;server&quot;,
+      &quot;userAgent&quot; : &quot;userAgent&quot;
     },
     &quot;type&quot; : &quot;type&quot;,
     &quot;userId&quot; : &quot;userId&quot;,
@@ -1985,13 +2143,38 @@ $(document).ready(function() {
   }, {
     &quot;anonymousId&quot; : &quot;anonymousId&quot;,
     &quot;context&quot; : {
+      &quot;userAgentData&quot; : {
+        &quot;bitness&quot; : &quot;bitness&quot;,
+        &quot;brands&quot; : [ {
+          &quot;brand&quot; : &quot;brand&quot;,
+          &quot;version&quot; : &quot;version&quot;
+        }, {
+          &quot;brand&quot; : &quot;brand&quot;,
+          &quot;version&quot; : &quot;version&quot;
+        } ],
+        &quot;platformVersion&quot; : &quot;platformVersion&quot;,
+        &quot;mobile&quot; : true,
+        &quot;model&quot; : &quot;model&quot;,
+        &quot;uaFullVersion&quot; : &quot;uaFullVersion&quot;,
+        &quot;wow64&quot; : true,
+        &quot;fullVersionList&quot; : [ {
+          &quot;brand&quot; : &quot;brand&quot;,
+          &quot;version&quot; : &quot;version&quot;
+        }, {
+          &quot;brand&quot; : &quot;brand&quot;,
+          &quot;version&quot; : &quot;version&quot;
+        } ],
+        &quot;platform&quot; : &quot;platform&quot;
+      },
       &quot;traits&quot; : {
         &quot;trait1&quot; : &quot;trait1&quot;
       },
       &quot;library&quot; : {
         &quot;name&quot; : &quot;name&quot;
       },
-      &quot;ip&quot; : &quot;ip&quot;
+      &quot;ip&quot; : &quot;ip&quot;,
+      &quot;channel&quot; : &quot;server&quot;,
+      &quot;userAgent&quot; : &quot;userAgent&quot;
     },
     &quot;type&quot; : &quot;type&quot;,
     &quot;userId&quot; : &quot;userId&quot;,
@@ -2712,13 +2895,38 @@ $(document).ready(function() {
   &quot;traits&quot; : &quot;{}&quot;,
   &quot;groupId&quot; : &quot;groupId&quot;,
   &quot;context&quot; : {
+    &quot;userAgentData&quot; : {
+      &quot;bitness&quot; : &quot;bitness&quot;,
+      &quot;brands&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platformVersion&quot; : &quot;platformVersion&quot;,
+      &quot;mobile&quot; : true,
+      &quot;model&quot; : &quot;model&quot;,
+      &quot;uaFullVersion&quot; : &quot;uaFullVersion&quot;,
+      &quot;wow64&quot; : true,
+      &quot;fullVersionList&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platform&quot; : &quot;platform&quot;
+    },
     &quot;traits&quot; : {
       &quot;trait1&quot; : &quot;trait1&quot;
     },
     &quot;library&quot; : {
       &quot;name&quot; : &quot;name&quot;
     },
-    &quot;ip&quot; : &quot;ip&quot;
+    &quot;ip&quot; : &quot;ip&quot;,
+    &quot;channel&quot; : &quot;server&quot;,
+    &quot;userAgent&quot; : &quot;userAgent&quot;
   },
   &quot;userId&quot; : &quot;userId&quot;,
   &quot;timestamp&quot; : &quot;2000-01-23T04:56:07.000+00:00&quot;
@@ -3435,13 +3643,38 @@ $(document).ready(function() {
  -d '{
   &quot;anonymousId&quot; : &quot;anonymousId&quot;,
   &quot;context&quot; : {
+    &quot;userAgentData&quot; : {
+      &quot;bitness&quot; : &quot;bitness&quot;,
+      &quot;brands&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platformVersion&quot; : &quot;platformVersion&quot;,
+      &quot;mobile&quot; : true,
+      &quot;model&quot; : &quot;model&quot;,
+      &quot;uaFullVersion&quot; : &quot;uaFullVersion&quot;,
+      &quot;wow64&quot; : true,
+      &quot;fullVersionList&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platform&quot; : &quot;platform&quot;
+    },
     &quot;traits&quot; : {
       &quot;trait1&quot; : &quot;trait1&quot;
     },
     &quot;library&quot; : {
       &quot;name&quot; : &quot;name&quot;
     },
-    &quot;ip&quot; : &quot;ip&quot;
+    &quot;ip&quot; : &quot;ip&quot;,
+    &quot;channel&quot; : &quot;server&quot;,
+    &quot;userAgent&quot; : &quot;userAgent&quot;
   },
   &quot;userId&quot; : &quot;userId&quot;,
   &quot;timestamp&quot; : &quot;2000-01-23T04:56:07.000+00:00&quot;
@@ -4159,10 +4392,35 @@ $(document).ready(function() {
   &quot;anonymousId&quot; : &quot;anonymousId&quot;,
   &quot;name&quot; : &quot;name&quot;,
   &quot;context&quot; : {
+    &quot;userAgentData&quot; : {
+      &quot;bitness&quot; : &quot;bitness&quot;,
+      &quot;brands&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platformVersion&quot; : &quot;platformVersion&quot;,
+      &quot;mobile&quot; : true,
+      &quot;model&quot; : &quot;model&quot;,
+      &quot;uaFullVersion&quot; : &quot;uaFullVersion&quot;,
+      &quot;wow64&quot; : true,
+      &quot;fullVersionList&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platform&quot; : &quot;platform&quot;
+    },
     &quot;library&quot; : {
       &quot;name&quot; : &quot;name&quot;
     },
-    &quot;ip&quot; : &quot;ip&quot;
+    &quot;ip&quot; : &quot;ip&quot;,
+    &quot;channel&quot; : &quot;server&quot;,
+    &quot;userAgent&quot; : &quot;userAgent&quot;
   },
   &quot;userId&quot; : &quot;userId&quot;,
   &quot;properties&quot; : &quot;{}&quot;,
@@ -4881,10 +5139,35 @@ $(document).ready(function() {
   &quot;anonymousId&quot; : &quot;anonymousId&quot;,
   &quot;name&quot; : &quot;name&quot;,
   &quot;context&quot; : {
+    &quot;userAgentData&quot; : {
+      &quot;bitness&quot; : &quot;bitness&quot;,
+      &quot;brands&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platformVersion&quot; : &quot;platformVersion&quot;,
+      &quot;mobile&quot; : true,
+      &quot;model&quot; : &quot;model&quot;,
+      &quot;uaFullVersion&quot; : &quot;uaFullVersion&quot;,
+      &quot;wow64&quot; : true,
+      &quot;fullVersionList&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platform&quot; : &quot;platform&quot;
+    },
     &quot;library&quot; : {
       &quot;name&quot; : &quot;name&quot;
     },
-    &quot;ip&quot; : &quot;ip&quot;
+    &quot;ip&quot; : &quot;ip&quot;,
+    &quot;channel&quot; : &quot;server&quot;,
+    &quot;userAgent&quot; : &quot;userAgent&quot;
   },
   &quot;userId&quot; : &quot;userId&quot;,
   &quot;properties&quot; : &quot;{}&quot;,
@@ -5602,10 +5885,35 @@ $(document).ready(function() {
  -d '{
   &quot;anonymousId&quot; : &quot;anonymousId&quot;,
   &quot;context&quot; : {
+    &quot;userAgentData&quot; : {
+      &quot;bitness&quot; : &quot;bitness&quot;,
+      &quot;brands&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platformVersion&quot; : &quot;platformVersion&quot;,
+      &quot;mobile&quot; : true,
+      &quot;model&quot; : &quot;model&quot;,
+      &quot;uaFullVersion&quot; : &quot;uaFullVersion&quot;,
+      &quot;wow64&quot; : true,
+      &quot;fullVersionList&quot; : [ {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      }, {
+        &quot;brand&quot; : &quot;brand&quot;,
+        &quot;version&quot; : &quot;version&quot;
+      } ],
+      &quot;platform&quot; : &quot;platform&quot;
+    },
     &quot;library&quot; : {
       &quot;name&quot; : &quot;name&quot;
     },
-    &quot;ip&quot; : &quot;ip&quot;
+    &quot;ip&quot; : &quot;ip&quot;,
+    &quot;channel&quot; : &quot;server&quot;,
+    &quot;userAgent&quot; : &quot;userAgent&quot;
   },
   &quot;event&quot; : &quot;event&quot;,
   &quot;userId&quot; : &quot;userId&quot;,
