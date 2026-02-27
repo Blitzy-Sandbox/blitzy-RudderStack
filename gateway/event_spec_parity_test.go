@@ -188,6 +188,10 @@ func assertSpecCommonFields(event gjson.Result, eventType string) {
 		"receivedAt should be set by Gateway")
 	Expect(event.Get("rudderId").Exists()).To(BeTrue(),
 		"rudderId should be computed by Gateway")
+	Expect(event.Get("timestamp").Exists()).To(BeTrue(),
+		"timestamp should exist (may be adjusted by clock skew correction)")
+	Expect(event.Get("version").Exists()).To(BeTrue(),
+		"version field should be preserved through the Gateway")
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +263,8 @@ func assertSpecContextFields(event gjson.Result, channel string) {
 	Expect(event.Get("context.referrer.type").String()).To(Equal("search"))
 	Expect(event.Get("context.referrer.name").String()).To(Equal("Google"))
 	Expect(event.Get("context.referrer.url").String()).To(Equal("https://www.google.com"))
+	Expect(event.Get("context.referrer.link").String()).To(Equal("https://www.google.com/search?q=example"),
+		"context.referrer.link should be preserved")
 
 	// context.screen
 	Expect(event.Get("context.screen.density").Float()).To(Equal(float64(2)))

@@ -145,10 +145,30 @@ func eventSpecParityPayload(eventType, messageID, ts, sentAt, origTS string) str
 	return base
 }
 
-// identifyPayload returns a complete Segment Spec Identify payload with all 18 reserved traits.
+// mustSet wraps sjson.Set and panics on error, ensuring test payload construction
+// failures are surfaced immediately rather than silently ignored.
+func mustSet(json, path, value string) string {
+	result, err := sjson.Set(json, path, value)
+	if err != nil {
+		panic(fmt.Sprintf("sjson.Set(%q, %q) failed: %v", path, value, err))
+	}
+	return result
+}
+
+// mustSetRaw wraps sjson.SetRaw and panics on error, ensuring test payload
+// construction failures are surfaced immediately rather than silently ignored.
+func mustSetRaw(json, path, rawValue string) string {
+	result, err := sjson.SetRaw(json, path, rawValue)
+	if err != nil {
+		panic(fmt.Sprintf("sjson.SetRaw(%q) failed: %v", path, err))
+	}
+	return result
+}
+
+// identifyPayload returns a complete Segment Spec Identify payload with all 17 reserved traits.
 func identifyPayload(messageID, ts, sentAt, origTS string) string {
 	base := eventSpecParityPayload("identify", messageID, ts, sentAt, origTS)
-	// Add identify-specific traits containing all 18 Segment reserved identify traits
+	// Add identify-specific traits containing all 17 Segment reserved identify traits
 	traitsJSON := `{
 		"address": {
 			"city": "San Francisco",
@@ -180,14 +200,13 @@ func identifyPayload(messageID, ts, sentAt, origTS string) string {
 		"username": "alice_tester",
 		"website": "https://alice.example.com"
 	}`
-	b, _ := sjson.SetRaw(base, "traits", traitsJSON)
-	return b
+	return mustSetRaw(base, "traits", traitsJSON)
 }
 
 // trackPayload returns a complete Segment Spec Track payload with a semantic event name.
 func trackPayload(messageID, ts, sentAt, origTS string) string {
 	base := eventSpecParityPayload("track", messageID, ts, sentAt, origTS)
-	b, _ := sjson.Set(base, "event", "Product Viewed")
+	b := mustSet(base, "event", "Product Viewed")
 	propsJSON := `{
 		"product_id": "prod-spec-001",
 		"sku": "SKU-SPEC-A",
@@ -205,15 +224,14 @@ func trackPayload(messageID, ts, sentAt, origTS string) string {
 		"revenue": 89.98,
 		"position": 3
 	}`
-	b, _ = sjson.SetRaw(b, "properties", propsJSON)
-	return b
+	return mustSetRaw(b, "properties", propsJSON)
 }
 
 // pagePayload returns a complete Segment Spec Page payload.
 func pagePayload(messageID, ts, sentAt, origTS string) string {
 	base := eventSpecParityPayload("page", messageID, ts, sentAt, origTS)
-	b, _ := sjson.Set(base, "name", "Premium Widget")
-	b, _ = sjson.Set(b, "category", "Product Pages")
+	b := mustSet(base, "name", "Premium Widget")
+	b = mustSet(b, "category", "Product Pages")
 	propsJSON := `{
 		"title": "Premium Widget | TestStore",
 		"url": "https://teststore.example.com/products/widget?color=blue",
@@ -222,28 +240,26 @@ func pagePayload(messageID, ts, sentAt, origTS string) string {
 		"search": "?color=blue",
 		"keywords": ["widget","premium","blue"]
 	}`
-	b, _ = sjson.SetRaw(b, "properties", propsJSON)
-	return b
+	return mustSetRaw(b, "properties", propsJSON)
 }
 
 // screenPayload returns a complete Segment Spec Screen payload.
 func screenPayload(messageID, ts, sentAt, origTS string) string {
 	base := eventSpecParityPayload("screen", messageID, ts, sentAt, origTS)
-	b, _ := sjson.Set(base, "name", "ProductDetail")
-	b, _ = sjson.Set(b, "category", "Product")
+	b := mustSet(base, "name", "ProductDetail")
+	b = mustSet(b, "category", "Product")
 	propsJSON := `{
 		"variation": "blue-variant",
 		"loginStatus": true,
 		"itemCount": 5
 	}`
-	b, _ = sjson.SetRaw(b, "properties", propsJSON)
-	return b
+	return mustSetRaw(b, "properties", propsJSON)
 }
 
 // groupPayload returns a complete Segment Spec Group payload with all 12 reserved group traits.
 func groupPayload(messageID, ts, sentAt, origTS string) string {
 	base := eventSpecParityPayload("group", messageID, ts, sentAt, origTS)
-	b, _ := sjson.Set(base, "groupId", "grp-spec-parity-001")
+	b := mustSet(base, "groupId", "grp-spec-parity-001")
 	traitsJSON := `{
 		"address": {
 			"city": "San Francisco",
@@ -256,7 +272,7 @@ func groupPayload(messageID, ts, sentAt, origTS string) string {
 		"createdAt": "2020-03-10T12:00:00.000Z",
 		"description": "A technology company for testing",
 		"email": "contact@testcorp.example.com",
-		"employees": 500,
+		"employees": "500",
 		"id": "grp-spec-parity-001",
 		"industry": "Technology",
 		"name": "TestCorp Inc.",
@@ -264,15 +280,13 @@ func groupPayload(messageID, ts, sentAt, origTS string) string {
 		"website": "https://testcorp.example.com",
 		"plan": "enterprise"
 	}`
-	b, _ = sjson.SetRaw(b, "traits", traitsJSON)
-	return b
+	return mustSetRaw(b, "traits", traitsJSON)
 }
 
 // aliasPayload returns a complete Segment Spec Alias payload.
 func aliasPayload(messageID, ts, sentAt, origTS string) string {
 	base := eventSpecParityPayload("alias", messageID, ts, sentAt, origTS)
-	b, _ := sjson.Set(base, "previousId", "old-anon-id-999")
-	return b
+	return mustSet(base, "previousId", "old-anon-id-999")
 }
 
 // assertCommonFieldPreservation verifies every common Segment Spec field exists
@@ -563,7 +577,7 @@ var _ = Describe("Event Spec Parity", Ordered, func() {
 	// Reference: refs/segment-docs/src/connections/spec/identify.md
 	// ═══════════════════════════════════════════════════════════════════════════
 	Context("Identify event field preservation", func() {
-		It("should preserve all common fields and 18 reserved identify traits through the pipeline", func() {
+		It("should preserve all common fields and 17 reserved identify traits through the pipeline", func() {
 			msgID := uuid.New().String()
 			ts := "2024-01-15T10:29:59.000Z"
 			sentAt := "2024-01-15T10:29:58.000Z"
@@ -578,7 +592,7 @@ var _ = Describe("Event Spec Parity", Ordered, func() {
 			Expect(gjson.Get(eventStr, "type").String()).To(Equal("identify"),
 				"event type must be 'identify'")
 
-			// Identify-specific: traits object with all 18 reserved traits
+			// Identify-specific: traits object with all 17 reserved traits
 			Expect(gjson.Get(eventStr, "traits").Exists()).To(BeTrue(), "traits must exist")
 			Expect(gjson.Get(eventStr, "traits.email").String()).To(Equal("alice@testcorp.example.com"),
 				"traits.email must be preserved")
@@ -800,8 +814,8 @@ var _ = Describe("Event Spec Parity", Ordered, func() {
 				"traits.website must be preserved")
 			Expect(gjson.Get(eventStr, "traits.industry").String()).To(Equal("Technology"),
 				"traits.industry must be preserved")
-			Expect(gjson.Get(eventStr, "traits.employees").Int()).To(BeNumerically("==", 500),
-				"traits.employees must be preserved")
+			Expect(gjson.Get(eventStr, "traits.employees").String()).To(Equal("500"),
+				"traits.employees must be preserved as String per Segment Spec")
 			Expect(gjson.Get(eventStr, "traits.plan").String()).To(Equal("enterprise"),
 				"traits.plan must be preserved")
 			Expect(gjson.Get(eventStr, "traits.id").String()).To(Equal("grp-spec-parity-001"),
@@ -864,8 +878,8 @@ var _ = Describe("Event Spec Parity", Ordered, func() {
 
 				// Build a track payload and override the channel value
 				eventJSON := trackPayload(msgID, ts, sentAt, origTS)
-				eventJSON, _ = sjson.Set(eventJSON, "channel", channelVal)
-				eventJSON, _ = sjson.Set(eventJSON, "context.channel", channelVal)
+				eventJSON = mustSet(eventJSON, "channel", channelVal)
+				eventJSON = mustSet(eventJSON, "context.channel", channelVal)
 
 				eventStr := runEventSpecParityTest(eventJSON)
 

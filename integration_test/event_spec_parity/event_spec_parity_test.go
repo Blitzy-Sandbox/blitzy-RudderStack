@@ -211,7 +211,7 @@ func sendSegmentSpecEvents(t *testing.T) {
 	t.Helper()
 	require.Empty(t, webhook.Requests(), "webhook should have no requests before sending events")
 
-	// 1. Identify event — all 18 reserved identify traits + Client Hints + channel
+	// 1. Identify event — all 17 reserved identify traits + Client Hints + channel
 	sendEvent(t, strings.NewReader(identifyPayload), "identify", writeKey)
 
 	// 2. Track — Order Completed (E-Commerce v2 semantic event)
@@ -255,7 +255,7 @@ func verifyParity(t *testing.T) {
 	})
 
 	t.Run("identify-field-preservation", func(t *testing.T) {
-		body := findWebhookEvent(t, "identify")
+		body := findWebhookEvent(t, "msg-identify-parity-001")
 		require.NotEmpty(t, body, "identify event not found in webhook requests")
 
 		// Common fields
@@ -267,7 +267,7 @@ func verifyParity(t *testing.T) {
 		require.True(t, gjson.GetBytes(body, "sentAt").Exists(), "sentAt missing")
 		require.True(t, gjson.GetBytes(body, "originalTimestamp").Exists(), "originalTimestamp missing")
 
-		// All 18 reserved identify traits
+		// All 17 reserved identify traits
 		reservedIdentifyTraits := []string{
 			"address", "age", "avatar", "birthday", "company", "createdAt",
 			"description", "email", "firstName", "gender", "id", "lastName",
@@ -363,7 +363,7 @@ func verifyParity(t *testing.T) {
 	})
 
 	t.Run("page-field-preservation", func(t *testing.T) {
-		body := findWebhookEvent(t, "page")
+		body := findWebhookEvent(t, "msg-page-parity-001")
 		require.NotEmpty(t, body, "page event not found in webhook requests")
 
 		require.Equal(t, "page", gjson.GetBytes(body, "type").Str)
@@ -384,7 +384,7 @@ func verifyParity(t *testing.T) {
 	})
 
 	t.Run("screen-field-preservation", func(t *testing.T) {
-		body := findWebhookEvent(t, "screen")
+		body := findWebhookEvent(t, "msg-screen-parity-001")
 		require.NotEmpty(t, body, "screen event not found in webhook requests")
 
 		require.Equal(t, "screen", gjson.GetBytes(body, "type").Str)
@@ -402,7 +402,7 @@ func verifyParity(t *testing.T) {
 	})
 
 	t.Run("group-reserved-traits", func(t *testing.T) {
-		body := findWebhookEvent(t, "group")
+		body := findWebhookEvent(t, "msg-group-parity-001")
 		require.NotEmpty(t, body, "group event not found in webhook requests")
 
 		require.Equal(t, "group", gjson.GetBytes(body, "type").Str)
@@ -425,7 +425,7 @@ func verifyParity(t *testing.T) {
 	})
 
 	t.Run("alias-field-preservation", func(t *testing.T) {
-		body := findWebhookEvent(t, "alias")
+		body := findWebhookEvent(t, "msg-alias-parity-001")
 		require.NotEmpty(t, body, "alias event not found in webhook requests")
 
 		require.Equal(t, "alias", gjson.GetBytes(body, "type").Str)
@@ -441,7 +441,7 @@ func verifyParity(t *testing.T) {
 	t.Run("client-hints-passthrough", func(t *testing.T) {
 		// Verify Client Hints pass-through on the identify event which
 		// includes the full userAgentData object.
-		body := findWebhookEvent(t, "identify")
+		body := findWebhookEvent(t, "msg-identify-parity-001")
 		require.NotEmpty(t, body, "identify event not found for Client Hints check")
 
 		uad := gjson.GetBytes(body, "context.userAgentData")
@@ -478,25 +478,25 @@ func verifyParity(t *testing.T) {
 		// Verify that different channel values propagate correctly per event type.
 
 		// Identify event → context.channel: "server"
-		identifyBody := findWebhookEvent(t, "identify")
+		identifyBody := findWebhookEvent(t, "msg-identify-parity-001")
 		require.NotEmpty(t, identifyBody, "identify event not found for channel check")
 		require.Equal(t, "server", gjson.GetBytes(identifyBody, "context.channel").Str,
 			"identify event should have context.channel=server")
 
 		// Page event → context.channel: "browser"
-		pageBody := findWebhookEvent(t, "page")
+		pageBody := findWebhookEvent(t, "msg-page-parity-001")
 		require.NotEmpty(t, pageBody, "page event not found for channel check")
 		require.Equal(t, "browser", gjson.GetBytes(pageBody, "context.channel").Str,
 			"page event should have context.channel=browser")
 
 		// Screen event → context.channel: "mobile"
-		screenBody := findWebhookEvent(t, "screen")
+		screenBody := findWebhookEvent(t, "msg-screen-parity-001")
 		require.NotEmpty(t, screenBody, "screen event not found for channel check")
 		require.Equal(t, "mobile", gjson.GetBytes(screenBody, "context.channel").Str,
 			"screen event should have context.channel=mobile")
 
 		// Alias event → context.channel: "server"
-		aliasBody := findWebhookEvent(t, "alias")
+		aliasBody := findWebhookEvent(t, "msg-alias-parity-001")
 		require.NotEmpty(t, aliasBody, "alias event not found for channel check")
 		require.Equal(t, "server", gjson.GetBytes(aliasBody, "context.channel").Str,
 			"alias event should have context.channel=server")
@@ -504,7 +504,7 @@ func verifyParity(t *testing.T) {
 
 	t.Run("context-standard-fields", func(t *testing.T) {
 		// Verify all 18 standard context sub-fields are preserved on the identify event.
-		body := findWebhookEvent(t, "identify")
+		body := findWebhookEvent(t, "msg-identify-parity-001")
 		require.NotEmpty(t, body, "identify event not found for context fields check")
 
 		contextPaths := []string{
@@ -570,10 +570,7 @@ func sendEvent(t *testing.T, payload *strings.Reader, callType, wk string) {
 	)
 
 	req, err := http.NewRequest(method, url, payload)
-	if err != nil {
-		t.Logf("sendEvent error: %v", err)
-		return
-	}
+	require.NoError(t, err, "failed to create HTTP request for %s event", callType)
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Basic %s", b64.StdEncoding.EncodeToString(
@@ -581,36 +578,29 @@ func sendEvent(t *testing.T, payload *strings.Reader, callType, wk string) {
 	)))
 
 	res, err := httpClient.Do(req)
-	if err != nil {
-		t.Logf("sendEvent error: %v", err)
-		return
-	}
+	require.NoError(t, err, "failed to send %s event", callType)
 	defer func() { httputil.CloseResponse(res) }()
 
 	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Logf("sendEvent error: %v", err)
-		return
-	}
-	if res.Status != "200 OK" {
-		t.Logf("sendEvent non-200 response: status=%s body=%s", res.Status, string(body))
-		return
-	}
+	require.NoError(t, err, "failed to read response body for %s event", callType)
+	require.Equal(t, "200 OK", res.Status,
+		"expected 200 OK for %s event, got %s: %s", callType, res.Status, string(body))
 
 	t.Logf("Event Sent Successfully: (%s)", body)
 }
 
 // findWebhookEvent scans captured webhook requests and returns the raw body
-// bytes of the first request matching the specified event type (identify,
-// track, page, screen, group, alias).
-func findWebhookEvent(t *testing.T, eventType string) []byte {
+// bytes of the first request matching the specified messageId. Using messageId
+// for lookup ensures deterministic matching when multiple events of the same
+// type are delivered (e.g., individual + batch identify events).
+func findWebhookEvent(t *testing.T, messageID string) []byte {
 	t.Helper()
 	for _, req := range webhook.Requests() {
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			continue
 		}
-		if gjson.GetBytes(body, "type").Str == eventType {
+		if gjson.GetBytes(body, "messageId").Str == messageID {
 			return body
 		}
 	}
@@ -638,7 +628,7 @@ func findWebhookEventByName(t *testing.T, eventName string) []byte {
 // Payload constants — all use synthetic test data only (RFC 5737 IPs, @example.com emails, 555 phone numbers).
 // ---------------------------------------------------------------------------
 
-// identifyPayload contains a complete Segment Spec identify event with all 18
+// identifyPayload contains a complete Segment Spec identify event with all 17
 // reserved identify traits, full context object including Client Hints
 // (userAgentData), and channel field set to "server".
 const identifyPayload = `{
@@ -1088,7 +1078,7 @@ const groupPayload = `{
 		"createdAt": "2020-03-15T12:00:00.000Z",
 		"description": "Test organization for event spec parity validation",
 		"email": "admin@testcorp.example.com",
-		"employees": 500,
+		"employees": "500",
 		"id": "grp-parity-test-001",
 		"industry": "Technology",
 		"name": "TestCorp Inc.",

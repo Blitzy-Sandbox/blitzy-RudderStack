@@ -574,4 +574,113 @@ var _ = Describe("Client Hints Pass-Through", func() {
 			Expect(foundNormal).To(BeTrue(), "normal event job should be captured")
 		})
 	})
+
+	// -------------------------------------------------------------------------
+	// Context 7: Edge cases — empty brands array and null/missing optional fields
+	// Validates ES-001 robustness for boundary conditions in userAgentData.
+	// -------------------------------------------------------------------------
+	Context("Edge cases for userAgentData", func() {
+		It("should preserve an empty brands array without error", func() {
+			capturedJobsPtr := clientHintsMockSetup(c)
+
+			payload := fmt.Sprintf(`{
+				"batch": [{
+					"userId": "edge-case-user-001",
+					"type": "track",
+					"event": "Empty Brands Test",
+					"context": {
+						"userAgentData": {
+							"brands": [],
+							"mobile": false,
+							"platform": "macOS"
+						},
+						"library": {"name": %q, "version": %q}
+					}
+				}]
+			}`, sdkLibrary, sdkVersion)
+
+			expectHandlerResponse(
+				clientHintsGW.webBatchHandler(),
+				authorizedRequest(WriteKeyEnabled, bytes.NewBufferString(payload)),
+				http.StatusOK,
+				"ok",
+				"batch",
+			)
+
+			batchEvent := extractBatchEvent(*capturedJobsPtr, 0)
+
+			// Verify userAgentData object exists
+			Expect(batchEvent.Get("context.userAgentData").Exists()).To(BeTrue(),
+				"userAgentData should exist even with empty brands")
+
+			// Verify brands is an empty array (not null, not missing)
+			Expect(batchEvent.Get("context.userAgentData.brands").Exists()).To(BeTrue(),
+				"brands field should exist")
+			Expect(batchEvent.Get("context.userAgentData.brands").IsArray()).To(BeTrue(),
+				"brands should still be an array")
+			Expect(batchEvent.Get("context.userAgentData.brands.#").Int()).To(Equal(int64(0)),
+				"brands array should be empty")
+
+			// Verify required fields preserved
+			Expect(batchEvent.Get("context.userAgentData.mobile").Bool()).To(BeFalse())
+			Expect(batchEvent.Get("context.userAgentData.platform").String()).To(Equal("macOS"))
+		})
+
+		It("should preserve userAgentData when optional high-entropy fields are null", func() {
+			capturedJobsPtr := clientHintsMockSetup(c)
+
+			payload := fmt.Sprintf(`{
+				"batch": [{
+					"userId": "edge-case-user-002",
+					"type": "track",
+					"event": "Null Optional Fields Test",
+					"context": {
+						"userAgentData": {
+							"brands": [{"brand": "Chromium", "version": "110"}],
+							"mobile": false,
+							"platform": "macOS",
+							"bitness": null,
+							"model": null,
+							"platformVersion": null,
+							"uaFullVersion": null,
+							"fullVersionList": null,
+							"wow64": null
+						},
+						"library": {"name": %q, "version": %q}
+					}
+				}]
+			}`, sdkLibrary, sdkVersion)
+
+			expectHandlerResponse(
+				clientHintsGW.webBatchHandler(),
+				authorizedRequest(WriteKeyEnabled, bytes.NewBufferString(payload)),
+				http.StatusOK,
+				"ok",
+				"batch",
+			)
+
+			batchEvent := extractBatchEvent(*capturedJobsPtr, 0)
+
+			// Verify userAgentData object is preserved
+			Expect(batchEvent.Get("context.userAgentData").Exists()).To(BeTrue(),
+				"userAgentData should exist with null optional fields")
+
+			// Verify required low-entropy fields
+			Expect(batchEvent.Get("context.userAgentData.brands").IsArray()).To(BeTrue())
+			Expect(batchEvent.Get("context.userAgentData.brands.#").Int()).To(Equal(int64(1)))
+			Expect(batchEvent.Get("context.userAgentData.brands.0.brand").String()).To(Equal("Chromium"))
+			Expect(batchEvent.Get("context.userAgentData.mobile").Bool()).To(BeFalse())
+			Expect(batchEvent.Get("context.userAgentData.platform").String()).To(Equal("macOS"))
+
+			// Verify null optional fields are preserved as null (not stripped)
+			// gjson treats JSON null values as existing with Type == Null
+			for _, field := range []string{"bitness", "model", "platformVersion", "uaFullVersion", "fullVersionList", "wow64"} {
+				result := batchEvent.Get("context.userAgentData." + field)
+				Expect(result.Exists()).To(BeTrue(),
+					fmt.Sprintf("optional field %q should exist even when null", field))
+				Expect(result.Type).To(Equal(gjson.Null),
+					fmt.Sprintf("optional field %q should be null", field))
+			}
+		})
+	})
 })

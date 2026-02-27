@@ -186,7 +186,8 @@ var _ = Describe("Reserved Traits Parity", Ordered, func() {
 		Expect(err).To(BeNil())
 		preTransMessage, err := processor.srcHydrationStage("", srcHydrationMsg)
 		Expect(err).To(BeNil())
-		_, _ = processor.pretransformStage("", preTransMessage)
+		_, pretransErr := processor.pretransformStage("", preTransMessage)
+		Expect(pretransErr).To(BeNil(), "pretransformStage should not return an error")
 
 		// Collect all events from the observer
 		var allEvents []types.TransformerEvent
