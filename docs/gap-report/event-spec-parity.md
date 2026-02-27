@@ -257,7 +257,7 @@ Source: `gateway/openapi.yaml:688-721` (`IdentifyPayload` schema) | Source: `ref
 
 ### Reserved Identify Traits
 
-Segment defines 18 reserved traits for Identify calls. RudderStack passes all traits through without schema enforcement (traits are an open `object` type), ensuring full compatibility:
+Segment defines 17 reserved traits for Identify calls. RudderStack passes all traits through without schema enforcement (traits are an open `object` type), ensuring full compatibility:
 
 | Trait | Type | Segment Semantic Meaning | RudderStack Handling |
 |-------|------|--------------------------|---------------------|
@@ -905,7 +905,7 @@ Source: `gateway/openapi.yaml:30-73` (identify responses) — same pattern acros
 |--------|-----------|---------------|-------------|----------|-------------|
 | ES-001 | All | `context.userAgentData` | Structured Client Hints API data (brands, mobile, platform) is accepted as pass-through JSON. Verification needed that downstream pipeline stages and destination connectors correctly parse and forward the structured UA data. | **Resolved** ✅ | **RESOLVED** — Verified end-to-end pass-through from Gateway → Processor → Router → Warehouse without data loss. Structured Client Hints (`context.userAgentData`) containing `brands[]`, `mobile`, `platform`, and optional high-entropy fields are preserved through all pipeline stages. Comprehensive tests added in `gateway/client_hints_test.go` and `integration_test/event_spec_parity/`. |
 | ES-002 | Track | Semantic event categories | Segment defines semantic event categories (E-Commerce v2, Video, Mobile, B2B SaaS, Email, Live Chat, A/B Testing) with standardized event names and reserved properties. RudderStack passes all event names as opaque strings — no Gateway-level validation of semantic category compliance. | **Resolved** ✅ | **RESOLVED** — Validated that destination transforms correctly map semantic event names (E-Commerce v2, Video, Mobile lifecycle) via the external Transformer service at port 9090. RudderStack correctly passes all event names as opaque strings to the Transformer, which handles destination-specific mapping (e.g., `Order Completed` → Google Analytics Enhanced Ecommerce). Tests added in `processor/event_spec_parity_test.go`. |
-| ES-003 | Identify/Group | Reserved trait enforcement | Segment standardizes 18 reserved identify traits and 12 reserved group traits with specific types. RudderStack accepts traits as open objects without type validation. | **Resolved** ✅ | **RESOLVED** — Confirmed all 18 identify reserved traits (`address`, `age`, `avatar`, `birthday`, `company`, `createdAt`, `description`, `email`, `firstName`, `gender`, `id`, `lastName`, `name`, `phone`, `title`, `username`, `website`) and all 12 group reserved traits (`address`, `avatar`, `createdAt`, `description`, `email`, `employees`, `id`, `industry`, `name`, `phone`, `website`, `plan`) pass through the pipeline without type coercion or data loss. Enforcement handled at destination connector level. Tests added in `processor/reserved_traits_test.go`. |
+| ES-003 | Identify/Group | Reserved trait enforcement | Segment standardizes 17 reserved identify traits and 12 reserved group traits with specific types. RudderStack accepts traits as open objects without type validation. | **Resolved** ✅ | **RESOLVED** — Confirmed all 17 identify reserved traits (`address`, `age`, `avatar`, `birthday`, `company`, `createdAt`, `description`, `email`, `firstName`, `gender`, `id`, `lastName`, `name`, `phone`, `title`, `username`, `website`) and all 12 group reserved traits (`address`, `avatar`, `createdAt`, `description`, `email`, `employees`, `id`, `industry`, `name`, `phone`, `website`, `plan`) pass through the pipeline without type coercion or data loss. Enforcement handled at destination connector level. Tests added in `processor/reserved_traits_test.go`. |
 | ES-004 | All | RudderStack extension endpoints | Additional endpoints (`/v1/replay`, `/internal/v1/retl`, `/beacon/v1/*`, `/pixel/v1/*`, `/internal/v1/extract`, `merge` call type) have no Segment equivalent. | **Info** | Document as RudderStack extensions. No remediation needed — these extend capability beyond Segment. |
 | ES-005 | Alias | Identity graph integration | Segment's Alias call updates the Unify identity graph. RudderStack's alias handling uses merge-rule resolution in `warehouse/identity/` but does not maintain a real-time identity graph equivalent to Segment Unify. | **Medium** | See [Identity Parity Analysis](./identity-parity.md). Requires implementation of a real-time identity graph service for full Unify parity. |
 | ES-006 | Batch | Batch size defaults | Segment recommends max 500 KB / 100 events per batch. RudderStack defaults to 4000 KB max request size with no per-batch event count limit. | **Resolved/Documented** ✅ | **RESOLVED** — Documented as RudderStack extension. RudderStack's 4000 KB default is more permissive than Segment's recommended 500 KB / 100 events. Recommended batch sizing documented in `docs/api-reference/event-spec/extensions.md` for SDK compatibility. |
@@ -915,7 +915,7 @@ Source: `gateway/openapi.yaml:30-73` (identify responses) — same pattern acros
 
 | Event Type | Endpoint | Payload Fields | Reserved Fields | Behavioral | Overall |
 |-----------|----------|---------------|----------------|------------|---------|
-| **Identify** | ✅ Full | ✅ Full | ✅ Pass-through (18 traits) | ✅ Full | **100%** |
+| **Identify** | ✅ Full | ✅ Full | ✅ Pass-through (17 traits) | ✅ Full | **100%** |
 | **Track** | ✅ Full | ✅ Full | ✅ Pass-through (3 properties) | ✅ Full | **100%** |
 | **Page** | ✅ Full | ✅ Full | ✅ Pass-through (7 properties) | ✅ Full | **100%** |
 | **Screen** | ✅ Full | ✅ Full | ✅ Pass-through (1 property) | ✅ Full | **100%** |
@@ -935,7 +935,7 @@ RudderStack achieves **full structural and behavioral parity** with the Segment 
 
 1. **Client Hints pass-through (ES-001)** ✅ — `context.userAgentData` structured data verified to pass through Gateway → Processor → Router → Warehouse without data loss
 2. **Semantic event routing (ES-002)** ✅ — Destination transforms correctly map semantic event names via the external Transformer service; pass-through behavior confirmed
-3. **Reserved trait handling (ES-003)** ✅ — All 18 identify reserved traits and 12 group reserved traits pass through without type coercion; enforcement at destination level
+3. **Reserved trait handling (ES-003)** ✅ — All 17 identify reserved traits and 12 group reserved traits pass through without type coercion; enforcement at destination level
 4. **Channel auto-population (ES-007)** ✅ — SDK implementations auto-populate `context.channel` with `server`, `browser`, or `mobile`
 5. **Extensions documented (ES-004, ES-006)** — RudderStack endpoints and batch size defaults documented as capability additions
 6. **Identity graph (ES-005)** — Tracked under [Identity Parity](./identity-parity.md) dimension (Sprint 6-8)
@@ -959,7 +959,7 @@ The following gaps were closed during Sprint 1-2 implementation:
 - Tests: `processor/event_spec_parity_test.go`
 
 **ES-003 — Reserved Trait Validation:**
-- All 18 identify reserved traits verified: `address`, `age`, `avatar`, `birthday`, `company`, `createdAt`, `description`, `email`, `firstName`, `gender`, `id`, `lastName`, `name`, `phone`, `title`, `username`, `website`
+- All 17 identify reserved traits verified: `address`, `age`, `avatar`, `birthday`, `company`, `createdAt`, `description`, `email`, `firstName`, `gender`, `id`, `lastName`, `name`, `phone`, `title`, `username`, `website`
 - All 12 group reserved traits verified: `address`, `avatar`, `createdAt`, `description`, `email`, `employees`, `id`, `industry`, `name`, `phone`, `website`, `plan`
 - Traits pass through as open objects without type coercion — matches Segment's pass-through behavior with destination-level enforcement
 - Tests: `processor/reserved_traits_test.go`
