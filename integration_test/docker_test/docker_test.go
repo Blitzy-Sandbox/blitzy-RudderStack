@@ -164,6 +164,65 @@ func testCases(t *testing.T) {
 		require.Equal(t, gjson.GetBytes(body, "context.id").Str, "0.0.0.0")
 		require.Equal(t, gjson.GetBytes(body, "context.ip").Str, "0.0.0.0")
 
+		// Verify Client Hints (ES-001) pass-through
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.platform").Str, "Android")
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.mobile").Bool(), true)
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.bitness").Str, "64")
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.model").Str, "SM-G991B")
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.platformVersion").Str, "12.0")
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.uaFullVersion").Str, "112.0.5615.135")
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.wow64").Bool(), false)
+
+		// Verify Client Hints brands array
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.brands.#").Int(), int64(3))
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.brands.0.brand").Str, "Chromium")
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.brands.0.version").Str, "112")
+
+		// Verify Client Hints fullVersionList array
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.fullVersionList.#").Int(), int64(3))
+		require.Equal(t, gjson.GetBytes(body, "context.userAgentData.fullVersionList.0.brand").Str, "Chromium")
+
+		// Verify reserved identify traits (ES-003) pass-through
+		require.Equal(t, gjson.GetBytes(body, "traits.email").Str, "test.user@example.com")
+		require.Equal(t, gjson.GetBytes(body, "traits.firstName").Str, "Test")
+		require.Equal(t, gjson.GetBytes(body, "traits.lastName").Str, "User")
+		require.Equal(t, gjson.GetBytes(body, "traits.name").Str, "Test User")
+		require.Equal(t, gjson.GetBytes(body, "traits.phone").Str, "+1-555-123-4567")
+		require.Equal(t, gjson.GetBytes(body, "traits.username").Str, "testuser")
+		require.Equal(t, gjson.GetBytes(body, "traits.website").Str, "https://example.com")
+		require.Equal(t, gjson.GetBytes(body, "traits.age").Float(), float64(30))
+		require.Equal(t, gjson.GetBytes(body, "traits.gender").Str, "non-binary")
+		require.Equal(t, gjson.GetBytes(body, "traits.title").Str, "Senior Engineer")
+		require.Equal(t, gjson.GetBytes(body, "traits.description").Str, "Test user for integration testing")
+		require.Equal(t, gjson.GetBytes(body, "traits.avatar").Str, "https://example.com/avatar.png")
+		require.Equal(t, gjson.GetBytes(body, "traits.birthday").Str, "1994-03-15")
+		require.Equal(t, gjson.GetBytes(body, "traits.createdAt").Str, "2023-01-15T08:30:00.000Z")
+		require.Equal(t, gjson.GetBytes(body, "traits.id").Str, "user_trait_id_001")
+		require.Equal(t, gjson.GetBytes(body, "traits.address.street").Str, "123 Test St")
+		require.Equal(t, gjson.GetBytes(body, "traits.address.city").Str, "San Francisco")
+		require.Equal(t, gjson.GetBytes(body, "traits.company.name").Str, "Test Corp")
+		require.Equal(t, gjson.GetBytes(body, "traits.company.id").Str, "company_001")
+
+		// Verify channel field (ES-007) pass-through
+		require.Equal(t, gjson.GetBytes(body, "context.channel").Str, "server")
+
+		// Verify standard context fields pass-through
+		require.Equal(t, gjson.GetBytes(body, "context.locale").Str, "en-US")
+		require.Equal(t, gjson.GetBytes(body, "context.timezone").Str, "America/New_York")
+		require.Equal(t, gjson.GetBytes(body, "context.userAgent").Str, "Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36")
+		require.Equal(t, gjson.GetBytes(body, "context.os.name").Str, "Android")
+		require.Equal(t, gjson.GetBytes(body, "context.os.version").Str, "12.0")
+		require.Equal(t, gjson.GetBytes(body, "context.device.manufacturer").Str, "Samsung")
+		require.Equal(t, gjson.GetBytes(body, "context.device.model").Str, "Galaxy S21")
+		require.Equal(t, gjson.GetBytes(body, "context.screen.height").Int(), int64(1920))
+		require.Equal(t, gjson.GetBytes(body, "context.screen.width").Int(), int64(1080))
+		require.Equal(t, gjson.GetBytes(body, "context.app.name").Str, "RudderTest")
+		require.Equal(t, gjson.GetBytes(body, "context.app.version").Str, "1.0.0")
+		require.Equal(t, gjson.GetBytes(body, "context.network.carrier").Str, "T-Mobile")
+		require.Equal(t, gjson.GetBytes(body, "context.campaign.name").Str, "test_campaign")
+		require.Equal(t, gjson.GetBytes(body, "context.page.url").Str, "https://example.com/test")
+		require.Equal(t, gjson.GetBytes(body, "context.referrer.type").Str, "search")
+
 		// Verify Disabled destination doesn't receive any event.
 		require.Equal(t, 0, len(disableDestinationWebhook.Requests()))
 	})
@@ -444,7 +503,97 @@ func sendEventsToGateway(t *testing.T) {
 		  "ip": "14.5.67.21",
 		  "library": {
 			  "name": "http"
+		  },
+		  "active": true,
+		  "app": {
+			  "name": "RudderTest",
+			  "version": "1.0.0",
+			  "build": "100"
+		  },
+		  "campaign": {
+			  "name": "test_campaign",
+			  "source": "google",
+			  "medium": "cpc",
+			  "term": "test",
+			  "content": "ad_1"
+		  },
+		  "device": {
+			  "id": "device_001",
+			  "advertisingId": "ad_id_001",
+			  "manufacturer": "Samsung",
+			  "model": "Galaxy S21",
+			  "name": "samsung_s21",
+			  "type": "android"
+		  },
+		  "locale": "en-US",
+		  "network": {
+			  "bluetooth": false,
+			  "carrier": "T-Mobile",
+			  "cellular": true,
+			  "wifi": true
+		  },
+		  "os": {
+			  "name": "Android",
+			  "version": "12.0"
+		  },
+		  "page": {
+			  "path": "/test",
+			  "referrer": "https://google.com",
+			  "search": "?q=test",
+			  "title": "Test Page",
+			  "url": "https://example.com/test"
+		  },
+		  "referrer": {
+			  "type": "search",
+			  "name": "Google"
+		  },
+		  "screen": {
+			  "density": 2,
+			  "height": 1920,
+			  "width": 1080
+		  },
+		  "timezone": "America/New_York",
+		  "groupId": "group_001",
+		  "userAgent": "Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
+		  "channel": "server",
+		  "userAgentData": {
+			  "brands": [
+				  {"brand": "Chromium", "version": "112"},
+				  {"brand": "Google Chrome", "version": "112"},
+				  {"brand": "Not:A-Brand", "version": "99"}
+			  ],
+			  "mobile": true,
+			  "platform": "Android",
+			  "bitness": "64",
+			  "model": "SM-G991B",
+			  "platformVersion": "12.0",
+			  "uaFullVersion": "112.0.5615.135",
+			  "fullVersionList": [
+				  {"brand": "Chromium", "version": "112.0.5615.135"},
+				  {"brand": "Google Chrome", "version": "112.0.5615.135"},
+				  {"brand": "Not:A-Brand", "version": "99.0.0.0"}
+			  ],
+			  "wow64": false
 		  }
+		},
+		"traits": {
+		  "address": {"street": "123 Test St", "city": "San Francisco", "state": "CA", "postalCode": "94107", "country": "US"},
+		  "age": 30,
+		  "avatar": "https://example.com/avatar.png",
+		  "birthday": "1994-03-15",
+		  "company": {"name": "Test Corp", "id": "company_001", "industry": "Technology", "employee_count": 500},
+		  "createdAt": "2023-01-15T08:30:00.000Z",
+		  "description": "Test user for integration testing",
+		  "email": "test.user@example.com",
+		  "firstName": "Test",
+		  "gender": "non-binary",
+		  "id": "user_trait_id_001",
+		  "lastName": "User",
+		  "name": "Test User",
+		  "phone": "+1-555-123-4567",
+		  "title": "Senior Engineer",
+		  "username": "testuser",
+		  "website": "https://example.com"
 		},
 		"timestamp": "2020-02-02T00:23:09.544Z"
 	}`)
@@ -506,6 +655,12 @@ func sendEventsToGateway(t *testing.T) {
 		  "product_id" : "123",
 		  "rating" : 3.0,
 		  "review_body" : "Average product, expected much more."
+		},
+		"context": {
+		  "channel": "browser",
+		  "library": {
+			  "name": "http"
+		  }
 		}
 	}`)
 	sendEvent(t, payloadTrack, "track", writeKey)
@@ -520,6 +675,12 @@ func sendEventsToGateway(t *testing.T) {
 		"properties": {
 		  "title": "Home | RudderStack",
 		  "url": "http://www.rudderstack.com"
+		},
+		"context": {
+		  "channel": "browser",
+		  "library": {
+			  "name": "http"
+		  }
 		}
 	}`)
 	sendEvent(t, payloadPage, "page", writeKey)
@@ -533,6 +694,12 @@ func sendEventsToGateway(t *testing.T) {
 		"name": "Main",
 		"properties": {
 		  "prop_key": "prop_value"
+		},
+		"context": {
+		  "channel": "mobile",
+		  "library": {
+			  "name": "http"
+		  }
 		}
 	}`)
 	sendEvent(t, payloadScreen, "screen", writeKey)
@@ -544,7 +711,13 @@ func sendEventsToGateway(t *testing.T) {
 		"messageId":"messageId_1",
 		"type": "alias",
 		"previousId": "name@surname.com",
-		"userId": "12345"
+		"userId": "12345",
+		"context": {
+		  "channel": "server",
+		  "library": {
+			  "name": "http"
+		  }
+		}
 	}`)
 	sendEvent(t, payloadAlias, "alias", writeKey)
 
@@ -559,7 +732,21 @@ func sendEventsToGateway(t *testing.T) {
 		  "name": "MyGroup",
 		  "industry": "IT",
 		  "employees": 450,
-		  "plan": "basic"
+		  "plan": "basic",
+		  "address": {"street": "456 Group Ave", "city": "New York", "state": "NY", "postalCode": "10001", "country": "US"},
+		  "avatar": "https://example.com/group-avatar.png",
+		  "createdAt": "2022-06-01T10:00:00.000Z",
+		  "description": "Test group for integration testing",
+		  "email": "group@example.com",
+		  "id": "group_trait_id_001",
+		  "phone": "+1-555-987-6543",
+		  "website": "https://mygroup.example.com"
+		},
+		"context": {
+		  "channel": "server",
+		  "library": {
+			  "name": "http"
+		  }
 		}
 	}`)
 	sendEvent(t, payloadGroup, "group", writeKey)
