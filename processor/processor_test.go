@@ -5984,7 +5984,7 @@ var _ = Describe("Processor Semantic Event Categories", Ordered, func() {
 						"sku":        "SKU-WIDGET-A",
 						"name":       "Premium Widget",
 						"price":      26.0,
-						"quantity":    2.0,
+						"quantity":   2.0,
 					},
 				},
 			})
@@ -6013,14 +6013,14 @@ var _ = Describe("Processor Semantic Event Categories", Ordered, func() {
 						"sku":        "SKU-WIDGET-A",
 						"name":       "Widget A",
 						"price":      25.0,
-						"quantity":    1.0,
+						"quantity":   1.0,
 					},
 					map[string]any{
 						"product_id": "prod-002",
 						"sku":        "SKU-WIDGET-B",
 						"name":       "Widget B",
 						"price":      35.0,
-						"quantity":    2.0,
+						"quantity":   2.0,
 					},
 				},
 			})

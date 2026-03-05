@@ -314,10 +314,10 @@ var _ = Describe("Event Spec Parity", func() {
 	initGW()
 
 	var (
-		c              *testContext
-		parityGW       *Handle
-		parityStats    *memstats.Store
-		parityConf     *config.Config
+		c           *testContext
+		parityGW    *Handle
+		parityStats *memstats.Store
+		parityConf  *config.Config
 	)
 
 	BeforeEach(func() {

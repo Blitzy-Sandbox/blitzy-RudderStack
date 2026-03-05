@@ -58,10 +58,10 @@ func clientHintsMockSetup(c *testContext) *[][]*jobsdb.JobT {
 // EventPayload using gjson. The stored payload structure is:
 //
 //	{"batch":[<event>], "writeKey":"...", "requestIP":"...", "receivedAt":"..."}
-func extractBatchEvent(capturedJobs [][]*jobsdb.JobT, index int) gjson.Result {
+func extractBatchEvent(capturedJobs [][]*jobsdb.JobT) gjson.Result {
 	Expect(capturedJobs).ToNot(BeEmpty(), "captured jobs should not be empty")
 	Expect(capturedJobs[0]).ToNot(BeEmpty(), "first job batch should not be empty")
-	storedPayload := string(capturedJobs[0][index].EventPayload)
+	storedPayload := string(capturedJobs[0][0].EventPayload)
 	return gjson.Get(storedPayload, "batch.0")
 }
 
@@ -69,10 +69,10 @@ var _ = Describe("Client Hints Pass-Through", func() {
 	initGW()
 
 	var (
-		c              *testContext
-		clientHintsGW  *Handle
-		chStatsStore   *memstats.Store
-		chConf         *config.Config
+		c             *testContext
+		clientHintsGW *Handle
+		chStatsStore  *memstats.Store
+		chConf        *config.Config
 	)
 
 	BeforeEach(func() {
@@ -149,7 +149,7 @@ var _ = Describe("Client Hints Pass-Through", func() {
 				"batch",
 			)
 
-			batchEvent := extractBatchEvent(*capturedJobsPtr, 0)
+			batchEvent := extractBatchEvent(*capturedJobsPtr)
 
 			// Verify userAgentData object exists
 			Expect(batchEvent.Get("context.userAgentData").Exists()).To(BeTrue())
@@ -217,7 +217,7 @@ var _ = Describe("Client Hints Pass-Through", func() {
 				"batch",
 			)
 
-			batchEvent := extractBatchEvent(*capturedJobsPtr, 0)
+			batchEvent := extractBatchEvent(*capturedJobsPtr)
 
 			// Low-entropy fields still present
 			Expect(batchEvent.Get("context.userAgentData.brands").IsArray()).To(BeTrue())
@@ -290,7 +290,7 @@ var _ = Describe("Client Hints Pass-Through", func() {
 				"batch",
 			)
 
-			batchEvent := extractBatchEvent(*capturedJobsPtr, 0)
+			batchEvent := extractBatchEvent(*capturedJobsPtr)
 
 			// Verify userAgent string is preserved
 			Expect(batchEvent.Get("context.userAgent").Exists()).To(BeTrue())
@@ -373,7 +373,7 @@ var _ = Describe("Client Hints Pass-Through", func() {
 					"batch",
 				)
 
-				batchEvent := extractBatchEvent(*capturedJobsPtr, 0)
+				batchEvent := extractBatchEvent(*capturedJobsPtr)
 
 				// Verify userAgentData is preserved regardless of event type
 				Expect(batchEvent.Get("context.userAgentData").Exists()).To(
@@ -448,7 +448,7 @@ var _ = Describe("Client Hints Pass-Through", func() {
 				"batch",
 			)
 
-			batchEvent := extractBatchEvent(*capturedJobsPtr, 0)
+			batchEvent := extractBatchEvent(*capturedJobsPtr)
 
 			// Verify mobile == true (critical: boolean true not just truthy)
 			Expect(batchEvent.Get("context.userAgentData.mobile").Exists()).To(BeTrue())
@@ -607,7 +607,7 @@ var _ = Describe("Client Hints Pass-Through", func() {
 				"batch",
 			)
 
-			batchEvent := extractBatchEvent(*capturedJobsPtr, 0)
+			batchEvent := extractBatchEvent(*capturedJobsPtr)
 
 			// Verify userAgentData object exists
 			Expect(batchEvent.Get("context.userAgentData").Exists()).To(BeTrue(),
@@ -659,7 +659,7 @@ var _ = Describe("Client Hints Pass-Through", func() {
 				"batch",
 			)
 
-			batchEvent := extractBatchEvent(*capturedJobsPtr, 0)
+			batchEvent := extractBatchEvent(*capturedJobsPtr)
 
 			// Verify userAgentData object is preserved
 			Expect(batchEvent.Get("context.userAgentData").Exists()).To(BeTrue(),
