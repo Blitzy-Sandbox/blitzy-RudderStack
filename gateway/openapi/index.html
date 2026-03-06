@@ -929,7 +929,7 @@ ul.nav-tabs {
       "description" : "User agent string of the device making the request."
     },
     "userAgentData" : {
-      "$ref" : "#/components/schemas/IdentifyPayload_context_userAgentData"
+      "$ref" : "#/components/schemas/UserAgentData"
     },
     "channel" : {
       "type" : "string",
@@ -1022,7 +1022,7 @@ ul.nav-tabs {
       "description" : "User agent string of the device making the request."
     },
     "userAgentData" : {
-      "$ref" : "#/components/schemas/IdentifyPayload_context_userAgentData"
+      "$ref" : "#/components/schemas/UserAgentData"
     },
     "channel" : {
       "type" : "string",
@@ -1047,78 +1047,6 @@ ul.nav-tabs {
     "trait1" : {
       "type" : "string",
       "description" : "New value for trait1."
-    }
-  }
-};
-    defs["IdentifyPayload_context_userAgentData"] = {
-  "type" : "object",
-  "properties" : {
-    "brands" : {
-      "type" : "array",
-      "description" : "Array of brand/version objects from the User-Agent Client Hints API.",
-      "items" : {
-        "$ref" : "#/components/schemas/IdentifyPayload_context_userAgentData_brands_inner"
-      }
-    },
-    "mobile" : {
-      "type" : "boolean",
-      "description" : "Whether the device is a mobile device."
-    },
-    "platform" : {
-      "type" : "string",
-      "description" : "Operating system platform name."
-    },
-    "bitness" : {
-      "type" : "string",
-      "description" : "CPU architecture bitness (e.g., \"64\")."
-    },
-    "model" : {
-      "type" : "string",
-      "description" : "Device model identifier."
-    },
-    "platformVersion" : {
-      "type" : "string",
-      "description" : "Operating system version."
-    },
-    "uaFullVersion" : {
-      "type" : "string",
-      "description" : "Full browser version string."
-    },
-    "fullVersionList" : {
-      "type" : "array",
-      "description" : "Array of brand/version objects with full version information.",
-      "items" : {
-        "$ref" : "#/components/schemas/IdentifyPayload_context_userAgentData_fullVersionList_inner"
-      }
-    },
-    "wow64" : {
-      "type" : "boolean",
-      "description" : "Whether the browser is running in WoW64 mode."
-    }
-  },
-  "description" : "Structured Client Hints API data from the browser. Contains low-entropy fields (brands, mobile, platform) and optional high-entropy fields."
-};
-    defs["IdentifyPayload_context_userAgentData_brands_inner"] = {
-  "type" : "object",
-  "properties" : {
-    "brand" : {
-      "type" : "string",
-      "description" : "Browser brand name."
-    },
-    "version" : {
-      "type" : "string",
-      "description" : "Browser brand version."
-    }
-  }
-};
-    defs["IdentifyPayload_context_userAgentData_fullVersionList_inner"] = {
-  "type" : "object",
-  "properties" : {
-    "brand" : {
-      "type" : "string"
-    },
-    "version" : {
-      "type" : "string"
     }
   }
 };
@@ -1224,7 +1152,7 @@ ul.nav-tabs {
       "description" : "User agent string of the device making the request."
     },
     "userAgentData" : {
-      "$ref" : "#/components/schemas/IdentifyPayload_context_userAgentData"
+      "$ref" : "#/components/schemas/UserAgentData"
     },
     "channel" : {
       "type" : "string",
@@ -1233,6 +1161,80 @@ ul.nav-tabs {
     }
   },
   "description" : "Dictionary of information that provides context about a message."
+};
+    defs["UserAgentData"] = {
+  "type" : "object",
+  "properties" : {
+    "brands" : {
+      "type" : "array",
+      "description" : "Array of brand/version objects from the User-Agent Client Hints API.",
+      "items" : {
+        "$ref" : "#/components/schemas/UserAgentData_brands_inner"
+      }
+    },
+    "mobile" : {
+      "type" : "boolean",
+      "description" : "Whether the device is a mobile device."
+    },
+    "platform" : {
+      "type" : "string",
+      "description" : "Operating system platform name."
+    },
+    "bitness" : {
+      "type" : "string",
+      "description" : "CPU architecture bitness (e.g., \"64\")."
+    },
+    "model" : {
+      "type" : "string",
+      "description" : "Device model identifier."
+    },
+    "platformVersion" : {
+      "type" : "string",
+      "description" : "Operating system version."
+    },
+    "uaFullVersion" : {
+      "type" : "string",
+      "description" : "Full browser version string."
+    },
+    "fullVersionList" : {
+      "type" : "array",
+      "description" : "Array of brand/version objects with full version information.",
+      "items" : {
+        "$ref" : "#/components/schemas/UserAgentData_fullVersionList_inner"
+      }
+    },
+    "wow64" : {
+      "type" : "boolean",
+      "description" : "Whether the browser is running in WoW64 mode."
+    }
+  },
+  "description" : "Structured Client Hints API data from the browser. Contains low-entropy fields (brands, mobile, platform) and optional high-entropy fields."
+};
+    defs["UserAgentData_brands_inner"] = {
+  "type" : "object",
+  "properties" : {
+    "brand" : {
+      "type" : "string",
+      "description" : "Brand name."
+    },
+    "version" : {
+      "type" : "string",
+      "description" : "Brand version string."
+    }
+  }
+};
+    defs["UserAgentData_fullVersionList_inner"] = {
+  "type" : "object",
+  "properties" : {
+    "brand" : {
+      "type" : "string",
+      "description" : "Brand name."
+    },
+    "version" : {
+      "type" : "string",
+      "description" : "Full version string."
+    }
+  }
 };
 
     var errs = {};
