@@ -346,7 +346,6 @@ var _ = Describe("Client Hints Pass-Through", func() {
 		}
 
 		for _, fixture := range eventFixtures {
-			fixture := fixture // capture range variable for goroutine safety
 			It(fmt.Sprintf("should preserve userAgentData for %s events", fixture.eventType), func() {
 				capturedJobsPtr := clientHintsMockSetup(c)
 

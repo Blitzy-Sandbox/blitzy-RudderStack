@@ -869,7 +869,6 @@ var _ = Describe("Event Spec Parity", Ordered, func() {
 	// ═══════════════════════════════════════════════════════════════════════════
 	Context("Channel field preservation (ES-007)", func() {
 		for _, channelVal := range []string{"server", "browser", "mobile"} {
-			channelVal := channelVal // capture range variable
 			It(fmt.Sprintf("should preserve context.channel=%q through the pipeline", channelVal), func() {
 				msgID := uuid.New().String()
 				ts := "2024-01-15T10:29:59.000Z"

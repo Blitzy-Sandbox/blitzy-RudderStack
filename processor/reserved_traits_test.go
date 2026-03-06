@@ -201,7 +201,6 @@ var _ = Describe("Reserved Traits Parity", Ordered, func() {
 	// Context: Identify reserved traits
 	// -----------------------------------------------------------------
 	Context("Identify reserved traits", func() {
-
 		It("should preserve all 17 reserved identify traits through the full pipeline", func() {
 			// Build an identify event with ALL 17 reserved traits
 			identifyEvent := fmt.Sprintf(`{
@@ -382,7 +381,6 @@ var _ = Describe("Reserved Traits Parity", Ordered, func() {
 	// Context: Group reserved traits
 	// -----------------------------------------------------------------
 	Context("Group reserved traits", func() {
-
 		It("should preserve all 12 reserved group traits through the full pipeline", func() {
 			// Build a group event with ALL 12 reserved traits
 			groupEvent := fmt.Sprintf(`{
@@ -556,7 +554,6 @@ var _ = Describe("Reserved Traits Parity", Ordered, func() {
 	// Context: Type preservation (critical edge cases)
 	// -----------------------------------------------------------------
 	Context("Type preservation", func() {
-
 		It("should preserve identify trait types: objects stay objects, numbers stay numbers", func() {
 			// Specifically test the critical type-preservation cases for identify traits:
 			// address (Object), age (Number), birthday (String date), company (Object)
