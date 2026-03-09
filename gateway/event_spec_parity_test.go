@@ -154,19 +154,16 @@ func parityMockSetup(c *testContext) *[][]*jobsdb.JobT {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: extractParityEvent extracts a single event from the captured jobs.
-// The stored payload structure is:
+// Helper: extractParityEvent extracts the first event from the first captured
+// job's EventPayload using gjson. The stored payload structure is:
 //
-//	{"batch":[<event0>, <event1>, ...], "writeKey":"...", "requestIP":"...", "receivedAt":"..."}
-//
-// batchIdx selects which job batch, jobIdx selects the job within the batch,
-// and eventIdx selects the event within that job's batch array.
+//	{"batch":[<event>], "writeKey":"...", "requestIP":"...", "receivedAt":"..."}
 // ---------------------------------------------------------------------------
-func extractParityEvent(capturedJobs [][]*jobsdb.JobT, jobIdx, eventIdx int) gjson.Result {
+func extractParityEvent(capturedJobs [][]*jobsdb.JobT) gjson.Result {
 	Expect(capturedJobs).ToNot(BeEmpty(), "captured jobs should not be empty")
 	Expect(capturedJobs[0]).ToNot(BeEmpty(), "first job batch should not be empty")
-	storedPayload := string(capturedJobs[0][jobIdx].EventPayload)
-	return gjson.Get(storedPayload, fmt.Sprintf("batch.%d", eventIdx))
+	storedPayload := string(capturedJobs[0][0].EventPayload)
+	return gjson.Get(storedPayload, "batch.0")
 }
 
 // ---------------------------------------------------------------------------
@@ -367,7 +364,7 @@ var _ = Describe("Event Spec Parity", func() {
 			authorizedRequest(WriteKeyEnabled, bytes.NewBufferString(payload)),
 			http.StatusOK, "ok", reqType,
 		)
-		return extractParityEvent(*capturedJobsPtr, 0, 0)
+		return extractParityEvent(*capturedJobsPtr)
 	}
 
 	// -----------------------------------------------------------------
