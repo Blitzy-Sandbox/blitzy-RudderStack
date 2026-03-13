@@ -373,6 +373,11 @@ func (gw *Handle) getJobDataFromRequest(req *webRequestT) (jobData *jobFromReq, 
 			return jobData, err
 		}
 
+		// Event Spec Parity Note (ES-007): The Gateway preserves context.channel
+		// as received from SDKs. Segment auto-populates this field as "server",
+		// "browser", or "mobile". RudderStack SDKs auto-populate channel in their
+		// respective implementations. The Gateway does not override or validate
+		// this field — it passes through to the pipeline as-is.
 		eventContext, ok := misc.MapLookup(toSet, "context").(map[string]any)
 		if ok {
 			if idx == 0 {
@@ -403,6 +408,12 @@ func (gw *Handle) getJobDataFromRequest(req *webRequestT) (jobData *jobFromReq, 
 				}
 			}
 
+			// Event Spec Parity Note (ES-001): Bot detection extracts only the
+			// context.userAgent STRING for keyword matching. The structured
+			// context.userAgentData object (Client Hints API data containing
+			// brands[], mobile, platform, and optional high-entropy fields) is
+			// preserved as-is through the pipeline since the entire event context
+			// map flows through to the job payload without field stripping.
 			userAgent, _ := misc.MapLookup(
 				eventContext,
 				"userAgent",
@@ -441,6 +452,10 @@ func (gw *Handle) getJobDataFromRequest(req *webRequestT) (jobData *jobFromReq, 
 			containsAudienceList = true
 		}
 
+		// Event Spec Parity: The full event map (including all context fields
+		// like userAgentData, channel, locale, timezone, app, device, os,
+		// network, page, screen, campaign, referrer, traits, groupId) is
+		// preserved without modification in the job payload.
 		userID := buildUserID(userIDHeader, anonIDFromReq, userIDFromReq)
 		out = append(out, jobObject{
 			userID: userID,

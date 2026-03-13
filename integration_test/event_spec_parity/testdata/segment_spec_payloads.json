@@ -1,0 +1,1068 @@
+{
+  "identify": {
+    "type": "identify",
+    "userId": "user-parity-test-507f191e",
+    "anonymousId": "anon-parity-test-507f191e",
+    "messageId": "msg-identify-parity-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "version": 1,
+    "integrations": {
+      "All": true,
+      "Mixpanel": false,
+      "Salesforce": false
+    },
+    "context": {
+      "active": true,
+      "app": {
+        "name": "TestApp",
+        "version": "1.5.0",
+        "build": "250",
+        "namespace": "com.test.app"
+      },
+      "campaign": {
+        "name": "Parity Sprint",
+        "source": "google",
+        "medium": "cpc",
+        "term": "event spec",
+        "content": "banner-42"
+      },
+      "device": {
+        "id": "device-test-001",
+        "advertisingId": "adid-test-001",
+        "manufacturer": "TestCorp",
+        "model": "TestPhone X",
+        "name": "test-device",
+        "type": "android",
+        "token": "push-token-test-001"
+      },
+      "ip": "198.51.100.42",
+      "library": {
+        "name": "analytics.js",
+        "version": "3.12.0"
+      },
+      "locale": "en-US",
+      "network": {
+        "bluetooth": false,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14.0"
+      },
+      "page": {
+        "path": "/academy",
+        "referrer": "https://example.com/pricing",
+        "search": "?plan=enterprise",
+        "title": "Academy",
+        "url": "https://example.com/academy"
+      },
+      "referrer": {
+        "type": "search",
+        "name": "google",
+        "url": "https://www.google.com/search?q=rudderstack",
+        "link": "https://www.google.com"
+      },
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "density": 2.0,
+        "innerWidth": 1920,
+        "innerHeight": 969
+      },
+      "timezone": "America/Los_Angeles",
+      "groupId": "grp-parity-test-001",
+      "traits": {
+        "email": "ctx.user@example.com",
+        "name": "Context User"
+      },
+      "userAgent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          { "brand": "Chromium", "version": "120" },
+          { "brand": "Google Chrome", "version": "120" },
+          { "brand": "Not_A Brand", "version": "8" }
+        ],
+        "mobile": true,
+        "platform": "Android",
+        "bitness": "64",
+        "model": "TestPhone X",
+        "platformVersion": "14.0.0",
+        "uaFullVersion": "120.0.6099.230",
+        "fullVersionList": [
+          { "brand": "Chromium", "version": "120.0.6099.230" },
+          { "brand": "Google Chrome", "version": "120.0.6099.230" },
+          { "brand": "Not_A Brand", "version": "8.0.0.0" }
+        ],
+        "wow64": false
+      },
+      "channel": "server"
+    },
+    "traits": {
+      "address": {
+        "street": "123 Test Lane",
+        "city": "San Francisco",
+        "state": "CA",
+        "postalCode": "94105",
+        "country": "US"
+      },
+      "age": 32,
+      "avatar": "https://example.com/avatars/test-user.png",
+      "birthday": "1993-06-15",
+      "company": {
+        "id": "comp-test-001",
+        "name": "TestCorp Inc.",
+        "industry": "Technology",
+        "employee_count": 500,
+        "plan": "enterprise"
+      },
+      "createdAt": "2023-01-10T08:00:00.000Z",
+      "description": "Test user for event spec parity validation",
+      "email": "test.user@example.com",
+      "firstName": "Test",
+      "gender": "non-binary",
+      "id": "user-parity-test-507f191e",
+      "lastName": "Parity",
+      "name": "Test Parity",
+      "phone": "+1-555-867-5309",
+      "title": "QA Engineer",
+      "username": "testparity",
+      "website": "https://example.com/users/testparity"
+    }
+  },
+  "track_order_completed": {
+    "type": "track",
+    "event": "Order Completed",
+    "userId": "user-parity-test-507f191e",
+    "anonymousId": "anon-parity-test-507f191e",
+    "messageId": "msg-track-order-completed-parity-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "version": 1,
+    "integrations": {
+      "All": true,
+      "Mixpanel": false,
+      "Salesforce": false
+    },
+    "context": {
+      "active": true,
+      "app": {
+        "name": "TestApp",
+        "version": "1.5.0",
+        "build": "250",
+        "namespace": "com.test.app"
+      },
+      "campaign": {
+        "name": "Parity Sprint",
+        "source": "google",
+        "medium": "cpc",
+        "term": "event spec",
+        "content": "banner-42"
+      },
+      "device": {
+        "id": "device-test-001",
+        "advertisingId": "adid-test-001",
+        "manufacturer": "TestCorp",
+        "model": "TestPhone X",
+        "name": "test-device",
+        "type": "android",
+        "token": "push-token-test-001"
+      },
+      "ip": "198.51.100.42",
+      "library": {
+        "name": "analytics.js",
+        "version": "3.12.0"
+      },
+      "locale": "en-US",
+      "network": {
+        "bluetooth": false,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14.0"
+      },
+      "page": {
+        "path": "/academy",
+        "referrer": "https://example.com/pricing",
+        "search": "?plan=enterprise",
+        "title": "Academy",
+        "url": "https://example.com/academy"
+      },
+      "referrer": {
+        "type": "search",
+        "name": "google",
+        "url": "https://www.google.com/search?q=rudderstack",
+        "link": "https://www.google.com"
+      },
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "density": 2.0,
+        "innerWidth": 1920,
+        "innerHeight": 969
+      },
+      "timezone": "America/Los_Angeles",
+      "groupId": "grp-parity-test-001",
+      "traits": {
+        "email": "ctx.user@example.com",
+        "name": "Context User"
+      },
+      "userAgent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          { "brand": "Chromium", "version": "120" },
+          { "brand": "Google Chrome", "version": "120" },
+          { "brand": "Not_A Brand", "version": "8" }
+        ],
+        "mobile": true,
+        "platform": "Android",
+        "bitness": "64",
+        "model": "TestPhone X",
+        "platformVersion": "14.0.0",
+        "uaFullVersion": "120.0.6099.230",
+        "fullVersionList": [
+          { "brand": "Chromium", "version": "120.0.6099.230" },
+          { "brand": "Google Chrome", "version": "120.0.6099.230" },
+          { "brand": "Not_A Brand", "version": "8.0.0.0" }
+        ],
+        "wow64": false
+      },
+      "channel": "browser"
+    },
+    "properties": {
+      "orderId": "order-parity-50314b8e",
+      "affiliation": "Test Store",
+      "total": 219.99,
+      "revenue": 199.99,
+      "shipping": 10.00,
+      "tax": 15.99,
+      "discount": 5.99,
+      "coupon": "PARITY20",
+      "currency": "USD",
+      "products": [
+        {
+          "product_id": "prod-001",
+          "sku": "SKU-PARITY-001",
+          "category": "Electronics",
+          "name": "Test Widget Pro",
+          "brand": "TestBrand",
+          "variant": "Blue",
+          "price": 99.99,
+          "quantity": 2,
+          "coupon": "WIDGET10",
+          "position": 1,
+          "url": "https://example.com/products/widget-pro",
+          "image_url": "https://example.com/images/widget-pro.png"
+        }
+      ]
+    }
+  },
+  "track_product_viewed": {
+    "type": "track",
+    "event": "Product Viewed",
+    "userId": "user-parity-test-507f191e",
+    "anonymousId": "anon-parity-test-507f191e",
+    "messageId": "msg-track-product-viewed-parity-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "version": 1,
+    "integrations": {
+      "All": true,
+      "Mixpanel": false,
+      "Salesforce": false
+    },
+    "context": {
+      "active": true,
+      "app": {
+        "name": "TestApp",
+        "version": "1.5.0",
+        "build": "250",
+        "namespace": "com.test.app"
+      },
+      "campaign": {
+        "name": "Parity Sprint",
+        "source": "google",
+        "medium": "cpc",
+        "term": "event spec",
+        "content": "banner-42"
+      },
+      "device": {
+        "id": "device-test-001",
+        "advertisingId": "adid-test-001",
+        "manufacturer": "TestCorp",
+        "model": "TestPhone X",
+        "name": "test-device",
+        "type": "android",
+        "token": "push-token-test-001"
+      },
+      "ip": "198.51.100.42",
+      "library": {
+        "name": "analytics.js",
+        "version": "3.12.0"
+      },
+      "locale": "en-US",
+      "network": {
+        "bluetooth": false,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14.0"
+      },
+      "page": {
+        "path": "/academy",
+        "referrer": "https://example.com/pricing",
+        "search": "?plan=enterprise",
+        "title": "Academy",
+        "url": "https://example.com/academy"
+      },
+      "referrer": {
+        "type": "search",
+        "name": "google",
+        "url": "https://www.google.com/search?q=rudderstack",
+        "link": "https://www.google.com"
+      },
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "density": 2.0,
+        "innerWidth": 1920,
+        "innerHeight": 969
+      },
+      "timezone": "America/Los_Angeles",
+      "groupId": "grp-parity-test-001",
+      "traits": {
+        "email": "ctx.user@example.com",
+        "name": "Context User"
+      },
+      "userAgent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          { "brand": "Chromium", "version": "120" },
+          { "brand": "Google Chrome", "version": "120" },
+          { "brand": "Not_A Brand", "version": "8" }
+        ],
+        "mobile": true,
+        "platform": "Android",
+        "bitness": "64",
+        "model": "TestPhone X",
+        "platformVersion": "14.0.0",
+        "uaFullVersion": "120.0.6099.230",
+        "fullVersionList": [
+          { "brand": "Chromium", "version": "120.0.6099.230" },
+          { "brand": "Google Chrome", "version": "120.0.6099.230" },
+          { "brand": "Not_A Brand", "version": "8.0.0.0" }
+        ],
+        "wow64": false
+      },
+      "channel": "browser"
+    },
+    "properties": {
+      "product_id": "prod-002",
+      "sku": "SKU-PARITY-002",
+      "category": "Apparel",
+      "name": "Test Jacket",
+      "brand": "TestBrand",
+      "variant": "Red / Large",
+      "price": 149.50,
+      "quantity": 1,
+      "coupon": "JACKET5",
+      "currency": "USD",
+      "position": 3,
+      "url": "https://example.com/products/jacket",
+      "image_url": "https://example.com/images/jacket-red.png"
+    }
+  },
+  "track_video_playback_started": {
+    "type": "track",
+    "event": "Video Playback Started",
+    "userId": "user-parity-test-507f191e",
+    "anonymousId": "anon-parity-test-507f191e",
+    "messageId": "msg-track-video-playback-parity-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "version": 1,
+    "integrations": {
+      "All": true,
+      "Mixpanel": false,
+      "Salesforce": false
+    },
+    "context": {
+      "active": true,
+      "app": {
+        "name": "TestApp",
+        "version": "1.5.0",
+        "build": "250",
+        "namespace": "com.test.app"
+      },
+      "campaign": {
+        "name": "Parity Sprint",
+        "source": "google",
+        "medium": "cpc",
+        "term": "event spec",
+        "content": "banner-42"
+      },
+      "device": {
+        "id": "device-test-001",
+        "advertisingId": "adid-test-001",
+        "manufacturer": "TestCorp",
+        "model": "TestPhone X",
+        "name": "test-device",
+        "type": "android",
+        "token": "push-token-test-001"
+      },
+      "ip": "198.51.100.42",
+      "library": {
+        "name": "analytics.js",
+        "version": "3.12.0"
+      },
+      "locale": "en-US",
+      "network": {
+        "bluetooth": false,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14.0"
+      },
+      "page": {
+        "path": "/academy",
+        "referrer": "https://example.com/pricing",
+        "search": "?plan=enterprise",
+        "title": "Academy",
+        "url": "https://example.com/academy"
+      },
+      "referrer": {
+        "type": "search",
+        "name": "google",
+        "url": "https://www.google.com/search?q=rudderstack",
+        "link": "https://www.google.com"
+      },
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "density": 2.0,
+        "innerWidth": 1920,
+        "innerHeight": 969
+      },
+      "timezone": "America/Los_Angeles",
+      "groupId": "grp-parity-test-001",
+      "traits": {
+        "email": "ctx.user@example.com",
+        "name": "Context User"
+      },
+      "userAgent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          { "brand": "Chromium", "version": "120" },
+          { "brand": "Google Chrome", "version": "120" },
+          { "brand": "Not_A Brand", "version": "8" }
+        ],
+        "mobile": true,
+        "platform": "Android",
+        "bitness": "64",
+        "model": "TestPhone X",
+        "platformVersion": "14.0.0",
+        "uaFullVersion": "120.0.6099.230",
+        "fullVersionList": [
+          { "brand": "Chromium", "version": "120.0.6099.230" },
+          { "brand": "Google Chrome", "version": "120.0.6099.230" },
+          { "brand": "Not_A Brand", "version": "8.0.0.0" }
+        ],
+        "wow64": false
+      },
+      "channel": "browser"
+    },
+    "properties": {
+      "session_id": "vsess-parity-001",
+      "content_asset_id": "content-asset-001",
+      "content_pod_id": "content-pod-001",
+      "ad_asset_id": "ad-asset-001",
+      "ad_pod_id": "ad-pod-001",
+      "ad_type": "pre-roll",
+      "position": 0,
+      "total_length": 360,
+      "bitrate": 2500,
+      "framerate": 30,
+      "video_player": "TestPlayer v3.0",
+      "sound": 100,
+      "full_screen": true,
+      "ad_enabled": true,
+      "quality": "1080p",
+      "livestream": false
+    }
+  },
+  "track_application_opened": {
+    "type": "track",
+    "event": "Application Opened",
+    "userId": "user-parity-test-507f191e",
+    "anonymousId": "anon-parity-test-507f191e",
+    "messageId": "msg-track-app-opened-parity-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "version": 1,
+    "integrations": {
+      "All": true,
+      "Mixpanel": false,
+      "Salesforce": false
+    },
+    "context": {
+      "active": true,
+      "app": {
+        "name": "TestApp",
+        "version": "1.5.0",
+        "build": "250",
+        "namespace": "com.test.app"
+      },
+      "campaign": {
+        "name": "Parity Sprint",
+        "source": "google",
+        "medium": "cpc",
+        "term": "event spec",
+        "content": "banner-42"
+      },
+      "device": {
+        "id": "device-test-001",
+        "advertisingId": "adid-test-001",
+        "manufacturer": "TestCorp",
+        "model": "TestPhone X",
+        "name": "test-device",
+        "type": "android",
+        "token": "push-token-test-001"
+      },
+      "ip": "198.51.100.42",
+      "library": {
+        "name": "analytics.js",
+        "version": "3.12.0"
+      },
+      "locale": "en-US",
+      "network": {
+        "bluetooth": false,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14.0"
+      },
+      "page": {
+        "path": "/academy",
+        "referrer": "https://example.com/pricing",
+        "search": "?plan=enterprise",
+        "title": "Academy",
+        "url": "https://example.com/academy"
+      },
+      "referrer": {
+        "type": "search",
+        "name": "google",
+        "url": "https://www.google.com/search?q=rudderstack",
+        "link": "https://www.google.com"
+      },
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "density": 2.0,
+        "innerWidth": 1920,
+        "innerHeight": 969
+      },
+      "timezone": "America/Los_Angeles",
+      "groupId": "grp-parity-test-001",
+      "traits": {
+        "email": "ctx.user@example.com",
+        "name": "Context User"
+      },
+      "userAgent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          { "brand": "Chromium", "version": "120" },
+          { "brand": "Google Chrome", "version": "120" },
+          { "brand": "Not_A Brand", "version": "8" }
+        ],
+        "mobile": true,
+        "platform": "Android",
+        "bitness": "64",
+        "model": "TestPhone X",
+        "platformVersion": "14.0.0",
+        "uaFullVersion": "120.0.6099.230",
+        "fullVersionList": [
+          { "brand": "Chromium", "version": "120.0.6099.230" },
+          { "brand": "Google Chrome", "version": "120.0.6099.230" },
+          { "brand": "Not_A Brand", "version": "8.0.0.0" }
+        ],
+        "wow64": false
+      },
+      "channel": "mobile"
+    },
+    "properties": {
+      "from_background": false,
+      "referring_application": "com.test.referrer",
+      "url": "testapp://open?source=push",
+      "version": "1.5.0"
+    }
+  },
+  "page": {
+    "type": "page",
+    "userId": "user-parity-test-507f191e",
+    "anonymousId": "anon-parity-test-507f191e",
+    "messageId": "msg-page-parity-001",
+    "name": "Home",
+    "category": "Landing",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "version": 1,
+    "integrations": {
+      "All": true,
+      "Mixpanel": false,
+      "Salesforce": false
+    },
+    "context": {
+      "active": true,
+      "app": {
+        "name": "TestApp",
+        "version": "1.5.0",
+        "build": "250",
+        "namespace": "com.test.app"
+      },
+      "campaign": {
+        "name": "Parity Sprint",
+        "source": "google",
+        "medium": "cpc",
+        "term": "event spec",
+        "content": "banner-42"
+      },
+      "device": {
+        "id": "device-test-001",
+        "advertisingId": "adid-test-001",
+        "manufacturer": "TestCorp",
+        "model": "TestPhone X",
+        "name": "test-device",
+        "type": "android",
+        "token": "push-token-test-001"
+      },
+      "ip": "198.51.100.42",
+      "library": {
+        "name": "analytics.js",
+        "version": "3.12.0"
+      },
+      "locale": "en-US",
+      "network": {
+        "bluetooth": false,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14.0"
+      },
+      "page": {
+        "path": "/academy",
+        "referrer": "https://example.com/pricing",
+        "search": "?plan=enterprise",
+        "title": "Academy",
+        "url": "https://example.com/academy"
+      },
+      "referrer": {
+        "type": "search",
+        "name": "google",
+        "url": "https://www.google.com/search?q=rudderstack",
+        "link": "https://www.google.com"
+      },
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "density": 2.0,
+        "innerWidth": 1920,
+        "innerHeight": 969
+      },
+      "timezone": "America/Los_Angeles",
+      "groupId": "grp-parity-test-001",
+      "traits": {
+        "email": "ctx.user@example.com",
+        "name": "Context User"
+      },
+      "userAgent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          { "brand": "Chromium", "version": "120" },
+          { "brand": "Google Chrome", "version": "120" },
+          { "brand": "Not_A Brand", "version": "8" }
+        ],
+        "mobile": true,
+        "platform": "Android",
+        "bitness": "64",
+        "model": "TestPhone X",
+        "platformVersion": "14.0.0",
+        "uaFullVersion": "120.0.6099.230",
+        "fullVersionList": [
+          { "brand": "Chromium", "version": "120.0.6099.230" },
+          { "brand": "Google Chrome", "version": "120.0.6099.230" },
+          { "brand": "Not_A Brand", "version": "8.0.0.0" }
+        ],
+        "wow64": false
+      },
+      "channel": "browser"
+    },
+    "properties": {
+      "title": "Home - TestApp",
+      "url": "https://example.com/",
+      "path": "/",
+      "referrer": "https://www.google.com/search?q=testapp",
+      "search": "",
+      "keywords": ["test", "parity", "analytics"]
+    }
+  },
+  "screen": {
+    "type": "screen",
+    "userId": "user-parity-test-507f191e",
+    "anonymousId": "anon-parity-test-507f191e",
+    "messageId": "msg-screen-parity-001",
+    "name": "Dashboard",
+    "category": "Main",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "version": 1,
+    "integrations": {
+      "All": true,
+      "Mixpanel": false,
+      "Salesforce": false
+    },
+    "context": {
+      "active": true,
+      "app": {
+        "name": "TestApp",
+        "version": "1.5.0",
+        "build": "250",
+        "namespace": "com.test.app"
+      },
+      "campaign": {
+        "name": "Parity Sprint",
+        "source": "google",
+        "medium": "cpc",
+        "term": "event spec",
+        "content": "banner-42"
+      },
+      "device": {
+        "id": "device-test-001",
+        "advertisingId": "adid-test-001",
+        "manufacturer": "TestCorp",
+        "model": "TestPhone X",
+        "name": "test-device",
+        "type": "android",
+        "token": "push-token-test-001"
+      },
+      "ip": "198.51.100.42",
+      "library": {
+        "name": "analytics.js",
+        "version": "3.12.0"
+      },
+      "locale": "en-US",
+      "network": {
+        "bluetooth": false,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14.0"
+      },
+      "page": {
+        "path": "/academy",
+        "referrer": "https://example.com/pricing",
+        "search": "?plan=enterprise",
+        "title": "Academy",
+        "url": "https://example.com/academy"
+      },
+      "referrer": {
+        "type": "search",
+        "name": "google",
+        "url": "https://www.google.com/search?q=rudderstack",
+        "link": "https://www.google.com"
+      },
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "density": 2.0,
+        "innerWidth": 1920,
+        "innerHeight": 969
+      },
+      "timezone": "America/Los_Angeles",
+      "groupId": "grp-parity-test-001",
+      "traits": {
+        "email": "ctx.user@example.com",
+        "name": "Context User"
+      },
+      "userAgent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          { "brand": "Chromium", "version": "120" },
+          { "brand": "Google Chrome", "version": "120" },
+          { "brand": "Not_A Brand", "version": "8" }
+        ],
+        "mobile": true,
+        "platform": "Android",
+        "bitness": "64",
+        "model": "TestPhone X",
+        "platformVersion": "14.0.0",
+        "uaFullVersion": "120.0.6099.230",
+        "fullVersionList": [
+          { "brand": "Chromium", "version": "120.0.6099.230" },
+          { "brand": "Google Chrome", "version": "120.0.6099.230" },
+          { "brand": "Not_A Brand", "version": "8.0.0.0" }
+        ],
+        "wow64": false
+      },
+      "channel": "mobile"
+    },
+    "properties": {
+      "name": "Dashboard",
+      "variation": "dark-mode"
+    }
+  },
+  "group": {
+    "type": "group",
+    "userId": "user-parity-test-507f191e",
+    "anonymousId": "anon-parity-test-507f191e",
+    "groupId": "grp-parity-test-001",
+    "messageId": "msg-group-parity-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "version": 1,
+    "integrations": {
+      "All": true,
+      "Mixpanel": false,
+      "Salesforce": false
+    },
+    "context": {
+      "active": true,
+      "app": {
+        "name": "TestApp",
+        "version": "1.5.0",
+        "build": "250",
+        "namespace": "com.test.app"
+      },
+      "campaign": {
+        "name": "Parity Sprint",
+        "source": "google",
+        "medium": "cpc",
+        "term": "event spec",
+        "content": "banner-42"
+      },
+      "device": {
+        "id": "device-test-001",
+        "advertisingId": "adid-test-001",
+        "manufacturer": "TestCorp",
+        "model": "TestPhone X",
+        "name": "test-device",
+        "type": "android",
+        "token": "push-token-test-001"
+      },
+      "ip": "198.51.100.42",
+      "library": {
+        "name": "analytics.js",
+        "version": "3.12.0"
+      },
+      "locale": "en-US",
+      "network": {
+        "bluetooth": false,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14.0"
+      },
+      "page": {
+        "path": "/academy",
+        "referrer": "https://example.com/pricing",
+        "search": "?plan=enterprise",
+        "title": "Academy",
+        "url": "https://example.com/academy"
+      },
+      "referrer": {
+        "type": "search",
+        "name": "google",
+        "url": "https://www.google.com/search?q=rudderstack",
+        "link": "https://www.google.com"
+      },
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "density": 2.0,
+        "innerWidth": 1920,
+        "innerHeight": 969
+      },
+      "timezone": "America/Los_Angeles",
+      "groupId": "grp-parity-test-001",
+      "traits": {
+        "email": "ctx.user@example.com",
+        "name": "Context User"
+      },
+      "userAgent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          { "brand": "Chromium", "version": "120" },
+          { "brand": "Google Chrome", "version": "120" },
+          { "brand": "Not_A Brand", "version": "8" }
+        ],
+        "mobile": true,
+        "platform": "Android",
+        "bitness": "64",
+        "model": "TestPhone X",
+        "platformVersion": "14.0.0",
+        "uaFullVersion": "120.0.6099.230",
+        "fullVersionList": [
+          { "brand": "Chromium", "version": "120.0.6099.230" },
+          { "brand": "Google Chrome", "version": "120.0.6099.230" },
+          { "brand": "Not_A Brand", "version": "8.0.0.0" }
+        ],
+        "wow64": false
+      },
+      "channel": "server"
+    },
+    "traits": {
+      "address": {
+        "street": "456 Enterprise Blvd",
+        "city": "San Jose",
+        "state": "CA",
+        "postalCode": "95113",
+        "country": "US"
+      },
+      "avatar": "https://example.com/orgs/testcorp-logo.png",
+      "createdAt": "2020-03-15T12:00:00.000Z",
+      "description": "Test organization for event spec parity validation",
+      "email": "admin@testcorp.example.com",
+      "employees": 500,
+      "id": "grp-parity-test-001",
+      "industry": "Technology",
+      "name": "TestCorp Inc.",
+      "phone": "+1-555-123-4567",
+      "website": "https://testcorp.example.com",
+      "plan": "enterprise"
+    }
+  },
+  "alias": {
+    "type": "alias",
+    "userId": "user-parity-test-507f191e",
+    "anonymousId": "anon-parity-test-507f191e",
+    "previousId": "anon-parity-test-507f191e",
+    "messageId": "msg-alias-parity-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "version": 1,
+    "integrations": {
+      "All": true,
+      "Mixpanel": false,
+      "Salesforce": false
+    },
+    "context": {
+      "active": true,
+      "app": {
+        "name": "TestApp",
+        "version": "1.5.0",
+        "build": "250",
+        "namespace": "com.test.app"
+      },
+      "campaign": {
+        "name": "Parity Sprint",
+        "source": "google",
+        "medium": "cpc",
+        "term": "event spec",
+        "content": "banner-42"
+      },
+      "device": {
+        "id": "device-test-001",
+        "advertisingId": "adid-test-001",
+        "manufacturer": "TestCorp",
+        "model": "TestPhone X",
+        "name": "test-device",
+        "type": "android",
+        "token": "push-token-test-001"
+      },
+      "ip": "198.51.100.42",
+      "library": {
+        "name": "analytics.js",
+        "version": "3.12.0"
+      },
+      "locale": "en-US",
+      "network": {
+        "bluetooth": false,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14.0"
+      },
+      "page": {
+        "path": "/academy",
+        "referrer": "https://example.com/pricing",
+        "search": "?plan=enterprise",
+        "title": "Academy",
+        "url": "https://example.com/academy"
+      },
+      "referrer": {
+        "type": "search",
+        "name": "google",
+        "url": "https://www.google.com/search?q=rudderstack",
+        "link": "https://www.google.com"
+      },
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "density": 2.0,
+        "innerWidth": 1920,
+        "innerHeight": 969
+      },
+      "timezone": "America/Los_Angeles",
+      "groupId": "grp-parity-test-001",
+      "traits": {
+        "email": "ctx.user@example.com",
+        "name": "Context User"
+      },
+      "userAgent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          { "brand": "Chromium", "version": "120" },
+          { "brand": "Google Chrome", "version": "120" },
+          { "brand": "Not_A Brand", "version": "8" }
+        ],
+        "mobile": true,
+        "platform": "Android",
+        "bitness": "64",
+        "model": "TestPhone X",
+        "platformVersion": "14.0.0",
+        "uaFullVersion": "120.0.6099.230",
+        "fullVersionList": [
+          { "brand": "Chromium", "version": "120.0.6099.230" },
+          { "brand": "Google Chrome", "version": "120.0.6099.230" },
+          { "brand": "Not_A Brand", "version": "8.0.0.0" }
+        ],
+        "wow64": false
+      },
+      "channel": "server"
+    }
+  }
+}

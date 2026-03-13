@@ -983,6 +983,311 @@ var _ = Describe("Gateway", func() {
 		})
 	})
 
+	Context("Client Hints pass-through", func() {
+		var (
+			err        error
+			gateway    *Handle
+			statsStore *memstats.Store
+		)
+
+		BeforeEach(func() {
+			c.initializeAppFeatures()
+			statsStore, err = memstats.New()
+			Expect(err).To(BeNil())
+
+			gateway = &Handle{}
+			err := gateway.Setup(context.Background(), conf, logger.NOP, statsStore, c.mockApp, c.mockBackendConfig, c.mockJobsDB, c.mockRateLimiter, c.mockVersionHandler, rsources.NewNoOpService(), transformer.NewNoOpService(), sourcedebugger.NewNoOpService(), nil)
+			Expect(err).To(BeNil())
+			waitForBackendConfigInit(gateway)
+		})
+
+		AfterEach(func() {
+			Expect(gateway.Shutdown()).To(BeNil())
+		})
+
+		It("should preserve context.userAgentData in batch payloads", func() {
+			c.mockJobsDB.EXPECT().WithStoreSafeTx(gomock.Any(), gomock.Any()).Times(1).Do(func(ctx context.Context, f func(jobsdb.StoreSafeTx) error) {
+				_ = f(jobsdb.EmptyStoreSafeTx())
+			}).Return(nil)
+
+			var capturedJobs []*jobsdb.JobT
+			c.mockJobsDB.EXPECT().StoreEachBatchRetryInTx(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+				func(ctx context.Context, tx jobsdb.StoreSafeTx, jobBatches [][]*jobsdb.JobT) (map[uuid.UUID]string, error) {
+					for _, batch := range jobBatches {
+						capturedJobs = append(capturedJobs, batch...)
+					}
+					c.asyncHelper.ExpectAndNotifyCallbackWithName("")()
+					return jobsToEmptyErrors(ctx, tx, jobBatches)
+				}).Times(1)
+
+			clientHintsPayload := fmt.Sprintf(`{
+				"batch": [
+					{
+						"userId": "user-123",
+						"type": "track",
+						"event": "Test Event",
+						"context": {
+							"userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+							"userAgentData": {
+								"brands": [
+									{"brand": "Chromium", "version": "110"},
+									{"brand": "Google Chrome", "version": "110"}
+								],
+								"mobile": false,
+								"platform": "macOS"
+							},
+							"library": {
+								"name": %[1]q,
+								"version": %[2]q
+							}
+						}
+					}
+				]
+			}`, sdkLibrary, sdkVersion)
+
+			expectHandlerResponse(
+				gateway.webBatchHandler(),
+				authorizedRequest(
+					WriteKeyEnabled,
+					bytes.NewBufferString(clientHintsPayload),
+				),
+				http.StatusOK,
+				"ok",
+				"batch",
+			)
+
+			// Verify captured jobs contain preserved userAgentData structure
+			Expect(capturedJobs).ToNot(BeEmpty())
+			payload := string(capturedJobs[0].EventPayload)
+
+			// Assert userAgentData object is fully preserved through the Gateway pipeline
+			Expect(gjson.Get(payload, "batch.0.context.userAgentData").Exists()).To(BeTrue())
+			Expect(gjson.Get(payload, "batch.0.context.userAgentData.brands").IsArray()).To(BeTrue())
+			Expect(gjson.Get(payload, "batch.0.context.userAgentData.brands.0.brand").String()).To(Equal("Chromium"))
+			Expect(gjson.Get(payload, "batch.0.context.userAgentData.brands.0.version").String()).To(Equal("110"))
+			Expect(gjson.Get(payload, "batch.0.context.userAgentData.brands.1.brand").String()).To(Equal("Google Chrome"))
+			Expect(gjson.Get(payload, "batch.0.context.userAgentData.brands.1.version").String()).To(Equal("110"))
+			// Verify mobile boolean field is preserved (false value must not be stripped)
+			mobileResult := gjson.Get(payload, "batch.0.context.userAgentData.mobile")
+			Expect(mobileResult.Exists()).To(BeTrue())
+			Expect(mobileResult.Bool()).To(BeFalse())
+			Expect(gjson.Get(payload, "batch.0.context.userAgentData.platform").String()).To(Equal("macOS"))
+
+			// Verify userAgent string coexists with userAgentData object (ES-001 coexistence check)
+			Expect(gjson.Get(payload, "batch.0.context.userAgent").String()).To(Equal(
+				"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+			))
+		})
+
+		It("should not interfere with bot detection when userAgentData is present", func() {
+			c.mockJobsDB.EXPECT().WithStoreSafeTx(gomock.Any(), gomock.Any()).Times(1).Do(func(ctx context.Context, f func(jobsdb.StoreSafeTx) error) {
+				_ = f(jobsdb.EmptyStoreSafeTx())
+			}).Return(nil)
+
+			var capturedJobs []*jobsdb.JobT
+			c.mockJobsDB.EXPECT().StoreEachBatchRetryInTx(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+				func(ctx context.Context, tx jobsdb.StoreSafeTx, jobBatches [][]*jobsdb.JobT) (map[uuid.UUID]string, error) {
+					for _, batch := range jobBatches {
+						capturedJobs = append(capturedJobs, batch...)
+					}
+					c.asyncHelper.ExpectAndNotifyCallbackWithName("")()
+					return jobsToEmptyErrors(ctx, tx, jobBatches)
+				}).Times(1)
+
+			// Batch with one bot userAgent + userAgentData and one non-bot userAgent + userAgentData
+			botDetectionPayload := fmt.Sprintf(`{
+				"batch": [
+					{
+						"userId": "dummyId",
+						"type": "track",
+						"event": "Bot Event",
+						"context": {
+							"userAgent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+							"userAgentData": {
+								"brands": [{"brand": "Googlebot", "version": "2.1"}],
+								"mobile": false,
+								"platform": "Linux"
+							},
+							"library": {
+								"name": %[1]q,
+								"version": %[2]q
+							}
+						}
+					},
+					{
+						"userId": "dummyId",
+						"type": "track",
+						"event": "Normal Event",
+						"context": {
+							"userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
+							"userAgentData": {
+								"brands": [
+									{"brand": "Chromium", "version": "91"},
+									{"brand": "Google Chrome", "version": "91"}
+								],
+								"mobile": false,
+								"platform": "macOS"
+							},
+							"library": {
+								"name": %[1]q,
+								"version": %[2]q
+							}
+						}
+					}
+				]
+			}`, sdkLibrary, sdkVersion)
+
+			expectHandlerResponse(
+				gateway.webBatchHandler(),
+				authorizedRequest(
+					WriteKeyEnabled,
+					bytes.NewBufferString(botDetectionPayload),
+				),
+				http.StatusOK,
+				"ok",
+				"batch",
+			)
+
+			tags := stats.Tags{
+				"source":        rCtxEnabled.SourceTag(),
+				"sourceID":      rCtxEnabled.SourceID,
+				"workspaceId":   rCtxEnabled.WorkspaceID,
+				"writeKey":      rCtxEnabled.WriteKey,
+				"reqType":       "batch",
+				"sourceType":    rCtxEnabled.SourceCategory,
+				"sdkVersion":    sdkStatTag,
+				"sourceDefName": rCtxEnabled.SourceDefName,
+			}
+
+			// Verify bot detection still works correctly on the userAgent STRING
+			// (bot detection should not be confused by the presence of userAgentData object)
+			Eventually(func() bool {
+				stat := statsStore.Get("gateway.write_key_events", tags)
+				return stat != nil && stat.LastValue() == float64(2)
+			}).Should(BeTrue())
+
+			Eventually(func() bool {
+				stat := statsStore.Get("gateway.write_key_bot_events", tags)
+				return stat != nil && stat.LastValue() == float64(1)
+			}).Should(BeTrue())
+
+			// Verify userAgentData is preserved for both bot and non-bot events.
+			// Each event is stored as a separate job with a single-element batch array.
+			Expect(capturedJobs).To(HaveLen(2))
+			for _, job := range capturedJobs {
+				p := string(job.EventPayload)
+				Expect(gjson.Get(p, "batch.0.context.userAgentData").Exists()).To(BeTrue())
+				Expect(gjson.Get(p, "batch.0.context.userAgentData.brands").IsArray()).To(BeTrue())
+			}
+		})
+	})
+
+	Context("Channel field preservation", func() {
+		var (
+			err        error
+			gateway    *Handle
+			statsStore *memstats.Store
+		)
+
+		BeforeEach(func() {
+			c.initializeAppFeatures()
+			statsStore, err = memstats.New()
+			Expect(err).To(BeNil())
+
+			gateway = &Handle{}
+			err := gateway.Setup(context.Background(), conf, logger.NOP, statsStore, c.mockApp, c.mockBackendConfig, c.mockJobsDB, c.mockRateLimiter, c.mockVersionHandler, rsources.NewNoOpService(), transformer.NewNoOpService(), sourcedebugger.NewNoOpService(), nil)
+			Expect(err).To(BeNil())
+			waitForBackendConfigInit(gateway)
+		})
+
+		AfterEach(func() {
+			Expect(gateway.Shutdown()).To(BeNil())
+		})
+
+		It("should preserve context.channel for all channel types", func() {
+			c.mockJobsDB.EXPECT().WithStoreSafeTx(gomock.Any(), gomock.Any()).Times(1).Do(func(ctx context.Context, f func(jobsdb.StoreSafeTx) error) {
+				_ = f(jobsdb.EmptyStoreSafeTx())
+			}).Return(nil)
+
+			var capturedJobs []*jobsdb.JobT
+			c.mockJobsDB.EXPECT().StoreEachBatchRetryInTx(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+				func(ctx context.Context, tx jobsdb.StoreSafeTx, jobBatches [][]*jobsdb.JobT) (map[uuid.UUID]string, error) {
+					for _, batch := range jobBatches {
+						capturedJobs = append(capturedJobs, batch...)
+					}
+					c.asyncHelper.ExpectAndNotifyCallbackWithName("")()
+					return jobsToEmptyErrors(ctx, tx, jobBatches)
+				}).Times(1)
+
+			// Batch with three events, each carrying a different context.channel value
+			// corresponding to the three Segment SDK channel types (ES-007)
+			channelPayload := fmt.Sprintf(`{
+				"batch": [
+					{
+						"userId": "dummyId",
+						"type": "identify",
+						"context": {
+							"channel": "server",
+							"library": {
+								"name": %[1]q,
+								"version": %[2]q
+							}
+						}
+					},
+					{
+						"userId": "dummyId",
+						"type": "track",
+						"event": "Page View",
+						"context": {
+							"channel": "browser",
+							"library": {
+								"name": %[1]q,
+								"version": %[2]q
+							}
+						}
+					},
+					{
+						"userId": "dummyId",
+						"type": "screen",
+						"name": "Home",
+						"context": {
+							"channel": "mobile",
+							"library": {
+								"name": %[1]q,
+								"version": %[2]q
+							}
+						}
+					}
+				]
+			}`, sdkLibrary, sdkVersion)
+
+			expectHandlerResponse(
+				gateway.webBatchHandler(),
+				authorizedRequest(
+					WriteKeyEnabled,
+					bytes.NewBufferString(channelPayload),
+				),
+				http.StatusOK,
+				"ok",
+				"batch",
+			)
+
+			// Verify channel field is preserved for all three SDK channel types.
+			// Each event is stored as a separate job with a single-element batch array.
+			Expect(capturedJobs).To(HaveLen(3))
+			channelValues := make(map[string]bool)
+			for _, job := range capturedJobs {
+				p := string(job.EventPayload)
+				ch := gjson.Get(p, "batch.0.context.channel").String()
+				Expect(ch).ToNot(BeEmpty())
+				channelValues[ch] = true
+			}
+			Expect(channelValues).To(HaveKey("server"))
+			Expect(channelValues).To(HaveKey("browser"))
+			Expect(channelValues).To(HaveKey("mobile"))
+		})
+	})
+
 	Context("Rate limits", func() {
 		var (
 			err        error

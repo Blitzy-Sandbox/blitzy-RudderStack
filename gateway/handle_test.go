@@ -2,9 +2,12 @@ package gateway
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/tidwall/gjson"
 
 	"github.com/rudderlabs/rudder-server/gateway/validator"
 
@@ -958,6 +961,355 @@ func TestExtractJobsFromInternalBatchPayload_LiveEventRecording(t *testing.T) {
 				require.Equal(t, expectedSkip, job.skipLiveEventRecording,
 					"Job %d: skipLiveEventRecording should be %t - %s",
 					i, expectedSkip, tt.description)
+			}
+		})
+	}
+}
+
+// TestUserAgentDataPreservation verifies that context.userAgentData (structured Client Hints API data)
+// passes through the Gateway Handle pipeline without modification or data loss.
+// This covers ES-001: Structured Client Hints Pass-Through Verification.
+func TestUserAgentDataPreservation(t *testing.T) {
+	t.Run("low-entropy fields preserved", func(t *testing.T) {
+		gw := createTestGateway(t, backendconfig.EventBlocking{})
+		messages := []stream.Message{
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "track",
+					RoutingKey:  "routing-key-uad-1",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.1",
+				},
+				Payload: json.RawMessage(`{"type":"track","event":"Product Viewed","userId":"user-uad-001","messageId":"msg-uad-001","rudderId":"rudder-uad-001","request_ip":"192.0.2.1","receivedAt":"2024-01-01T00:00:00Z","context":{"userAgentData":{"brands":[{"brand":"Chromium","version":"110"},{"brand":"Google Chrome","version":"110"}],"mobile":false,"platform":"macOS"},"library":{"name":"analytics.js","version":"2.1.0"}}}`),
+			},
+		}
+		payloadBytes, err := jsonrs.Marshal(messages)
+		require.NoError(t, err)
+
+		jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+		require.NoError(t, err)
+		require.Len(t, jobs, 1)
+
+		jobPayload := string(jobs[0].job.EventPayload)
+		uadPath := "batch.0.context.userAgentData"
+
+		// Verify userAgentData object exists
+		require.True(t, gjson.Get(jobPayload, uadPath).Exists(),
+			"userAgentData should exist in job payload")
+
+		// Verify brands array
+		require.True(t, gjson.Get(jobPayload, uadPath+".brands").IsArray(),
+			"brands should be an array")
+		require.Equal(t, int64(2), gjson.Get(jobPayload, uadPath+".brands.#").Int(),
+			"brands should have 2 entries")
+		require.Equal(t, "Chromium",
+			gjson.Get(jobPayload, uadPath+".brands.0.brand").String(),
+			"first brand name should be Chromium")
+		require.Equal(t, "110",
+			gjson.Get(jobPayload, uadPath+".brands.0.version").String(),
+			"first brand version should be 110")
+		require.Equal(t, "Google Chrome",
+			gjson.Get(jobPayload, uadPath+".brands.1.brand").String(),
+			"second brand name should be Google Chrome")
+		require.Equal(t, "110",
+			gjson.Get(jobPayload, uadPath+".brands.1.version").String(),
+			"second brand version should be 110")
+
+		// Verify mobile boolean (false) — explicit existence check since Bool() returns false for absent fields
+		mobileResult := gjson.Get(jobPayload, uadPath+".mobile")
+		require.True(t, mobileResult.Exists(),
+			"mobile field should exist in userAgentData")
+		require.Equal(t, false, mobileResult.Bool(),
+			"mobile should be false")
+
+		// Verify platform string
+		require.Equal(t, "macOS",
+			gjson.Get(jobPayload, uadPath+".platform").String(),
+			"platform should be macOS")
+	})
+
+	t.Run("high-entropy fields preserved", func(t *testing.T) {
+		gw := createTestGateway(t, backendconfig.EventBlocking{})
+		messages := []stream.Message{
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "track",
+					RoutingKey:  "routing-key-uad-2",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.2",
+				},
+				Payload: json.RawMessage(`{"type":"track","event":"Product Viewed","userId":"user-uad-002","messageId":"msg-uad-002","rudderId":"rudder-uad-002","request_ip":"192.0.2.2","receivedAt":"2024-01-01T00:00:00Z","context":{"userAgentData":{"brands":[{"brand":"Chromium","version":"110"},{"brand":"Google Chrome","version":"110"}],"mobile":false,"platform":"macOS","bitness":"64","model":"","platformVersion":"13.0.0","uaFullVersion":"110.0.5481.77","fullVersionList":[{"brand":"Chromium","version":"110.0.5481.77"},{"brand":"Google Chrome","version":"110.0.5481.77"}],"wow64":false},"library":{"name":"analytics.js","version":"2.1.0"}}}`),
+			},
+		}
+		payloadBytes, err := jsonrs.Marshal(messages)
+		require.NoError(t, err)
+
+		jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+		require.NoError(t, err)
+		require.Len(t, jobs, 1)
+
+		jobPayload := string(jobs[0].job.EventPayload)
+		uadPath := "batch.0.context.userAgentData"
+
+		// Low-entropy fields
+		require.True(t, gjson.Get(jobPayload, uadPath+".brands").IsArray(),
+			"brands should be preserved as array")
+		mobileResult := gjson.Get(jobPayload, uadPath+".mobile")
+		require.True(t, mobileResult.Exists(), "mobile field should exist")
+		require.Equal(t, false, mobileResult.Bool(), "mobile should be false")
+		require.Equal(t, "macOS", gjson.Get(jobPayload, uadPath+".platform").String(),
+			"platform should be macOS")
+
+		// High-entropy fields
+		require.Equal(t, "64",
+			gjson.Get(jobPayload, uadPath+".bitness").String(),
+			"bitness should be preserved")
+		require.True(t, gjson.Get(jobPayload, uadPath+".model").Exists(),
+			"model should exist even when empty string")
+		require.Equal(t, "",
+			gjson.Get(jobPayload, uadPath+".model").String(),
+			"model should be preserved as empty string")
+		require.Equal(t, "13.0.0",
+			gjson.Get(jobPayload, uadPath+".platformVersion").String(),
+			"platformVersion should be preserved")
+		require.Equal(t, "110.0.5481.77",
+			gjson.Get(jobPayload, uadPath+".uaFullVersion").String(),
+			"uaFullVersion should be preserved")
+
+		// fullVersionList array
+		require.True(t, gjson.Get(jobPayload, uadPath+".fullVersionList").IsArray(),
+			"fullVersionList should be an array")
+		require.Equal(t, int64(2),
+			gjson.Get(jobPayload, uadPath+".fullVersionList.#").Int(),
+			"fullVersionList should have 2 entries")
+		require.Equal(t, "Chromium",
+			gjson.Get(jobPayload, uadPath+".fullVersionList.0.brand").String(),
+			"first fullVersionList brand should be Chromium")
+		require.Equal(t, "110.0.5481.77",
+			gjson.Get(jobPayload, uadPath+".fullVersionList.0.version").String(),
+			"first fullVersionList version should be 110.0.5481.77")
+		require.Equal(t, "Google Chrome",
+			gjson.Get(jobPayload, uadPath+".fullVersionList.1.brand").String(),
+			"second fullVersionList brand should be Google Chrome")
+
+		// wow64 boolean (false) — explicit existence check
+		wow64Result := gjson.Get(jobPayload, uadPath+".wow64")
+		require.True(t, wow64Result.Exists(), "wow64 field should exist")
+		require.Equal(t, false, wow64Result.Bool(), "wow64 should be false")
+	})
+
+	t.Run("coexists with userAgent string", func(t *testing.T) {
+		gw := createTestGateway(t, backendconfig.EventBlocking{})
+		messages := []stream.Message{
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "track",
+					RoutingKey:  "routing-key-uad-3",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.3",
+				},
+				Payload: json.RawMessage(`{"type":"track","event":"Product Viewed","userId":"user-uad-003","messageId":"msg-uad-003","rudderId":"rudder-uad-003","request_ip":"192.0.2.3","receivedAt":"2024-01-01T00:00:00Z","context":{"userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36","userAgentData":{"brands":[{"brand":"Chromium","version":"110"}],"mobile":false,"platform":"macOS"},"library":{"name":"analytics.js","version":"2.1.0"}}}`),
+			},
+		}
+		payloadBytes, err := jsonrs.Marshal(messages)
+		require.NoError(t, err)
+
+		jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+		require.NoError(t, err)
+		require.Len(t, jobs, 1)
+
+		jobPayload := string(jobs[0].job.EventPayload)
+
+		// Verify userAgent string is preserved
+		require.Equal(t,
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+			gjson.Get(jobPayload, "batch.0.context.userAgent").String(),
+			"userAgent string should be preserved")
+
+		// Verify userAgentData object is preserved alongside userAgent string
+		uadPath := "batch.0.context.userAgentData"
+		require.True(t, gjson.Get(jobPayload, uadPath).Exists(),
+			"userAgentData object should coexist with userAgent string")
+		require.Equal(t, "Chromium",
+			gjson.Get(jobPayload, uadPath+".brands.0.brand").String(),
+			"userAgentData brands should be preserved alongside userAgent string")
+		mobileResult := gjson.Get(jobPayload, uadPath+".mobile")
+		require.True(t, mobileResult.Exists(), "mobile field should exist")
+		require.Equal(t, false, mobileResult.Bool(),
+			"userAgentData mobile should be preserved")
+		require.Equal(t, "macOS",
+			gjson.Get(jobPayload, uadPath+".platform").String(),
+			"userAgentData platform should be preserved")
+	})
+
+	t.Run("preserved for all event types", func(t *testing.T) {
+		// Common userAgentData context JSON fragment used across all event types
+		uadContext := `"userAgentData":{"brands":[{"brand":"Chromium","version":"110"}],"mobile":false,"platform":"macOS"},"library":{"name":"analytics.js","version":"2.1.0"}`
+
+		eventTypes := []struct {
+			name    string
+			reqType string
+			payload string
+		}{
+			{
+				name:    "identify",
+				reqType: "identify",
+				payload: `{"type":"identify","userId":"user-et-001","messageId":"msg-et-001","rudderId":"rudder-et-001","request_ip":"192.0.2.10","receivedAt":"2024-01-01T00:00:00Z","traits":{"name":"Test User","email":"test@example.com"},"context":{` + uadContext + `}}`,
+			},
+			{
+				name:    "track",
+				reqType: "track",
+				payload: `{"type":"track","event":"Order Completed","userId":"user-et-002","messageId":"msg-et-002","rudderId":"rudder-et-002","request_ip":"192.0.2.10","receivedAt":"2024-01-01T00:00:00Z","properties":{"revenue":99.99},"context":{` + uadContext + `}}`,
+			},
+			{
+				name:    "page",
+				reqType: "page",
+				payload: `{"type":"page","name":"Home","userId":"user-et-003","messageId":"msg-et-003","rudderId":"rudder-et-003","request_ip":"192.0.2.10","receivedAt":"2024-01-01T00:00:00Z","properties":{"url":"https://example.com"},"context":{` + uadContext + `}}`,
+			},
+			{
+				name:    "screen",
+				reqType: "screen",
+				payload: `{"type":"screen","name":"Dashboard","userId":"user-et-004","messageId":"msg-et-004","rudderId":"rudder-et-004","request_ip":"192.0.2.10","receivedAt":"2024-01-01T00:00:00Z","properties":{"screenClass":"Main"},"context":{` + uadContext + `}}`,
+			},
+			{
+				name:    "group",
+				reqType: "group",
+				payload: `{"type":"group","groupId":"grp-001","userId":"user-et-005","messageId":"msg-et-005","rudderId":"rudder-et-005","request_ip":"192.0.2.10","receivedAt":"2024-01-01T00:00:00Z","traits":{"name":"Acme Corp","industry":"Technology"},"context":{` + uadContext + `}}`,
+			},
+			{
+				name:    "alias",
+				reqType: "alias",
+				payload: `{"type":"alias","previousId":"old-user-001","userId":"user-et-006","messageId":"msg-et-006","rudderId":"rudder-et-006","request_ip":"192.0.2.10","receivedAt":"2024-01-01T00:00:00Z","context":{` + uadContext + `}}`,
+			},
+		}
+
+		for _, et := range eventTypes {
+			t.Run(et.name, func(t *testing.T) {
+				gw := createTestGateway(t, backendconfig.EventBlocking{})
+				messages := []stream.Message{
+					{
+						Properties: stream.MessageProperties{
+							RequestType: et.reqType,
+							RoutingKey:  "routing-key-et",
+							WorkspaceID: "workspace1",
+							SourceID:    "source-id-1",
+							ReceivedAt:  time.Now(),
+							RequestIP:   "192.0.2.10",
+						},
+						Payload: json.RawMessage(et.payload),
+					},
+				}
+				payloadBytes, err := jsonrs.Marshal(messages)
+				require.NoError(t, err)
+
+				jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+				require.NoError(t, err)
+				require.Len(t, jobs, 1, "should produce exactly 1 job for %s event", et.name)
+
+				jobPayload := string(jobs[0].job.EventPayload)
+				uadPath := "batch.0.context.userAgentData"
+
+				require.True(t, gjson.Get(jobPayload, uadPath).Exists(),
+					"userAgentData should be preserved for %s event", et.name)
+				require.Equal(t, "Chromium",
+					gjson.Get(jobPayload, uadPath+".brands.0.brand").String(),
+					"userAgentData brands should be preserved for %s event", et.name)
+				mobileResult := gjson.Get(jobPayload, uadPath+".mobile")
+				require.True(t, mobileResult.Exists(),
+					"mobile field should exist for %s event", et.name)
+				require.Equal(t, false, mobileResult.Bool(),
+					"userAgentData mobile should be false for %s event", et.name)
+				require.Equal(t, "macOS",
+					gjson.Get(jobPayload, uadPath+".platform").String(),
+					"userAgentData platform should be macOS for %s event", et.name)
+			})
+		}
+	})
+}
+
+// TestChannelFieldPreservation verifies that context.channel field values (server, browser, mobile)
+// pass through the Gateway Handle pipeline without modification, and that an absent channel field
+// is not auto-populated by the Gateway. This covers ES-007: Channel Field Auto-Population.
+func TestChannelFieldPreservation(t *testing.T) {
+	tests := []struct {
+		name          string
+		channel       string
+		expectPresent bool
+	}{
+		{
+			name:          "server channel preserved",
+			channel:       "server",
+			expectPresent: true,
+		},
+		{
+			name:          "browser channel preserved",
+			channel:       "browser",
+			expectPresent: true,
+		},
+		{
+			name:          "mobile channel preserved",
+			channel:       "mobile",
+			expectPresent: true,
+		},
+		{
+			name:          "channel field absent stays absent",
+			channel:       "",
+			expectPresent: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gw := createTestGateway(t, backendconfig.EventBlocking{})
+
+			// Build the event payload — include context.channel only when expectPresent is true
+			var payloadStr string
+			if tt.expectPresent {
+				payloadStr = fmt.Sprintf(
+					`{"type":"track","event":"Test Event","userId":"user-ch-001","messageId":"msg-ch-001","rudderId":"rudder-ch-001","request_ip":"192.0.2.20","receivedAt":"2024-01-01T00:00:00Z","context":{"channel":%q,"library":{"name":"analytics.js","version":"2.1.0"}}}`,
+					tt.channel,
+				)
+			} else {
+				payloadStr = `{"type":"track","event":"Test Event","userId":"user-ch-001","messageId":"msg-ch-001","rudderId":"rudder-ch-001","request_ip":"192.0.2.20","receivedAt":"2024-01-01T00:00:00Z","context":{"library":{"name":"analytics.js","version":"2.1.0"}}}`
+			}
+
+			messages := []stream.Message{
+				{
+					Properties: stream.MessageProperties{
+						RequestType: "track",
+						RoutingKey:  "routing-key-ch",
+						WorkspaceID: "workspace1",
+						SourceID:    "source-id-1",
+						ReceivedAt:  time.Now(),
+						RequestIP:   "192.0.2.20",
+					},
+					Payload: json.RawMessage(payloadStr),
+				},
+			}
+			payloadBytes, err := jsonrs.Marshal(messages)
+			require.NoError(t, err)
+
+			jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+			require.NoError(t, err)
+			require.Len(t, jobs, 1)
+
+			jobPayload := string(jobs[0].job.EventPayload)
+			channelResult := gjson.Get(jobPayload, "batch.0.context.channel")
+
+			if tt.expectPresent {
+				require.True(t, channelResult.Exists(),
+					"context.channel should be present in output")
+				require.Equal(t, tt.channel, channelResult.String(),
+					"context.channel value should be preserved as %q", tt.channel)
+			} else {
+				require.False(t, channelResult.Exists(),
+					"context.channel should not be present when not in input")
 			}
 		})
 	}

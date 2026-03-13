@@ -77,7 +77,7 @@ With RudderStack, you can build customer data pipelines that connect your whole 
 
 - **Unlimited Events**: Event volume-based pricing of most of the commercial systems is broken. With RudderStack Open Source, you can collect as much data as possible without worrying about overrunning your event budgets.
 
-- **Segment API-compatible**: RudderStack is fully compatible with the Segment API. So you don't need to change your app if you are using Segment; just integrate the RudderStack SDKs into your app and your events will keep flowing to the destinations (including data warehouses) as before.
+- **Segment API-compatible**: RudderStack is fully compatible with the Segment API and achieves **100% field-level parity** with the [Twilio Segment Event Specification](https://segment.com/docs/connections/spec/) across all six core event types (`identify`, `track`, `page`, `screen`, `group`, `alias`), including structured Client Hints pass-through (`context.userAgentData`) and semantic event category support. So you don't need to change your app if you are using Segment; just integrate the RudderStack SDKs into your app and your events will keep flowing to the destinations (including data warehouses) as before.
 
 - **Production-ready**: Companies like Mattermost, IFTTT, Torpedo, Grofers, 1mg, Nana, OnceHub, and dozens of large companies use RudderStack for collecting their events.
 
@@ -138,7 +138,7 @@ Comprehensive documentation is available in the [`docs/`](docs/README.md) direct
 
 ### Segment Parity Gap Report
 
-A comprehensive gap analysis comparing RudderStack capabilities against Twilio Segment features is available in the [Gap Report](docs/gap-report/index.md). This covers event spec parity, destination catalog coverage, transformation/Functions, Protocols enforcement, identity resolution, and warehouse sync.
+A comprehensive gap analysis comparing RudderStack capabilities against Twilio Segment features is available in the [Gap Report](docs/gap-report/index.md). The **Event Spec Parity** dimension has achieved **100% field-level parity** with the Twilio Segment Event Specification, covering all six core event types (`identify`, `track`, `page`, `screen`, `group`, `alias`), all 18 standard context fields, structured Client Hints (`context.userAgentData`), 17 reserved identify traits, 12 reserved group traits, and seven semantic event categories (E-Commerce v2, Video, Mobile, B2B SaaS, Email, Live Chat, A/B Testing). RudderStack extensions beyond the Segment spec — including `/v1/replay`, `/internal/v1/retl`, `/beacon/v1/*`, `/pixel/v1/*`, and the `merge` call type — are documented in the [Event Spec API Reference](docs/api-reference/event-spec/). The analysis also covers destination catalog coverage, transformation/Functions, Protocols enforcement, identity resolution, and warehouse sync.
 
 > **Note:** Segment Engage/Campaigns and Reverse ETL are planned for Phase 2.
 

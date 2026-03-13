@@ -32,6 +32,26 @@ func TestDetectBot(t *testing.T) {
 			userAgent: "",
 			expected:  false,
 		},
+		{
+			name:      "Chrome with Client Hints userAgent",
+			userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+			expected:  false,
+		},
+		{
+			name:      "Mobile Chrome with Client Hints",
+			userAgent: "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36",
+			expected:  false,
+		},
+		{
+			name:      "Reduced UA string from Client Hints browser",
+			userAgent: "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36",
+			expected:  false,
+		},
+		{
+			name:      "Edge with Client Hints",
+			userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.57",
+			expected:  false,
+		},
 	}
 
 	for _, tc := range testCases {

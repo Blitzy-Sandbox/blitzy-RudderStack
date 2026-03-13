@@ -685,6 +685,58 @@ components:
       scheme: basic
       description: SourceID Basic Authentication
   schemas:
+    UserAgentData:
+      type: object
+      description: >-
+        Structured Client Hints API data from the browser. Contains
+        low-entropy fields (brands, mobile, platform) and optional
+        high-entropy fields.
+      properties:
+        brands:
+          type: array
+          description: Array of brand/version objects from the User-Agent Client Hints API.
+          items:
+            type: object
+            properties:
+              brand:
+                type: string
+                description: Brand name.
+              version:
+                type: string
+                description: Brand version string.
+        mobile:
+          type: boolean
+          description: Whether the device is a mobile device.
+        platform:
+          type: string
+          description: Operating system platform name.
+        bitness:
+          type: string
+          description: CPU architecture bitness (e.g., "64").
+        model:
+          type: string
+          description: Device model identifier.
+        platformVersion:
+          type: string
+          description: Operating system version.
+        uaFullVersion:
+          type: string
+          description: Full browser version string.
+        fullVersionList:
+          type: array
+          description: Array of brand/version objects with full version information.
+          items:
+            type: object
+            properties:
+              brand:
+                type: string
+                description: Brand name.
+              version:
+                type: string
+                description: Full version string.
+        wow64:
+          type: boolean
+          description: Whether the browser is running in WoW64 mode.
     IdentifyPayload:
       type: object
       properties:
@@ -715,6 +767,20 @@ components:
                 name:
                   type: string
                   description: Name of the library.
+            userAgent:
+              type: string
+              description: User agent string of the device making the request.
+            userAgentData:
+              $ref: '#/components/schemas/UserAgentData'
+            channel:
+              type: string
+              description: >-
+                Channel of the event source. Auto-populated by SDKs as
+                "server", "browser", or "mobile".
+              enum:
+                - server
+                - browser
+                - mobile
         timestamp:
           type: string
           format: date-time
@@ -749,6 +815,20 @@ components:
                 name:
                   type: string
                   description: Name of the library.
+            userAgent:
+              type: string
+              description: User agent string of the device making the request.
+            userAgentData:
+              $ref: '#/components/schemas/UserAgentData'
+            channel:
+              type: string
+              description: >-
+                Channel of the event source. Auto-populated by SDKs as
+                "server", "browser", or "mobile".
+              enum:
+                - server
+                - browser
+                - mobile
         timestamp:
           type: string
           format: date-time
@@ -783,6 +863,20 @@ components:
                 name:
                   type: string
                   description: Name of the library.
+            userAgent:
+              type: string
+              description: User agent string of the device making the request.
+            userAgentData:
+              $ref: '#/components/schemas/UserAgentData'
+            channel:
+              type: string
+              description: >-
+                Channel of the event source. Auto-populated by SDKs as
+                "server", "browser", or "mobile".
+              enum:
+                - server
+                - browser
+                - mobile
         timestamp:
           type: string
           format: date-time
@@ -819,6 +913,20 @@ components:
                 name:
                   type: string
                   description: Name of the library.
+            userAgent:
+              type: string
+              description: User agent string of the device making the request.
+            userAgentData:
+              $ref: '#/components/schemas/UserAgentData'
+            channel:
+              type: string
+              description: >-
+                Channel of the event source. Auto-populated by SDKs as
+                "server", "browser", or "mobile".
+              enum:
+                - server
+                - browser
+                - mobile
         timestamp:
           type: string
           format: date-time
@@ -861,6 +969,20 @@ components:
                 name:
                   type: string
                   description: Name of the library.
+            userAgent:
+              type: string
+              description: User agent string of the device making the request.
+            userAgentData:
+              $ref: '#/components/schemas/UserAgentData'
+            channel:
+              type: string
+              description: >-
+                Channel of the event source. Auto-populated by SDKs as
+                "server", "browser", or "mobile".
+              enum:
+                - server
+                - browser
+                - mobile
         timestamp:
           type: string
           format: date-time
@@ -893,6 +1015,20 @@ components:
                 name:
                   type: string
                   description: Name of the library.
+            userAgent:
+              type: string
+              description: User agent string of the device making the request.
+            userAgentData:
+              $ref: '#/components/schemas/UserAgentData'
+            channel:
+              type: string
+              description: >-
+                Channel of the event source. Auto-populated by SDKs as
+                "server", "browser", or "mobile".
+              enum:
+                - server
+                - browser
+                - mobile
         timestamp:
           type: string
           format: date-time
@@ -933,6 +1069,20 @@ components:
                     properties:
                       name:
                         type: string
+                  userAgent:
+                    type: string
+                    description: User agent string of the device making the request.
+                  userAgentData:
+                    $ref: '#/components/schemas/UserAgentData'
+                  channel:
+                    type: string
+                    description: >-
+                      Channel of the event source. Auto-populated by SDKs as
+                      "server", "browser", or "mobile".
+                    enum:
+                      - server
+                      - browser
+                      - mobile
               timestamp:
                 type: string
       required:

@@ -4,941 +4,712 @@
 
 ## 0.1 Intent Clarification
 
-### 0.1.1 Core Documentation Objective
+### 0.1.1 Core Feature Objective
 
-Based on the provided requirements, the Blitzy platform understands that the documentation objective is to **create comprehensive, production-ready documentation for a Customer Data Platform (CDP) that achieves full functional parity with Twilio Segment**, built upon the RudderStack OSS codebase (`rudder-server` v1.68.1). The documentation must cover the complete platform lifecycle — from gap analysis and capability mapping through architecture documentation, API references, integration guides, and operational runbooks — enabling autonomous implementation of all capability gaps until Segment parity is validated.
+Based on the prompt, the Blitzy platform understands that the new feature requirement is to **validate and close the remaining ~5% gap in Segment Spec event parity**, bringing the RudderStack `rudder-server` (v1.68.1) from approximately 95% to 100% field-level parity with the Twilio Segment Event Specification. This is classified as **P0 — Critical** priority and targets a 4-week delivery window (2 sprints).
 
-**Documentation Category:** Create new documentation | Update existing documentation | Fix documentation gaps | Improve documentation coverage
+The feature requirements are:
 
-**Documentation Types Required:**
-- Architecture documentation (system design, data flows, component relationships)
-- API reference documentation (Segment Spec event API parity: track, identify, page, group, alias, screen)
-- Integration guides (Source SDK compatibility, destination connector coverage)
-- Technical specifications (transformation logic, tracking plan enforcement, identity resolution)
-- Migration guides (Segment-to-RudderStack migration path)
-- Gap analysis reports (capability gap inventory between RudderStack and Segment)
-- Operational guides (warehouse sync, replay semantics, pipeline configuration)
-- Developer guides (Functions logic, Profiles API, Protocols enforcement)
+- **Complete Payload Schema Validation (E-001, E-003):** All six core event types (`identify`, `track`, `page`, `screen`, `group`, `alias`) must be validated at the individual field level to confirm identical routing and transformation behavior compared to Segment. This includes verifying that the `IdentifyPayload`, `TrackPayload`, `PagePayload`, `ScreenPayload`, `GroupPayload`, and `AliasPayload` schemas in the Gateway OpenAPI specification (`gateway/openapi.yaml`) exactly match Segment Spec definitions in `refs/segment-docs/src/connections/spec/`.
 
-**Detailed Requirements with Enhanced Clarity:**
-- **Full Segment Spec Event Parity** — Document the six core API calls (`track`, `identify`, `page`, `screen`, `group`, `alias`) with payload schemas, common fields, semantic definitions, and behavioral parity with Segment's specification as referenced in `refs/segment-docs/src/connections/spec/`
-- **Source SDK Compatibility** — Document SDK integration surfaces for JavaScript (web), iOS, Android, and server-side (Node.js, Python, Ruby, Go, Java) with configuration, initialization, and event transmission patterns
-- **Destination Connector Coverage** — Document the full destination catalog matching Segment's connector catalog, covering the 90+ existing integrations referenced in `README.md` plus gap analysis for missing connectors referenced in `refs/segment-docs/src/connections/destinations/catalog/`
-- **Transformation and Functions Logic** — Document the JavaScript/Python transformation framework, user transforms, destination transforms, and custom Functions equivalent to Segment Functions (`refs/segment-docs/src/connections/functions/`)
-- **Tracking Plan / Protocols Enforcement** — Document tracking plan validation, schema enforcement, anomaly detection, and event governance equivalent to Segment Protocols (`refs/segment-docs/src/protocols/`)
-- **Identity Resolution and Profiles** — Document cross-touchpoint identity unification, profile API, traits management, and data graph equivalent to Segment Unify (`refs/segment-docs/src/unify/`)
-- **Warehouse Sync** — Document Snowflake (`warehouse/integrations/snowflake/`), BigQuery (`warehouse/integrations/bigquery/`), and Redshift (`warehouse/integrations/redshift/`) sync pipelines with idempotent, backfill-capable semantics
-- **Replay and Replay-on-Failure Semantics** — Document event replay capabilities via the Archiver (`archiver/`) and replay handlers (`gateway/handle_http_replay.go`, `backend-config/replay_types.go`)
+- **Structured Client Hints Pass-Through Verification (ES-001):** The `context.userAgentData` field, which carries structured Client Hints API data (`brands[]`, `mobile`, `platform`, and optional `bitness`, `model`, `platformVersion`, `uaFullVersion`, `fullVersionList`, `wow64`), must be verified to pass through the full pipeline — from Gateway ingestion through Processor, Router, and into warehouse destinations — without data loss or structural alteration.
 
-**Implicit Documentation Needs Surfaced:**
-- Gap Report documenting the delta between current RudderStack capabilities and Segment feature set
-- Sprint roadmap documentation for autonomous epic implementation sequencing
-- Pipeline performance documentation covering the 50k events/sec throughput constraint with ordering guarantees
-- Idempotency and backfill documentation for warehouse sync operations
-- Payload parity documentation validating identical output between Segment and RudderStack destination connectors
+- **Semantic Event Category Routing Enforcement (ES-002):** Segment defines seven standardized semantic event categories (E-Commerce v2, Video, Mobile, B2B SaaS, Email, Live Chat, A/B Testing) with reserved event names and properties. RudderStack currently passes all event names as opaque strings. The implementation must validate that destination transforms correctly map semantic event names (e.g., `Order Completed` → Google Analytics Enhanced Ecommerce) and document the pass-through behavior.
+
+- **Reserved Trait Validation (ES-003):** Segment standardizes 18 reserved identify traits and 12 reserved group traits with specific types. RudderStack currently accepts traits as open objects without type validation. The implementation must verify that destination connectors handle reserved traits correctly and document the trait pass-through behavior.
+
+- **Channel Field Auto-Population (ES-007):** Segment auto-populates `context.channel` as `server`, `browser`, or `mobile`. RudderStack accepts this field but auto-population depends on SDK implementation. The implementation must verify SDK implementations auto-populate `channel` and document expected behavior per SDK.
+
+- **Documentation of RudderStack Extensions (ES-004, ES-006):** Additional endpoints (`/v1/replay`, `/internal/v1/retl`, `/beacon/v1/*`, `/pixel/v1/*`, `/internal/v1/extract`, `merge` call type) and permissive batch size defaults (4000 KB vs. Segment's recommended 500 KB) must be documented as RudderStack extensions rather than parity gaps.
+
+**Implicit requirements detected:**
+
+- End-to-end integration tests must exercise all six event types across the full pipeline (Gateway → Processor → Router → Warehouse)
+- The existing OpenAPI specification (`gateway/openapi.yaml`) must be updated if any schema gaps are discovered
+- Clock skew correction formula (`timestamp = receivedAt - (sentAt - originalTimestamp)`) must be validated against Segment-identical inputs
+- All 18 standard `context` fields must be confirmed to pass through without data loss
+- The Segment documentation reference corpus in `refs/segment-docs/src/connections/spec/` serves as the authoritative baseline
 
 ### 0.1.2 Special Instructions and Constraints
 
-**Critical Directives:**
-- All Segment Spec events must route and transform identically to Segment behavior — documentation must validate and annotate behavioral parity at the payload level
-- Destination connectors must maintain payload parity with Segment's connector output — documentation must include payload comparison schemas
-- Pipeline must sustain 50,000 events/second with ordering guarantees — documentation must cover performance architecture, worker pool tuning, and capacity planning
-- Warehouse sync must be idempotent and support backfill — documentation must specify merge strategies, dedup logic, and staging file formats per warehouse destination
-- The Gap Report and sprint roadmap are initial-run deliverables — documentation must structure these as self-contained, actionable artifacts
-- **Segment Engage/Campaigns and Reverse ETL are explicitly out of scope** for Phase 1
-
-**Template Requirements:**
-- Follow the existing RudderStack documentation style as observed in `README.md`, `CONTRIBUTING.md`, and sub-module READMEs (`services/oauth/README.md`, `router/batchrouter/asyncdestinationmanager/README.md`)
-- Use the Segment documentation reference structure from `refs/segment-docs/` as the authoritative source for Segment feature catalog and spec definitions
-- Leverage the existing OpenAPI contract at `gateway/openapi.yaml` as the baseline for API reference documentation
-
-**Style Preferences:**
-- Technical depth targeting senior engineers and data engineering teams
-- Progressive disclosure: high-level architecture → detailed component docs → API reference
-- Consistent terminology aligned with both RudderStack and Segment glossaries
-- Mermaid diagrams for all architectural and data flow visualizations
-- Code examples in Go (server-side), JavaScript (SDK/transforms), and Python (transforms)
+- **Segment Behavioral Equivalence:** The acceptance criterion is that all six core event types route and transform identically to Segment behavior at the payload field level — not just structural compatibility but functional equivalence
+- **Maintain Backward Compatibility:** All changes must preserve existing API behavior for current RudderStack users; no breaking changes to the Gateway HTTP API surface
+- **Follow Repository Conventions:** The codebase is a Go 1.26.0 modular monolith with established patterns — table-driven tests, `testify`/`gomega` assertions, `dockertest/v3` for integration testing, `jsonrs` for JSON serialization (not `encoding/json`, which is banned by `depguard`)
+- **Leverage Existing Test Infrastructure:** Integration tests should follow the established `integration_test/docker_test/` patterns with Docker-provisioned PostgreSQL, Transformer, and webhook services
+- **External Transformer Dependency:** Semantic event category validation (ES-002) and reserved trait validation (ES-003) must account for the external Transformer service (`rudder-transformer`) that handles destination-specific transformations at port 9090
 
 ### 0.1.3 Technical Interpretation
 
-These documentation requirements translate to the following technical documentation strategy:
-
-- To **document Segment Spec event parity**, we will create API reference docs for each event type (`track`, `identify`, `page`, `screen`, `group`, `alias`) by extracting endpoint definitions from `gateway/openapi.yaml`, handler implementations from `gateway/handle_http.go`, and payload schemas from `gateway/types.go`, cross-referenced against Segment spec definitions in `refs/segment-docs/src/connections/spec/`
-- To **document Source SDK compatibility**, we will create SDK integration guides referencing the Gateway's Segment-compatible API surface (port 8080) and authentication schemes from `gateway/handle_http_auth.go`, covering JS, iOS, Android, and server-side SDK initialization patterns
-- To **document destination connector coverage**, we will create a destination catalog by mapping existing connectors from `router/customdestinationmanager/`, `services/streammanager/`, and `warehouse/integrations/` against the Segment destination catalog in `refs/segment-docs/src/connections/destinations/catalog/`
-- To **document transformation and Functions logic**, we will create developer guides covering the Processor's six-stage pipeline (`processor/pipeline_worker.go`), user transformations (batch size 200), destination transformations (batch size 100), and the external Transformer service integration
-- To **document Tracking Plan / Protocols enforcement**, we will create governance guides based on `processor/trackingplan.go`, consent filtering in `processor/consent.go`, and validator logic in `gateway/validator/`
-- To **document identity resolution and Profiles**, we will create identity documentation based on `warehouse/identity/` and the `alias` event handler, mapping capabilities against Segment Unify features from `refs/segment-docs/src/unify/`
-- To **document warehouse sync**, we will create per-warehouse guides for Snowflake, BigQuery, and Redshift from `warehouse/integrations/`, the upload state machine in `warehouse/router/`, and encoding formats in `warehouse/encoding/`
-- To **document replay semantics**, we will create operational guides covering the Archiver (`archiver/`), replay types (`backend-config/replay_types.go`), and replay HTTP handler (`gateway/handle_http_replay.go`)
-
-### 0.1.4 Inferred Documentation Needs
-
-Based on comprehensive code analysis, the following additional documentation needs have been identified:
-
-- **Based on code analysis:** The `gateway/` module contains a full OpenAPI specification (`gateway/openapi.yaml`) but lacks corresponding developer-facing API reference documentation beyond the embedded `/docs` endpoint — a comprehensive external API reference is needed
-- **Based on code analysis:** The `processor/consent.go` module implements OneTrust, Ketch, and Generic consent management with OR/AND semantics, but there is no user-facing documentation explaining consent configuration or provider setup
-- **Based on structure:** The warehouse service spans 22+ sub-packages (`warehouse/router/`, `warehouse/schema/`, `warehouse/slave/`, `warehouse/encoding/`, `warehouse/identity/`, etc.) requiring consolidated architecture documentation with data flow diagrams
-- **Based on dependencies:** The interaction between Processor, Transformer service (port 9090), and Router requires interface documentation covering batch sizing, retry semantics, and failure handling
-- **Based on user journey:** New Segment-to-RudderStack migration requires a step-by-step migration guide covering SDK swap, destination re-mapping, tracking plan migration, and warehouse cutover
-- **Based on configuration:** The `config/config.yaml` file contains 200+ tunable parameters across all subsystems — a configuration reference guide is needed documenting each parameter, its default, acceptable range, and impact
-- **Based on gap analysis:** Segment features such as Functions (custom source/destination functions), Protocols (advanced tracking plan enforcement with anomaly detection), and Unify (identity graph, profile sync, traits) have partial or no equivalents in the current codebase — gap documentation is required
-
-## 0.2 Documentation Discovery and Analysis
-
-### 0.2.1 Existing Documentation Infrastructure Assessment
-
-Repository analysis reveals a **sparse, module-local documentation structure** with no centralized documentation framework or generator. Documentation exists as scattered Markdown README files at the root and within select sub-modules, supplemented by a comprehensive Segment documentation reference repository at `refs/segment-docs/`.
-
-**Documentation Files Discovered:**
-
-| File | Location | Type | Coverage Status |
-|------|----------|------|-----------------|
-| README.md | Root | Project overview, key features, architecture summary, setup | Moderate — high-level only |
-| CONTRIBUTING.md | Root | Contribution guidelines, CLA, PR process | Complete for contribution workflow |
-| CHANGELOG.md | Root | Release history (v1.68.1 current) | Complete — auto-maintained |
-| CODE_OF_CONDUCT.md | Root | Community behavioral standards | Complete |
-| SECURITY.md | Root | Vulnerability reporting process | Complete |
-| releases.md | Root | Release cadence documentation | Complete |
-| LICENSE | Root | Elastic License 2.0 text | Complete |
-| cmd/devtool/README.md | cmd/devtool/ | Developer tool CLI usage (etcd, events, webhooks) | Partial — basic usage only |
-| services/oauth/README.md | services/oauth/ | OAuth module architecture, components, request lifecycle | Comprehensive — well-structured |
-| router/batchrouter/asyncdestinationmanager/README.md | router/batchrouter/ | Async destination manager architecture, onboarding guide | Comprehensive — includes diagrams |
-| regulation-worker/README.md | regulation-worker/ | Environment variable checklist (4 items) | Minimal — config only |
-| suppression-backup-service/README.md | suppression-backup-service/ | Service description and setup | Minimal |
-| utils/wrk/README.md | utils/wrk/ | Load testing utility documentation | Minimal |
-| warehouse/.cursor/docs/snowpipe-streaming.md | warehouse/.cursor/docs/ | Snowpipe Streaming flow, polling, error handling | Moderate — internal working doc |
-| warehouse/.cursor/docs/staging-file-flow.md | warehouse/.cursor/docs/ | Staging file pipeline, field propagation | Moderate — internal working doc |
-
-**Documentation Framework Assessment:**
-- Current documentation framework: **None** — no documentation generator (mkdocs, Sphinx, Docusaurus, etc.) is configured in the repository
-- Documentation generator configuration: **Not present** — no `mkdocs.yml`, `docusaurus.config.js`, `sphinx/conf.py`, or equivalent found
-- API documentation tools in use: **OpenAPI 3.0.3** spec at `gateway/openapi.yaml` with embedded HTML docs at `gateway/openapi/index.html` served at the `/docs` endpoint
-- Diagram tools detected: **Mermaid** (used in existing internal docs and the async destination manager README)
-- Documentation hosting/deployment: **Not configured** — no deployment pipeline for documentation exists in the repository
-- Protobuf documentation: Proto definitions exist in `proto/` (cluster, common, event-schema, warehouse) but no generated documentation
-
-**Segment Documentation Reference Assessment:**
-The `refs/segment-docs/` directory contains a complete mirror of Segment's documentation site, implemented as a Jekyll/Liquid-based static site with the following structure:
-- **Build system:** Jekyll with `_config.yml`, Netlify deployment via `netlify.toml`, Yarn/Bundler dependencies
-- **Content structure:** Product-specific directories under `refs/segment-docs/src/` covering connections, engage, unify, protocols, privacy, monitoring, partners, and API reference
-- **Catalog data:** Destination/source catalog metadata in `refs/segment-docs/src/_data/catalog/`
-- **Spec definitions:** Full Segment Spec documentation in `refs/segment-docs/src/connections/spec/` (identify, track, page, screen, group, alias, common fields, semantic events)
-- **Protocols/Tracking Plans:** Enforcement, validation, and tracking plan documentation in `refs/segment-docs/src/protocols/`
-- **Unify/Identity Resolution:** Identity resolution, profiles, traits, and data graph in `refs/segment-docs/src/unify/`
-- **Functions:** Source functions, destination functions, and insert functions in `refs/segment-docs/src/connections/functions/`
-
-### 0.2.2 Repository Code Analysis for Documentation
-
-**Search Patterns Used for Code to Document:**
-
-- Public APIs: `gateway/openapi.yaml`, `gateway/handle_http.go`, `gateway/handle_http_auth.go`, `gateway/handle_http_import.go`, `gateway/handle_http_replay.go`, `gateway/handle_http_retl.go`, `gateway/handle_http_beacon.go`, `gateway/handle_http_pixel.go`
-- Module interfaces: `processor/manager.go`, `router/factory.go`, `warehouse/app.go`, `runner/runner.go`
-- Configuration options: `config/config.yaml` (200+ tunable parameters), `config/sample.env` (environment variable reference)
-- Protocol definitions: `proto/cluster/`, `proto/common/`, `proto/event-schema/`, `proto/warehouse/` (15 unary RPCs)
-- CLI commands: `cmd/devtool/` (etcd management, event sending, webhook simulation), `cmd/rudder-cli/` (admin CLI)
-- Warehouse connectors: `warehouse/integrations/snowflake/`, `warehouse/integrations/bigquery/`, `warehouse/integrations/redshift/` plus six additional connectors
-- Stream managers: `services/streammanager/` (Kafka, Kinesis, Pub/Sub, Azure Event Hub, Firehose, EventBridge, Confluent Cloud)
-- Identity resolution: `warehouse/identity/` (merge-rule resolution pipelines)
-- Consent/governance: `processor/consent.go`, `processor/trackingplan.go`, `processor/eventfilter/`
-
-**Key Directories Examined:**
-
-| Directory | Content Type | Documentation Status |
-|-----------|-------------|---------------------|
-| `gateway/` | HTTP ingestion gateway (handlers, auth, validation, throttling, webhooks) | OpenAPI spec exists; no developer guide |
-| `processor/` | Event processing pipeline (6 stages, consent, tracking plans) | No documentation |
-| `router/` | Real-time destination routing (throttling, ordering, retry) | No documentation |
-| `router/batchrouter/` | Batch routing and staging file generation | Async destination manager README only |
-| `warehouse/` | Warehouse loading orchestrator (22+ sub-packages) | Two internal cursor docs only |
-| `services/` | 19 shared service packages | OAuth README only |
-| `enterprise/` | Enterprise features (reporting, suppression, tracked users) | No documentation |
-| `jobsdb/` | Persistent job queue (PostgreSQL-backed) | No documentation |
-| `backend-config/` | Dynamic workspace configuration | No documentation |
-| `controlplane/` | gRPC-based remote configuration | No documentation |
-| `archiver/` | Event archival to object storage | No documentation |
-| `regulation-worker/` | GDPR data deletion and regulation enforcement | Minimal env var checklist only |
-| `refs/segment-docs/` | Segment documentation reference (complete mirror) | Comprehensive — used as reference |
-
-### 0.2.3 Web Search Research Conducted
-
-Research areas identified for documentation best practices:
-- Best practices for CDP/data platform API documentation with Segment-compatible interfaces
-- Documentation structure conventions for Go-based data pipeline projects
-- Recommended Mermaid diagram types for event-driven pipeline architectures
-- Tools and techniques for maintaining API documentation synchronized with OpenAPI specs
-- Go documentation conventions (godoc, README patterns, package-level docs)
-- Segment-to-RudderStack migration documentation patterns used by the community
-
-## 0.3 Documentation Scope Analysis
-
-### 0.3.1 Code-to-Documentation Mapping
-
-**Core Pipeline Modules Requiring Documentation:**
-
-- **Module: `gateway/` — Event Ingestion Gateway**
-  - Public APIs: HTTP endpoints `/v1/identify`, `/v1/track`, `/v1/page`, `/v1/screen`, `/v1/group`, `/v1/alias`, `/v1/batch`, `/v1/import`, `/v1/replay`, `/v1/retl`, `/beacon/v1/*`, `/pixel/v1/*`, webhook endpoints
-  - Handler implementations: `handle_http.go`, `handle_http_auth.go`, `handle_http_import.go`, `handle_http_replay.go`, `handle_http_retl.go`, `handle_http_beacon.go`, `handle_http_pixel.go`
-  - Current documentation: OpenAPI spec at `gateway/openapi.yaml` — no developer-facing guide
-  - Documentation needed: API reference (all endpoints), authentication guide (5 auth schemes), rate limiting guide, webhook integration guide, pixel/beacon tracking guide
-
-- **Module: `processor/` — Event Processing Pipeline**
-  - Public APIs: Six-stage pipeline (preprocess → source hydration → pre-transform → user transform → destination transform → store)
-  - Key files: `processor.go`, `pipeline_worker.go`, `partition_worker.go`, `consent.go`, `trackingplan.go`, `src_hydration_stage.go`, `eventfilter/`
-  - Current documentation: None
-  - Documentation needed: Pipeline architecture guide, transformation developer guide, consent management configuration guide, tracking plan enforcement guide, event filtering reference
-
-- **Module: `router/` — Real-Time Destination Routing**
-  - Public APIs: Per-destination delivery with throttling, ordering, retry, and adaptive batching
-  - Key files: `handle.go`, `worker.go`, `network.go`, `factory.go`, `config.go`, `throttler/`
-  - Current documentation: None
-  - Documentation needed: Routing architecture guide, throttling configuration guide, event ordering reference, retry policy documentation, destination connector developer guide
-
-- **Module: `router/batchrouter/` — Batch Routing**
-  - Public APIs: Bulk delivery with staging file generation, async destination management
-  - Key files: Batch router handles, `asyncdestinationmanager/`
-  - Current documentation: `asyncdestinationmanager/README.md` (comprehensive)
-  - Documentation needed: Batch routing architecture guide, staging file format reference, async destination onboarding guide (extend existing README)
-
-- **Module: `warehouse/` — Warehouse Loading Service**
-  - Public APIs: gRPC and HTTP APIs on port 8082, upload state machine (7 states), schema evolution, parallel loading
-  - Key directories: `warehouse/router/` (state machine), `warehouse/schema/` (schema management), `warehouse/integrations/` (9 connectors), `warehouse/encoding/` (Parquet/JSON/CSV), `warehouse/identity/` (identity resolution), `warehouse/slave/` (distributed processing), `warehouse/api/` (gRPC/HTTP endpoints)
-  - Current documentation: Two internal cursor docs (`snowpipe-streaming.md`, `staging-file-flow.md`)
-  - Documentation needed: Warehouse architecture guide, per-connector configuration guides (Snowflake, BigQuery, Redshift, ClickHouse, Databricks, MSSQL, PostgreSQL, Datalake, Azure Synapse), schema evolution reference, identity resolution guide, encoding format reference, master/slave deployment guide
-
-- **Module: `services/streammanager/` — Stream Destination Management**
-  - Supported streams: Kafka, Kinesis, Firehose, EventBridge, Google Pub/Sub, Azure Event Hub, Confluent Cloud, BigQuery Stream, Google Sheets, Lambda, Google Cloud Function, Wunderkind, Redis
-  - Current documentation: None
-  - Documentation needed: Stream destination integration guides, producer configuration reference, per-stream setup guides
-
-- **Module: `services/dedup/` — Deduplication Service**
-  - Implementations: BadgerDB-backed and KeyDB-backed with mirror mode
-  - Current documentation: None
-  - Documentation needed: Dedup configuration guide, TTL settings, backend selection guide
-
-- **Module: `services/oauth/` — OAuth Integration**
-  - Key files: `v2/http/client.go`, `v2/http/transport.go`, `v2/oauth.go`, `v2/controlplane/cp_connector.go`
-  - Current documentation: `services/oauth/README.md` (comprehensive)
-  - Documentation needed: Update existing README to cover gap analysis context
-
-- **Module: `enterprise/` — Enterprise Features**
-  - Sub-modules: `enterprise/reporting/` (telemetry, error extraction/grouping), `enterprise/suppress-user/` (user suppression), `enterprise/trackedusers/` (HyperLogLog tracking), `enterprise/config-env/` (environment variable substitution)
-  - Current documentation: None
-  - Documentation needed: Enterprise feature overview, reporting configuration guide, user suppression guide, tracked users guide
-
-- **Module: `jobsdb/` — Persistent Job Queue**
-  - Key capabilities: Partitioned datasets, priority pools, pending events registry, distinct values cache, COPY IN bulk inserts
-  - Current documentation: None
-  - Documentation needed: JobsDB architecture guide, partitioning reference, migration guide, performance tuning guide
-
-- **Module: `backend-config/` — Dynamic Configuration**
-  - Key capabilities: 5-second polling, AES-GCM encrypted caching, pub/sub distribution, namespace/single-workspace modes
-  - Current documentation: None
-  - Documentation needed: Configuration management architecture guide, encrypted cache reference, namespace configuration guide
-
-- **Module: `archiver/` — Event Archival and Replay**
-  - Key capabilities: Partition-aware archival to object storage, gzipped JSONL, 10-day retention, source/date/hour organization
-  - Current documentation: None
-  - Documentation needed: Archival architecture guide, replay semantics guide, retention policy reference
-
-- **Module: `regulation-worker/` — Data Regulation**
-  - Key capabilities: API/batch/KV store deletion, GDPR compliance, OAuthv2 integration
-  - Current documentation: Minimal env var checklist
-  - Documentation needed: GDPR compliance guide, deletion strategy reference, regulation worker operational guide
-
-**Configuration Options Requiring Documentation:**
-
-- Config file: `config/config.yaml`
-  - Options documented: Approximately 10/200+ (5%)
-  - Missing documentation: Gateway tuning (web workers, DB writers, batch sizes, rate limiting), Router tuning (workers, batch sizes, retry windows, throttling), Warehouse tuning (modes, workers, parallel loads, backoff), Processor tuning (transform batch sizes, dedup, consent), BackendConfig polling, Logger settings, Diagnostics toggles
-
-- Config file: `config/sample.env`
-  - Options documented: Partially through inline comments
-  - Missing documentation: Structured environment variable reference guide with descriptions, defaults, and allowed values
-
-### 0.3.2 Documentation Gap Analysis
-
-Given the requirements and repository analysis, documentation gaps include:
-
-**Critical Undocumented Public APIs:**
-- All Gateway HTTP endpoints beyond the OpenAPI spec (no developer guides, no usage examples)
-- Warehouse gRPC API (15 unary RPCs defined in `proto/warehouse/`)
-- Admin RPC server (UNIX domain socket operations)
-- Control Plane DPAuth service (authentication token distribution)
-
-**Missing User Guides:**
-- Segment-to-RudderStack migration guide
-- Source SDK integration guides (JS, iOS, Android, server-side)
-- Destination connector setup guides (90+ connectors)
-- Transformation developer guide (JavaScript/Python custom transforms)
-- Tracking Plan / Protocols configuration and enforcement guide
-- Identity resolution and Profiles guide
-- Warehouse sync configuration and operational guide (per-warehouse)
-- Replay and replay-on-failure operational guide
-- Pipeline capacity planning and performance tuning guide
-
-**Incomplete Architecture Documentation:**
-- End-to-end data flow architecture (ingestion → processing → routing → warehouse)
-- Six-stage Processor pipeline architecture with Mermaid diagrams
-- Warehouse 7-state upload state machine documentation
-- Cluster management and deployment topology documentation
-- Multi-tenant deployment architecture
-
-**Outdated or Missing Reference Documentation:**
-- Configuration parameter reference (200+ parameters in `config/config.yaml`)
-- Environment variable reference (50+ variables in `config/sample.env`)
-- Error code and response reference (from `gateway/response/`)
-- Protobuf service definitions documentation
-
-**Gap Report — Segment Feature Parity:**
-- Segment Functions (source/destination custom functions) — partial equivalent via Transformer, needs gap documentation
-- Segment Protocols (advanced tracking plan enforcement, anomaly detection) — partial via `processor/trackingplan.go`, needs gap documentation
-- Segment Unify (identity graph, profile sync, traits, data graph) — partial via `warehouse/identity/`, needs extensive gap documentation
-- Segment Destination Catalog (300+ destinations) — current 90+ destinations, needs catalog comparison documentation
-- Segment Source Catalog (cloud sources, auto-instrumentation) — needs catalog comparison documentation
-
-## 0.4 Documentation Implementation Design
-
-### 0.4.1 Documentation Structure Planning
-
-The documentation will be organized into a hierarchical structure optimized for developer-first navigation, following progressive disclosure from overview to detail:
-
-```
-docs/
-├── README.md (project overview, quick start, key features)
-├── gap-report/
-│   ├── index.md (executive summary of Segment parity gaps)
-│   ├── event-spec-parity.md (track, identify, page, screen, group, alias)
-│   ├── destination-catalog-parity.md (connector gap analysis)
-│   ├── source-catalog-parity.md (SDK and source gap analysis)
-│   ├── functions-parity.md (transformation/Functions gap analysis)
-│   ├── protocols-parity.md (tracking plan/Protocols gap analysis)
-│   ├── identity-parity.md (identity resolution/Unify gap analysis)
-│   ├── warehouse-parity.md (warehouse sync gap analysis)
-│   └── sprint-roadmap.md (epic sequencing for gap closure)
-├── architecture/
-│   ├── overview.md (high-level system architecture)
-│   ├── data-flow.md (end-to-end event pipeline with Mermaid diagrams)
-│   ├── deployment-topologies.md (EMBEDDED, GATEWAY, PROCESSOR modes)
-│   ├── pipeline-stages.md (6-stage Processor pipeline detail)
-│   ├── warehouse-state-machine.md (7-state upload lifecycle)
-│   ├── cluster-management.md (etcd-based multi-tenant coordination)
-│   └── security.md (auth, encryption, SSRF protection, OAuth)
-├── api-reference/
-│   ├── index.md (API overview and authentication)
-│   ├── event-spec/
-│   │   ├── common-fields.md (shared event fields reference)
-│   │   ├── identify.md (identify call specification)
-│   │   ├── track.md (track call specification)
-│   │   ├── page.md (page call specification)
-│   │   ├── screen.md (screen call specification)
-│   │   ├── group.md (group call specification)
-│   │   └── alias.md (alias call specification)
-│   ├── gateway-http-api.md (full HTTP API reference from OpenAPI)
-│   ├── warehouse-grpc-api.md (15 unary RPCs reference)
-│   ├── admin-api.md (UNIX socket admin operations)
-│   └── error-codes.md (response codes and error reference)
-├── guides/
-│   ├── getting-started/
-│   │   ├── installation.md (Docker, Kubernetes, developer machine)
-│   │   ├── configuration.md (config.yaml and env var reference)
-│   │   └── first-events.md (sending first events tutorial)
-│   ├── migration/
-│   │   ├── segment-migration.md (Segment-to-RudderStack migration)
-│   │   └── sdk-swap-guide.md (SDK replacement walkthrough)
-│   ├── sources/
-│   │   ├── javascript-sdk.md (web SDK integration)
-│   │   ├── ios-sdk.md (iOS SDK integration)
-│   │   ├── android-sdk.md (Android SDK integration)
-│   │   └── server-side-sdks.md (Node.js, Python, Go, etc.)
-│   ├── destinations/
-│   │   ├── index.md (destination catalog overview)
-│   │   ├── stream-destinations.md (Kafka, Kinesis, Pub/Sub, etc.)
-│   │   ├── cloud-destinations.md (90+ cloud integrations)
-│   │   └── warehouse-destinations.md (warehouse integration overview)
-│   ├── transformations/
-│   │   ├── overview.md (transformation architecture)
-│   │   ├── user-transforms.md (JavaScript/Python custom transforms)
-│   │   ├── destination-transforms.md (payload shaping)
-│   │   └── functions.md (Segment Functions equivalent)
-│   ├── governance/
-│   │   ├── tracking-plans.md (tracking plan configuration)
-│   │   ├── consent-management.md (OneTrust, Ketch, Generic CMP)
-│   │   ├── event-filtering.md (event drop/filter rules)
-│   │   └── protocols-enforcement.md (schema validation)
-│   ├── identity/
-│   │   ├── identity-resolution.md (cross-touchpoint unification)
-│   │   └── profiles.md (user profiles and traits)
-│   └── operations/
-│       ├── warehouse-sync.md (sync configuration and monitoring)
-│       ├── replay.md (event replay and replay-on-failure)
-│       ├── privacy-compliance.md (GDPR deletion, user suppression)
-│       └── capacity-planning.md (throughput tuning for 50k events/sec)
-├── warehouse/
-│   ├── overview.md (warehouse service architecture)
-│   ├── snowflake.md (Snowflake connector guide)
-│   ├── bigquery.md (BigQuery connector guide)
-│   ├── redshift.md (Redshift connector guide)
-│   ├── clickhouse.md (ClickHouse connector guide)
-│   ├── databricks.md (Databricks Delta Lake guide)
-│   ├── postgres.md (PostgreSQL connector guide)
-│   ├── mssql.md (SQL Server connector guide)
-│   ├── azure-synapse.md (Azure Synapse connector guide)
-│   ├── datalake.md (S3/GCS/Azure Datalake guide)
-│   ├── schema-evolution.md (automatic schema management)
-│   └── encoding-formats.md (Parquet, JSON, CSV reference)
-├── reference/
-│   ├── config-reference.md (all 200+ config.yaml parameters)
-│   ├── env-var-reference.md (environment variable reference)
-│   ├── glossary.md (unified terminology)
-│   └── faq.md (frequently asked questions)
-└── contributing/
-    ├── development.md (development environment setup)
-    ├── destination-onboarding.md (adding new destination connectors)
-    └── testing.md (test infrastructure and guidelines)
-```
-
-### 0.4.2 Content Generation Strategy
-
-**Information Extraction Approach:**
-- Extract API endpoint signatures from `gateway/openapi.yaml` and HTTP handler files in `gateway/handle_http*.go`
-- Generate event spec documentation by cross-referencing `gateway/types.go` payload structures with Segment spec definitions from `refs/segment-docs/src/connections/spec/`
-- Extract configuration parameter descriptions from `config/config.yaml` inline comments and code-level `config.GetReloadable*` calls throughout the codebase
-- Create architecture diagrams by mapping component relationships from `runner/runner.go` (lifecycle orchestrator) and data flow patterns documented in tech spec sections 5.1 and 6.1
-- Generate warehouse connector guides from integration implementations in `warehouse/integrations/*/` cross-referenced with per-destination test suites
-- Extract gap analysis data by comparing Segment destination catalog in `refs/segment-docs/src/connections/destinations/catalog/` against registered connectors in `router/customdestinationmanager/` and `services/streammanager/`
-
-**Documentation Standards:**
-- Markdown formatting with proper headers (# for titles, ## for sections, ### for subsections)
-- Mermaid diagram integration for all architectural and data flow visualizations
-- Code examples in Go, JavaScript, and Python with syntax highlighting
-- Source citations as inline references: `Source: /path/to/file.go:LineNumber`
-- Tables for parameter descriptions, return values, and comparison matrices
-- Consistent terminology aligned with the unified glossary
-
-### 0.4.3 Diagram and Visual Strategy
-
-**Mermaid Diagrams to Create:**
-
-- **System Architecture Diagram** — High-level component topology showing Gateway, Processor, Router, Batch Router, Warehouse, and external dependencies (for `docs/architecture/overview.md`)
-- **End-to-End Data Flow Diagram** — Event lifecycle from SDK ingestion through warehouse loading (for `docs/architecture/data-flow.md`)
-- **Processor Pipeline Diagram** — Six-stage pipeline with channel orchestration (for `docs/architecture/pipeline-stages.md`)
-- **Warehouse Upload State Machine** — 7-state lifecycle diagram (for `docs/architecture/warehouse-state-machine.md`)
-- **Deployment Topology Diagrams** — EMBEDDED, GATEWAY, PROCESSOR mode configurations (for `docs/architecture/deployment-topologies.md`)
-- **Segment Parity Gap Matrix** — Visual feature comparison chart (for `docs/gap-report/index.md`)
-- **Authentication Flow Diagrams** — 5 auth scheme flows (for `docs/api-reference/index.md`)
-- **Warehouse Connector Flow Diagrams** — Per-warehouse staging → loading → schema evolution flows (for each warehouse connector guide)
-- **Identity Resolution Flow** — Merge-rule resolution pipeline (for `docs/guides/identity/identity-resolution.md`)
-- **Consent Filtering Decision Tree** — OR/AND semantics for OneTrust, Ketch, Generic (for `docs/guides/governance/consent-management.md`)
-- **Replay Semantics Flow** — Archive → replay → re-ingestion pipeline (for `docs/guides/operations/replay.md`)
-- **Configuration Resilience Diagram** — Control Plane polling → encrypted cache → fallback flow (for `docs/architecture/security.md`)
-
-## 0.5 Documentation File Transformation Mapping
-
-### 0.5.1 File-by-File Documentation Plan
-
-The following exhaustive transformation map covers every documentation file to be created, updated, or referenced in this documentation effort. Target documentation files are listed first.
-
-| Target Documentation File | Transformation | Source Code/Docs | Content/Changes |
-|---------------------------|----------------|------------------|-----------------|
-| docs/gap-report/index.md | CREATE | refs/segment-docs/src/**, README.md, all component dirs | Executive summary of Segment-RudderStack parity gaps with feature matrix and prioritized gap inventory |
-| docs/gap-report/event-spec-parity.md | CREATE | gateway/openapi.yaml, gateway/types.go, refs/segment-docs/src/connections/spec/*.md | Segment Spec event-by-event parity analysis (track, identify, page, screen, group, alias) with payload comparison |
-| docs/gap-report/destination-catalog-parity.md | CREATE | router/customdestinationmanager/, services/streammanager/, refs/segment-docs/src/connections/destinations/catalog/ | Full destination catalog comparison with coverage percentage and missing connectors list |
-| docs/gap-report/source-catalog-parity.md | CREATE | refs/segment-docs/src/connections/sources/catalog/, gateway/handle_http_auth.go | Source SDK and cloud source gap analysis with SDK compatibility matrix |
-| docs/gap-report/functions-parity.md | CREATE | processor/usertransformer/, refs/segment-docs/src/connections/functions/ | Transformation/Functions gap analysis comparing RudderStack transforms vs Segment Functions |
-| docs/gap-report/protocols-parity.md | CREATE | processor/trackingplan.go, processor/consent.go, refs/segment-docs/src/protocols/ | Tracking Plan/Protocols enforcement gap analysis with feature comparison matrix |
-| docs/gap-report/identity-parity.md | CREATE | warehouse/identity/, refs/segment-docs/src/unify/ | Identity resolution/Unify gap analysis covering identity graph, profile sync, traits |
-| docs/gap-report/warehouse-parity.md | CREATE | warehouse/integrations/**, refs/segment-docs/src/connections/storage/ | Warehouse sync gap analysis covering idempotency, backfill, and connector features |
-| docs/gap-report/sprint-roadmap.md | CREATE | All gap report files | Epic sequencing roadmap for autonomous gap closure implementation |
-| docs/architecture/overview.md | CREATE | runner/runner.go, app/app.go, docker-compose.yml | High-level system architecture with Mermaid component diagram |
-| docs/architecture/data-flow.md | CREATE | gateway/, processor/, router/, warehouse/ | End-to-end event data flow with Mermaid sequence diagrams |
-| docs/architecture/deployment-topologies.md | CREATE | app/app.go, app/apphandlers/, utils/types/deployment/ | EMBEDDED/GATEWAY/PROCESSOR deployment modes with topology diagrams |
-| docs/architecture/pipeline-stages.md | CREATE | processor/pipeline_worker.go, processor/partition_worker.go | Six-stage Processor pipeline architecture with channel orchestration diagrams |
-| docs/architecture/warehouse-state-machine.md | CREATE | warehouse/router/state.go, warehouse/router/ | 7-state upload lifecycle state machine with transition diagrams |
-| docs/architecture/cluster-management.md | CREATE | app/cluster/dynamic.go, controlplane/ | etcd-based cluster state management with NormalMode/DegradedMode diagrams |
-| docs/architecture/security.md | CREATE | gateway/handle_http_auth.go, backend-config/internal/, services/oauth/, router/network.go | Security architecture covering auth, encryption, SSRF protection, OAuth |
-| docs/api-reference/index.md | CREATE | gateway/openapi.yaml, gateway/handle_http_auth.go | API overview with authentication guide covering 5 auth schemes |
-| docs/api-reference/event-spec/common-fields.md | CREATE | gateway/types.go, refs/segment-docs/src/connections/spec/common.md | Common event fields reference with RudderStack-specific extensions |
-| docs/api-reference/event-spec/identify.md | CREATE | gateway/openapi.yaml, refs/segment-docs/src/connections/spec/identify.md | Identify call specification with payload schema and examples |
-| docs/api-reference/event-spec/track.md | CREATE | gateway/openapi.yaml, refs/segment-docs/src/connections/spec/track.md | Track call specification with payload schema and examples |
-| docs/api-reference/event-spec/page.md | CREATE | gateway/openapi.yaml, refs/segment-docs/src/connections/spec/page.md | Page call specification with payload schema and examples |
-| docs/api-reference/event-spec/screen.md | CREATE | gateway/openapi.yaml, refs/segment-docs/src/connections/spec/screen.md | Screen call specification with payload schema and examples |
-| docs/api-reference/event-spec/group.md | CREATE | gateway/openapi.yaml, refs/segment-docs/src/connections/spec/group.md | Group call specification with payload schema and examples |
-| docs/api-reference/event-spec/alias.md | CREATE | gateway/openapi.yaml, refs/segment-docs/src/connections/spec/alias.md | Alias call specification with payload schema and examples |
-| docs/api-reference/gateway-http-api.md | CREATE | gateway/openapi.yaml, gateway/handle_http*.go | Full HTTP API reference for all Gateway endpoints |
-| docs/api-reference/warehouse-grpc-api.md | CREATE | proto/warehouse/ | Warehouse gRPC service reference (15 unary RPCs) |
-| docs/api-reference/admin-api.md | CREATE | admin/, cmd/rudder-cli/ | Admin RPC and CLI operations reference |
-| docs/api-reference/error-codes.md | CREATE | gateway/response/ | HTTP response codes and error message reference |
-| docs/guides/getting-started/installation.md | CREATE | docker-compose.yml, Dockerfile, README.md | Docker, Kubernetes, and developer machine installation guide |
-| docs/guides/getting-started/configuration.md | CREATE | config/config.yaml, config/sample.env | Configuration quickstart with essential parameters |
-| docs/guides/getting-started/first-events.md | CREATE | gateway/openapi.yaml, cmd/devtool/ | Tutorial for sending first events with curl and devtool |
-| docs/guides/migration/segment-migration.md | CREATE | refs/segment-docs/src/connections/spec/, gateway/openapi.yaml | Step-by-step Segment-to-RudderStack migration guide |
-| docs/guides/migration/sdk-swap-guide.md | CREATE | refs/segment-docs/src/connections/sources/, gateway/handle_http_auth.go | SDK replacement walkthrough for JS, iOS, Android, server-side |
-| docs/guides/sources/javascript-sdk.md | CREATE | gateway/openapi.yaml, refs/segment-docs/src/connections/sources/ | JavaScript web SDK integration guide |
-| docs/guides/sources/ios-sdk.md | CREATE | gateway/openapi.yaml, refs/segment-docs/src/connections/sources/ | iOS SDK integration guide |
-| docs/guides/sources/android-sdk.md | CREATE | gateway/openapi.yaml, refs/segment-docs/src/connections/sources/ | Android SDK integration guide |
-| docs/guides/sources/server-side-sdks.md | CREATE | gateway/openapi.yaml, refs/segment-docs/src/connections/sources/ | Server-side SDK guide (Node.js, Python, Go, Java, Ruby) |
-| docs/guides/destinations/index.md | CREATE | router/customdestinationmanager/, services/streammanager/ | Destination catalog overview with categorization |
-| docs/guides/destinations/stream-destinations.md | CREATE | services/streammanager/ | Stream destination configuration guides (Kafka, Kinesis, Pub/Sub, etc.) |
-| docs/guides/destinations/cloud-destinations.md | CREATE | router/network.go, router/handle.go | Cloud destination integration overview |
-| docs/guides/destinations/warehouse-destinations.md | CREATE | warehouse/integrations/, warehouse/app.go | Warehouse destination overview linking to per-connector guides |
-| docs/guides/transformations/overview.md | CREATE | processor/pipeline_worker.go, processor/manager.go | Transformation system architecture overview |
-| docs/guides/transformations/user-transforms.md | CREATE | processor/usertransformer/, processor/processor.go | JavaScript/Python custom transformation developer guide |
-| docs/guides/transformations/destination-transforms.md | CREATE | processor/transformer/, router/transformer/ | Destination-specific payload transformation reference |
-| docs/guides/transformations/functions.md | CREATE | refs/segment-docs/src/connections/functions/, processor/ | Segment Functions equivalent documentation with gap analysis |
-| docs/guides/governance/tracking-plans.md | CREATE | processor/trackingplan.go, refs/segment-docs/src/protocols/tracking-plan/ | Tracking plan configuration and enforcement guide |
-| docs/guides/governance/consent-management.md | CREATE | processor/consent.go | OneTrust, Ketch, and Generic CMP consent management guide |
-| docs/guides/governance/event-filtering.md | CREATE | processor/eventfilter/ | Event drop and filter rules configuration guide |
-| docs/guides/governance/protocols-enforcement.md | CREATE | processor/trackingplan.go, gateway/validator/, refs/segment-docs/src/protocols/ | Schema validation and Protocols enforcement guide |
-| docs/guides/identity/identity-resolution.md | CREATE | warehouse/identity/, refs/segment-docs/src/unify/identity-resolution/ | Cross-touchpoint identity unification guide |
-| docs/guides/identity/profiles.md | CREATE | warehouse/identity/, refs/segment-docs/src/unify/ | User profiles and traits management guide |
-| docs/guides/operations/warehouse-sync.md | CREATE | warehouse/router/, warehouse/app.go, config/config.yaml | Warehouse sync configuration, monitoring, and troubleshooting guide |
-| docs/guides/operations/replay.md | CREATE | archiver/, gateway/handle_http_replay.go, backend-config/replay_types.go | Event replay and replay-on-failure operational guide |
-| docs/guides/operations/privacy-compliance.md | CREATE | regulation-worker/, enterprise/suppress-user/ | GDPR compliance, data deletion, and user suppression guide |
-| docs/guides/operations/capacity-planning.md | CREATE | config/config.yaml, router/throttler/, gateway/throttler/ | Pipeline capacity planning guide for 50k events/sec target |
-| docs/warehouse/overview.md | CREATE | warehouse/app.go, warehouse/router/ | Warehouse service architecture and operational modes |
-| docs/warehouse/snowflake.md | CREATE | warehouse/integrations/snowflake/, warehouse/.cursor/docs/snowpipe-streaming.md | Snowflake connector setup, configuration, and Snowpipe Streaming guide |
-| docs/warehouse/bigquery.md | CREATE | warehouse/integrations/bigquery/ | BigQuery connector setup, configuration, and parallel loading guide |
-| docs/warehouse/redshift.md | CREATE | warehouse/integrations/redshift/ | Redshift connector setup with IAM/password auth and manifest loading |
-| docs/warehouse/clickhouse.md | CREATE | warehouse/integrations/clickhouse/ | ClickHouse connector setup with MergeTree engine and cluster support |
-| docs/warehouse/databricks.md | CREATE | warehouse/integrations/deltalake/ | Databricks Delta Lake connector with merge/append strategies |
-| docs/warehouse/postgres.md | CREATE | warehouse/integrations/postgres/ | PostgreSQL warehouse connector guide |
-| docs/warehouse/mssql.md | CREATE | warehouse/integrations/mssql/ | SQL Server connector with bulk CopyIn ingestion |
-| docs/warehouse/azure-synapse.md | CREATE | warehouse/integrations/azure-synapse/ | Azure Synapse connector with COPY INTO ingestion |
-| docs/warehouse/datalake.md | CREATE | warehouse/integrations/datalake/ | S3/GCS/Azure Datalake connector with Parquet exports |
-| docs/warehouse/schema-evolution.md | CREATE | warehouse/schema/ | Automatic schema management and evolution reference |
-| docs/warehouse/encoding-formats.md | CREATE | warehouse/encoding/ | Parquet, JSON, CSV encoding format reference |
-| docs/reference/config-reference.md | CREATE | config/config.yaml | Complete configuration parameter reference (200+ parameters) |
-| docs/reference/env-var-reference.md | CREATE | config/sample.env | Environment variable reference with descriptions and defaults |
-| docs/reference/glossary.md | CREATE | refs/segment-docs/src/glossary.md, README.md | Unified terminology glossary (RudderStack + Segment terms) |
-| docs/reference/faq.md | CREATE | README.md, CONTRIBUTING.md | Frequently asked questions for developers and operators |
-| docs/contributing/development.md | CREATE | Makefile, CONTRIBUTING.md, docker-compose.yml | Development environment setup and build guide |
-| docs/contributing/destination-onboarding.md | CREATE | router/batchrouter/asyncdestinationmanager/README.md | New destination connector onboarding developer guide |
-| docs/contributing/testing.md | CREATE | integration_test/, testhelper/ | Test infrastructure and guidelines |
-| README.md | UPDATE | README.md | Add documentation section linking to docs/, update architecture diagram reference, add gap report section |
-| CONTRIBUTING.md | UPDATE | CONTRIBUTING.md | Add documentation contribution guidelines section |
-
-### 0.5.2 New Documentation Files Detail
-
-**File: docs/gap-report/index.md**
-- Type: Gap Analysis Report
-- Source Code: All component directories + refs/segment-docs/
-- Sections:
-  - Executive Summary (overall parity assessment)
-  - Feature Parity Matrix (Segment feature → RudderStack status)
-  - Critical Gaps (features requiring implementation)
-  - Partial Implementations (features needing enhancement)
-  - Sprint Roadmap Summary (link to detailed roadmap)
-- Diagrams:
-  - Feature parity radar chart (Mermaid)
-  - Gap severity heat map
-- Key Citations: refs/segment-docs/src/connections/spec/, gateway/openapi.yaml, warehouse/integrations/
-
-**File: docs/architecture/data-flow.md**
-- Type: Architecture Documentation
-- Source Code: gateway/, processor/, router/, warehouse/, jobsdb/
-- Sections:
-  - End-to-End Event Pipeline (ingestion → processing → routing → warehouse)
-  - Stage 1: Ingestion (Gateway worker pool, auth, validation, batching)
-  - Stage 2: Processing (6-stage pipeline with channel orchestration)
-  - Stage 3: Real-Time Routing (worker pool, throttling, ordering, retry)
-  - Stage 4: Batch Routing (bulk delivery, staging file generation)
-  - Stage 5: Warehouse Loading (7-state upload machine, schema evolution)
-  - Supporting Flows (config, dedup, suppression, archival, schema forwarding)
-- Diagrams:
-  - Sequence diagram: Event lifecycle from SDK to warehouse
-  - Flowchart: Processor 6-stage pipeline
-  - State diagram: Warehouse upload state machine
-  - Flowchart: Router retry and backoff logic
-- Key Citations: processor/pipeline_worker.go, warehouse/router/state.go, router/handle.go, gateway/handle.go
-
-**File: docs/guides/operations/capacity-planning.md**
-- Type: Operations Guide
-- Source Code: config/config.yaml, gateway/throttler/, router/throttler/, router/worker_buffer_calculator.go
-- Sections:
-  - Target Throughput (50k events/sec with ordering guarantees)
-  - Gateway Tuning (web workers, DB writers, batch sizes, rate limiting)
-  - Processor Tuning (transform batch sizes, worker partitions)
-  - Router Tuning (workers, GCRA throttling, retry windows, buffer sizing)
-  - Warehouse Tuning (parallel loads, backoff, worker counts)
-  - Deployment Scaling (GATEWAY/PROCESSOR split for horizontal scaling)
-  - Monitoring and Alerting (Prometheus metrics, stats instrumentation)
-- Key Citations: config/config.yaml, router/config.go, processor/partition_worker.go
-
-### 0.5.3 Documentation Files to Update Detail
-
-- **README.md** — Add documentation section and gap report references
-  - New sections: Documentation link section pointing to `docs/` directory
-  - Updated sections: Architecture section with links to detailed docs
-  - Added content: Gap report summary and link to `docs/gap-report/index.md`
-  - Updated: Table of contents
-
-- **CONTRIBUTING.md** — Add documentation contribution guidelines
-  - New sections: Documentation contribution workflow
-  - Added content: Documentation style guide reference, how to contribute docs, documentation PR requirements
-
-### 0.5.4 Cross-Documentation Dependencies
-
-- **Shared terminology:** `docs/reference/glossary.md` serves as the canonical terminology source referenced by all other documents
-- **Navigation links:** All gap report files cross-reference each other and link to corresponding architecture/guide docs
-- **Architecture docs:** Referenced by all guide and reference documents as prerequisite reading
-- **Event spec docs:** Referenced by migration guides, SDK guides, and gap report
-- **Config reference:** Referenced by all operational guides and capacity planning documentation
-- **Warehouse connector guides:** Each references the shared `docs/warehouse/overview.md`, `docs/warehouse/schema-evolution.md`, and `docs/warehouse/encoding-formats.md`
-
-## 0.6 Dependency Inventory
-
-### 0.6.1 Documentation Dependencies
-
-The following documentation tools and packages are relevant to this documentation exercise. All versions are derived from the repository's dependency manifests or verified against the codebase.
-
-| Registry | Package Name | Version | Purpose |
-|----------|--------------|---------|---------|
-| go.mod | Go (runtime) | 1.26.0 | Primary application language; code examples and API extraction |
-| Docker Hub | postgres | 15-alpine | PostgreSQL database used by JobsDB; documented in docker-compose.yml |
-| Docker Hub | rudder-transformer | latest | External Transformer service; documented in docker-compose.yml |
-| go.mod | cloud.google.com/go/bigquery | 1.72.0 | BigQuery SDK for warehouse connector documentation |
-| go.mod | github.com/aws/aws-sdk-go-v2 | 1.41.1 | AWS SDK for Redshift, S3, Kinesis connector documentation |
-| go.mod | github.com/ClickHouse/clickhouse-go | 1.5.4 | ClickHouse driver for warehouse connector documentation |
-| go.mod | github.com/apache/pulsar-client-go | 0.18.0 | Pulsar client for schema forwarding documentation |
-| go.mod | google.golang.org/grpc | (from go.mod) | gRPC framework for warehouse API documentation |
-| go.mod | google.golang.org/protobuf | (from go.mod) | Protobuf for proto service definition documentation |
-| npm (refs) | jekyll | (from Gemfile) | Jekyll static site generator used by refs/segment-docs |
-| npm (refs) | webpack | (from package.json) | Webpack bundler used by refs/segment-docs |
-| proto | protoc-gen-go | 1.33.0 | Protobuf Go code generator (from Makefile) |
-| proto | protoc-gen-go-grpc | 1.3.0 | gRPC Go code generator (from Makefile) |
-| OpenAPI | OpenAPI Specification | 3.0.3 | API spec version used in gateway/openapi.yaml |
-| Diagram | Mermaid | latest | Diagram rendering tool for documentation visualizations |
-
-### 0.6.2 Documentation Reference Updates
-
-Documentation files requiring link updates after the new documentation structure is created:
-
-- **README.md** — Add links to new `docs/` directory structure
-  - Add: `[Documentation](docs/README.md)` in the navigation section
-  - Add: `[Gap Report](docs/gap-report/index.md)` in the project overview
-  - Add: `[Architecture](docs/architecture/overview.md)` under Architecture section
-  - Add: `[API Reference](docs/api-reference/index.md)` in relevant sections
-
-- **CONTRIBUTING.md** — Add links to documentation contribution resources
-  - Add: `[Documentation Guidelines](docs/contributing/development.md)` under contribution types
-  - Add: `[Destination Onboarding](docs/contributing/destination-onboarding.md)` under integration contribution
-
-- **Link transformation rules:**
-  - All internal documentation links use relative paths from the `docs/` root
-  - Cross-references between gap report files use relative paths: `[Event Spec Parity](./event-spec-parity.md)`
-  - Architecture references from guides use relative upward navigation: `[Architecture Overview](../../architecture/overview.md)`
-  - External links to RudderStack documentation site preserved as-is: `https://www.rudderstack.com/docs/`
-  - Segment documentation references cite the local mirror: `Source: refs/segment-docs/src/connections/spec/track.md`
-
-## 0.7 Coverage and Quality Targets
-
-### 0.7.1 Documentation Coverage Metrics
-
-**Current Coverage Analysis:**
-
-| Documentation Domain | Documented | Total | Coverage |
-|---------------------|------------|-------|----------|
-| Public HTTP API endpoints | 1 (OpenAPI spec) | 15+ endpoints | ~7% |
-| Core pipeline components (Gateway, Processor, Router, Batch Router, Warehouse) | 0 architecture docs | 5 components | 0% |
-| Warehouse connectors | 0 connector guides | 9 connectors | 0% |
-| Stream destination integrations | 0 integration guides | 13 stream destinations | 0% |
-| Configuration parameters | ~10 (inline comments) | 200+ parameters | ~5% |
-| Infrastructure components (JobsDB, Backend Config, Control Plane, Runner) | 0 docs | 4 components | 0% |
-| Supporting services (19 service packages) | 1 (OAuth README) | 19 services | ~5% |
-| Enterprise features | 0 docs | 4 sub-modules | 0% |
-| Event spec calls (identify, track, page, screen, group, alias) | 1 (OpenAPI) | 6 event types | ~17% |
-| Operational guides (replay, compliance, capacity) | 0 guides | 4 areas | 0% |
-
-**Target Coverage:**
-
-| Documentation Domain | Target Coverage | Justification |
-|---------------------|----------------|---------------|
-| Public HTTP API endpoints | 100% | All endpoints must have developer reference docs with examples |
-| Core pipeline components | 100% | Architecture docs required for all 5 pipeline components |
-| Warehouse connectors (Snowflake, BigQuery, Redshift) | 100% | Priority connectors per user requirements — full guides with setup, config, troubleshooting |
-| Warehouse connectors (remaining 6) | 100% | Complete connector documentation for all supported warehouses |
-| Stream destination integrations | 100% | All stream destinations require configuration guides |
-| Configuration parameters | 100% | All 200+ parameters documented in reference guide |
-| Event spec calls | 100% | Full Segment Spec parity documentation for all 6 event types |
-| Gap report (Segment parity) | 100% | Complete gap analysis across all 8 parity dimensions |
-| Operational guides | 100% | All operational areas documented for production readiness |
-
-**Coverage Gaps to Address:**
-
-| Area | Current | Target | Priority |
-|------|---------|--------|----------|
-| Gap Report (Segment Parity) | 0% | 100% | Critical — initial run deliverable |
-| Event Spec API Reference | 17% | 100% | Critical — core Segment compatibility |
-| Pipeline Architecture Docs | 0% | 100% | Critical — foundation for all other docs |
-| Warehouse Connector Guides | 0% | 100% | High — key differentiator |
-| Transformation Developer Guide | 0% | 100% | High — core developer workflow |
-| Migration Guide | 0% | 100% | High — Segment switching enablement |
-| Configuration Reference | 5% | 100% | High — operational necessity |
-| Identity Resolution Docs | 0% | 100% | Medium — gap analysis dependency |
-| Protocols/Governance Docs | 0% | 100% | Medium — gap analysis dependency |
-
-### 0.7.2 Documentation Quality Criteria
-
-**Completeness Requirements:**
-- All public API endpoints have descriptions, request/response schemas, authentication requirements, and curl examples
-- All architecture documents include Mermaid diagrams showing component relationships and data flows
-- All warehouse connector guides include prerequisites, setup steps, configuration parameters, schema management, troubleshooting, and performance tuning
-- All gap report sections include feature comparison matrices with Segment reference links, current RudderStack status, and remediation recommendations
-- All operational guides include monitoring commands, log interpretation, and failure recovery procedures
-
-**Accuracy Validation:**
-- API payload schemas must match the current `gateway/openapi.yaml` specification (OpenAPI 3.0.3)
-- Configuration parameter defaults must match values in `config/config.yaml` (verified against codebase)
-- Event spec definitions must be cross-validated against both `gateway/types.go` and Segment spec in `refs/segment-docs/src/connections/spec/`
-- Warehouse connector configuration parameters must match integration source code in `warehouse/integrations/*/`
-- Architecture diagrams must reflect the actual component wiring in `runner/runner.go` and deployment types in `app/app.go`
-
-**Clarity Standards:**
-- Technical accuracy with language accessible to senior engineers and data engineering teams
-- Progressive disclosure: overview → detailed explanation → API reference → code examples
-- Consistent terminology from the unified glossary (`docs/reference/glossary.md`)
-- Every code example includes language annotation and source file citation
-- Tables for all parameter references, comparison matrices, and configuration options
-
-**Maintainability:**
-- Source citations for traceability: every technical claim references a specific file path and line range
-- Clear structure enabling incremental updates as gaps are closed
-- Template-based consistency across all warehouse connector guides and event spec docs
-- Cross-references between related documents for navigability
-
-### 0.7.3 Example and Diagram Requirements
-
-| Requirement | Target | Documentation Area |
-|-------------|--------|-------------------|
-| Minimum code examples per API endpoint | 2 (curl + SDK) | API Reference |
-| Minimum code examples per warehouse connector | 3 (setup, query, troubleshoot) | Warehouse Guides |
-| Mermaid architecture diagrams | 12+ | Architecture docs |
-| Mermaid sequence diagrams | 6+ | Data flow, identity, replay |
-| Mermaid state diagrams | 2+ | Warehouse state machine, cluster state |
-| Feature comparison tables | 8 | Gap report sections |
-| Configuration parameter tables | 10+ | Config reference, operational guides |
-| Payload schema examples | 12+ (2 per event type) | Event spec reference |
-
-**Diagram Types Required:**
-- Flowcharts: System architecture, deployment topologies, data flows
-- Sequence diagrams: Event lifecycle, identity resolution, OAuth flow
-- State diagrams: Warehouse upload state machine, cluster mode transitions
-- Class diagrams: Destination connector hierarchy, service dependency graph
-- Gantt-style: Sprint roadmap for gap closure (in gap report)
-
-**Code Example Validation:**
-- All curl examples must reference correct Gateway port (8080) and authentication headers
-- All Go code examples must compile with Go 1.26.0
-- All JavaScript transformation examples must be valid for the Transformer service
-- All configuration examples must use parameters from `config/config.yaml` with correct types and ranges
-
-## 0.8 Scope Boundaries
-
-### 0.8.1 Exhaustively In Scope
+These feature requirements translate to the following technical implementation strategy:
+
+- To **validate payload schema parity** (E-001, E-003), we will create comprehensive field-level comparison tests in `gateway/` and `processor/` that send all six event types through the Gateway and assert each field is preserved through the pipeline stages, referencing the Segment Spec definitions in `refs/segment-docs/src/connections/spec/`
+- To **verify Client Hints pass-through** (ES-001), we will create integration tests that submit payloads with `context.userAgentData` containing structured Client Hints data, then verify the data arrives intact at destination webhooks and warehouse tables by extending the existing `integration_test/docker_test/` test harness
+- To **validate semantic event routing** (ES-002), we will create test fixtures for E-Commerce v2, Video, and Mobile semantic events and verify destination transforms correctly map standardized event names, extending tests in `processor/internal/transformer/`
+- To **validate reserved trait handling** (ES-003), we will create test payloads with all 18 identify reserved traits and 12 group reserved traits and verify they pass through the pipeline without data loss or type coercion
+- To **verify channel auto-population** (ES-007), we will audit Gateway handler code in `gateway/handle.go` and `gateway/handle_http.go` for channel field handling, and create tests that verify proper SDK-originated `context.channel` values propagate correctly
+- To **document extensions** (ES-004, ES-006), we will update `docs/gap-report/event-spec-parity.md` and create new documentation in `docs/api-reference/` confirming RudderStack extensions and recommended batch sizing for SDK compatibility
+
+## 0.2 Repository Scope Discovery
+
+### 0.2.1 Comprehensive File Analysis
+
+The following analysis maps every existing file and directory in the repository that requires modification, verification, or extension to achieve 100% Event Spec Parity.
+
+**Gateway Layer — Event Ingestion and Validation**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `gateway/handle_http.go` | Source | HTTP handler wiring for all 6 event types + batch + merge | VERIFY — Confirm all `callType()` middleware mappings match Segment endpoints |
+| `gateway/handle.go` | Source | Core request handler with batching, validation, suppression, and queueing | MODIFY — Add `context.userAgentData` structured pass-through verification; audit `context.channel` handling |
+| `gateway/handle_http_auth.go` | Source | Write Key / Source ID / Webhook authentication | VERIFY — Confirm Basic Auth scheme matches Segment exactly |
+| `gateway/handle_http_beacon.go` | Source | Beacon-based tracking support | VERIFY — Confirm beacon payloads preserve all Segment Spec fields |
+| `gateway/handle_http_pixel.go` | Source | Pixel tracking with GIF response | VERIFY — Document as RudderStack extension |
+| `gateway/handle_http_import.go` | Source | Historical data import endpoint | VERIFY — Confirm `/v1/import` parity with Segment |
+| `gateway/handle_http_replay.go` | Source | Event replay re-ingestion | DOCUMENT — RudderStack extension |
+| `gateway/handle_http_retl.go` | Source | Reverse ETL event ingestion | DOCUMENT — RudderStack extension |
+| `gateway/handle_lifecycle.go` | Source | Setup, dependency wiring, worker lifecycle | VERIFY — No changes expected |
+| `gateway/handle_observability.go` | Source | Request/failure metrics | VERIFY — Ensure parity metrics are instrumented |
+| `gateway/handle_diagnostics.go` | Source | Diagnostic hooks | VERIFY — No changes expected |
+| `gateway/handle_webhook.go` | Source | Webhook pipeline glue | VERIFY — No changes expected |
+| `gateway/types.go` | Source | Shared request types, batching envelopes | VERIFY — Confirm `webRequestT.reqType` includes all 6 Segment types |
+| `gateway/gateway.go` | Source | Static constants, regex, sentinel errors | VERIFY — Constants and error messages match Segment |
+| `gateway/openapi.yaml` | Config | OpenAPI 3.0.3 spec for all Gateway endpoints | MODIFY — Update schemas if any field gaps are discovered (e.g., `context.userAgentData` explicit definition) |
+| `gateway/regular_handler.go` | Source | Regular web request handler | VERIFY — Payload grouping and queueing |
+| `gateway/import_handler.go` | Source | Import request handler | VERIFY — Payload grouping for import |
+| `gateway/validator/validator.go` | Source | Validation mediator orchestration | VERIFY — Confirm validator chain processes all Segment Spec fields |
+| `gateway/validator/msg_id_validator.go` | Source | messageId presence validation | VERIFY — Confirm matches Segment messageId behavior |
+| `gateway/validator/received_at_validator.go` | Source | receivedAt timestamp validation | VERIFY — Confirm receivedAt is set identically to Segment |
+| `gateway/validator/req_type_validator.go` | Source | Request type correlation | VERIFY — Confirm all 6 event types + batch are accepted |
+| `gateway/validator/request_ip_validator.go` | Source | request_ip presence check | VERIFY — Confirm IP handling matches Segment |
+| `gateway/validator/rudder_id_validator.go` | Source | rudderId presence check | VERIFY — RudderStack-specific, document as extension |
+| `gateway/validator/msg_properties_validator.go` | Source | Metadata-level validation wrapper | VERIFY — No changes expected |
+| `gateway/validator/validator_test.go` | Test | Validator test suite | MODIFY — Add test cases for Client Hints pass-through and channel field |
+
+**Gateway Internal Subsystems**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `gateway/internal/bot/bot.go` | Source | Bot user agent detection | VERIFY — Ensure Client Hints-enriched payloads are not falsely flagged |
+| `gateway/internal/bot/bot_test.go` | Test | Bot detection tests | MODIFY — Add Client Hints-aware test cases |
+| `gateway/response/` | Directory | Canonical response strings and HTTP status codes | VERIFY — Confirm response codes match Segment (200, 400, 401, 404, 413, 429) |
+| `gateway/throttler/` | Directory | Per-workspace rate limiting | VERIFY — No changes expected |
+| `gateway/types/` | Directory | Context keys, AuthRequestContext | VERIFY — Ensure context types support all Segment Spec fields |
+| `gateway/webhook/` | Directory | Webhook pipeline | VERIFY — No changes expected |
+
+**Gateway Tests**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `gateway/gateway_test.go` | Test | Comprehensive gateway unit tests | MODIFY — Add event spec parity test cases for all 6 event types |
+| `gateway/gateway_integration_test.go` | Test | Gateway integration tests | MODIFY — Add end-to-end parity validation tests |
+| `gateway/handle_test.go` | Test | Handle unit tests | MODIFY — Add `context.userAgentData` and `context.channel` test cases |
+| `gateway/handle_http_auth_test.go` | Test | Auth handler tests | VERIFY — Confirm Basic Auth test coverage |
+| `gateway/handle_http_beacon_test.go` | Test | Beacon handler tests | VERIFY — Confirm beacon preserves all Spec fields |
+| `gateway/handle_http_pixel_test.go` | Test | Pixel handler tests | VERIFY — Document pixel as extension |
+| `gateway/gateway_suite_test.go` | Test | Ginkgo suite bootstrap | VERIFY — No changes expected |
+
+**Processor Layer — Event Pipeline and Transformation**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `processor/processor.go` | Source | Core 6-stage pipeline handler | VERIFY — Confirm all Spec fields pass through pipeline stages without modification |
+| `processor/pipeline_worker.go` | Source | Channel orchestration across stages | VERIFY — Ensure `context.userAgentData` is not stripped during processing |
+| `processor/consent.go` | Source | Consent filtering logic | VERIFY — Confirm consent filtering does not strip Spec fields |
+| `processor/trackingplan.go` | Source | Tracking plan validation | VERIFY — Confirm validation does not reject valid Segment Spec payloads |
+| `processor/src_hydration_stage.go` | Source | Source hydration helpers | VERIFY — Confirm hydration preserves all Spec fields |
+| `processor/integrations/integrations.go` | Source | Integration adapter for transformer responses | VERIFY — Confirm `FilterClientIntegrations` correctly handles `integrations` field per Segment Spec |
+| `processor/processor_test.go` | Test | Processor unit/BDD test suite | MODIFY — Add event spec parity test scenarios |
+| `processor/processor_bot_enricher_test.go` | Test | Bot enrichment tests | VERIFY — Ensure Client Hints payloads handled correctly |
+| `processor/processor_event_dropping_test.go` | Test | Event dropping tests | VERIFY — Ensure Spec events are never incorrectly dropped |
+
+**Processor Internal — Transformer Clients**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `processor/transformer/clients.go` | Source | Transformer client factory | VERIFY — Ensure all transformer clients handle Spec events |
+| `processor/internal/transformer/destination_transformer/` | Directory | Destination transformation orchestration | VERIFY — Confirm semantic event category handling in destination transforms |
+| `processor/internal/transformer/destination_transformer/embedded/warehouse/events.go` | Source | Warehouse event-type aggregation logic | VERIFY — Confirm all 6 event types are processed correctly with proper rule application |
+| `processor/internal/transformer/destination_transformer/embedded/warehouse/events_test.go` | Test | Warehouse events tests | MODIFY — Add reserved trait validation test cases |
+| `processor/internal/transformer/destination_transformer/embedded/warehouse/idresolution.go` | Source | Identity resolution for warehouse | VERIFY — Confirm alias merge-rule resolution functions |
+| `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules.go` | Source | Reserved column rules for all event types | VERIFY — Confirm rules cover all Segment Spec reserved fields per event type |
+| `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules_test.go` | Test | Rules test suite | MODIFY — Add reserved trait and group trait test coverage |
+
+**Router Layer — Event Delivery**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `router/handle.go` | Source | Core routing loop with job pickup and delivery | VERIFY — Confirm routing does not modify Spec payload fields |
+| `router/worker.go` | Source | Worker job intake, batching, transformation, delivery | VERIFY — Confirm transformation preserves Spec fields |
+| `router/network.go` | Source | REST payload marshalling and delivery | VERIFY — Confirm payload serialization preserves all fields including `context.userAgentData` |
+| `router/transformer/` | Directory | Transformer proxy adapters | VERIFY — Confirm semantic event names pass through to destination transforms |
+
+**Warehouse Layer — Identity and Data Loading**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `warehouse/identity/identity.go` | Source | Identity resolver (merge-rule model) | VERIFY — Document as partial parity for ES-005 (no real-time identity graph) |
+
+**Integration Tests**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `integration_test/docker_test/` | Directory | Full-stack Docker regression suite | MODIFY — Extend with event spec parity test scenarios |
+| `integration_test/docker_test/testdata/workspaceConfigTemplate.json` | Config | Test workspace template | MODIFY — Add test fixtures for all 6 event types with reserved traits |
+| `integration_test/transformer_contract/` | Directory | Transformer contract tests | VERIFY — Confirm transformer contract covers all Spec event types |
+
+**Documentation**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `docs/gap-report/event-spec-parity.md` | Documentation | Canonical gap report | MODIFY — Update parity assessment to 100% upon gap closure |
+| `docs/gap-report/sprint-roadmap.md` | Documentation | Sprint roadmap | MODIFY — Mark Sprint 1-2 epics as complete |
+| `docs/gap-report/index.md` | Documentation | Executive gap report index | MODIFY — Update overall parity percentages |
+| `docs/api-reference/` | Directory | API reference documentation | MODIFY — Add event spec field-level documentation |
+| `README.md` | Documentation | Project readme | MODIFY — Update parity status |
+
+**Configuration**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `config/config.yaml` | Config | Master runtime configuration | VERIFY — Confirm Gateway configuration supports all Spec fields |
+| `config/sample.env` | Config | Environment variable reference | VERIFY — No changes expected |
+
+**Segment Reference Corpus**
+
+| File/Pattern | Type | Relevance | Action |
+|---|---|---|---|
+| `refs/segment-docs/src/connections/spec/identify.md` | Reference | Segment Identify spec | READ — Authoritative baseline for identify parity |
+| `refs/segment-docs/src/connections/spec/track.md` | Reference | Segment Track spec | READ — Authoritative baseline for track parity |
+| `refs/segment-docs/src/connections/spec/page.md` | Reference | Segment Page spec | READ — Authoritative baseline for page parity |
+| `refs/segment-docs/src/connections/spec/screen.md` | Reference | Segment Screen spec | READ — Authoritative baseline for screen parity |
+| `refs/segment-docs/src/connections/spec/group.md` | Reference | Segment Group spec | READ — Authoritative baseline for group parity |
+| `refs/segment-docs/src/connections/spec/alias.md` | Reference | Segment Alias spec | READ — Authoritative baseline for alias parity |
+| `refs/segment-docs/src/connections/spec/common.md` | Reference | Segment Common Fields spec | READ — Authoritative baseline for common fields and context object |
+| `refs/segment-docs/src/connections/spec/ecommerce/v2.md` | Reference | Segment E-Commerce v2 spec | READ — Semantic event category definitions |
+| `refs/segment-docs/src/connections/spec/video.md` | Reference | Segment Video spec | READ — Semantic video event definitions |
+| `refs/segment-docs/src/connections/spec/mobile.md` | Reference | Segment Mobile spec | READ — Semantic mobile lifecycle definitions |
+
+### 0.2.2 Web Search Research Conducted
+
+- Best practices for implementing Client Hints API pass-through in HTTP proxy/gateway services
+- Segment Spec E-Commerce v2 semantic event naming conventions and reserved property validation patterns
+- Go testing patterns for field-level JSON payload comparison across pipeline stages
+- Integration testing approaches for end-to-end event data flow verification in Go monolith architectures
+
+### 0.2.3 New File Requirements
+
+**New Test Files:**
+
+| File Path | Purpose |
+|---|---|
+| `gateway/event_spec_parity_test.go` | Comprehensive field-level parity validation for all 6 event types against Segment Spec definitions |
+| `gateway/client_hints_test.go` | Dedicated tests for `context.userAgentData` structured Client Hints pass-through |
+| `processor/event_spec_parity_test.go` | Processor-level validation that all Spec fields survive the 6-stage pipeline |
+| `processor/reserved_traits_test.go` | Validation of reserved trait handling for identify (18 traits) and group (12 traits) |
+| `integration_test/event_spec_parity/` | New integration test subdirectory for end-to-end event spec parity validation |
+| `integration_test/event_spec_parity/event_spec_parity_test.go` | Full-stack integration test exercising all 6 event types across Gateway → Processor → Router → Warehouse |
+| `integration_test/event_spec_parity/testdata/` | Test fixtures with all 6 event types, reserved traits, Client Hints, and semantic events |
 
 **New Documentation Files:**
-- `docs/gap-report/**/*.md` — All Segment parity gap analysis documentation (9 files)
-- `docs/architecture/**/*.md` — All system architecture documentation (7 files)
-- `docs/api-reference/**/*.md` — All API reference documentation including event spec sub-directory (11 files)
-- `docs/guides/getting-started/**/*.md` — All getting-started and onboarding documentation (3 files)
-- `docs/guides/migration/**/*.md` — All Segment-to-RudderStack migration documentation (2 files)
-- `docs/guides/sources/**/*.md` — All source SDK integration guides (4 files)
-- `docs/guides/destinations/**/*.md` — All destination integration guides (4 files)
-- `docs/guides/transformations/**/*.md` — All transformation and Functions documentation (4 files)
-- `docs/guides/governance/**/*.md` — All tracking plan and consent governance documentation (4 files)
-- `docs/guides/identity/**/*.md` — All identity resolution and profiles documentation (2 files)
-- `docs/guides/operations/**/*.md` — All operational guides (4 files)
-- `docs/warehouse/**/*.md` — All warehouse connector and service documentation (12 files)
-- `docs/reference/**/*.md` — All reference documentation (4 files)
-- `docs/contributing/**/*.md` — All developer contribution documentation (3 files)
-- `docs/README.md` — Documentation landing page and navigation
 
-**Documentation File Updates:**
-- `README.md` — Add documentation section linking to docs/ and gap report
-- `CONTRIBUTING.md` — Add documentation contribution guidelines
+| File Path | Purpose |
+|---|---|
+| `docs/api-reference/event-spec/` | Directory for detailed event spec field-level documentation |
+| `docs/api-reference/event-spec/common-fields.md` | Common fields reference with parity confirmation |
+| `docs/api-reference/event-spec/semantic-events.md` | Semantic event category documentation and routing behavior |
+| `docs/api-reference/event-spec/extensions.md` | RudderStack extension endpoints documentation |
 
-**Documentation Assets:**
-- Mermaid diagrams embedded within Markdown files (no separate image assets required)
-- Code examples embedded within documentation files (Go, JavaScript, Python, curl)
+**New Configuration Files:**
 
-**Source Reference Materials:**
-- `refs/segment-docs/src/**` — Segment documentation reference (read-only, used as comparison baseline)
-- `gateway/openapi.yaml` — OpenAPI 3.0.3 specification (read-only, used as API extraction source)
-- `config/config.yaml` — Configuration parameter reference (read-only, used as config extraction source)
-- `config/sample.env` — Environment variable reference (read-only, used as env var extraction source)
-- `proto/**/*.proto` — Protocol buffer definitions (read-only, used as gRPC API extraction source)
+| File Path | Purpose |
+|---|---|
+| `integration_test/event_spec_parity/testdata/workspaceConfigTemplate.json` | Workspace configuration template for parity tests |
+| `integration_test/event_spec_parity/testdata/segment_spec_payloads.json` | Canonical Segment Spec payload fixtures for all 6 event types |
 
-### 0.8.2 Explicitly Out of Scope
+## 0.3 Dependency Inventory
 
-**Source Code Modifications:**
-- No modifications to Go source code files (`.go` files) — this is a documentation-only effort
-- No modifications to test files (`*_test.go`) — testing documentation is created but test code is not modified
-- No addition of Go doc comments or inline code documentation — unless explicitly requested in a future phase
+### 0.3.1 Private and Public Packages
 
-**Feature Development:**
-- No implementation of missing Segment features identified in the gap report — the gap report documents gaps for future implementation phases
-- No code changes to close identified parity gaps — implementation is deferred to subsequent autonomous runs
-- No destination connector code additions — only documentation of existing and missing connectors
-- No transformation framework code changes — only documentation of current capabilities and gaps
+The following table lists all key packages relevant to the Event Spec Parity feature addition, with exact versions drawn from `go.mod`:
 
-**Excluded Segment Features (Phase 1):**
-- Segment Engage/Campaigns documentation — explicitly excluded per user instructions
-- Reverse ETL documentation — explicitly excluded per user instructions
+| Registry | Package | Version | Purpose |
+|---|---|---|---|
+| Go stdlib | `go` | 1.26.0 | Runtime version from `go.mod` |
+| GitHub | `github.com/rudderlabs/rudder-go-kit` | v0.72.3 | Core toolkit (config, logger, stats, httputil, jsonrs) |
+| GitHub | `github.com/rudderlabs/rudder-observability-kit` | v0.0.6 | Observability instrumentation (obskit) |
+| GitHub | `github.com/rudderlabs/rudder-schemas` | v0.9.1 | Shared schema definitions (stream.MessageProperties) |
+| GitHub | `github.com/rudderlabs/rudder-transformer/go` | v1.122.0 | Transformer Go client library |
+| GitHub | `github.com/rudderlabs/analytics-go` | v3.3.3+incompatible | RudderStack analytics client |
+| GitHub | `github.com/tidwall/gjson` | v1.18.0 | Fast JSON value extraction (used in validators) |
+| GitHub | `github.com/tidwall/sjson` | v1.2.5 | Fast JSON value mutation |
+| GitHub | `github.com/grafana/jsonparser` | v0.0.0-20250908162026-5c2524e07b4c | High-performance JSON parser |
+| GitHub | `github.com/go-chi/chi/v5` | v5.2.5 | HTTP router for Gateway endpoints |
+| GitHub | `github.com/stretchr/testify` | v1.11.1 | Test assertion library (assert, require) |
+| GitHub | `github.com/onsi/ginkgo/v2` | v2.24.0 | BDD test framework |
+| GitHub | `github.com/onsi/gomega` | v1.38.0 | BDD matcher library |
+| GitHub | `github.com/ory/dockertest/v3` | v3.12.0 | Docker container orchestration for integration tests |
+| GitHub | `go.uber.org/mock` | v0.6.0 | Interface mock generation |
+| GitHub | `github.com/google/go-cmp` | v0.7.0 | Deep structural comparison for test assertions |
+| GitHub | `github.com/google/uuid` | v1.6.0 | UUID generation (messageId) |
+| GitHub | `github.com/samber/lo` | v1.52.0 | Go generics utility library (map, filter, chunk) |
+| GitHub | `github.com/lib/pq` | v1.11.2 | PostgreSQL driver |
+| GitHub | `github.com/golang-migrate/migrate/v4` | v4.18.3 | Database migration framework |
+| GitHub | `github.com/golang/mock` | v1.6.0 | Legacy mock generation (some existing tests) |
+| GitHub | `github.com/phayes/freeport` | v0.0.0-20220201140144-74d24b5ae9f5 | Dynamic port allocation for test isolation |
+| GitHub | `github.com/rs/cors` | v1.11.1 | CORS middleware |
+| GitHub | `github.com/klauspost/compress` | v1.18.4 | Compression (gzip support in Gateway and Router) |
+| GitHub | `github.com/evanphx/json-patch/v5` | v5.9.11 | JSON patch operations |
+| GitHub | `github.com/joho/godotenv` | v1.5.1 | Environment variable loading |
 
-**Infrastructure Changes:**
-- No documentation deployment pipeline setup (mkdocs, Docusaurus, Sphinx configuration) — documentation is authored as static Markdown files
-- No CI/CD pipeline modifications for documentation builds
-- No Docker/Kubernetes configuration changes
-- No database schema modifications
+### 0.3.2 Dependency Updates
 
-**Unrelated Documentation:**
-- No documentation for external repositories (rudder-transformer, client SDKs, Helm charts)
-- No documentation for the Control Plane UI (React.js frontend)
-- No documentation for RudderStack Cloud managed service infrastructure
-- No third-party tool documentation (only references to RudderStack's usage of tools)
+**No new dependencies are required** for this feature. All validation, testing, and documentation work leverages the existing dependency set. The feature focuses on verifying and extending the behavior of existing code rather than introducing new external libraries.
 
-## 0.9 Execution Parameters
+**Import Updates (If applicable):**
 
-### 0.9.1 Documentation-Specific Instructions
+Files requiring import additions for new test utilities:
 
-| Parameter | Value |
-|-----------|-------|
-| **Default format** | Markdown (.md) with Mermaid diagrams |
-| **Diagram tool** | Mermaid (embedded in Markdown via triple-backtick mermaid blocks) |
-| **Code example languages** | Go 1.26.0, JavaScript (ES6+), Python 3.x, curl, Bash |
-| **Citation requirement** | Every technical section must reference source files with path and line range |
-| **Style guide** | Follow existing RudderStack documentation style (README.md, services/oauth/README.md, router/batchrouter/asyncdestinationmanager/README.md) |
-| **Terminology source** | Unified glossary combining RudderStack terms and Segment terms |
-| **API spec baseline** | gateway/openapi.yaml (OpenAPI 3.0.3) |
-| **Segment reference baseline** | refs/segment-docs/src/ (complete Segment documentation mirror) |
-| **Gap analysis methodology** | Feature-by-feature comparison against Segment documentation catalog |
+- `gateway/event_spec_parity_test.go` — New file requiring imports from:
+  - `github.com/stretchr/testify/require`
+  - `github.com/tidwall/gjson`
+  - `github.com/rudderlabs/rudder-go-kit/httputil`
+  - `net/http`, `net/http/httptest`
 
-**Documentation Build and Preview:**
-- No documentation build system configured — documents are static Markdown files
-- Preview via any Markdown renderer (VS Code, GitHub, GitLab)
-- Mermaid diagrams render natively in GitHub/GitLab Markdown and VS Code with Mermaid extension
-- No documentation deployment pipeline — files are committed to the `docs/` directory in the repository
+- `integration_test/event_spec_parity/event_spec_parity_test.go` — New file requiring imports from:
+  - `github.com/ory/dockertest/v3`
+  - `github.com/rudderlabs/rudder-server/testhelper/health`
+  - `github.com/rudderlabs/rudder-server/testhelper/webhook`
+  - `github.com/rudderlabs/rudder-server/testhelper/backendconfigtest`
+  - `github.com/tidwall/gjson`
 
-**Documentation Validation:**
-- Markdown lint: Validate Markdown formatting consistency across all files
-- Link checking: Verify all internal cross-references resolve correctly within the `docs/` hierarchy
-- Code example validation: Ensure all curl examples reference correct ports (8080 for Gateway, 8082 for Warehouse, 9090 for Transformer) and authentication headers
-- Terminology consistency: Verify all documents use terms from `docs/reference/glossary.md`
-- Diagram validation: Verify all Mermaid diagrams render correctly without syntax errors
+**External Reference Updates:**
 
-## 0.10 Rules for Documentation
+| File | Update Type | Description |
+|---|---|---|
+| `gateway/openapi.yaml` | Schema | Add explicit `context.userAgentData` object schema if not present |
+| `docs/gap-report/event-spec-parity.md` | Documentation | Update gap status from ~95% to 100% |
+| `docs/gap-report/sprint-roadmap.md` | Documentation | Mark E-001 through E-004 epics as completed |
+| `docs/gap-report/index.md` | Documentation | Update Event Spec parity percentage in executive summary |
+| `README.md` | Documentation | Update Segment Spec parity claim |
+| `.github/workflows/tests.yaml` | CI/CD | Add event spec parity integration test to CI matrix if separate suite created |
 
-The following rules and directives are explicitly derived from user requirements and must be observed throughout all documentation generation:
+## 0.4 Integration Analysis
 
-- **Segment behavioral parity is the acceptance criterion:** All Segment Spec events (track, identify, page, screen, group, alias) must route and transform identically to Segment behavior — documentation must validate and annotate this parity at the payload field level, including common fields and context objects
-- **Destination payload parity is mandatory:** Destination connectors must maintain payload parity with Segment's connector output — documentation must include payload comparison schemas showing field-by-field equivalence
-- **Throughput constraint must be documented:** Pipeline must sustain 50,000 events/second with ordering guarantees — capacity planning documentation must specify worker pool sizes, batch sizes, and configuration parameters required to achieve this throughput
-- **Warehouse idempotency and backfill are non-negotiable:** Warehouse sync must be idempotent and support backfill — documentation must specify merge strategies (append vs. merge/dedup), staging file handling, and failure recovery procedures for each supported warehouse
-- **Gap Report is an initial-run deliverable:** The Gap Report and sprint roadmap must be self-contained, actionable documents that can be consumed independently to drive autonomous implementation
-- **Follow existing documentation style:** All new documentation must follow the established patterns observed in `services/oauth/README.md` (comprehensive architecture with component breakdowns) and `router/batchrouter/asyncdestinationmanager/README.md` (developer onboarding with architecture diagrams, interfaces, and examples)
-- **Include Mermaid diagrams for all architectural and workflow documentation:** Every architecture document, data flow guide, and complex workflow must include at least one Mermaid diagram
-- **Provide source code citations for all technical details:** Every technical claim, configuration default, and API specification must include a citation in the format `Source: /path/to/file.go:LineRange`
-- **Document all configuration options in table format:** Configuration parameters must be presented in tables with columns for parameter name, default value, type, acceptable range, and description
-- **Maintain minimal changes to existing documentation:** Updates to `README.md` and `CONTRIBUTING.md` should add sections without modifying existing content structure
-- **Use consistent terminology from the unified glossary:** All documentation must use terms defined in `docs/reference/glossary.md`, cross-mapping Segment terminology to RudderStack equivalents where applicable
-- **Phase 1 exclusions are strict:** Segment Engage/Campaigns and Reverse ETL must not be documented in this phase — these areas should be mentioned only as "Phase 2" items in the gap report
-- **Documentation must be developer-audience focused:** Target audience is senior engineers and data engineering teams — avoid marketing language, prioritize technical precision and code examples
+### 0.4.1 Existing Code Touchpoints
 
-## 0.11 References
+**Direct Modifications Required:**
 
-### 0.11.1 Repository Files and Folders Searched
+- **`gateway/handle.go`** — The core request handler processes all incoming events. Lines around `406-410` handle `userAgent` extraction via `misc.MapLookup` for bot detection. Modification needed to add verification logic that `context.userAgentData` (the structured Client Hints object) is preserved alongside the string `userAgent` field through the batching, validation, and queueing stages. The `channel` field handling in the context object must be audited here.
 
-The following files and directories were searched and analyzed to derive the conclusions documented in this Agent Action Plan:
+- **`gateway/openapi.yaml`** — The OpenAPI 3.0.3 specification (lines `688-940`) defines all payload schemas. The `context` schema (around lines `699-717`) defines sub-properties for `ip`, `library`, and `traits` but may not explicitly define `userAgentData` as a structured object with its sub-fields (`brands[]`, `mobile`, `platform`). This schema must be extended to include the `userAgentData` field definition for documentation completeness.
 
-**Root-Level Files Inspected:**
-- `README.md` — Project overview, key features, architecture summary, setup instructions, licensing
-- `CONTRIBUTING.md` — Contribution guidelines, CLA requirements, PR submission process
-- `CHANGELOG.md` — Release history, current version v1.68.1 (2026-02-18)
-- `go.mod` — Go 1.26.0 module definition, dependency declarations and version pins
-- `docker-compose.yml` — Runtime topology (5 services: db, backend, transformer, minio, etcd)
-- `Dockerfile` — Multi-stage build definition, Go 1.26.0-alpine3.23 builder image, CGO_ENABLED=0
-- `Makefile` — Build workflows, protoc-gen-go v1.33.0, protoc-gen-go-grpc v1.3.0
-- `config/config.yaml` — Master configuration (200+ parameters across all subsystems)
-- `config/sample.env` — Environment variable reference with inline documentation
+- **`gateway/validator/validator.go`** — The validation mediator runs validators in sequence: `msgProperties`, `messageId`, `reqType`, `receivedAt`, `requestIP`, `rudderID`. No validator currently checks `context.userAgentData` structure. No new validator is needed (pass-through behavior is correct), but test coverage must verify validators do not strip or reject payloads containing Client Hints.
 
-**Core Pipeline Directories Inspected:**
-- `gateway/` — HTTP ingestion gateway (25+ files including handlers, auth, throttler, validator, webhook, openapi)
-- `processor/` — Event processing pipeline (24+ files including pipeline_worker, partition_worker, consent, trackingplan, transformer)
-- `router/` — Real-time destination routing (30+ files including handle, worker, network, factory, throttler, batchrouter, customdestinationmanager)
-- `router/batchrouter/` — Batch routing subsystem (includes asyncdestinationmanager with comprehensive README)
-- `warehouse/` — Warehouse loading service (22+ sub-packages including router, integrations, schema, slave, encoding, identity, api, archive)
-- `warehouse/integrations/` — 9 warehouse connectors (snowflake, bigquery, redshift, clickhouse, deltalake, postgres, mssql, azure-synapse, datalake) plus shared layers (manager, middleware, tunnelling, types, config)
+- **`gateway/gateway_test.go`** — The comprehensive test suite already includes userAgent-based test payloads (lines around 921, 931). This file must be extended with test cases that include `context.userAgentData` structured payloads to verify pass-through behavior.
 
-**Infrastructure Directories Inspected:**
-- `jobsdb/` — Persistent job queue (27+ files covering partitioning, migration, priority pools, pending events, caching)
-- `backend-config/` — Dynamic workspace configuration (16+ files covering single-workspace, namespace, dynamic config, replay types, encrypted cache)
-- `controlplane/` — gRPC-based remote configuration
-- `runner/` — Central lifecycle orchestrator
+- **`gateway/handle_test.go`** — Must be extended with test cases for `context.channel` field handling and `context.userAgentData` preservation through the Handle pipeline.
 
-**Service Directories Inspected:**
-- `services/` — 19 shared service packages (streammanager, dedup, oauth, transformer, fileuploader, geolocation, debugger, diagnostics, kvstoremanager, notifier, alert, alerta, archiver, rmetrics, rsources, sql-migrator, controlplane, transientsource, validators)
-- `enterprise/` — Enterprise features (reporting, suppress-user, trackedusers, config-env, LICENSE)
-- `archiver/` — Event archival system (5 files covering worker, options, lifecycle, tests)
-- `regulation-worker/` — GDPR regulation enforcement (internal packages for destination, model, service, client, delete plus cmd)
+**Processor Touchpoints:**
 
-**Reference Documentation Inspected:**
-- `refs/segment-docs/` — Complete Segment documentation mirror (Jekyll-based static site)
-- `refs/segment-docs/src/connections/spec/` — Segment Spec definitions (identify, track, page, screen, group, alias, common)
-- `refs/segment-docs/src/connections/destinations/` — Segment destination catalog
-- `refs/segment-docs/src/connections/sources/` — Segment source catalog
-- `refs/segment-docs/src/connections/functions/` — Segment Functions documentation
-- `refs/segment-docs/src/protocols/` — Segment Protocols/Tracking Plans documentation
-- `refs/segment-docs/src/unify/` — Segment Unify/Identity Resolution documentation
-- `refs/segment-docs/src/connections/storage/` — Segment warehouse storage documentation
+- **`processor/processor.go`** — The six-stage pipeline (preprocess → source hydration → pre-transform → user transform → destination transform → store) processes every event. Each stage must be verified to preserve the `context.userAgentData` object and all 18 standard context fields without stripping or modifying them. The `singularEventMetadata` function used in benchmarks must be verified to handle Client Hints payloads.
 
-**Existing Documentation Files Inspected:**
-- `cmd/devtool/README.md` — Developer tool CLI usage
-- `services/oauth/README.md` — OAuth module architecture and components
-- `router/batchrouter/asyncdestinationmanager/README.md` — Async destination manager architecture and onboarding
-- `regulation-worker/README.md` — Environment variable checklist
-- `warehouse/.cursor/docs/snowpipe-streaming.md` — Snowpipe Streaming internal documentation
-- `warehouse/.cursor/docs/staging-file-flow.md` — Staging file pipeline internal documentation
+- **`processor/integrations/integrations.go`** — The `FilterClientIntegrations` function extracts the `integrations` object from events using `types.GetRudderEventVal`. This function must be verified to correctly handle the Segment Spec `integrations` field semantics, including the `All: true` default behavior and per-destination boolean/object toggles.
 
-**Proto Definitions Inspected:**
-- `proto/cluster/` — Cluster partition migration streaming RPC
-- `proto/common/` — DPAuth service credential distribution
-- `proto/event-schema/` — Event schema key/message types
-- `proto/warehouse/` — Warehouse service with 15 unary RPCs
+- **`processor/internal/transformer/destination_transformer/embedded/warehouse/events.go`** — This file contains event-type-specific aggregation logic for all six event types (`trackEvents`, `identifyEvents`, `pageEvents`, `screenEvents`, `groupEvents`, `aliasEvents`). Each function must be verified to correctly process Segment Spec reserved fields and traits. The `identifyCommonProps` function (line 275) sources traits from multiple locations (userProperties, context traits, traits, context) and must be verified to handle all 18 reserved identify traits correctly.
 
-**Other Directories Inspected:**
-- `app/` — Application type definitions and deployment handlers
-- `admin/` — Admin RPC server
-- `cmd/` — CLI tools (devtool, rudder-cli)
-- `internal/` — Internal shared utilities
-- `middleware/` — HTTP middleware (gzip, semaphore)
-- `.github/` — GitHub templates (issue, PR)
+- **`processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules.go`** — Defines reserved column rules per event type (`DefaultRules`, `TrackRules`, `IdentifyRules`, `PageRules`, `ScreenRules`, `AliasRules`, `GroupRules`, `ExtractRules`). These rule sets determine which fields map to reserved warehouse columns. Verification needed to ensure all Segment Spec reserved fields for each event type are represented.
 
-### 0.11.2 Tech Spec Sections Referenced
+**Router Touchpoints:**
 
-The following technical specification sections were retrieved and analyzed for context:
+- **`router/network.go`** — The `netHandle.SendPost` method handles REST payload marshalling with gzip support. Must be verified to serialize `context.userAgentData` correctly without stripping nested objects. Response redaction based on MIME types must not affect outbound Spec payloads.
 
-| Section | Title | Key Information Extracted |
-|---------|-------|--------------------------|
-| 1.1 | Executive Summary | Project overview, v1.68.1 release, Go 1.26.0, Elastic License 2.0, stakeholder groups, value propositions |
-| 1.2 | System Overview | Project context, high-level architecture, deployment types (EMBEDDED/GATEWAY/PROCESSOR), success criteria, KPIs |
-| 1.3 | Scope | In-scope features (14 categories), essential integrations (9 warehouse + 13 stream destinations), data domains (6), out-of-scope exclusions |
-| 2.1 | Feature Catalog Overview | 19 features across 7 categories, priority distribution (7 Critical, 8 High, 4 Medium) |
-| 2.2 | Core Data Pipeline Features | Detailed specifications for F-001 through F-005 (Gateway, Processor, Router, Batch Router, Warehouse) with sub-features, dependencies, and functional requirements |
-| 2.5 | Privacy and Compliance Features | F-006 (Data Regulation) and F-017 (Suppression Backup Service) with GDPR compliance details |
-| 3.1 | Programming Languages | Go 1.26.0 primary language, Protocol Buffers proto3, Shell/Bash operational scripts |
-| 5.1 | High-Level Architecture | Durable pipeline architecture, system boundaries, data flow stages, external integration points |
-| 6.1 | Core Services Architecture | Modular monolith classification, 5 pipeline + 4 infrastructure + 19 supporting components, inter-service communication patterns, scalability design, resilience patterns |
+- **`router/worker.go`** — Job intake, batching, and transformation must be verified to preserve all Spec fields including nested context objects.
 
-### 0.11.3 Attachments and External References
+**Warehouse Identity Touchpoints:**
+
+- **`warehouse/identity/identity.go`** — The Identity resolver handles merge-rule resolution for alias events in the warehouse context. This is the partial implementation that addresses ES-005 (Alias identity graph). The `applyRule` and `processMergeRules` methods drive the transactional merge flow. Verification needed to confirm alias events correctly trigger merge-rule processing.
+
+- **`processor/internal/transformer/destination_transformer/embedded/warehouse/idresolution.go`** — The `mergeEvents` function handles identity resolution for warehouse destinations, gated by `enableIDResolution` config flag. Must be verified to correctly process alias event merge properties.
+
+**Integration Test Touchpoints:**
+
+- **`integration_test/docker_test/`** — The full-stack Docker regression suite in `docker_test.go` sends `identify`, `batch`, `track`, `page`, `screen`, `alias`, `group`, pixel, and RETL traffic through the system. The `sendEventsToGateway` helper must be extended to include payloads with all Segment Spec fields, Client Hints data, reserved traits, and semantic event names.
+
+- **`integration_test/docker_test/testdata/workspaceConfigTemplate.json`** — The workspace configuration template defines webhook destinations with `supportedMessageTypes` that already include all six core types (`alias`, `group`, `identify`, `page`, `screen`, `track`). This template serves as the baseline for parity testing.
+
+**Configuration Touchpoints:**
+
+- **`config/config.yaml`** — The Gateway configuration section (port 8080, 64 web workers, 256 DB writers, 4MB request size) does not require changes for event spec parity. However, the request size limit must be documented in the context of Segment's recommended 500KB batch size (ES-006).
+
+```mermaid
+flowchart TD
+    subgraph Gateway["Gateway Layer"]
+        HTTP["handle_http.go<br/>callType middleware"]
+        Handle["handle.go<br/>Request processing"]
+        Validator["validator/<br/>Payload validation"]
+        OpenAPI["openapi.yaml<br/>Schema definitions"]
+    end
+
+    subgraph Processor["Processor Layer"]
+        Pipeline["processor.go<br/>6-stage pipeline"]
+        Integrations["integrations.go<br/>FilterClientIntegrations"]
+        DestTransform["destination_transformer/<br/>Semantic event mapping"]
+        WHEvents["warehouse/events.go<br/>Event-type aggregation"]
+        Rules["rules/rules.go<br/>Reserved column rules"]
+    end
+
+    subgraph Router["Router Layer"]
+        Network["network.go<br/>Payload marshalling"]
+        Worker["worker.go<br/>Job delivery"]
+    end
+
+    subgraph Warehouse["Warehouse Layer"]
+        Identity["identity.go<br/>Merge-rule resolution"]
+        IDResolution["idresolution.go<br/>Merge events"]
+    end
+
+    HTTP --> Handle --> Validator
+    Handle --> Pipeline
+    Pipeline --> Integrations
+    Pipeline --> DestTransform
+    DestTransform --> WHEvents --> Rules
+    Pipeline --> Network --> Worker
+    WHEvents --> IDResolution --> Identity
+```
+
+
+## 0.5 Technical Implementation
+
+### 0.5.1 File-by-File Execution Plan
+
+**Group 1 — Gateway Schema Validation and Client Hints (ES-001, E-001, E-003)**
+
+- **MODIFY: `gateway/openapi.yaml`** — Add explicit `userAgentData` object schema definition under the `context` property for all payload schemas (`IdentifyPayload`, `TrackPayload`, `PagePayload`, `ScreenPayload`, `GroupPayload`, `AliasPayload`). Define sub-properties: `brands` (array of objects with `brand` and `version`), `mobile` (boolean), `platform` (string), and optional `bitness`, `model`, `platformVersion`, `uaFullVersion`, `fullVersionList`, `wow64`. This ensures OpenAPI documentation completeness.
+
+- **MODIFY: `gateway/handle.go`** — Audit the event processing path to verify that `context.userAgentData` objects are not stripped during batching, validation, or queueing. The existing `userAgent` string extraction at lines ~406-410 for bot detection must be verified to not interfere with the structured `userAgentData` object. Add explicit handling to ensure both `context.userAgent` (string) and `context.userAgentData` (object) coexist correctly.
+
+- **CREATE: `gateway/event_spec_parity_test.go`** — Comprehensive table-driven test suite that sends all 6 event types to the Gateway with full Segment Spec payloads and asserts field-level preservation. Each test case must cover: `anonymousId`, `userId`, `messageId`, `timestamp`, `sentAt`, `originalTimestamp`, `receivedAt`, `context` (all 18 fields including `userAgentData`), `integrations`, `type`, `version`, `channel`, and event-type-specific fields (`traits`, `event`, `properties`, `name`, `category`, `groupId`, `previousId`).
+
+- **CREATE: `gateway/client_hints_test.go`** — Dedicated test file for Client Hints pass-through verification. Tests must submit payloads with structured `context.userAgentData` containing `brands`, `mobile`, `platform`, and optional high-entropy fields, then verify the data is preserved through the Gateway pipeline using `gjson` assertions.
+
+- **MODIFY: `gateway/gateway_test.go`** — Add test cases with `context.userAgentData` payloads alongside existing `userAgent` string-based tests (around line 921). Add test cases verifying `context.channel` field preservation for `server`, `browser`, and `mobile` values.
+
+- **MODIFY: `gateway/handle_test.go`** — Extend Handle tests with `context.userAgentData` and `context.channel` field validation scenarios.
+
+- **MODIFY: `gateway/internal/bot/bot_test.go`** — Add test cases ensuring payloads with `context.userAgentData` (Client Hints) are not falsely flagged as bot traffic by the `IsBotUserAgent` function.
+
+- **MODIFY: `gateway/validator/validator_test.go`** — Add test cases confirming that the validator mediator chain does not reject payloads containing `context.userAgentData` structured objects.
+
+**Group 2 — Processor Parity Validation (E-002, ES-002, ES-003)**
+
+- **CREATE: `processor/event_spec_parity_test.go`** — Test suite validating that all Segment Spec fields survive the 6-stage Processor pipeline. Use mock transformer clients from `processor/transformer/mocks_transformer_client.go` to verify field preservation through each stage.
+
+- **CREATE: `processor/reserved_traits_test.go`** — Dedicated test file for reserved trait handling validation. Test all 18 identify reserved traits (`address`, `age`, `avatar`, `birthday`, `company`, `createdAt`, `description`, `email`, `firstName`, `gender`, `id`, `lastName`, `name`, `phone`, `title`, `username`, `website`) and all 12 group reserved traits (`address`, `avatar`, `createdAt`, `description`, `email`, `employees`, `id`, `industry`, `name`, `phone`, `website`, `plan`).
+
+- **MODIFY: `processor/processor_test.go`** — Add semantic event category test scenarios that verify E-Commerce v2 events (`Order Completed`, `Product Viewed`, `Cart Viewed`), Video events (`Video Playback Started`), and Mobile lifecycle events (`Application Opened`) pass through the Processor without modification or rejection.
+
+- **MODIFY: `processor/internal/transformer/destination_transformer/embedded/warehouse/events_test.go`** — Add test cases for each event type function (`trackEvents`, `identifyEvents`, `pageEvents`, `screenEvents`, `groupEvents`, `aliasEvents`) with full Segment Spec reserved field payloads.
+
+- **MODIFY: `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules_test.go`** — Add test coverage verifying all Segment Spec reserved fields for each event type are correctly represented in rule maps.
+
+**Group 3 — Integration Testing (E-001 through E-004)**
+
+- **CREATE: `integration_test/event_spec_parity/event_spec_parity_test.go`** — Full-stack integration test using `dockertest/v3` to provision PostgreSQL, Transformer, and webhook services. Test flow: send all 6 event types with complete Segment Spec payloads → verify webhook delivery payloads contain all fields → verify warehouse table rows contain all expected columns. Include Client Hints, reserved traits, semantic events, and channel field payloads.
+
+- **CREATE: `integration_test/event_spec_parity/testdata/workspaceConfigTemplate.json`** — Workspace configuration template with webhook destinations configured to accept all 6 event types.
+
+- **CREATE: `integration_test/event_spec_parity/testdata/segment_spec_payloads.json`** — Canonical payload fixtures for all 6 event types with every Segment Spec field populated, drawn from `refs/segment-docs/src/connections/spec/` examples.
+
+- **MODIFY: `integration_test/docker_test/docker_test.go`** — Extend the existing `testMainFlow` function to include Client Hints payloads and verify field preservation through to webhook destinations.
+
+**Group 4 — Documentation and Gap Closure (ES-004, ES-006)**
+
+- **MODIFY: `docs/gap-report/event-spec-parity.md`** — Update the Gap Summary table to mark ES-001, ES-002, ES-003, ES-006, and ES-007 as resolved. Update overall parity from ~95% to 100% (excluding ES-005 which is tracked in the Identity Parity dimension). Update per-event-type parity table.
+
+- **MODIFY: `docs/gap-report/sprint-roadmap.md`** — Update Sprint 1-2 section to reflect completion of E-001 through E-004 epics.
+
+- **MODIFY: `docs/gap-report/index.md`** — Update executive summary Event Spec parity percentage.
+
+- **CREATE: `docs/api-reference/event-spec/common-fields.md`** — Detailed API reference for all 11 common fields with parity confirmation.
+
+- **CREATE: `docs/api-reference/event-spec/semantic-events.md`** — Documentation of semantic event category pass-through behavior with destination-specific mapping notes.
+
+- **CREATE: `docs/api-reference/event-spec/extensions.md`** — Documentation of RudderStack extension endpoints, merge call type, and batch size defaults.
+
+- **MODIFY: `README.md`** — Update parity status from ~95% to 100% in the project documentation.
+
+### 0.5.2 Implementation Approach per File
+
+- **Establish parity verification foundation** by creating comprehensive test suites (`gateway/event_spec_parity_test.go`, `processor/event_spec_parity_test.go`) that validate field-level preservation for all 6 event types against Segment Spec definitions
+- **Verify Client Hints pass-through** by tracing the `context.userAgentData` object through Gateway → Processor → Router → destination, ensuring the JSON object structure is preserved end-to-end
+- **Validate semantic event routing** by creating test fixtures for E-Commerce v2, Video, and Mobile semantic event categories and verifying destination transforms handle them correctly
+- **Validate reserved trait handling** by testing all 18 identify traits and 12 group traits through the pipeline and confirming no type coercion or data loss occurs
+- **Close documentation gaps** by updating the gap report, creating API reference documentation, and documenting RudderStack extensions
+- **Integrate into CI** by adding parity tests to the existing CI pipeline structure to prevent future regressions
+
+### 0.5.3 User Interface Design
+
+Not applicable. The `rudder-server` repository is a backend data plane with no frontend components. All system interactions occur through programmatic APIs (HTTP REST, gRPC, UNIX socket RPC). The Event Spec Parity feature targets the HTTP REST API surface at the Gateway level (port 8080).
+
+## 0.6 Scope Boundaries
+
+### 0.6.1 Exhaustively In Scope
+
+**Gateway Source Files:**
+- `gateway/handle.go` — Client Hints and channel field audit
+- `gateway/handle_http.go` — callType middleware verification
+- `gateway/handle_http_auth.go` — Basic Auth scheme confirmation
+- `gateway/handle_http_beacon.go` — Beacon payload field preservation
+- `gateway/handle_http_pixel.go` — Pixel endpoint documentation
+- `gateway/handle_http_import.go` — Import endpoint parity verification
+- `gateway/handle_http_replay.go` — Extension endpoint documentation
+- `gateway/handle_http_retl.go` — Extension endpoint documentation
+- `gateway/handle_lifecycle.go` — Lifecycle verification
+- `gateway/gateway.go` — Constants and sentinel error verification
+- `gateway/types.go` — Request type definitions verification
+- `gateway/openapi.yaml` — Schema updates for `userAgentData`
+- `gateway/regular_handler.go` — Request handler verification
+- `gateway/import_handler.go` — Import handler verification
+- `gateway/validator/**/*.go` — Validator chain verification
+- `gateway/internal/bot/**/*.go` — Bot detection verification
+- `gateway/response/**/*.go` — Response code verification
+- `gateway/types/**/*.go` — Context type verification
+
+**Gateway Test Files:**
+- `gateway/gateway_test.go` — Add Client Hints and channel test cases
+- `gateway/gateway_integration_test.go` — Add parity validation tests
+- `gateway/handle_test.go` — Add context field test cases
+- `gateway/handle_http_auth_test.go` — Verify Basic Auth coverage
+- `gateway/handle_http_beacon_test.go` — Verify beacon field preservation
+- `gateway/handle_http_pixel_test.go` — Verify pixel documentation
+- `gateway/validator/validator_test.go` — Add Client Hints validation tests
+- `gateway/internal/bot/bot_test.go` — Add Client Hints bot detection tests
+- `gateway/event_spec_parity_test.go` — New: comprehensive parity test suite
+- `gateway/client_hints_test.go` — New: Client Hints pass-through tests
+
+**Processor Source Files:**
+- `processor/processor.go` — Pipeline field preservation verification
+- `processor/pipeline_worker.go` — Channel orchestration verification
+- `processor/consent.go` — Consent filtering field preservation
+- `processor/trackingplan.go` — Tracking plan compatibility
+- `processor/src_hydration_stage.go` — Source hydration field preservation
+- `processor/integrations/integrations.go` — Integration filtering verification
+- `processor/internal/transformer/destination_transformer/embedded/warehouse/events.go` — Event-type aggregation verification
+- `processor/internal/transformer/destination_transformer/embedded/warehouse/idresolution.go` — Alias merge resolution verification
+- `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules.go` — Reserved column rule verification
+
+**Processor Test Files:**
+- `processor/processor_test.go` — Add semantic event test scenarios
+- `processor/processor_bot_enricher_test.go` — Verify Client Hints handling
+- `processor/processor_event_dropping_test.go` — Verify Spec events not dropped
+- `processor/internal/transformer/destination_transformer/embedded/warehouse/events_test.go` — Add reserved trait tests
+- `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules_test.go` — Add reserved field coverage
+- `processor/event_spec_parity_test.go` — New: processor parity test suite
+- `processor/reserved_traits_test.go` — New: reserved trait validation tests
+
+**Router Source Files (Verification Only):**
+- `router/network.go` — Payload serialization verification
+- `router/worker.go` — Job delivery field preservation
+
+**Warehouse Source Files (Verification Only):**
+- `warehouse/identity/identity.go` — Alias merge-rule resolution documentation
+
+**Integration Test Files:**
+- `integration_test/docker_test/docker_test.go` — Extend with parity payloads
+- `integration_test/docker_test/testdata/workspaceConfigTemplate.json` — Template verification
+- `integration_test/event_spec_parity/**/*` — New: dedicated parity test suite
+- `integration_test/transformer_contract/` — Contract verification
+
+**Configuration Files:**
+- `config/config.yaml` — Configuration verification and documentation
+- `config/sample.env` — Environment variable verification
+
+**Documentation Files:**
+- `docs/gap-report/event-spec-parity.md` — Update to 100% parity
+- `docs/gap-report/sprint-roadmap.md` — Mark Sprint 1-2 epics complete
+- `docs/gap-report/index.md` — Update executive summary
+- `docs/api-reference/event-spec/**/*.md` — New: event spec API reference
+- `README.md` — Update parity status
+
+**Segment Reference Corpus (Read-Only):**
+- `refs/segment-docs/src/connections/spec/**/*.md` — Authoritative baseline
+
+### 0.6.2 Explicitly Out of Scope
+
+- **Identity Graph Implementation (ES-005):** Building a real-time identity resolution service equivalent to Segment Unify is tracked under the Identity Parity dimension (Sprint 6-8, P2) and is explicitly out of scope for this Sprint 1-2 effort. The warehouse-level merge-rule resolution in `warehouse/identity/` is documented as partial parity.
+
+- **Destination Connector Expansion:** Adding new destination connectors or modifying existing destination-specific transformation logic is out of scope. This work is tracked under Sprint 3-5 (Destination Connector Expansion).
+
+- **Source SDK Modifications:** Modifying RudderStack client SDKs (JavaScript, iOS, Android, server-side) to alter `context.channel` auto-population behavior is out of scope. This work is tracked under Sprint 2-3 (Source SDK Compatibility).
+
+- **Functions and Transformation Framework:** Adding new transformation capabilities, custom function runtimes, or modifying the Transformer service is out of scope. This work is tracked under Sprint 4-6.
+
+- **Protocols and Tracking Plan Enforcement:** Adding reserved trait type validation at the Gateway or Processor level (beyond documentation and pass-through verification) is out of scope. The Segment Spec approach of pass-through traits with destination-level enforcement is confirmed as correct behavior.
+
+- **Performance Optimization:** No performance optimization work beyond what is required for feature correctness. Benchmarks must not regress, but no new performance targets are set.
+
+- **Refactoring of Existing Code:** No refactoring of existing architecture, code patterns, or module boundaries beyond what is strictly needed for gap closure.
+
+- **Warehouse Feature Enhancement:** Selective sync, replay, and advanced monitoring features are tracked under Sprint 7-9.
+
+- **Operational Tooling:** Advanced monitoring, alerting, and replay controls are tracked under Sprint 8-10.
+
+## 0.7 Rules for Feature Addition
+
+### 0.7.1 Feature-Specific Rules
+
+- **Segment Spec as Authoritative Baseline:** All field-level parity decisions must reference the Segment documentation corpus in `refs/segment-docs/src/connections/spec/`. When ambiguity exists between the OpenAPI spec and the Segment docs, the Segment docs take precedence for behavioral parity.
+
+- **Pass-Through by Default:** RudderStack's Gateway treats all event payloads as pass-through — fields are accepted, stored, and forwarded without type enforcement or schema validation at the Gateway level. This behavior is correct per the Segment Spec approach and must be preserved. Trait validation and semantic enforcement happen at the destination connector level during transformation.
+
+- **No Breaking Changes to Existing API:** All modifications must maintain backward compatibility with existing RudderStack users. The HTTP API surface (`/v1/identify`, `/v1/track`, `/v1/page`, `/v1/screen`, `/v1/group`, `/v1/alias`, `/v1/batch`) must continue to accept all currently valid payloads.
+
+- **Use `jsonrs` Instead of `encoding/json`:** Per the repository's `depguard` linting rule in `.golangci.yml`, all JSON serialization/deserialization must use the `jsonrs` library from `github.com/rudderlabs/rudder-go-kit`. Using `encoding/json` directly is banned.
+
+- **Table-Driven Test Patterns:** All new tests must follow the codebase's established table-driven test pattern with `t.Run()` subtests for each scenario, using `testify/require` for assertions. Integration tests must use `dockertest/v3` for container orchestration.
+
+- **OpenAPI Specification Consistency:** Any changes to the OpenAPI spec (`gateway/openapi.yaml`) must pass the `swagger-cli validate` verification step in the CI pipeline (`.github/workflows/verify.yml`).
+
+- **Benchmark Non-Regression:** The existing `processorBenchmark_test.go` benchmark for `singularEventMetadata` must not regress due to any changes. Run benchmarks before and after changes to verify.
+
+### 0.7.2 Integration Requirements
+
+- **Transformer Service Compatibility:** Event spec parity validation must account for the external Transformer service (`rudder-transformer` at port 9090). Semantic event category mapping (ES-002) is handled by destination-specific transforms in the Transformer, not by the Gateway or Processor.
+
+- **Warehouse Compatibility:** All 6 event types must be correctly processed by the embedded warehouse transformer (`processor/internal/transformer/destination_transformer/embedded/warehouse/events.go`) and produce correct warehouse table rows with all Segment Spec reserved fields.
+
+- **CI Pipeline Integration:** New integration tests must be compatible with the existing CI pipeline structure in `.github/workflows/tests.yaml` and must run within the 30-minute timeout for integration tests.
+
+### 0.7.3 Security Considerations
+
+- **No Sensitive Data in Test Fixtures:** Test payloads must use synthetic data (fake names, emails, IPs) and never include real user data or credentials.
+
+- **SSRF Protection:** The Router's private IP blocking (`router/network.go`) must not be affected by any changes. All network-level security controls must remain intact.
+
+- **Authentication Integrity:** Write Key Basic Auth (`gateway/handle_http_auth.go`) must remain identical to Segment's authentication scheme. No changes to the auth flow are permitted.
+
+## 0.8 References
+
+### 0.8.1 Files and Folders Searched
+
+The following files and directories were comprehensively searched across the codebase to derive the conclusions in this Agent Action Plan:
+
+**Root-Level Files:**
+- `go.mod` — Go 1.26.0, complete dependency graph with 80+ direct dependencies
+- `go.sum` — Checksum closure file
+- `Dockerfile` — Multi-stage Go build definition (GO_VERSION=1.26.0, Alpine 3.23)
+- `Makefile` — Build system, test commands, tool versions
+- `config/config.yaml` — Master runtime configuration (Gateway port 8080, worker counts, batch sizes)
+- `config/sample.env` — Environment variable documentation
+- `README.md` — Project documentation
+- `CONTRIBUTING.md` — Contributor guidelines
+- `.golangci.yml` — Linter configuration (depguard, forbidigo rules)
+- `.deepsource.toml` — Static analysis configuration
+- `codecov.yml` — Coverage configuration
+- `docker-compose.yml` — Docker Compose configuration
+- `rudder-docker.yml` — Rudder stack runtime configuration
+- `main.go` — Application entrypoint
+
+**Gateway Directory (Exhaustive):**
+- `gateway/handle_http.go` — HTTP handler wiring for all event types
+- `gateway/handle.go` — Core request handler
+- `gateway/handle_http_auth.go` — Authentication middleware
+- `gateway/handle_http_beacon.go` — Beacon tracking support
+- `gateway/handle_http_pixel.go` — Pixel tracking with GIF response
+- `gateway/handle_http_import.go` — Historical data import
+- `gateway/handle_http_replay.go` — Event replay re-ingestion
+- `gateway/handle_http_retl.go` — Reverse ETL event ingestion
+- `gateway/handle_lifecycle.go` — Lifecycle management
+- `gateway/handle_observability.go` — Observability helpers
+- `gateway/handle_diagnostics.go` — Diagnostic hooks
+- `gateway/handle_webhook.go` — Webhook pipeline glue
+- `gateway/types.go` — Shared request types
+- `gateway/gateway.go` — Constants and sentinel errors
+- `gateway/openapi.yaml` — OpenAPI 3.0.3 specification
+- `gateway/regular_handler.go`, `gateway/import_handler.go` — Request handlers
+- `gateway/gateway_test.go`, `gateway/handle_test.go` — Test files
+- `gateway/gateway_integration_test.go`, `gateway/gateway_suite_test.go` — Integration/suite tests
+- `gateway/handle_http_auth_test.go`, `gateway/handle_http_beacon_test.go`, `gateway/handle_http_pixel_test.go` — Handler tests
+- `gateway/validator/` — Complete validator directory (7 validators + mediator + tests)
+- `gateway/internal/bot/` — Bot detection (bot.go, bot_test.go)
+- `gateway/response/` — Canonical response strings
+- `gateway/throttler/` — Rate limiting
+- `gateway/types/` — Context keys and types
+- `gateway/webhook/` — Webhook pipeline
+- `gateway/openapi/` — Generated API docs
+- `gateway/mocks/` — Mock interfaces
+
+**Processor Directory (Exhaustive):**
+- `processor/processor.go` — Core pipeline handler
+- `processor/pipeline_worker.go` — Channel orchestration
+- `processor/partition_worker.go` — Partition-level worker
+- `processor/manager.go` — Lifecycle orchestration
+- `processor/consent.go` — Consent filtering
+- `processor/trackingplan.go` — Tracking plan validation
+- `processor/src_hydration_stage.go` — Source hydration
+- `processor/events_response.go` — Transformer response handling
+- `processor/integrations/integrations.go` — Integration adapter
+- `processor/transformer/clients.go` — Transformer client factory
+- `processor/transformer/mocks_transformer_client.go` — Test mocks
+- `processor/internal/transformer/` — Internal transformer utilities
+- `processor/internal/transformer/destination_transformer/embedded/warehouse/events.go` — Warehouse event aggregation
+- `processor/internal/transformer/destination_transformer/embedded/warehouse/idresolution.go` — Identity resolution
+- `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules.go` — Reserved column rules
+- `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules_test.go` — Rules tests
+- `processor/types/`, `processor/testdata/`, `processor/isolation/`, `processor/eventfilter/`, `processor/delayed/`, `processor/usertransformer/` — Supporting packages
+- All `*_test.go` files in processor directory
+
+**Router Directory:**
+- `router/handle.go`, `router/worker.go`, `router/network.go` — Core routing
+- `router/config.go`, `router/factory.go`, `router/types.go` — Configuration and types
+- `router/transformer/`, `router/batchrouter/` — Transformer proxy and batch routing
+
+**Warehouse Directory:**
+- `warehouse/identity/identity.go` — Identity resolver
+
+**Services Directory:**
+- `services/dedup/` — Deduplication service
+- `services/debugger/` — Debug pipeline
+- `services/transformer/` — Transformer feature polling
+- `services/streammanager/` — Streaming destination factory
+
+**Integration Test Directory:**
+- `integration_test/docker_test/` — Full-stack regression suite
+- `integration_test/docker_test/testdata/workspaceConfigTemplate.json` — Test template
+- `integration_test/transformer_contract/` — Transformer contract tests
+
+**Documentation Directory:**
+- `docs/gap-report/event-spec-parity.md` — Canonical gap report (961 lines)
+- `docs/gap-report/sprint-roadmap.md` — Sprint roadmap
+- `docs/gap-report/index.md` — Executive hub
+- `docs/architecture/`, `docs/api-reference/`, `docs/contributing/`, `docs/guides/`, `docs/reference/` — Documentation subdirectories
+
+**Segment Reference Corpus:**
+- `refs/segment-docs/src/connections/spec/common.md` — Common fields and context object
+- `refs/segment-docs/src/connections/spec/identify.md` — Identify spec
+- `refs/segment-docs/src/connections/spec/track.md` — Track spec
+- `refs/segment-docs/src/connections/spec/page.md` — Page spec
+- `refs/segment-docs/src/connections/spec/screen.md` — Screen spec
+- `refs/segment-docs/src/connections/spec/group.md` — Group spec
+- `refs/segment-docs/src/connections/spec/alias.md` — Alias spec
+- `refs/segment-docs/src/connections/spec/ecommerce/v2.md` — E-Commerce v2 semantic events
+- `refs/segment-docs/src/connections/spec/video.md` — Video semantic events
+- `refs/segment-docs/src/connections/spec/mobile.md` — Mobile semantic events
+- `refs/segment-docs/src/connections/spec/index.md` — Spec overview
+
+**CI/CD:**
+- `.github/workflows/tests.yaml` — Test pipeline
+- `.github/workflows/verify.yml` — Verification pipeline
+- `.github/workflows/builds.yml` — Build pipeline
+
+### 0.8.2 Attachments
 
 No attachments were provided for this project.
 
-**External Documentation References (from repository):**
-- RudderStack Documentation Site: `https://www.rudderstack.com/docs/`
-- RudderStack Data Learning Center: `https://www.rudderstack.com/learn/`
-- RudderStack Cloud Signup: `https://app.rudderstack.com/signup?type=freetrial`
-- RudderStack Slack Community: `https://www.rudderstack.com/join-rudderstack-slack-community/`
-- Go Report Card: `https://goreportcard.com/report/github.com/rudderlabs/rudder-server`
-- Segment Documentation (referenced via local mirror): `refs/segment-docs/`
+### 0.8.3 External References
+
+- **Event Spec Parity Analysis (User-Referenced):** `https://github.com/Blitzy-Sandbox/blitzy-RudderStack/blob/dd431ecc2ab74b830707b7723d31de1d69eaec82/docs/gap-report/event-spec-parity.md` — The canonical gap report referenced by the user as the baseline for this Sprint 1-2 effort
+- **Segment Spec Documentation (Embedded Reference):** `refs/segment-docs/src/connections/spec/` — Complete Segment documentation mirror included in the repository as the authoritative baseline for parity assessment
+- **Client Hints API (W3C):** Referenced in Segment Spec `common.md` as the source for `context.userAgentData` structured data
+- **rudder-server v1.68.1:** Current codebase version, Go 1.26.0, Elastic License 2.0
 
