@@ -3,6 +3,7 @@ package gateway
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1313,4 +1314,708 @@ func TestChannelFieldPreservation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMobileSDKContextPreservation validates that iOS and Android SDK payloads preserve all mobile
+// context fields (device, os, app, network, screen) and lifecycle events through the Gateway pipeline.
+// This covers E-007: iOS and Android Mobile SDK Compatibility Testing.
+func TestMobileSDKContextPreservation(t *testing.T) {
+	tests := []struct {
+		name       string
+		reqType    string
+		payload    string
+		assertions func(t *testing.T, jobPayload string)
+	}{
+		{
+			name:    "analytics-ios identify with full mobile context",
+			reqType: "identify",
+			payload: `{"type":"identify","userId":"user-ios-001","anonymousId":"anon-ios-001","messageId":"msg-ios-001","rudderId":"rudder-ios-001","request_ip":"192.0.2.50","receivedAt":"2024-01-01T00:00:00Z","traits":{"name":"iOS Test User","email":"ios@test.com"},"context":{"library":{"name":"analytics-ios","version":"4.1.0"},"device":{"id":"device-ios-123","manufacturer":"Apple","model":"iPhone 15","name":"Test iPhone","type":"ios"},"os":{"name":"iOS","version":"17.2"},"app":{"name":"TestApp","version":"2.1.0","build":"1234","namespace":"com.test.app"},"network":{"bluetooth":false,"carrier":"T-Mobile","cellular":true,"wifi":true},"screen":{"density":3,"height":2532,"width":1170}}}`,
+			assertions: func(t *testing.T, jobPayload string) {
+				ctx := "batch.0.context"
+
+				// Library metadata
+				require.Equal(t, "analytics-ios",
+					gjson.Get(jobPayload, ctx+".library.name").String(),
+					"context.library.name should be analytics-ios")
+				require.Equal(t, "4.1.0",
+					gjson.Get(jobPayload, ctx+".library.version").String(),
+					"context.library.version should be 4.1.0")
+
+				// Device fields
+				require.Equal(t, "device-ios-123",
+					gjson.Get(jobPayload, ctx+".device.id").String(),
+					"context.device.id should be preserved")
+				require.Equal(t, "Apple",
+					gjson.Get(jobPayload, ctx+".device.manufacturer").String(),
+					"context.device.manufacturer should be preserved")
+				require.Equal(t, "iPhone 15",
+					gjson.Get(jobPayload, ctx+".device.model").String(),
+					"context.device.model should be preserved")
+				require.Equal(t, "Test iPhone",
+					gjson.Get(jobPayload, ctx+".device.name").String(),
+					"context.device.name should be preserved")
+				require.Equal(t, "ios",
+					gjson.Get(jobPayload, ctx+".device.type").String(),
+					"context.device.type should be preserved")
+
+				// OS fields
+				require.Equal(t, "iOS",
+					gjson.Get(jobPayload, ctx+".os.name").String(),
+					"context.os.name should be preserved")
+				require.Equal(t, "17.2",
+					gjson.Get(jobPayload, ctx+".os.version").String(),
+					"context.os.version should be preserved")
+
+				// App fields
+				require.Equal(t, "TestApp",
+					gjson.Get(jobPayload, ctx+".app.name").String(),
+					"context.app.name should be preserved")
+				require.Equal(t, "2.1.0",
+					gjson.Get(jobPayload, ctx+".app.version").String(),
+					"context.app.version should be preserved")
+				require.Equal(t, "1234",
+					gjson.Get(jobPayload, ctx+".app.build").String(),
+					"context.app.build should be preserved")
+				require.Equal(t, "com.test.app",
+					gjson.Get(jobPayload, ctx+".app.namespace").String(),
+					"context.app.namespace should be preserved")
+
+				// Network fields — explicit existence checks for booleans
+				bluetoothResult := gjson.Get(jobPayload, ctx+".network.bluetooth")
+				require.True(t, bluetoothResult.Exists(),
+					"context.network.bluetooth should exist")
+				require.Equal(t, false, bluetoothResult.Bool(),
+					"context.network.bluetooth should be false")
+				require.Equal(t, "T-Mobile",
+					gjson.Get(jobPayload, ctx+".network.carrier").String(),
+					"context.network.carrier should be preserved")
+				cellularResult := gjson.Get(jobPayload, ctx+".network.cellular")
+				require.True(t, cellularResult.Exists(),
+					"context.network.cellular should exist")
+				require.Equal(t, true, cellularResult.Bool(),
+					"context.network.cellular should be true")
+				wifiResult := gjson.Get(jobPayload, ctx+".network.wifi")
+				require.True(t, wifiResult.Exists(),
+					"context.network.wifi should exist")
+				require.Equal(t, true, wifiResult.Bool(),
+					"context.network.wifi should be true")
+
+				// Screen fields
+				require.Equal(t, float64(3),
+					gjson.Get(jobPayload, ctx+".screen.density").Float(),
+					"context.screen.density should be preserved")
+				require.Equal(t, float64(2532),
+					gjson.Get(jobPayload, ctx+".screen.height").Float(),
+					"context.screen.height should be preserved")
+				require.Equal(t, float64(1170),
+					gjson.Get(jobPayload, ctx+".screen.width").Float(),
+					"context.screen.width should be preserved")
+			},
+		},
+		{
+			name:    "analytics-android track with full mobile context",
+			reqType: "track",
+			payload: `{"type":"track","event":"Product Viewed","userId":"user-android-001","anonymousId":"anon-android-001","messageId":"msg-android-001","rudderId":"rudder-android-001","request_ip":"192.0.2.51","receivedAt":"2024-01-01T00:00:00Z","properties":{"product_id":"SKU-123","name":"Test Product","price":29.99},"context":{"library":{"name":"analytics-android","version":"4.11.3"},"device":{"id":"device-android-456","manufacturer":"Samsung","model":"Galaxy S24","name":"Test Galaxy","type":"android"},"os":{"name":"Android","version":"14"},"app":{"name":"TestApp","version":"3.0.0","build":"5678","namespace":"com.test.androidapp"},"network":{"bluetooth":true,"carrier":"Verizon","cellular":true,"wifi":false},"screen":{"density":2.75,"height":2340,"width":1080}}}`,
+			assertions: func(t *testing.T, jobPayload string) {
+				ctx := "batch.0.context"
+
+				// Library metadata
+				require.Equal(t, "analytics-android",
+					gjson.Get(jobPayload, ctx+".library.name").String(),
+					"context.library.name should be analytics-android")
+				require.Equal(t, "4.11.3",
+					gjson.Get(jobPayload, ctx+".library.version").String(),
+					"context.library.version should be 4.11.3")
+
+				// Device fields
+				require.Equal(t, "device-android-456",
+					gjson.Get(jobPayload, ctx+".device.id").String(),
+					"context.device.id should be preserved")
+				require.Equal(t, "Samsung",
+					gjson.Get(jobPayload, ctx+".device.manufacturer").String(),
+					"context.device.manufacturer should be preserved")
+				require.Equal(t, "Galaxy S24",
+					gjson.Get(jobPayload, ctx+".device.model").String(),
+					"context.device.model should be preserved")
+				require.Equal(t, "Test Galaxy",
+					gjson.Get(jobPayload, ctx+".device.name").String(),
+					"context.device.name should be preserved")
+				require.Equal(t, "android",
+					gjson.Get(jobPayload, ctx+".device.type").String(),
+					"context.device.type should be preserved")
+
+				// OS fields
+				require.Equal(t, "Android",
+					gjson.Get(jobPayload, ctx+".os.name").String(),
+					"context.os.name should be preserved")
+				require.Equal(t, "14",
+					gjson.Get(jobPayload, ctx+".os.version").String(),
+					"context.os.version should be preserved")
+
+				// App fields
+				require.Equal(t, "TestApp",
+					gjson.Get(jobPayload, ctx+".app.name").String(),
+					"context.app.name should be preserved")
+				require.Equal(t, "3.0.0",
+					gjson.Get(jobPayload, ctx+".app.version").String(),
+					"context.app.version should be preserved")
+				require.Equal(t, "5678",
+					gjson.Get(jobPayload, ctx+".app.build").String(),
+					"context.app.build should be preserved")
+				require.Equal(t, "com.test.androidapp",
+					gjson.Get(jobPayload, ctx+".app.namespace").String(),
+					"context.app.namespace should be preserved")
+
+				// Network fields
+				bluetoothResult := gjson.Get(jobPayload, ctx+".network.bluetooth")
+				require.True(t, bluetoothResult.Exists(),
+					"context.network.bluetooth should exist")
+				require.Equal(t, true, bluetoothResult.Bool(),
+					"context.network.bluetooth should be true")
+				require.Equal(t, "Verizon",
+					gjson.Get(jobPayload, ctx+".network.carrier").String(),
+					"context.network.carrier should be preserved")
+				cellularResult := gjson.Get(jobPayload, ctx+".network.cellular")
+				require.True(t, cellularResult.Exists(),
+					"context.network.cellular should exist")
+				require.Equal(t, true, cellularResult.Bool(),
+					"context.network.cellular should be true")
+				wifiResult := gjson.Get(jobPayload, ctx+".network.wifi")
+				require.True(t, wifiResult.Exists(),
+					"context.network.wifi should exist")
+				require.Equal(t, false, wifiResult.Bool(),
+					"context.network.wifi should be false")
+
+				// Screen fields
+				require.InDelta(t, 2.75,
+					gjson.Get(jobPayload, ctx+".screen.density").Float(), 0.01,
+					"context.screen.density should be preserved")
+				require.Equal(t, float64(2340),
+					gjson.Get(jobPayload, ctx+".screen.height").Float(),
+					"context.screen.height should be preserved")
+				require.Equal(t, float64(1080),
+					gjson.Get(jobPayload, ctx+".screen.width").Float(),
+					"context.screen.width should be preserved")
+
+				// Also verify the track event properties are preserved
+				require.Equal(t, "Product Viewed",
+					gjson.Get(jobPayload, "batch.0.event").String(),
+					"event name should be preserved")
+				require.Equal(t, "SKU-123",
+					gjson.Get(jobPayload, "batch.0.properties.product_id").String(),
+					"properties.product_id should be preserved")
+			},
+		},
+		{
+			name:    "iOS screen call with category and name",
+			reqType: "screen",
+			payload: `{"type":"screen","name":"Home Screen","userId":"user-ios-002","anonymousId":"anon-ios-002","messageId":"msg-ios-screen-001","rudderId":"rudder-ios-screen-001","request_ip":"192.0.2.52","receivedAt":"2024-01-01T00:00:00Z","properties":{"category":"Main","name":"Home Screen"},"context":{"library":{"name":"analytics-ios","version":"4.1.0"},"device":{"id":"device-ios-789","manufacturer":"Apple","model":"iPad Pro","name":"Test iPad","type":"ios"},"os":{"name":"iOS","version":"17.2"},"app":{"name":"TestApp","version":"2.1.0","build":"1234","namespace":"com.test.app"}}}`,
+			assertions: func(t *testing.T, jobPayload string) {
+				// Screen-specific fields
+				require.Equal(t, "screen",
+					gjson.Get(jobPayload, "batch.0.type").String(),
+					"type should be screen")
+				require.Equal(t, "Home Screen",
+					gjson.Get(jobPayload, "batch.0.name").String(),
+					"screen name should be preserved")
+				require.Equal(t, "Main",
+					gjson.Get(jobPayload, "batch.0.properties.category").String(),
+					"properties.category should be preserved")
+				require.Equal(t, "Home Screen",
+					gjson.Get(jobPayload, "batch.0.properties.name").String(),
+					"properties.name should be preserved")
+
+				// iOS mobile context fields
+				ctx := "batch.0.context"
+				require.Equal(t, "analytics-ios",
+					gjson.Get(jobPayload, ctx+".library.name").String(),
+					"context.library.name should be analytics-ios")
+				require.Equal(t, "device-ios-789",
+					gjson.Get(jobPayload, ctx+".device.id").String(),
+					"context.device.id should be preserved")
+				require.Equal(t, "iPad Pro",
+					gjson.Get(jobPayload, ctx+".device.model").String(),
+					"context.device.model should be preserved")
+				require.Equal(t, "iOS",
+					gjson.Get(jobPayload, ctx+".os.name").String(),
+					"context.os.name should be preserved")
+			},
+		},
+		{
+			name:    "Application Opened lifecycle event",
+			reqType: "track",
+			payload: `{"type":"track","event":"Application Opened","userId":"user-ios-003","anonymousId":"anon-ios-003","messageId":"msg-lifecycle-001","rudderId":"rudder-lifecycle-001","request_ip":"192.0.2.53","receivedAt":"2024-01-01T00:00:00Z","properties":{"from_background":false,"version":"2.1.0","build":"1234"},"context":{"library":{"name":"analytics-ios","version":"4.1.0"},"device":{"id":"device-ios-lc-001","manufacturer":"Apple","model":"iPhone 15","type":"ios"},"os":{"name":"iOS","version":"17.2"},"app":{"name":"TestApp","version":"2.1.0","build":"1234","namespace":"com.test.app"}}}`,
+			assertions: func(t *testing.T, jobPayload string) {
+				// Lifecycle event fields
+				require.Equal(t, "Application Opened",
+					gjson.Get(jobPayload, "batch.0.event").String(),
+					"lifecycle event name should be preserved")
+				require.Equal(t, "track",
+					gjson.Get(jobPayload, "batch.0.type").String(),
+					"type should be track for lifecycle events")
+
+				// Lifecycle event properties
+				fromBgResult := gjson.Get(jobPayload, "batch.0.properties.from_background")
+				require.True(t, fromBgResult.Exists(),
+					"properties.from_background should exist")
+				require.Equal(t, false, fromBgResult.Bool(),
+					"properties.from_background should be false")
+				require.Equal(t, "2.1.0",
+					gjson.Get(jobPayload, "batch.0.properties.version").String(),
+					"properties.version should be preserved")
+				require.Equal(t, "1234",
+					gjson.Get(jobPayload, "batch.0.properties.build").String(),
+					"properties.build should be preserved")
+
+				// Mobile context preserved with lifecycle event
+				require.Equal(t, "analytics-ios",
+					gjson.Get(jobPayload, "batch.0.context.library.name").String(),
+					"context.library.name should be analytics-ios")
+				require.Equal(t, "device-ios-lc-001",
+					gjson.Get(jobPayload, "batch.0.context.device.id").String(),
+					"context.device.id should be preserved")
+			},
+		},
+		{
+			name:    "Application Backgrounded lifecycle event",
+			reqType: "track",
+			payload: `{"type":"track","event":"Application Backgrounded","userId":"user-android-002","anonymousId":"anon-android-002","messageId":"msg-lifecycle-002","rudderId":"rudder-lifecycle-002","request_ip":"192.0.2.54","receivedAt":"2024-01-01T00:00:00Z","properties":{},"context":{"library":{"name":"analytics-android","version":"4.11.3"},"device":{"id":"device-android-lc-002","manufacturer":"Samsung","model":"Galaxy S24","type":"android"},"os":{"name":"Android","version":"14"},"app":{"name":"TestApp","version":"3.0.0","build":"5678","namespace":"com.test.androidapp"}}}`,
+			assertions: func(t *testing.T, jobPayload string) {
+				// Lifecycle event name
+				require.Equal(t, "Application Backgrounded",
+					gjson.Get(jobPayload, "batch.0.event").String(),
+					"lifecycle event name should be preserved")
+				require.Equal(t, "track",
+					gjson.Get(jobPayload, "batch.0.type").String(),
+					"type should be track for lifecycle events")
+
+				// Android context preserved
+				require.Equal(t, "analytics-android",
+					gjson.Get(jobPayload, "batch.0.context.library.name").String(),
+					"context.library.name should be analytics-android")
+				require.Equal(t, "device-android-lc-002",
+					gjson.Get(jobPayload, "batch.0.context.device.id").String(),
+					"context.device.id should be preserved")
+				require.Equal(t, "Android",
+					gjson.Get(jobPayload, "batch.0.context.os.name").String(),
+					"context.os.name should be preserved")
+			},
+		},
+		{
+			name:    "Application Updated lifecycle event",
+			reqType: "track",
+			payload: `{"type":"track","event":"Application Updated","userId":"user-ios-004","anonymousId":"anon-ios-004","messageId":"msg-lifecycle-003","rudderId":"rudder-lifecycle-003","request_ip":"192.0.2.55","receivedAt":"2024-01-01T00:00:00Z","properties":{"previous_version":"1.0.0","previous_build":"100","version":"2.0.0","build":"200"},"context":{"library":{"name":"analytics-ios","version":"4.1.0"},"device":{"id":"device-ios-lc-003","manufacturer":"Apple","model":"iPhone 15","type":"ios"},"os":{"name":"iOS","version":"17.2"},"app":{"name":"TestApp","version":"2.0.0","build":"200","namespace":"com.test.app"}}}`,
+			assertions: func(t *testing.T, jobPayload string) {
+				// Lifecycle event name
+				require.Equal(t, "Application Updated",
+					gjson.Get(jobPayload, "batch.0.event").String(),
+					"lifecycle event name should be preserved")
+
+				// Update-specific properties
+				require.Equal(t, "1.0.0",
+					gjson.Get(jobPayload, "batch.0.properties.previous_version").String(),
+					"properties.previous_version should be preserved")
+				require.Equal(t, "100",
+					gjson.Get(jobPayload, "batch.0.properties.previous_build").String(),
+					"properties.previous_build should be preserved")
+				require.Equal(t, "2.0.0",
+					gjson.Get(jobPayload, "batch.0.properties.version").String(),
+					"properties.version should be preserved")
+				require.Equal(t, "200",
+					gjson.Get(jobPayload, "batch.0.properties.build").String(),
+					"properties.build should be preserved")
+
+				// Mobile context
+				require.Equal(t, "analytics-ios",
+					gjson.Get(jobPayload, "batch.0.context.library.name").String(),
+					"context.library.name should be analytics-ios")
+			},
+		},
+		{
+			name:    "Application Installed lifecycle event",
+			reqType: "track",
+			payload: `{"type":"track","event":"Application Installed","userId":"user-android-003","anonymousId":"anon-android-003","messageId":"msg-lifecycle-004","rudderId":"rudder-lifecycle-004","request_ip":"192.0.2.56","receivedAt":"2024-01-01T00:00:00Z","properties":{"version":"1.0.0","build":"100"},"context":{"library":{"name":"analytics-android","version":"4.11.3"},"device":{"id":"device-android-lc-004","manufacturer":"Google","model":"Pixel 8","type":"android"},"os":{"name":"Android","version":"14"},"app":{"name":"TestApp","version":"1.0.0","build":"100","namespace":"com.test.androidapp"}}}`,
+			assertions: func(t *testing.T, jobPayload string) {
+				// Lifecycle event name
+				require.Equal(t, "Application Installed",
+					gjson.Get(jobPayload, "batch.0.event").String(),
+					"lifecycle event name should be preserved")
+				require.Equal(t, "track",
+					gjson.Get(jobPayload, "batch.0.type").String(),
+					"type should be track for lifecycle events")
+
+				// Install properties
+				require.Equal(t, "1.0.0",
+					gjson.Get(jobPayload, "batch.0.properties.version").String(),
+					"properties.version should be preserved")
+				require.Equal(t, "100",
+					gjson.Get(jobPayload, "batch.0.properties.build").String(),
+					"properties.build should be preserved")
+
+				// Android context preserved
+				require.Equal(t, "analytics-android",
+					gjson.Get(jobPayload, "batch.0.context.library.name").String(),
+					"context.library.name should be analytics-android")
+				require.Equal(t, "Google",
+					gjson.Get(jobPayload, "batch.0.context.device.manufacturer").String(),
+					"context.device.manufacturer should be preserved")
+				require.Equal(t, "Pixel 8",
+					gjson.Get(jobPayload, "batch.0.context.device.model").String(),
+					"context.device.model should be preserved")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gw := createTestGateway(t, backendconfig.EventBlocking{})
+			messages := []stream.Message{
+				{
+					Properties: stream.MessageProperties{
+						RequestType: tt.reqType,
+						RoutingKey:  "routing-key-mobile-sdk",
+						WorkspaceID: "workspace1",
+						SourceID:    "source-id-1",
+						ReceivedAt:  time.Now(),
+						RequestIP:   "192.0.2.50",
+					},
+					Payload: json.RawMessage(tt.payload),
+				},
+			}
+			payloadBytes, err := jsonrs.Marshal(messages)
+			require.NoError(t, err)
+
+			jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+			require.NoError(t, err)
+			require.Len(t, jobs, 1, "should produce exactly 1 job")
+
+			jobPayload := string(jobs[0].job.EventPayload)
+			tt.assertions(t, jobPayload)
+		})
+	}
+}
+
+// TestServerSDKBatchCompatibility validates server-side SDK batch payload processing through the
+// Gateway pipeline, including mixed event type batches, large batches, duplicate messageId handling,
+// and per-platform library metadata preservation.
+// This covers E-008: Server-Side SDK Compatibility Testing.
+func TestServerSDKBatchCompatibility(t *testing.T) {
+	t.Run("mixed event type batch with all 6 call types", func(t *testing.T) {
+		gw := createTestGateway(t, backendconfig.EventBlocking{})
+
+		// Server-side SDKs send mixed event types in a single batch request.
+		// Each event has a different type field in the payload.
+		messages := []stream.Message{
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "batch",
+					RoutingKey:  "routing-key-batch-mixed",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.60",
+				},
+				Payload: json.RawMessage(`{"type":"identify","userId":"user-srv-001","messageId":"msg-batch-id","rudderId":"rudder-batch-id","request_ip":"192.0.2.60","receivedAt":"2024-01-01T00:00:00Z","traits":{"name":"Server User","email":"srv@test.com"},"context":{"library":{"name":"analytics-node","version":"6.2.0"}}}`),
+			},
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "batch",
+					RoutingKey:  "routing-key-batch-mixed",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.60",
+				},
+				Payload: json.RawMessage(`{"type":"track","event":"Order Completed","userId":"user-srv-001","messageId":"msg-batch-trk","rudderId":"rudder-batch-trk","request_ip":"192.0.2.60","receivedAt":"2024-01-01T00:00:00Z","properties":{"revenue":99.99,"orderId":"ORD-001"},"context":{"library":{"name":"analytics-node","version":"6.2.0"}}}`),
+			},
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "batch",
+					RoutingKey:  "routing-key-batch-mixed",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.60",
+				},
+				Payload: json.RawMessage(`{"type":"page","name":"Pricing","userId":"user-srv-001","messageId":"msg-batch-pg","rudderId":"rudder-batch-pg","request_ip":"192.0.2.60","receivedAt":"2024-01-01T00:00:00Z","properties":{"url":"https://example.com/pricing","title":"Pricing Page"},"context":{"library":{"name":"analytics-node","version":"6.2.0"}}}`),
+			},
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "batch",
+					RoutingKey:  "routing-key-batch-mixed",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.60",
+				},
+				Payload: json.RawMessage(`{"type":"screen","name":"Dashboard","userId":"user-srv-001","messageId":"msg-batch-scr","rudderId":"rudder-batch-scr","request_ip":"192.0.2.60","receivedAt":"2024-01-01T00:00:00Z","properties":{"screenClass":"Main"},"context":{"library":{"name":"analytics-node","version":"6.2.0"}}}`),
+			},
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "batch",
+					RoutingKey:  "routing-key-batch-mixed",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.60",
+				},
+				Payload: json.RawMessage(`{"type":"group","groupId":"grp-srv-001","userId":"user-srv-001","messageId":"msg-batch-grp","rudderId":"rudder-batch-grp","request_ip":"192.0.2.60","receivedAt":"2024-01-01T00:00:00Z","traits":{"name":"Acme Corp","plan":"enterprise"},"context":{"library":{"name":"analytics-node","version":"6.2.0"}}}`),
+			},
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "batch",
+					RoutingKey:  "routing-key-batch-mixed",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.60",
+				},
+				Payload: json.RawMessage(`{"type":"alias","previousId":"old-user-srv","userId":"user-srv-001","messageId":"msg-batch-als","rudderId":"rudder-batch-als","request_ip":"192.0.2.60","receivedAt":"2024-01-01T00:00:00Z","context":{"library":{"name":"analytics-node","version":"6.2.0"}}}`),
+			},
+		}
+
+		payloadBytes, err := jsonrs.Marshal(messages)
+		require.NoError(t, err)
+
+		jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+		require.NoError(t, err)
+		require.Len(t, jobs, 6, "all 6 events in the mixed batch should produce jobs")
+
+		// Verify each event type is preserved in the output
+		expectedTypes := []string{"identify", "track", "page", "screen", "group", "alias"}
+		for i, expectedType := range expectedTypes {
+			jobPayload := string(jobs[i].job.EventPayload)
+			actualType := gjson.Get(jobPayload, "batch.0.type").String()
+			require.Equal(t, expectedType, actualType,
+				"job %d: event type should be %q", i, expectedType)
+		}
+	})
+
+	t.Run("batch payload size limit (4MB)", func(t *testing.T) {
+		// The 4MB request size limit is enforced at the HTTP transport layer (handle.go webRequestHandler).
+		// At the extractJobsFromInternalBatchPayload level, large payloads should be processed correctly
+		// as long as they pass validation. This test creates a batch with events containing large property
+		// values (~3MB total) to validate the pipeline handles substantial payloads without truncation.
+		gw := createTestGateway(t, backendconfig.EventBlocking{})
+
+		// Create a large property string (~60KB per event, 50 events ≈ 3MB)
+		largeValue := strings.Repeat("x", 60000)
+		messages := make([]stream.Message, 0, 50)
+		for i := 0; i < 50; i++ {
+			payload := fmt.Sprintf(
+				`{"type":"track","event":"Large Event %d","userId":"user-large-%d","messageId":"msg-large-%d","rudderId":"rudder-large-%d","request_ip":"192.0.2.70","receivedAt":"2024-01-01T00:00:00Z","properties":{"large_data":"%s","index":%d},"context":{"library":{"name":"analytics-node","version":"6.2.0"}}}`,
+				i, i, i, i, largeValue, i,
+			)
+			messages = append(messages, stream.Message{
+				Properties: stream.MessageProperties{
+					RequestType: "batch",
+					RoutingKey:  fmt.Sprintf("routing-key-large-%d", i),
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.70",
+				},
+				Payload: json.RawMessage(payload),
+			})
+		}
+
+		payloadBytes, err := jsonrs.Marshal(messages)
+		require.NoError(t, err)
+
+		// Verify the payload is substantial (at least 2MB to confirm we're testing near the limit)
+		require.Greater(t, len(payloadBytes), 2*1024*1024,
+			"test payload should be at least 2MB to validate large batch handling")
+
+		jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+		require.NoError(t, err)
+		require.Len(t, jobs, 50, "all 50 events in the large batch should produce jobs")
+
+		// Verify first and last events are intact
+		firstPayload := string(jobs[0].job.EventPayload)
+		require.Equal(t, "Large Event 0",
+			gjson.Get(firstPayload, "batch.0.event").String(),
+			"first event name should be preserved")
+		require.Equal(t, float64(0),
+			gjson.Get(firstPayload, "batch.0.properties.index").Float(),
+			"first event index should be preserved")
+
+		lastPayload := string(jobs[49].job.EventPayload)
+		require.Equal(t, "Large Event 49",
+			gjson.Get(lastPayload, "batch.0.event").String(),
+			"last event name should be preserved")
+		require.Equal(t, float64(49),
+			gjson.Get(lastPayload, "batch.0.properties.index").Float(),
+			"last event index should be preserved")
+	})
+
+	t.Run("large batch with many events", func(t *testing.T) {
+		gw := createTestGateway(t, backendconfig.EventBlocking{})
+
+		// Create a batch with 120 events to validate the pipeline handles high-cardinality batches
+		const eventCount = 120
+		messages := make([]stream.Message, 0, eventCount)
+		for i := 0; i < eventCount; i++ {
+			payload := fmt.Sprintf(
+				`{"type":"track","event":"Batch Event","userId":"user-many-%d","messageId":"msg-many-%d","rudderId":"rudder-many-%d","request_ip":"192.0.2.71","receivedAt":"2024-01-01T00:00:00Z","properties":{"index":%d},"context":{"library":{"name":"analytics-node","version":"6.2.0"}}}`,
+				i, i, i, i,
+			)
+			messages = append(messages, stream.Message{
+				Properties: stream.MessageProperties{
+					RequestType: "batch",
+					RoutingKey:  fmt.Sprintf("routing-key-many-%d", i),
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.71",
+				},
+				Payload: json.RawMessage(payload),
+			})
+		}
+
+		payloadBytes, err := jsonrs.Marshal(messages)
+		require.NoError(t, err)
+
+		jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+		require.NoError(t, err)
+		require.Len(t, jobs, eventCount, "all %d events should produce jobs", eventCount)
+
+		// Spot-check events at different positions to verify ordering and data preservation
+		for _, idx := range []int{0, 25, 50, 75, 99, eventCount - 1} {
+			jobPayload := string(jobs[idx].job.EventPayload)
+			require.Equal(t, float64(idx),
+				gjson.Get(jobPayload, "batch.0.properties.index").Float(),
+				"event at position %d should have correct index", idx)
+			require.Equal(t, "Batch Event",
+				gjson.Get(jobPayload, "batch.0.event").String(),
+				"event at position %d should have correct event name", idx)
+		}
+	})
+
+	t.Run("duplicate messageId handling in batch", func(t *testing.T) {
+		// The Gateway does not deduplicate at ingestion — duplicate messageIds should both be accepted.
+		gw := createTestGateway(t, backendconfig.EventBlocking{})
+
+		sharedMessageID := "msg-duplicate-001"
+		messages := []stream.Message{
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "batch",
+					RoutingKey:  "routing-key-dup-1",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.72",
+				},
+				Payload: json.RawMessage(fmt.Sprintf(
+					`{"type":"track","event":"First Event","userId":"user-dup-001","messageId":"%s","rudderId":"rudder-dup-001","request_ip":"192.0.2.72","receivedAt":"2024-01-01T00:00:00Z","properties":{"order":1},"context":{"library":{"name":"analytics-node","version":"6.2.0"}}}`,
+					sharedMessageID,
+				)),
+			},
+			{
+				Properties: stream.MessageProperties{
+					RequestType: "batch",
+					RoutingKey:  "routing-key-dup-2",
+					WorkspaceID: "workspace1",
+					SourceID:    "source-id-1",
+					ReceivedAt:  time.Now(),
+					RequestIP:   "192.0.2.72",
+				},
+				Payload: json.RawMessage(fmt.Sprintf(
+					`{"type":"track","event":"Second Event","userId":"user-dup-002","messageId":"%s","rudderId":"rudder-dup-002","request_ip":"192.0.2.72","receivedAt":"2024-01-01T00:00:00Z","properties":{"order":2},"context":{"library":{"name":"analytics-node","version":"6.2.0"}}}`,
+					sharedMessageID,
+				)),
+			},
+		}
+
+		payloadBytes, err := jsonrs.Marshal(messages)
+		require.NoError(t, err)
+
+		jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+		require.NoError(t, err)
+		require.Len(t, jobs, 2, "both events with duplicate messageId should produce jobs")
+
+		// Verify both events are distinct despite sharing a messageId
+		firstPayload := string(jobs[0].job.EventPayload)
+		secondPayload := string(jobs[1].job.EventPayload)
+
+		require.Equal(t, "First Event",
+			gjson.Get(firstPayload, "batch.0.event").String(),
+			"first event should be preserved")
+		require.Equal(t, float64(1),
+			gjson.Get(firstPayload, "batch.0.properties.order").Float(),
+			"first event order should be 1")
+
+		require.Equal(t, "Second Event",
+			gjson.Get(secondPayload, "batch.0.event").String(),
+			"second event should be preserved")
+		require.Equal(t, float64(2),
+			gjson.Get(secondPayload, "batch.0.properties.order").Float(),
+			"second event order should be 2")
+	})
+
+	t.Run("server-side SDK library metadata per platform", func(t *testing.T) {
+		// Each server-side SDK sets a distinct context.library.name and version.
+		// Validate that the Gateway preserves these metadata fields for all 5 platforms.
+		platforms := []struct {
+			name           string
+			libraryName    string
+			libraryVersion string
+		}{
+			{name: "Node.js", libraryName: "analytics-node", libraryVersion: "6.2.0"},
+			{name: "Python", libraryName: "analytics-python", libraryVersion: "2.2.3"},
+			{name: "Go", libraryName: "analytics-go", libraryVersion: "3.3.0"},
+			{name: "Java", libraryName: "analytics-java", libraryVersion: "3.5.0"},
+			{name: "Ruby", libraryName: "analytics-ruby", libraryVersion: "2.4.0"},
+		}
+
+		for _, platform := range platforms {
+			t.Run(platform.name, func(t *testing.T) {
+				gw := createTestGateway(t, backendconfig.EventBlocking{})
+
+				payload := fmt.Sprintf(
+					`{"type":"track","event":"Server Event","userId":"user-%s","messageId":"msg-%s","rudderId":"rudder-%s","request_ip":"192.0.2.80","receivedAt":"2024-01-01T00:00:00Z","properties":{"sdk":"%s"},"context":{"library":{"name":"%s","version":"%s"},"channel":"server"}}`,
+					platform.libraryName, platform.libraryName, platform.libraryName,
+					platform.name, platform.libraryName, platform.libraryVersion,
+				)
+
+				messages := []stream.Message{
+					{
+						Properties: stream.MessageProperties{
+							RequestType: "batch",
+							RoutingKey:  "routing-key-srv-" + platform.libraryName,
+							WorkspaceID: "workspace1",
+							SourceID:    "source-id-1",
+							ReceivedAt:  time.Now(),
+							RequestIP:   "192.0.2.80",
+						},
+						Payload: json.RawMessage(payload),
+					},
+				}
+
+				payloadBytes, err := jsonrs.Marshal(messages)
+				require.NoError(t, err)
+
+				jobs, err := gw.extractJobsFromInternalBatchPayload("batch", payloadBytes)
+				require.NoError(t, err)
+				require.Len(t, jobs, 1, "should produce exactly 1 job for %s SDK", platform.name)
+
+				jobPayload := string(jobs[0].job.EventPayload)
+
+				// Verify library name
+				require.Equal(t, platform.libraryName,
+					gjson.Get(jobPayload, "batch.0.context.library.name").String(),
+					"%s SDK: context.library.name should be %q", platform.name, platform.libraryName)
+
+				// Verify library version
+				require.Equal(t, platform.libraryVersion,
+					gjson.Get(jobPayload, "batch.0.context.library.version").String(),
+					"%s SDK: context.library.version should be %q", platform.name, platform.libraryVersion)
+
+				// Verify channel field is preserved for server-side SDKs
+				require.Equal(t, "server",
+					gjson.Get(jobPayload, "batch.0.context.channel").String(),
+					"%s SDK: context.channel should be 'server'", platform.name)
+			})
+		}
+	})
 }
