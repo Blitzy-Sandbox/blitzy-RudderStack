@@ -734,7 +734,7 @@ curl -X POST https://YOUR_DATA_PLANE_URL:8080/v1/batch \
 | Source Catalog Parity Analysis | [../../gap-report/source-catalog-parity.md](../../gap-report/source-catalog-parity.md) | SDK compatibility matrix, cloud source gap inventory |
 | Cloud Source Framework Design | [../../architecture/cloud-source-framework.md](../../architecture/cloud-source-framework.md) | Polling/webhook architecture for cloud app sources |
 | Event Spec — Common Fields | [../../api-reference/event-spec/common-fields.md](../../api-reference/event-spec/common-fields.md) | Shared payload fields across all event types |
-| Gateway OpenAPI Specification | [../../gateway/openapi.yaml](../../gateway/openapi.yaml) | Full HTTP API specification |
+| Gateway OpenAPI Specification | [../../../gateway/openapi.yaml](../../../gateway/openapi.yaml) | Full HTTP API specification |
 
 ---
 

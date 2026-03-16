@@ -853,7 +853,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 			HMACSecret:        testSecret,
 			SignatureHeader:    "X-Webhook-Signature",
 			ValidateSignature: true,
-		}, mapper, logger.NOP)
+		}, "test", mapper, logger.NOP)
 
 		payload := []byte(`{"id":"evt-sig-001","type":"charge.succeeded","amount":1000}`)
 		signature := computeHMACSignature(payload, testSecret)
@@ -868,7 +868,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 			HMACSecret:        testSecret,
 			SignatureHeader:    "X-Webhook-Signature",
 			ValidateSignature: true,
-		}, mapper, logger.NOP)
+		}, "test", mapper, logger.NOP)
 
 		payload := []byte(`{"id":"evt-sig-002","type":"charge.failed"}`)
 		wrongSignature := computeHMACSignature(payload, "wrong_secret_entirely")
@@ -883,7 +883,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 			HMACSecret:        testSecret,
 			SignatureHeader:    "X-Webhook-Signature",
 			ValidateSignature: true,
-		}, mapper, logger.NOP)
+		}, "test", mapper, logger.NOP)
 
 		payload := []byte(`{"id":"evt-sig-003","type":"customer.created"}`)
 
@@ -897,7 +897,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 			HMACSecret:        testSecret,
 			SignatureHeader:    "X-Webhook-Signature",
 			ValidateSignature: true,
-		}, mapper, logger.NOP)
+		}, "test", mapper, logger.NOP)
 
 		payload := []byte(`{"id":"evt-val-001","type":"invoice.paid","amount":5000}`)
 		signature := computeHMACSignature(payload, testSecret)
@@ -916,7 +916,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 			HMACSecret:        testSecret,
 			SignatureHeader:    "X-Webhook-Signature",
 			ValidateSignature: true,
-		}, mapper, logger.NOP)
+		}, "test", mapper, logger.NOP)
 
 		payload := []byte(`{"id":"evt-val-002","type":"charge.refunded"}`)
 		req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payload))
@@ -933,7 +933,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 			HMACSecret:        "", // No secret = skip validation
 			SignatureHeader:    "X-Webhook-Signature",
 			ValidateSignature: true,
-		}, mapper, logger.NOP)
+		}, "test", mapper, logger.NOP)
 
 		payload := []byte(`{"id":"evt-val-003","type":"payment.created"}`)
 		req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payload))
@@ -947,7 +947,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		mapper := NewBaseSchemaMapper("stripe")
 		receiver := NewBaseWebhookReceiver(WebhookConfig{
 			SignatureHeader: "X-Webhook-Signature",
-		}, mapper, logger.NOP)
+		}, "stripe", mapper, logger.NOP)
 
 		payload := map[string]interface{}{
 			"id":          "evt-transform-001",
@@ -984,7 +984,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		mapper := NewBaseSchemaMapper("stripe")
 		receiver := NewBaseWebhookReceiver(WebhookConfig{
 			SignatureHeader: "X-Webhook-Signature",
-		}, mapper, logger.NOP)
+		}, "stripe", mapper, logger.NOP)
 
 		payload := map[string]interface{}{
 			"id":   "evt-replay-001",
@@ -1011,7 +1011,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		mapper := NewBaseSchemaMapper("hubspot")
 		receiver := NewBaseWebhookReceiver(WebhookConfig{
 			SignatureHeader: "X-Webhook-Signature",
-		}, mapper, logger.NOP)
+		}, "hubspot", mapper, logger.NOP)
 
 		payload := map[string]interface{}{
 			"id":    "evt-identify-001",
@@ -1035,7 +1035,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		receiver := NewBaseWebhookReceiver(WebhookConfig{
 			HMACSecret:      testSecret,
 			SignatureHeader: "", // Should default to X-Webhook-Signature
-		}, mapper, logger.NOP)
+		}, "test", mapper, logger.NOP)
 
 		require.Equal(t, "X-Webhook-Signature", receiver.SignatureHeader)
 	})

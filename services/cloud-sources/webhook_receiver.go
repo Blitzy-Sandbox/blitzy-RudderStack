@@ -79,17 +79,21 @@ type BaseWebhookReceiver struct {
 }
 
 // NewBaseWebhookReceiver creates a new BaseWebhookReceiver configured from
-// the provided WebhookConfig, SchemaMapper, and Logger. It initializes the
-// replay protection map and sets default values for unspecified configuration fields.
+// the provided WebhookConfig, source type identifier, SchemaMapper, and Logger.
+// It initializes the replay protection map and sets default values for
+// unspecified configuration fields.
 //
 // Parameters:
 //   - cfg: WebhookConfig containing HMAC secret, signature header, and validation settings.
 //     If cfg.SignatureHeader is empty, it defaults to "X-Webhook-Signature".
+//   - sourceType: identifies the cloud source connector type (e.g., "stripe", "salesforce").
+//     Propagated into the intermediate Event.SourceType field during Transform, ensuring
+//     downstream consumers (schema mappers, logging, routing) receive the correct source attribution.
 //   - mapper: SchemaMapper for transforming webhook payloads into Segment Spec events.
 //   - log: Logger for structured logging of validation and transform operations.
 //
 // Returns a fully initialized *BaseWebhookReceiver ready to handle webhook requests.
-func NewBaseWebhookReceiver(cfg WebhookConfig, mapper SchemaMapper, log logger.Logger) *BaseWebhookReceiver {
+func NewBaseWebhookReceiver(cfg WebhookConfig, sourceType string, mapper SchemaMapper, log logger.Logger) *BaseWebhookReceiver {
 	signatureHeader := cfg.SignatureHeader
 	if signatureHeader == "" {
 		signatureHeader = "X-Webhook-Signature"
@@ -100,6 +104,7 @@ func NewBaseWebhookReceiver(cfg WebhookConfig, mapper SchemaMapper, log logger.L
 		SignatureHeader:  signatureHeader,
 		Logger:          log,
 		SchemaMapper:    mapper,
+		sourceType:      sourceType,
 		seenEvents:      make(map[string]time.Time),
 	}
 }
