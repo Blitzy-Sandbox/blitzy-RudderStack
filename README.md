@@ -77,7 +77,7 @@ With RudderStack, you can build customer data pipelines that connect your whole 
 
 - **Unlimited Events**: Event volume-based pricing of most of the commercial systems is broken. With RudderStack Open Source, you can collect as much data as possible without worrying about overrunning your event budgets.
 
-- **Segment API-compatible**: RudderStack is fully compatible with the Segment API and achieves **100% field-level parity** with the [Twilio Segment Event Specification](https://segment.com/docs/connections/spec/) across all six core event types (`identify`, `track`, `page`, `screen`, `group`, `alias`), including structured Client Hints pass-through (`context.userAgentData`) and semantic event category support. So you don't need to change your app if you are using Segment; just integrate the RudderStack SDKs into your app and your events will keep flowing to the destinations (including data warehouses) as before.
+- **Segment API-compatible**: RudderStack is fully compatible with the Segment API and achieves **100% field-level parity** with the [Twilio Segment Event Specification](https://segment.com/docs/connections/spec/) across all six core event types (`identify`, `track`, `page`, `screen`, `group`, `alias`), including structured Client Hints pass-through (`context.userAgentData`) and semantic event category support. RudderStack has also **validated drop-in SDK compatibility** with Segment's JavaScript (`analytics.js` / Analytics 2.0), iOS (`analytics-ios`), Android (`analytics-android`), and server-side SDKs (Node.js, Python, Go, Java, Ruby). Existing Segment SDK users can migrate by swapping the endpoint URL and Write Key — no code changes required. See the [SDK Compatibility Migration Guides](docs/guides/sdk-compatibility/segment-sdk-migration.md) for per-SDK instructions.
 
 - **Production-ready**: Companies like Mattermost, IFTTT, Torpedo, Grofers, 1mg, Nana, OnceHub, and dozens of large companies use RudderStack for collecting their events.
 
@@ -135,12 +135,38 @@ Comprehensive documentation is available in the [`docs/`](docs/README.md) direct
 | **[Warehouse Connectors](docs/warehouse/overview.md)** | Per-warehouse setup and configuration guides |
 | **[Reference](docs/reference/config-reference.md)** | Configuration, environment variables, glossary |
 | **[Contributing](docs/contributing/development.md)** | Development setup, destination onboarding, testing |
+| **[SDK Compatibility](docs/guides/sdk-compatibility/segment-sdk-migration.md)** | Segment SDK migration guides for JavaScript, iOS, Android, and server-side SDKs |
+| **[Cloud Source Framework](docs/architecture/cloud-source-framework.md)** | Cloud source ingestion architecture design for polling/webhook-based SaaS integrations |
 
 ### Segment Parity Gap Report
 
-A comprehensive gap analysis comparing RudderStack capabilities against Twilio Segment features is available in the [Gap Report](docs/gap-report/index.md). The **Event Spec Parity** dimension has achieved **100% field-level parity** with the Twilio Segment Event Specification, covering all six core event types (`identify`, `track`, `page`, `screen`, `group`, `alias`), all 18 standard context fields, structured Client Hints (`context.userAgentData`), 17 reserved identify traits, 12 reserved group traits, and seven semantic event categories (E-Commerce v2, Video, Mobile, B2B SaaS, Email, Live Chat, A/B Testing). RudderStack extensions beyond the Segment spec — including `/v1/replay`, `/internal/v1/retl`, `/beacon/v1/*`, `/pixel/v1/*`, and the `merge` call type — are documented in the [Event Spec API Reference](docs/api-reference/event-spec/). The analysis also covers destination catalog coverage, transformation/Functions, Protocols enforcement, identity resolution, and warehouse sync.
+A comprehensive gap analysis comparing RudderStack capabilities against Twilio Segment features is available in the [Gap Report](docs/gap-report/index.md). The **Event Spec Parity** dimension has achieved **100% field-level parity** with the Twilio Segment Event Specification, covering all six core event types (`identify`, `track`, `page`, `screen`, `group`, `alias`), all 18 standard context fields, structured Client Hints (`context.userAgentData`), 17 reserved identify traits, 12 reserved group traits, and seven semantic event categories (E-Commerce v2, Video, Mobile, B2B SaaS, Email, Live Chat, A/B Testing). **Source SDK Compatibility** has been validated across JavaScript, iOS, Android, and five server-side SDKs, raising the Source Catalog parity score from ~60% to ~85%. A [Cloud Source Framework](docs/architecture/cloud-source-framework.md) design has been produced to address the 140 cloud app source gap through a polling/webhook-based ingestion architecture. RudderStack extensions beyond the Segment spec — including `/v1/replay`, `/internal/v1/retl`, `/beacon/v1/*`, `/pixel/v1/*`, and the `merge` call type — are documented in the [Event Spec API Reference](docs/api-reference/event-spec/). The analysis also covers destination catalog coverage, transformation/Functions, Protocols enforcement, identity resolution, and warehouse sync.
 
 > **Note:** Segment Engage/Campaigns and Reverse ETL are planned for Phase 2.
+
+### Segment SDK Compatibility
+
+RudderStack Gateway supports **drop-in compatibility** with Segment SDK client libraries. Existing Segment SDK users can migrate to RudderStack by replacing the endpoint URL (`api.segment.io` → `<your-rudderstack-data-plane-url>`) and substituting a RudderStack Write Key — no application code changes are required.
+
+The following SDKs have been validated for full compatibility:
+
+| SDK | Library | Validated Capabilities |
+|-----|---------|----------------------|
+| **JavaScript** | `analytics.js` / Analytics 2.0 | All 6 event types, batch (`/v1/batch`), beacon (`/beacon/v1/batch`), pixel (`/pixel/v1/track`, `/pixel/v1/page`) |
+| **iOS** | `analytics-ios` (Swift) | All event types, mobile context auto-collection (`device`, `os`, `app`, `network`, `screen`), lifecycle events |
+| **Android** | `analytics-android` (Kotlin) | All event types, mobile context auto-collection (`device`, `os`, `app`, `network`, `screen`), lifecycle events |
+| **Node.js** | `analytics-node` | Batch endpoint, retry behavior |
+| **Python** | `analytics-python` | Batch endpoint, flush behavior |
+| **Go** | `analytics-go` | Batch endpoint |
+| **Java** | `analytics-java` | Batch endpoint |
+| **Ruby** | `analytics-ruby` | Batch endpoint, retry behavior |
+
+**Migration guides:**
+
+- [Segment SDK Migration Guide](docs/guides/sdk-compatibility/segment-sdk-migration.md) — Master migration reference
+- [Web SDK Guide](docs/guides/sdk-compatibility/web-sdk-guide.md) — JavaScript / Analytics 2.0 compatibility and device-mode limitations
+- [Mobile SDK Guide](docs/guides/sdk-compatibility/mobile-sdk-guide.md) — iOS and Android lifecycle event support and context auto-collection
+- [Server SDK Guide](docs/guides/sdk-compatibility/server-sdk-guide.md) — Node.js, Python, Go, Java, and Ruby batch endpoint usage and retry behavior
 
 ## Contribute
 
