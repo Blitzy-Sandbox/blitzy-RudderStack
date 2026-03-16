@@ -1,0 +1,445 @@
+{
+  "identify": {
+    "type": "identify",
+    "userId": "user-android-sdk-test-001",
+    "anonymousId": "anon-android-sdk-test-001",
+    "messageId": "msg-android-sdk-identify-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-android",
+        "version": "4.11.3"
+      },
+      "app": {
+        "name": "TestApp Android",
+        "version": "3.0.1",
+        "build": "301",
+        "namespace": "com.testcorp.testapp.android"
+      },
+      "device": {
+        "id": "android-device-test-001",
+        "manufacturer": "Samsung",
+        "model": "SM-S918B",
+        "name": "Test Galaxy",
+        "type": "android",
+        "advertisingId": "android-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14"
+      },
+      "network": {
+        "bluetooth": true,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 3088,
+        "width": 1440
+      },
+      "ip": "198.51.100.30",
+      "locale": "en-US",
+      "timezone": "America/Chicago",
+      "userAgent": "Dalvik/2.1.0 (Linux; U; Android 14; SM-S918B Build/UP1A.231005.007)",
+      "traits": {
+        "email": "android.user@example.com",
+        "name": "Android User"
+      },
+      "channel": "mobile"
+    },
+    "traits": {
+      "email": "android.user@example.com",
+      "firstName": "Bob",
+      "lastName": "AndroidTest",
+      "phone": "+1-555-300-0001",
+      "age": 25,
+      "company": {
+        "id": "comp-android-001",
+        "name": "DroidCorp"
+      },
+      "createdAt": "2024-09-01T10:00:00.000Z"
+    }
+  },
+  "track": {
+    "type": "track",
+    "event": "Level Completed",
+    "userId": "user-android-sdk-test-001",
+    "anonymousId": "anon-android-sdk-test-001",
+    "messageId": "msg-android-sdk-track-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-android",
+        "version": "4.11.3"
+      },
+      "app": {
+        "name": "TestApp Android",
+        "version": "3.0.1",
+        "build": "301",
+        "namespace": "com.testcorp.testapp.android"
+      },
+      "device": {
+        "id": "android-device-test-001",
+        "manufacturer": "Samsung",
+        "model": "SM-S918B",
+        "name": "Test Galaxy",
+        "type": "android",
+        "advertisingId": "android-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14"
+      },
+      "network": {
+        "bluetooth": true,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 3088,
+        "width": 1440
+      },
+      "ip": "198.51.100.30",
+      "locale": "en-US",
+      "timezone": "America/Chicago",
+      "userAgent": "Dalvik/2.1.0 (Linux; U; Android 14; SM-S918B Build/UP1A.231005.007)",
+      "traits": {
+        "email": "android.user@example.com",
+        "name": "Android User"
+      },
+      "channel": "mobile"
+    },
+    "properties": {
+      "level_name": "tutorial",
+      "level_number": 1,
+      "score": 9500,
+      "time_spent": 125.3,
+      "currency": "USD"
+    }
+  },
+  "screen": {
+    "type": "screen",
+    "name": "Settings",
+    "category": "Preferences",
+    "userId": "user-android-sdk-test-001",
+    "anonymousId": "anon-android-sdk-test-001",
+    "messageId": "msg-android-sdk-screen-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-android",
+        "version": "4.11.3"
+      },
+      "app": {
+        "name": "TestApp Android",
+        "version": "3.0.1",
+        "build": "301",
+        "namespace": "com.testcorp.testapp.android"
+      },
+      "device": {
+        "id": "android-device-test-001",
+        "manufacturer": "Samsung",
+        "model": "SM-S918B",
+        "name": "Test Galaxy",
+        "type": "android",
+        "advertisingId": "android-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14"
+      },
+      "network": {
+        "bluetooth": true,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 3088,
+        "width": 1440
+      },
+      "ip": "198.51.100.30",
+      "locale": "en-US",
+      "timezone": "America/Chicago",
+      "userAgent": "Dalvik/2.1.0 (Linux; U; Android 14; SM-S918B Build/UP1A.231005.007)",
+      "traits": {
+        "email": "android.user@example.com",
+        "name": "Android User"
+      },
+      "channel": "mobile"
+    },
+    "properties": {
+      "name": "Settings",
+      "variation": "control"
+    }
+  },
+  "group": {
+    "type": "group",
+    "groupId": "grp-android-sdk-001",
+    "userId": "user-android-sdk-test-001",
+    "anonymousId": "anon-android-sdk-test-001",
+    "messageId": "msg-android-sdk-group-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-android",
+        "version": "4.11.3"
+      },
+      "app": {
+        "name": "TestApp Android",
+        "version": "3.0.1",
+        "build": "301",
+        "namespace": "com.testcorp.testapp.android"
+      },
+      "device": {
+        "id": "android-device-test-001",
+        "manufacturer": "Samsung",
+        "model": "SM-S918B",
+        "name": "Test Galaxy",
+        "type": "android",
+        "advertisingId": "android-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14"
+      },
+      "network": {
+        "bluetooth": true,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 3088,
+        "width": 1440
+      },
+      "ip": "198.51.100.30",
+      "locale": "en-US",
+      "timezone": "America/Chicago",
+      "userAgent": "Dalvik/2.1.0 (Linux; U; Android 14; SM-S918B Build/UP1A.231005.007)",
+      "traits": {
+        "email": "android.user@example.com",
+        "name": "Android User"
+      },
+      "channel": "mobile"
+    },
+    "traits": {
+      "name": "DroidCorp",
+      "industry": "Mobile Gaming",
+      "employees": 120,
+      "plan": "enterprise"
+    }
+  },
+  "alias": {
+    "type": "alias",
+    "previousId": "anon-android-sdk-test-001",
+    "userId": "user-android-sdk-test-001",
+    "anonymousId": "anon-android-sdk-test-001",
+    "messageId": "msg-android-sdk-alias-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-android",
+        "version": "4.11.3"
+      },
+      "app": {
+        "name": "TestApp Android",
+        "version": "3.0.1",
+        "build": "301",
+        "namespace": "com.testcorp.testapp.android"
+      },
+      "device": {
+        "id": "android-device-test-001",
+        "manufacturer": "Samsung",
+        "model": "SM-S918B",
+        "name": "Test Galaxy",
+        "type": "android",
+        "advertisingId": "android-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14"
+      },
+      "network": {
+        "bluetooth": true,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 3088,
+        "width": 1440
+      },
+      "ip": "198.51.100.30",
+      "locale": "en-US",
+      "timezone": "America/Chicago",
+      "userAgent": "Dalvik/2.1.0 (Linux; U; Android 14; SM-S918B Build/UP1A.231005.007)",
+      "traits": {
+        "email": "android.user@example.com",
+        "name": "Android User"
+      },
+      "channel": "mobile"
+    }
+  },
+  "lifecycle_app_opened": {
+    "type": "track",
+    "event": "Application Opened",
+    "userId": "user-android-sdk-test-001",
+    "anonymousId": "anon-android-sdk-test-001",
+    "messageId": "msg-android-sdk-app-opened-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-android",
+        "version": "4.11.3"
+      },
+      "app": {
+        "name": "TestApp Android",
+        "version": "3.0.1",
+        "build": "301",
+        "namespace": "com.testcorp.testapp.android"
+      },
+      "device": {
+        "id": "android-device-test-001",
+        "manufacturer": "Samsung",
+        "model": "SM-S918B",
+        "name": "Test Galaxy",
+        "type": "android",
+        "advertisingId": "android-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14"
+      },
+      "network": {
+        "bluetooth": true,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 3088,
+        "width": 1440
+      },
+      "ip": "198.51.100.30",
+      "locale": "en-US",
+      "timezone": "America/Chicago",
+      "userAgent": "Dalvik/2.1.0 (Linux; U; Android 14; SM-S918B Build/UP1A.231005.007)",
+      "traits": {
+        "email": "android.user@example.com",
+        "name": "Android User"
+      },
+      "channel": "mobile"
+    },
+    "properties": {
+      "from_background": false,
+      "referring_application": "com.google.android.gm",
+      "url": "testapp://open?source=notification",
+      "version": "3.0.1",
+      "build": "301"
+    }
+  },
+  "lifecycle_app_backgrounded": {
+    "type": "track",
+    "event": "Application Backgrounded",
+    "userId": "user-android-sdk-test-001",
+    "anonymousId": "anon-android-sdk-test-001",
+    "messageId": "msg-android-sdk-app-backgrounded-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-android",
+        "version": "4.11.3"
+      },
+      "app": {
+        "name": "TestApp Android",
+        "version": "3.0.1",
+        "build": "301",
+        "namespace": "com.testcorp.testapp.android"
+      },
+      "device": {
+        "id": "android-device-test-001",
+        "manufacturer": "Samsung",
+        "model": "SM-S918B",
+        "name": "Test Galaxy",
+        "type": "android",
+        "advertisingId": "android-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "Android",
+        "version": "14"
+      },
+      "network": {
+        "bluetooth": true,
+        "carrier": "T-Mobile",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 3088,
+        "width": 1440
+      },
+      "ip": "198.51.100.30",
+      "locale": "en-US",
+      "timezone": "America/Chicago",
+      "userAgent": "Dalvik/2.1.0 (Linux; U; Android 14; SM-S918B Build/UP1A.231005.007)",
+      "traits": {
+        "email": "android.user@example.com",
+        "name": "Android User"
+      },
+      "channel": "mobile"
+    },
+    "properties": {}
+  }
+}
