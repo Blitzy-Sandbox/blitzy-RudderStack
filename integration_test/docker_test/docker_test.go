@@ -132,7 +132,7 @@ func TestMainFlow(t *testing.T) {
 func testCases(t *testing.T) {
 	t.Run("webhook", func(t *testing.T) {
 		require.Eventually(t, func() bool {
-			return webhook.RequestsCount() == 11
+			return webhook.RequestsCount() == 16
 		}, time.Minute, 300*time.Millisecond)
 
 		i := -1
@@ -875,6 +875,192 @@ func sendEventsToGateway(t *testing.T) {
 		]
 	}`)
 	sendRETL(t, payloadRetlKafka, "xxxyyyzzEaEurW247ad9WYZLUyk", "xxxyyyzzhyrw8v0CrTMrDZ4ovej")
+
+	// SDK Compatibility Payloads (E-005: Gateway API Surface Validation)
+	// These additional payloads validate backward compatibility with Segment SDK payload formats.
+	// Each payload uses SDK-specific context.library metadata to verify the Gateway processes
+	// all major Segment SDK formats without regression.
+
+	// JavaScript SDK (analytics.js / Analytics 2.0) — track event with web context fields
+	payloadJsSDK := strings.NewReader(`{
+		"userId": "identified_user_id",
+		"anonymousId": "anonymousId_1",
+		"messageId": "messageId_js_sdk_1",
+		"type": "track",
+		"event": "Button Clicked",
+		"properties": {
+			"button_name": "Sign Up",
+			"page_section": "hero"
+		},
+		"context": {
+			"channel": "client",
+			"library": {
+				"name": "analytics.js",
+				"version": "2.1.0"
+			},
+			"userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+			"page": {
+				"url": "https://example.com/signup",
+				"path": "/signup",
+				"referrer": "https://google.com/search?q=example",
+				"title": "Sign Up | Example",
+				"search": "?ref=google"
+			}
+		},
+		"timestamp": "2024-01-15T10:30:00.000Z"
+	}`)
+	sendEvent(t, payloadJsSDK, "track", writeKey)
+
+	// iOS SDK (analytics-ios) — identify event with full mobile context auto-collection
+	payloadIosSDK := strings.NewReader(`{
+		"userId": "identified_user_id",
+		"anonymousId": "anonymousId_1",
+		"messageId": "messageId_ios_sdk_1",
+		"type": "identify",
+		"traits": {
+			"email": "ios.user@example.com",
+			"name": "iOS Test User"
+		},
+		"context": {
+			"channel": "mobile",
+			"library": {
+				"name": "analytics-ios",
+				"version": "4.1.0"
+			},
+			"device": {
+				"id": "ios_device_001",
+				"manufacturer": "Apple",
+				"model": "iPhone14,5",
+				"name": "iPhone 13 Pro",
+				"type": "ios",
+				"advertisingId": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"
+			},
+			"os": {
+				"name": "iOS",
+				"version": "17.2"
+			},
+			"app": {
+				"name": "TestApp",
+				"version": "2.0.0",
+				"build": "200",
+				"namespace": "com.test.app"
+			},
+			"network": {
+				"bluetooth": false,
+				"carrier": "Verizon",
+				"cellular": true,
+				"wifi": true
+			},
+			"screen": {
+				"density": 3,
+				"height": 2532,
+				"width": 1170
+			}
+		},
+		"timestamp": "2024-01-15T10:31:00.000Z"
+	}`)
+	sendEvent(t, payloadIosSDK, "identify", writeKey)
+
+	// Android SDK (analytics-android) — track lifecycle event with mobile context
+	payloadAndroidSDK := strings.NewReader(`{
+		"userId": "identified_user_id",
+		"anonymousId": "anonymousId_1",
+		"messageId": "messageId_android_sdk_1",
+		"type": "track",
+		"event": "Application Opened",
+		"properties": {
+			"from_background": false,
+			"version": "3.0.0"
+		},
+		"context": {
+			"channel": "mobile",
+			"library": {
+				"name": "analytics-android",
+				"version": "4.11.0"
+			},
+			"device": {
+				"id": "android_device_001",
+				"manufacturer": "Samsung",
+				"model": "SM-G998B",
+				"name": "Galaxy S21 Ultra",
+				"type": "android",
+				"advertisingId": "cdda802e-fb9c-47ad-9866-0794d394c912"
+			},
+			"os": {
+				"name": "Android",
+				"version": "14.0"
+			},
+			"app": {
+				"name": "TestApp",
+				"version": "3.0.0",
+				"build": "300",
+				"namespace": "com.test.android"
+			},
+			"network": {
+				"bluetooth": true,
+				"carrier": "AT&T",
+				"cellular": true,
+				"wifi": false
+			},
+			"screen": {
+				"density": 3,
+				"height": 3200,
+				"width": 1440
+			}
+		},
+		"timestamp": "2024-01-15T10:32:00.000Z"
+	}`)
+	sendEvent(t, payloadAndroidSDK, "track", writeKey)
+
+	// Node.js SDK (analytics-node) — batch endpoint with server-side track event
+	payloadNodeSDK := strings.NewReader(`{
+		"batch": [
+			{
+				"userId": "identified_user_id",
+				"anonymousId": "anonymousId_1",
+				"messageId": "messageId_node_sdk_1",
+				"type": "track",
+				"event": "Order Completed",
+				"properties": {
+					"order_id": "ORD-50314",
+					"total": 99.99,
+					"currency": "USD"
+				},
+				"context": {
+					"channel": "server",
+					"library": {
+						"name": "analytics-node",
+						"version": "6.2.0"
+					}
+				},
+				"timestamp": "2024-01-15T10:33:00.000Z"
+			}
+		]
+	}`)
+	sendEvent(t, payloadNodeSDK, "batch", writeKey)
+
+	// Python SDK (analytics-python) — track event with sentAt field
+	payloadPythonSDK := strings.NewReader(`{
+		"userId": "identified_user_id",
+		"anonymousId": "anonymousId_1",
+		"messageId": "messageId_python_sdk_1",
+		"type": "track",
+		"event": "Subscription Created",
+		"properties": {
+			"plan": "enterprise",
+			"revenue": 499.00
+		},
+		"context": {
+			"channel": "server",
+			"library": {
+				"name": "analytics-python",
+				"version": "2.2.0"
+			}
+		},
+		"sentAt": "2024-01-15T10:34:05.000Z",
+		"timestamp": "2024-01-15T10:34:00.000Z"
+	}`)
+	sendEvent(t, payloadPythonSDK, "track", writeKey)
 }
 
 func blockOnHold(t *testing.T) {
