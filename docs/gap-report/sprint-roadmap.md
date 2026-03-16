@@ -29,7 +29,7 @@
 
 ## Executive Summary
 
-This roadmap sequences the autonomous implementation of all gaps identified in the [Segment Parity Gap Report](./index.md). The gap analysis evaluated RudderStack (`rudder-server` v1.68.1) against Twilio Segment across **eight capability dimensions** — event spec, destination catalog, source catalog, functions, protocols, identity resolution, warehouse sync, and operational infrastructure — and found an overall weighted parity of approximately 54% (Event Spec parity now at 100% following Sprint 1–2 completion).
+This roadmap sequences the autonomous implementation of all gaps identified in the [Segment Parity Gap Report](./index.md). The gap analysis evaluated RudderStack (`rudder-server` v1.68.1) against Twilio Segment across **eight capability dimensions** — event spec, destination catalog, source catalog, functions, protocols, identity resolution, warehouse sync, and operational infrastructure — and found an overall weighted parity of approximately 54% (Event Spec parity now at 100% following Sprint 1–2 completion; Source Catalog parity raised from ~60% to ~85% following Sprint 2–3 completion).
 
 **Scope:** This roadmap covers all eight gap dimensions plus cross-cutting operational tooling. Each sprint section references a detailed dimension-specific gap report, links to source code citations, and defines explicit success criteria for autonomous implementation.
 
@@ -43,7 +43,7 @@ This roadmap sequences the autonomous implementation of all gaps identified in t
 |-----------|--------|--------|
 | Event Spec | **100%** ✅ | [Event Spec Parity Analysis](./event-spec-parity.md) |
 | Destination Catalog | ~25–30% | [Destination Catalog Parity Analysis](./destination-catalog-parity.md) |
-| Source Catalog | ~60% | [Source Catalog Parity Analysis](./source-catalog-parity.md) |
+| Source Catalog | **~85%** ✅ | [Source Catalog Parity Analysis](./source-catalog-parity.md) |
 | Functions | ~40% | [Functions Parity Analysis](./functions-parity.md) |
 | Protocols | ~30% | [Protocols Parity Analysis](./protocols-parity.md) |
 | Identity Resolution | ~20% | [Identity Parity Analysis](./identity-parity.md) |
@@ -225,6 +225,8 @@ Validate and close the remaining ~5% gap in Segment Spec event parity. All six c
 
 ## Sprint 2–3: Source SDK Compatibility
 
+> **Status: ✅ COMPLETE**
+
 **Priority:** P1 — High
 **Duration:** 2 sprints (4 weeks)
 **Current Parity:** ~60%
@@ -237,13 +239,13 @@ Validate that all Segment SDKs (web, mobile, server-side) can connect to the Rud
 
 ### Epic Breakdown
 
-| Epic ID | Title | Description | Effort |
-|---------|-------|-------------|--------|
-| **E-005** | Validate Gateway Segment-compatible API surface | Comprehensive integration testing of all `/v1/{type}` endpoints on port 8080 with Segment SDK client libraries. Validate Write Key Basic Auth scheme (`Authorization: Basic base64(writeKey:)`) matches Segment's authentication exactly. | 3 days |
-| **E-006** | JavaScript web SDK compatibility testing | End-to-end testing with `analytics.js` / Analytics 2.0 against the Gateway. Validate all 6 Spec calls, batch endpoint (`/v1/batch`), and beacon tracking (`/beacon/v1/batch`). Document any device-mode limitations. | 3 days |
-| **E-007** | iOS and Android mobile SDK compatibility testing | Integration testing with `analytics-ios` (Swift) and `analytics-android` (Kotlin) against the Gateway. Validate `identify`, `track`, `screen`, `group`, `alias` calls, context auto-collection fields, and lifecycle events. | 5 days |
-| **E-008** | Server-side SDK compatibility testing | Integration testing with Node.js (`analytics-node`), Python (`analytics-python`), Go (`analytics-go`), Java (`analytics-java`), and Ruby (`analytics-ruby`) SDKs. Validate batch endpoint usage and retry behavior. | 5 days |
-| **E-009** | Cloud source ingestion framework design | Design and prototype the cloud source ingestion framework to address the 140 cloud app source gap (Salesforce, Stripe, HubSpot, Zendesk, etc.). Define the polling/webhook architecture, credential management, and schema mapping layer. Priority: top-20 cloud sources by adoption. | 8 days |
+| Epic ID | Title | Description | Effort | Status |
+|---------|-------|-------------|--------|--------|
+| **E-005** | Validate Gateway Segment-compatible API surface | Comprehensive integration testing of all `/v1/{type}` endpoints on port 8080 with Segment SDK client libraries. Validate Write Key Basic Auth scheme (`Authorization: Basic base64(writeKey:)`) matches Segment's authentication exactly. | 3 days | ✅ COMPLETE |
+| **E-006** | JavaScript web SDK compatibility testing | End-to-end testing with `analytics.js` / Analytics 2.0 against the Gateway. Validate all 6 Spec calls, batch endpoint (`/v1/batch`), and beacon tracking (`/beacon/v1/batch`). Document any device-mode limitations. | 3 days | ✅ COMPLETE |
+| **E-007** | iOS and Android mobile SDK compatibility testing | Integration testing with `analytics-ios` (Swift) and `analytics-android` (Kotlin) against the Gateway. Validate `identify`, `track`, `screen`, `group`, `alias` calls, context auto-collection fields, and lifecycle events. | 5 days | ✅ COMPLETE |
+| **E-008** | Server-side SDK compatibility testing | Integration testing with Node.js (`analytics-node`), Python (`analytics-python`), Go (`analytics-go`), Java (`analytics-java`), and Ruby (`analytics-ruby`) SDKs. Validate batch endpoint usage and retry behavior. | 5 days | ✅ COMPLETE |
+| **E-009** | Cloud source ingestion framework design | Design and prototype the cloud source ingestion framework to address the 140 cloud app source gap (Salesforce, Stripe, HubSpot, Zendesk, etc.). Define the polling/webhook architecture, credential management, and schema mapping layer. Priority: top-20 cloud sources by adoption. | 8 days | ✅ COMPLETE |
 
 ### Source Citations
 
@@ -255,11 +257,11 @@ Validate that all Segment SDKs (web, mobile, server-side) can connect to the Rud
 
 ### Success Criteria
 
-- [ ] All Segment SDKs (JS, iOS, Android, Node.js, Python, Go, Java, Ruby) connect to RudderStack Gateway with endpoint URL swap only
-- [ ] Write Key Basic Auth is 100% compatible — no SDK-side authentication code changes required
-- [ ] Batch endpoint (`/v1/batch`) accepts mixed event types from all server-side SDKs
-- [ ] Beacon and pixel endpoints accept web SDK requests
-- [ ] Cloud source framework design document approved with architecture for top-20 cloud sources
+- [x] All Segment SDKs (JS, iOS, Android, Node.js, Python, Go, Java, Ruby) connect to RudderStack Gateway with endpoint URL swap only
+- [x] Write Key Basic Auth is 100% compatible — no SDK-side authentication code changes required
+- [x] Batch endpoint (`/v1/batch`) accepts mixed event types from all server-side SDKs
+- [x] Beacon and pixel endpoints accept web SDK requests
+- [x] Cloud source framework design document approved with architecture for top-20 cloud sources
 
 ---
 
