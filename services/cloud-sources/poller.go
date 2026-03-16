@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rudderlabs/rudder-go-kit/logger"
+	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
 )
 
 // PollFunc is the function type that connector implementations provide
@@ -177,7 +178,7 @@ func (p *BasePoller) Start(ctx context.Context) error {
 	// fetch happens immediately, not after waiting for the first tick.
 	events, err := p.Poll(ctx)
 	if err != nil {
-		p.Logger.Errorn("initial poll failed", logger.NewErrorField(err))
+		p.Logger.Errorn("initial poll failed", obskit.Error(err))
 	} else if len(events) > 0 {
 		select {
 		case p.Events <- events:
@@ -194,7 +195,7 @@ func (p *BasePoller) Start(ctx context.Context) error {
 		case <-ticker.C:
 			events, err := p.Poll(ctx)
 			if err != nil {
-				p.Logger.Errorn("poll cycle failed", logger.NewErrorField(err))
+				p.Logger.Errorn("poll cycle failed", obskit.Error(err))
 				continue // retry on next tick
 			}
 			if len(events) > 0 {
