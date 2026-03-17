@@ -6,292 +6,268 @@
 
 ### 0.1.1 Core Feature Objective
 
-Based on the prompt, the Blitzy platform understands that the new feature requirement is to **validate and close the remaining ~5% gap in Segment Spec event parity**, bringing the RudderStack `rudder-server` (v1.68.1) from approximately 95% to 100% field-level parity with the Twilio Segment Event Specification. This is classified as **P0 — Critical** priority and targets a 4-week delivery window (2 sprints).
+Based on the prompt, the Blitzy platform understands that the new feature requirement is to **complete Sprint 2–3: Source SDK Compatibility** as defined in the project's sprint roadmap (`docs/gap-report/sprint-roadmap.md`) and informed by the source catalog parity analysis (`docs/gap-report/source-catalog-parity.md`). This sprint encompasses **five epics (E-005 through E-009)** that collectively raise the Source Catalog parity score from ~60% to ~85%.
 
-The feature requirements are:
+The specific requirements are:
 
-- **Complete Payload Schema Validation (E-001, E-003):** All six core event types (`identify`, `track`, `page`, `screen`, `group`, `alias`) must be validated at the individual field level to confirm identical routing and transformation behavior compared to Segment. This includes verifying that the `IdentifyPayload`, `TrackPayload`, `PagePayload`, `ScreenPayload`, `GroupPayload`, and `AliasPayload` schemas in the Gateway OpenAPI specification (`gateway/openapi.yaml`) exactly match Segment Spec definitions in `refs/segment-docs/src/connections/spec/`.
+- **E-005 — Validate Gateway Segment-compatible API surface:** Perform comprehensive integration testing of all `/v1/{type}` endpoints on port 8080 with Segment SDK client libraries. Validate that the Write Key Basic Auth scheme (`Authorization: Basic base64(writeKey:)`) matches Segment's authentication exactly, enabling standard Segment SDKs to connect with endpoint URL substitution only.
 
-- **Structured Client Hints Pass-Through Verification (ES-001):** The `context.userAgentData` field, which carries structured Client Hints API data (`brands[]`, `mobile`, `platform`, and optional `bitness`, `model`, `platformVersion`, `uaFullVersion`, `fullVersionList`, `wow64`), must be verified to pass through the full pipeline — from Gateway ingestion through Processor, Router, and into warehouse destinations — without data loss or structural alteration.
+- **E-006 — JavaScript web SDK compatibility testing:** Execute end-to-end testing with Segment's `analytics.js` / Analytics 2.0 against the RudderStack Gateway. Validate all 6 Spec calls (`identify`, `track`, `page`, `screen`, `group`, `alias`), the batch endpoint (`/v1/batch`), and beacon tracking (`/beacon/v1/batch`). Document device-mode limitations.
 
-- **Semantic Event Category Routing Enforcement (ES-002):** Segment defines seven standardized semantic event categories (E-Commerce v2, Video, Mobile, B2B SaaS, Email, Live Chat, A/B Testing) with reserved event names and properties. RudderStack currently passes all event names as opaque strings. The implementation must validate that destination transforms correctly map semantic event names (e.g., `Order Completed` → Google Analytics Enhanced Ecommerce) and document the pass-through behavior.
+- **E-007 — iOS and Android mobile SDK compatibility testing:** Perform integration testing with `analytics-ios` (Swift) and `analytics-android` (Kotlin) against the Gateway. Validate `identify`, `track`, `screen`, `group`, `alias` calls, context auto-collection fields, and lifecycle events.
 
-- **Reserved Trait Validation (ES-003):** Segment standardizes 18 reserved identify traits and 12 reserved group traits with specific types. RudderStack currently accepts traits as open objects without type validation. The implementation must verify that destination connectors handle reserved traits correctly and document the trait pass-through behavior.
+- **E-008 — Server-side SDK compatibility testing:** Integration testing with Node.js (`analytics-node`), Python (`analytics-python`), Go (`analytics-go`), Java (`analytics-java`), and Ruby (`analytics-ruby`) SDKs. Validate batch endpoint usage and retry behavior.
 
-- **Channel Field Auto-Population (ES-007):** Segment auto-populates `context.channel` as `server`, `browser`, or `mobile`. RudderStack accepts this field but auto-population depends on SDK implementation. The implementation must verify SDK implementations auto-populate `channel` and document expected behavior per SDK.
+- **E-009 — Cloud source ingestion framework design:** Design and prototype the cloud source ingestion framework to address the 140 cloud app source gap (Salesforce, Stripe, HubSpot, Zendesk, etc.). Define the polling/webhook architecture, credential management, and schema mapping layer. Priority: top-20 cloud sources by adoption. **This epic is explicitly design-and-prototype only — no production-grade service code.**
 
-- **Documentation of RudderStack Extensions (ES-004, ES-006):** Additional endpoints (`/v1/replay`, `/internal/v1/retl`, `/beacon/v1/*`, `/pixel/v1/*`, `/internal/v1/extract`, `merge` call type) and permissive batch size defaults (4000 KB vs. Segment's recommended 500 KB) must be documented as RudderStack extensions rather than parity gaps.
+**Implicit requirements surfaced:**
 
-**Implicit requirements detected:**
-
-- End-to-end integration tests must exercise all six event types across the full pipeline (Gateway → Processor → Router → Warehouse)
-- The existing OpenAPI specification (`gateway/openapi.yaml`) must be updated if any schema gaps are discovered
-- Clock skew correction formula (`timestamp = receivedAt - (sentAt - originalTimestamp)`) must be validated against Segment-identical inputs
-- All 18 standard `context` fields must be confirmed to pass through without data loss
-- The Segment documentation reference corpus in `refs/segment-docs/src/connections/spec/` serves as the authoritative baseline
+- All testing must exercise the live Gateway HTTP API, requiring Docker-based integration test infrastructure (PostgreSQL, Transformer service, webhook recorder)
+- Test fixtures must use actual Segment SDK client library payloads, not hand-crafted HTTP requests, to validate real-world SDK compatibility
+- The existing Sprint 1–2 Event Spec Parity work (E-001 through E-004, marked ✅ COMPLETE) is a prerequisite — all 6 event types are already validated at the field level
+- The cloud source framework design (E-009) must produce both a design document and a minimal proof-of-concept, but not a production service implementation
+- All CI failures resolvable through code changes must be fixed; failures from missing AWS ECR credentials may be skipped
 
 ### 0.1.2 Special Instructions and Constraints
 
-- **Segment Behavioral Equivalence:** The acceptance criterion is that all six core event types route and transform identically to Segment behavior at the payload field level — not just structural compatibility but functional equivalence
-- **Maintain Backward Compatibility:** All changes must preserve existing API behavior for current RudderStack users; no breaking changes to the Gateway HTTP API surface
-- **Follow Repository Conventions:** The codebase is a Go 1.26.0 modular monolith with established patterns — table-driven tests, `testify`/`gomega` assertions, `dockertest/v3` for integration testing, `jsonrs` for JSON serialization (not `encoding/json`, which is banned by `depguard`)
-- **Leverage Existing Test Infrastructure:** Integration tests should follow the established `integration_test/docker_test/` patterns with Docker-provisioned PostgreSQL, Transformer, and webhook services
-- **External Transformer Dependency:** Semantic event category validation (ES-002) and reserved trait validation (ES-003) must account for the external Transformer service (`rudder-transformer`) that handles destination-specific transformations at port 9090
+- **Implement ALL items in scope:** For every epic, implement ALL items listed — do not skip any variant, endpoint, or sub-case mentioned in the epic description
+- **Design-only epics:** E-009 (marked "Design and prototype") must deliver a design document and a minimal proof-of-concept only — no production-grade service code
+- **Docker requirement:** If any step requires Docker, start it first
+- **Test execution:** Run all tests after implementation
+- **CI fix policy:** Fix all CI failures resolvable through code changes; skip failures caused by missing repository secrets (AWS ECR credentials)
+- **Backward compatibility:** All changes must maintain backward compatibility with the existing HTTP API surface — no breaking changes to `/v1/*` endpoints
+- **jsonrs over encoding/json:** Per the repository's `depguard` linting rule in `.golangci.yml`, all JSON serialization/deserialization must use `jsonrs` from `github.com/rudderlabs/rudder-go-kit`, not `encoding/json`
+- **Table-driven test patterns:** All new tests must follow the codebase's established pattern with `t.Run()` subtests using `testify/require` for assertions; integration tests must use `dockertest/v3` for container orchestration
 
 ### 0.1.3 Technical Interpretation
 
 These feature requirements translate to the following technical implementation strategy:
 
-- To **validate payload schema parity** (E-001, E-003), we will create comprehensive field-level comparison tests in `gateway/` and `processor/` that send all six event types through the Gateway and assert each field is preserved through the pipeline stages, referencing the Segment Spec definitions in `refs/segment-docs/src/connections/spec/`
-- To **verify Client Hints pass-through** (ES-001), we will create integration tests that submit payloads with `context.userAgentData` containing structured Client Hints data, then verify the data arrives intact at destination webhooks and warehouse tables by extending the existing `integration_test/docker_test/` test harness
-- To **validate semantic event routing** (ES-002), we will create test fixtures for E-Commerce v2, Video, and Mobile semantic events and verify destination transforms correctly map standardized event names, extending tests in `processor/internal/transformer/`
-- To **validate reserved trait handling** (ES-003), we will create test payloads with all 18 identify reserved traits and 12 group reserved traits and verify they pass through the pipeline without data loss or type coercion
-- To **verify channel auto-population** (ES-007), we will audit Gateway handler code in `gateway/handle.go` and `gateway/handle_http.go` for channel field handling, and create tests that verify proper SDK-originated `context.channel` values propagate correctly
-- To **document extensions** (ES-004, ES-006), we will update `docs/gap-report/event-spec-parity.md` and create new documentation in `docs/api-reference/` confirming RudderStack extensions and recommended batch sizing for SDK compatibility
+- To **validate the Gateway Segment-compatible API surface (E-005)**, we will create a comprehensive integration test suite that programmatically sends requests to all `/v1/{type}` endpoints using Segment SDK-compatible payloads with Write Key Basic Auth, asserting 200 OK responses and field-level preservation through to webhook destinations
+- To **test JavaScript web SDK compatibility (E-006)**, we will create test fixtures that replicate the exact payload formats produced by `analytics.js` / Analytics 2.0, including batch, beacon, and pixel endpoints, and validate end-to-end delivery through the Gateway pipeline
+- To **test iOS and Android mobile SDK compatibility (E-007)**, we will create test fixtures replicating `analytics-ios` (Swift) and `analytics-android` (Kotlin) payload formats, including mobile-specific context fields (`context.device`, `context.os`, `context.app`, `context.network`, `context.screen`) and lifecycle events (`Application Opened`, `Application Backgrounded`)
+- To **test server-side SDK compatibility (E-008)**, we will create test fixtures for Node.js, Python, Go, Java, and Ruby SDK payload formats, focusing on batch endpoint usage, retry semantics, and library metadata in `context.library`
+- To **design the cloud source ingestion framework (E-009)**, we will create a design document at `docs/architecture/cloud-source-framework.md` defining the polling/webhook architecture for the top-20 cloud sources, and implement a minimal proof-of-concept package at `services/cloud-sources/` with interface definitions and a sample connector skeleton
 
 ## 0.2 Repository Scope Discovery
 
 ### 0.2.1 Comprehensive File Analysis
 
-The following analysis maps every existing file and directory in the repository that requires modification, verification, or extension to achieve 100% Event Spec Parity.
+The Sprint 2–3 Source SDK Compatibility scope affects files across the Gateway layer (HTTP ingestion and authentication), the integration test infrastructure, documentation, and a new cloud source service package. The following analysis identifies every existing file requiring modification and every new file requiring creation.
 
-**Gateway Layer — Event Ingestion and Validation**
+**Existing Gateway Files Requiring Modification or Verification:**
 
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `gateway/handle_http.go` | Source | HTTP handler wiring for all 6 event types + batch + merge | VERIFY — Confirm all `callType()` middleware mappings match Segment endpoints |
-| `gateway/handle.go` | Source | Core request handler with batching, validation, suppression, and queueing | MODIFY — Add `context.userAgentData` structured pass-through verification; audit `context.channel` handling |
-| `gateway/handle_http_auth.go` | Source | Write Key / Source ID / Webhook authentication | VERIFY — Confirm Basic Auth scheme matches Segment exactly |
-| `gateway/handle_http_beacon.go` | Source | Beacon-based tracking support | VERIFY — Confirm beacon payloads preserve all Segment Spec fields |
-| `gateway/handle_http_pixel.go` | Source | Pixel tracking with GIF response | VERIFY — Document as RudderStack extension |
-| `gateway/handle_http_import.go` | Source | Historical data import endpoint | VERIFY — Confirm `/v1/import` parity with Segment |
-| `gateway/handle_http_replay.go` | Source | Event replay re-ingestion | DOCUMENT — RudderStack extension |
-| `gateway/handle_http_retl.go` | Source | Reverse ETL event ingestion | DOCUMENT — RudderStack extension |
-| `gateway/handle_lifecycle.go` | Source | Setup, dependency wiring, worker lifecycle | VERIFY — No changes expected |
-| `gateway/handle_observability.go` | Source | Request/failure metrics | VERIFY — Ensure parity metrics are instrumented |
-| `gateway/handle_diagnostics.go` | Source | Diagnostic hooks | VERIFY — No changes expected |
-| `gateway/handle_webhook.go` | Source | Webhook pipeline glue | VERIFY — No changes expected |
-| `gateway/types.go` | Source | Shared request types, batching envelopes | VERIFY — Confirm `webRequestT.reqType` includes all 6 Segment types |
-| `gateway/gateway.go` | Source | Static constants, regex, sentinel errors | VERIFY — Constants and error messages match Segment |
-| `gateway/openapi.yaml` | Config | OpenAPI 3.0.3 spec for all Gateway endpoints | MODIFY — Update schemas if any field gaps are discovered (e.g., `context.userAgentData` explicit definition) |
-| `gateway/regular_handler.go` | Source | Regular web request handler | VERIFY — Payload grouping and queueing |
-| `gateway/import_handler.go` | Source | Import request handler | VERIFY — Payload grouping for import |
-| `gateway/validator/validator.go` | Source | Validation mediator orchestration | VERIFY — Confirm validator chain processes all Segment Spec fields |
-| `gateway/validator/msg_id_validator.go` | Source | messageId presence validation | VERIFY — Confirm matches Segment messageId behavior |
-| `gateway/validator/received_at_validator.go` | Source | receivedAt timestamp validation | VERIFY — Confirm receivedAt is set identically to Segment |
-| `gateway/validator/req_type_validator.go` | Source | Request type correlation | VERIFY — Confirm all 6 event types + batch are accepted |
-| `gateway/validator/request_ip_validator.go` | Source | request_ip presence check | VERIFY — Confirm IP handling matches Segment |
-| `gateway/validator/rudder_id_validator.go` | Source | rudderId presence check | VERIFY — RudderStack-specific, document as extension |
-| `gateway/validator/msg_properties_validator.go` | Source | Metadata-level validation wrapper | VERIFY — No changes expected |
-| `gateway/validator/validator_test.go` | Test | Validator test suite | MODIFY — Add test cases for Client Hints pass-through and channel field |
+| File Path | Purpose | Sprint Impact |
+|-----------|---------|---------------|
+| `gateway/handle_http.go` | HTTP handler wiring for all event types — defines `webIdentifyHandler`, `webTrackHandler`, `webPageHandler`, `webScreenHandler`, `webGroupHandler`, `webAliasHandler`, `webBatchHandler` | E-005: Verify all handlers are correctly wired for Segment SDK payload formats |
+| `gateway/handle_http_auth.go` | Write Key Basic Auth middleware (`writeKeyAuth`), webhook auth (`webhookAuth`), source ID auth (`sourceIDAuth`) | E-005: Validate Write Key Basic Auth is 100% compatible with Segment's scheme |
+| `gateway/handle_http_beacon.go` | Beacon batch handler (`beaconBatchHandler`) with writeKey query param interception | E-006: Validate beacon endpoint accepts Analytics 2.0 `sendBeacon()` payloads |
+| `gateway/handle_http_pixel.go` | Pixel track and page handlers with GIF response — `pixelTrackHandler`, `pixelPageHandler`, `pixelInterceptor` | E-006: Validate pixel endpoints accept web SDK image tag requests |
+| `gateway/handle_http_import.go` | Historical data import handler (`webImportHandler`) | E-005: Verify import endpoint compatibility |
+| `gateway/handle.go` | Core request handler — event processing, userAgent extraction, bot detection, payload batching | E-005, E-007: Verify mobile context fields and lifecycle events pass through |
+| `gateway/handle_lifecycle.go` | Route registration via Chi router — all `/v1/*`, `/beacon/v1/*`, `/pixel/v1/*` routes | E-005: Audit complete route registration for SDK endpoint coverage |
+| `gateway/handle_webhook.go` | Webhook handler — `webhookHandler()` supporting both v1 and v2 auth chains | E-009: Understand existing webhook source pattern for cloud source design |
+| `gateway/openapi.yaml` | OpenAPI 3.0.3 specification for all Gateway endpoints | E-005: Verify specification covers all SDK-required endpoints |
+| `gateway/gateway.go` | Constants and sentinel errors | E-005: Verify error responses match Segment API behavior |
+| `gateway/types.go` | Request types — `webRequestT`, `RequestHandler` interface | E-005: Verify request types accommodate all SDK payload shapes |
+| `gateway/validator/validator.go` | Validator mediator chain — `msgProperties`, `messageId`, `reqType`, `receivedAt`, `requestIP`, `rudderID` | E-005: Verify validators accept all valid Segment SDK payloads |
+| `gateway/internal/bot/bot.go` | Bot user-agent detection — `IsBotUserAgent` | E-006, E-007: Verify SDK user-agents are not falsely classified as bots |
+| `gateway/response/response.go` | Canonical response strings — `Ok`, `InvalidWriteKey`, `SourceDisabled`, etc. | E-005: Verify response codes and messages match Segment API behavior |
+| `gateway/webhook/setup.go` | Webhook pipeline setup | E-009: Reference for cloud source webhook integration |
+| `gateway/webhook/webhook.go` | Core webhook request handling | E-009: Reference for inbound webhook processing |
+| `gateway/webhook/webhookTransformer.go` | Webhook payload transformation | E-009: Reference for cloud source payload normalization |
+| `gateway/types/types.go` | `AuthRequestContext` struct with `SourceCategory`, `WriteKey`, `SourceEnabled` | E-005: Verify auth context supports all SDK authentication patterns |
 
-**Gateway Internal Subsystems**
+**Existing Gateway Test Files Requiring Extension:**
 
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `gateway/internal/bot/bot.go` | Source | Bot user agent detection | VERIFY — Ensure Client Hints-enriched payloads are not falsely flagged |
-| `gateway/internal/bot/bot_test.go` | Test | Bot detection tests | MODIFY — Add Client Hints-aware test cases |
-| `gateway/response/` | Directory | Canonical response strings and HTTP status codes | VERIFY — Confirm response codes match Segment (200, 400, 401, 404, 413, 429) |
-| `gateway/throttler/` | Directory | Per-workspace rate limiting | VERIFY — No changes expected |
-| `gateway/types/` | Directory | Context keys, AuthRequestContext | VERIFY — Ensure context types support all Segment Spec fields |
-| `gateway/webhook/` | Directory | Webhook pipeline | VERIFY — No changes expected |
+| File Path | Purpose | Sprint Impact |
+|-----------|---------|---------------|
+| `gateway/gateway_test.go` | Comprehensive Gateway unit test suite (96KB) | E-005: Extend with Segment SDK-format payloads |
+| `gateway/handle_test.go` | Handle pipeline tests (49KB) | E-005: Add SDK-specific payload preservation tests |
+| `gateway/handle_http_auth_test.go` | Auth middleware tests | E-005: Add Segment SDK Basic Auth format tests |
+| `gateway/handle_http_beacon_test.go` | Beacon handler tests | E-006: Add Analytics 2.0 beacon payload tests |
+| `gateway/handle_http_pixel_test.go` | Pixel handler tests | E-006: Add web SDK pixel tracking tests |
+| `gateway/gateway_integration_test.go` | Gateway integration tests | E-005: Extend with multi-SDK integration scenarios |
+| `gateway/integration_test.go` | Additional integration tests | E-005: Extend with SDK compatibility scenarios |
+| `gateway/validator/validator_test.go` | Validator chain tests | E-005: Verify SDK payloads pass validation |
+| `gateway/internal/bot/bot_test.go` | Bot detection tests | E-006, E-007: Verify SDK user-agents not flagged |
+| `gateway/webhook/webhook_test.go` | Webhook handler tests | E-009: Reference for cloud source tests |
 
-**Gateway Tests**
+**Existing Integration Test Files Requiring Modification:**
 
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `gateway/gateway_test.go` | Test | Comprehensive gateway unit tests | MODIFY — Add event spec parity test cases for all 6 event types |
-| `gateway/gateway_integration_test.go` | Test | Gateway integration tests | MODIFY — Add end-to-end parity validation tests |
-| `gateway/handle_test.go` | Test | Handle unit tests | MODIFY — Add `context.userAgentData` and `context.channel` test cases |
-| `gateway/handle_http_auth_test.go` | Test | Auth handler tests | VERIFY — Confirm Basic Auth test coverage |
-| `gateway/handle_http_beacon_test.go` | Test | Beacon handler tests | VERIFY — Confirm beacon preserves all Spec fields |
-| `gateway/handle_http_pixel_test.go` | Test | Pixel handler tests | VERIFY — Document pixel as extension |
-| `gateway/gateway_suite_test.go` | Test | Ginkgo suite bootstrap | VERIFY — No changes expected |
+| File Path | Purpose | Sprint Impact |
+|-----------|---------|---------------|
+| `integration_test/docker_test/docker_test.go` | Full-stack Docker regression suite | E-005: Extend with multi-SDK payload scenarios |
+| `integration_test/docker_test/testdata/workspaceConfigTemplate.json` | Workspace config for Docker tests | E-005: Verify template supports all SDK source types |
+| `integration_test/event_spec_parity/event_spec_parity_test.go` | Event Spec Parity integration test from Sprint 1–2 | E-005: Extend with SDK-specific payload variations |
 
-**Processor Layer — Event Pipeline and Transformation**
+**Backend Configuration Files (Read/Verify):**
 
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `processor/processor.go` | Source | Core 6-stage pipeline handler | VERIFY — Confirm all Spec fields pass through pipeline stages without modification |
-| `processor/pipeline_worker.go` | Source | Channel orchestration across stages | VERIFY — Ensure `context.userAgentData` is not stripped during processing |
-| `processor/consent.go` | Source | Consent filtering logic | VERIFY — Confirm consent filtering does not strip Spec fields |
-| `processor/trackingplan.go` | Source | Tracking plan validation | VERIFY — Confirm validation does not reject valid Segment Spec payloads |
-| `processor/src_hydration_stage.go` | Source | Source hydration helpers | VERIFY — Confirm hydration preserves all Spec fields |
-| `processor/integrations/integrations.go` | Source | Integration adapter for transformer responses | VERIFY — Confirm `FilterClientIntegrations` correctly handles `integrations` field per Segment Spec |
-| `processor/processor_test.go` | Test | Processor unit/BDD test suite | MODIFY — Add event spec parity test scenarios |
-| `processor/processor_bot_enricher_test.go` | Test | Bot enrichment tests | VERIFY — Ensure Client Hints payloads handled correctly |
-| `processor/processor_event_dropping_test.go` | Test | Event dropping tests | VERIFY — Ensure Spec events are never incorrectly dropped |
+| File Path | Purpose | Sprint Impact |
+|-----------|---------|---------------|
+| `backend-config/types.go` | `SourceT` struct with `WriteKey`, `SourceCategory`, `Enabled`, `SourceDefinition` | E-005: Verify source config supports SDK auth; E-009: Understand cloud source config model |
+| `backend-config/backend-config.go` | Backend config fetch and cache | E-009: Reference for cloud source configuration management |
+| `config/config.yaml` | Gateway port 8080, 64 workers, 4MB request size | E-005: Document config constraints for SDK compatibility |
 
-**Processor Internal — Transformer Clients**
-
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `processor/transformer/clients.go` | Source | Transformer client factory | VERIFY — Ensure all transformer clients handle Spec events |
-| `processor/internal/transformer/destination_transformer/` | Directory | Destination transformation orchestration | VERIFY — Confirm semantic event category handling in destination transforms |
-| `processor/internal/transformer/destination_transformer/embedded/warehouse/events.go` | Source | Warehouse event-type aggregation logic | VERIFY — Confirm all 6 event types are processed correctly with proper rule application |
-| `processor/internal/transformer/destination_transformer/embedded/warehouse/events_test.go` | Test | Warehouse events tests | MODIFY — Add reserved trait validation test cases |
-| `processor/internal/transformer/destination_transformer/embedded/warehouse/idresolution.go` | Source | Identity resolution for warehouse | VERIFY — Confirm alias merge-rule resolution functions |
-| `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules.go` | Source | Reserved column rules for all event types | VERIFY — Confirm rules cover all Segment Spec reserved fields per event type |
-| `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules_test.go` | Test | Rules test suite | MODIFY — Add reserved trait and group trait test coverage |
-
-**Router Layer — Event Delivery**
-
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `router/handle.go` | Source | Core routing loop with job pickup and delivery | VERIFY — Confirm routing does not modify Spec payload fields |
-| `router/worker.go` | Source | Worker job intake, batching, transformation, delivery | VERIFY — Confirm transformation preserves Spec fields |
-| `router/network.go` | Source | REST payload marshalling and delivery | VERIFY — Confirm payload serialization preserves all fields including `context.userAgentData` |
-| `router/transformer/` | Directory | Transformer proxy adapters | VERIFY — Confirm semantic event names pass through to destination transforms |
-
-**Warehouse Layer — Identity and Data Loading**
-
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `warehouse/identity/identity.go` | Source | Identity resolver (merge-rule model) | VERIFY — Document as partial parity for ES-005 (no real-time identity graph) |
-
-**Integration Tests**
-
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `integration_test/docker_test/` | Directory | Full-stack Docker regression suite | MODIFY — Extend with event spec parity test scenarios |
-| `integration_test/docker_test/testdata/workspaceConfigTemplate.json` | Config | Test workspace template | MODIFY — Add test fixtures for all 6 event types with reserved traits |
-| `integration_test/transformer_contract/` | Directory | Transformer contract tests | VERIFY — Confirm transformer contract covers all Spec event types |
-
-**Documentation**
-
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `docs/gap-report/event-spec-parity.md` | Documentation | Canonical gap report | MODIFY — Update parity assessment to 100% upon gap closure |
-| `docs/gap-report/sprint-roadmap.md` | Documentation | Sprint roadmap | MODIFY — Mark Sprint 1-2 epics as complete |
-| `docs/gap-report/index.md` | Documentation | Executive gap report index | MODIFY — Update overall parity percentages |
-| `docs/api-reference/` | Directory | API reference documentation | MODIFY — Add event spec field-level documentation |
-| `README.md` | Documentation | Project readme | MODIFY — Update parity status |
-
-**Configuration**
-
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `config/config.yaml` | Config | Master runtime configuration | VERIFY — Confirm Gateway configuration supports all Spec fields |
-| `config/sample.env` | Config | Environment variable reference | VERIFY — No changes expected |
-
-**Segment Reference Corpus**
-
-| File/Pattern | Type | Relevance | Action |
-|---|---|---|---|
-| `refs/segment-docs/src/connections/spec/identify.md` | Reference | Segment Identify spec | READ — Authoritative baseline for identify parity |
-| `refs/segment-docs/src/connections/spec/track.md` | Reference | Segment Track spec | READ — Authoritative baseline for track parity |
-| `refs/segment-docs/src/connections/spec/page.md` | Reference | Segment Page spec | READ — Authoritative baseline for page parity |
-| `refs/segment-docs/src/connections/spec/screen.md` | Reference | Segment Screen spec | READ — Authoritative baseline for screen parity |
-| `refs/segment-docs/src/connections/spec/group.md` | Reference | Segment Group spec | READ — Authoritative baseline for group parity |
-| `refs/segment-docs/src/connections/spec/alias.md` | Reference | Segment Alias spec | READ — Authoritative baseline for alias parity |
-| `refs/segment-docs/src/connections/spec/common.md` | Reference | Segment Common Fields spec | READ — Authoritative baseline for common fields and context object |
-| `refs/segment-docs/src/connections/spec/ecommerce/v2.md` | Reference | Segment E-Commerce v2 spec | READ — Semantic event category definitions |
-| `refs/segment-docs/src/connections/spec/video.md` | Reference | Segment Video spec | READ — Semantic video event definitions |
-| `refs/segment-docs/src/connections/spec/mobile.md` | Reference | Segment Mobile spec | READ — Semantic mobile lifecycle definitions |
-
-### 0.2.2 Web Search Research Conducted
-
-- Best practices for implementing Client Hints API pass-through in HTTP proxy/gateway services
-- Segment Spec E-Commerce v2 semantic event naming conventions and reserved property validation patterns
-- Go testing patterns for field-level JSON payload comparison across pipeline stages
-- Integration testing approaches for end-to-end event data flow verification in Go monolith architectures
-
-### 0.2.3 New File Requirements
-
-**New Test Files:**
+**Testhelper Files (Used but Not Modified):**
 
 | File Path | Purpose |
-|---|---|
-| `gateway/event_spec_parity_test.go` | Comprehensive field-level parity validation for all 6 event types against Segment Spec definitions |
-| `gateway/client_hints_test.go` | Dedicated tests for `context.userAgentData` structured Client Hints pass-through |
-| `processor/event_spec_parity_test.go` | Processor-level validation that all Spec fields survive the 6-stage pipeline |
-| `processor/reserved_traits_test.go` | Validation of reserved trait handling for identify (18 traits) and group (12 traits) |
-| `integration_test/event_spec_parity/` | New integration test subdirectory for end-to-end event spec parity validation |
-| `integration_test/event_spec_parity/event_spec_parity_test.go` | Full-stack integration test exercising all 6 event types across Gateway → Processor → Router → Warehouse |
-| `integration_test/event_spec_parity/testdata/` | Test fixtures with all 6 event types, reserved traits, Client Hints, and semantic events |
+|-----------|---------|
+| `testhelper/webhook/recorder.go` | Webhook request recorder for asserting event delivery |
+| `testhelper/health/checker.go` | Health check polling utility for integration tests |
+| `testhelper/workspaceConfig/` | Workspace configuration test fixtures |
 
-**New Documentation Files:**
+**Segment Reference Corpus (Read-Only Baseline):**
 
 | File Path | Purpose |
-|---|---|
-| `docs/api-reference/event-spec/` | Directory for detailed event spec field-level documentation |
-| `docs/api-reference/event-spec/common-fields.md` | Common fields reference with parity confirmation |
-| `docs/api-reference/event-spec/semantic-events.md` | Semantic event category documentation and routing behavior |
-| `docs/api-reference/event-spec/extensions.md` | RudderStack extension endpoints documentation |
+|-----------|---------|
+| `refs/segment-docs/src/connections/sources/catalog/libraries/website/javascript/` | JavaScript SDK reference |
+| `refs/segment-docs/src/connections/sources/catalog/libraries/mobile/ios/` | iOS SDK reference |
+| `refs/segment-docs/src/connections/sources/catalog/libraries/mobile/android/` | Android SDK reference |
+| `refs/segment-docs/src/connections/sources/catalog/libraries/server/node-js/` | Node.js SDK reference |
+| `refs/segment-docs/src/connections/sources/catalog/libraries/server/python/` | Python SDK reference |
+| `refs/segment-docs/src/connections/sources/catalog/libraries/server/go/` | Go SDK reference |
+| `refs/segment-docs/src/connections/sources/catalog/libraries/server/java/` | Java SDK reference |
+| `refs/segment-docs/src/connections/sources/catalog/libraries/server/ruby/` | Ruby SDK reference |
+| `refs/segment-docs/src/connections/sources/catalog/cloud-apps/` | 140 cloud app source definitions |
 
-**New Configuration Files:**
+**Integration Point Discovery:**
 
-| File Path | Purpose |
-|---|---|
-| `integration_test/event_spec_parity/testdata/workspaceConfigTemplate.json` | Workspace configuration template for parity tests |
-| `integration_test/event_spec_parity/testdata/segment_spec_payloads.json` | Canonical Segment Spec payload fixtures for all 6 event types |
+- **API endpoints connected to this feature:** All `/v1/{type}` endpoints (identify, track, page, screen, group, alias, batch), `/v1/import`, `/beacon/v1/batch`, `/pixel/v1/track`, `/pixel/v1/page`, `/v1/webhook`
+- **Authentication middleware:** `writeKeyAuth` (gateway/handle_http_auth.go:24-58), `webhookAuth` (gateway/handle_http_auth.go:64-96), `beaconInterceptor` (gateway/handle_http_beacon.go:22-47)
+- **Database models affected:** None directly — the Gateway persists events to JobsDB transparently
+- **Service classes requiring verification:** `gateway.Handle` (core request handler), `webhook.WebhookAuth` (webhook auth chain), `validator.Mediator` (payload validation)
+- **Middleware/interceptors impacted:** `beaconInterceptor` (writeKey from query params → Basic Auth header), `pixelInterceptor` (query params → JSON payload), `callType` middleware (request type injection), `UncompressMiddleware` (gzip decompression)
+
+### 0.2.2 New File Requirements
+
+**New Source Files to Create:**
+
+| File Path | Purpose | Epic |
+|-----------|---------|------|
+| `services/cloud-sources/cloud_source.go` | Cloud source framework interface definitions — `CloudSource`, `Poller`, `WebhookReceiver`, `SchemaMapper` interfaces | E-009 |
+| `services/cloud-sources/registry.go` | Cloud source connector registry — registration, lookup, and lifecycle management | E-009 |
+| `services/cloud-sources/config.go` | Cloud source configuration types — credential storage, polling intervals, webhook URLs | E-009 |
+| `services/cloud-sources/poller.go` | Base polling implementation — rate-limited API polling with cursor-based pagination | E-009 |
+| `services/cloud-sources/webhook_receiver.go` | Base webhook receiver — inbound webhook validation, payload normalization | E-009 |
+| `services/cloud-sources/schema_mapper.go` | Schema mapping layer — transforms third-party API responses to Segment Spec events | E-009 |
+| `services/cloud-sources/connectors/stripe/stripe.go` | Stripe connector proof-of-concept — webhook-based event ingestion | E-009 |
+
+**New Test Files to Create:**
+
+| File Path | Purpose | Epic |
+|-----------|---------|------|
+| `integration_test/sdk_compatibility/sdk_compatibility_test.go` | Full-stack SDK compatibility integration test — validates all SDK payload formats through Gateway → Processor → Router → webhook | E-005, E-006, E-007, E-008 |
+| `integration_test/sdk_compatibility/testdata/workspaceConfigTemplate.json` | Workspace configuration template for SDK compatibility tests | E-005 |
+| `integration_test/sdk_compatibility/testdata/segment_js_payloads.json` | Canonical `analytics.js` payload fixtures for all call types including batch and beacon | E-006 |
+| `integration_test/sdk_compatibility/testdata/segment_ios_payloads.json` | Canonical `analytics-ios` payload fixtures with mobile context fields and lifecycle events | E-007 |
+| `integration_test/sdk_compatibility/testdata/segment_android_payloads.json` | Canonical `analytics-android` payload fixtures with mobile context fields and lifecycle events | E-007 |
+| `integration_test/sdk_compatibility/testdata/segment_server_payloads.json` | Canonical server-side SDK payload fixtures for Node.js, Python, Go, Java, Ruby | E-008 |
+| `gateway/sdk_compatibility_test.go` | Gateway-level SDK payload format validation unit tests | E-005, E-006, E-007, E-008 |
+| `gateway/sdk_auth_compat_test.go` | Dedicated Write Key Basic Auth compatibility test suite — validates all Segment SDK auth patterns | E-005 |
+| `services/cloud-sources/cloud_source_test.go` | Cloud source framework unit tests — interface compliance, registry, config | E-009 |
+| `services/cloud-sources/connectors/stripe/stripe_test.go` | Stripe connector proof-of-concept tests | E-009 |
+
+**New Documentation Files to Create:**
+
+| File Path | Purpose | Epic |
+|-----------|---------|------|
+| `docs/architecture/cloud-source-framework.md` | Cloud source ingestion framework design document — polling/webhook architecture, credential management, schema mapping, top-20 source analysis | E-009 |
+| `docs/guides/sdk-compatibility/segment-sdk-migration.md` | Segment SDK migration guide — per-SDK endpoint swap and Write Key substitution instructions | E-005, E-006, E-007, E-008 |
+| `docs/guides/sdk-compatibility/web-sdk-guide.md` | JavaScript/Analytics 2.0 compatibility guide with device-mode limitations | E-006 |
+| `docs/guides/sdk-compatibility/mobile-sdk-guide.md` | iOS and Android SDK compatibility guide with lifecycle event support | E-007 |
+| `docs/guides/sdk-compatibility/server-sdk-guide.md` | Server-side SDK (Node.js, Python, Go, Java, Ruby) compatibility guide | E-008 |
+
+**New Configuration Files to Create:**
+
+| File Path | Purpose | Epic |
+|-----------|---------|------|
+| `integration_test/sdk_compatibility/testdata/workspaceConfigTemplate.json` | Workspace configuration for SDK compatibility integration tests | E-005 |
+
+### 0.2.3 Web Search Research Conducted
+
+The following research topics inform the implementation approach:
+
+- Best practices for Segment SDK compatibility testing — validated through the Segment SDK documentation corpus embedded in `refs/segment-docs/src/connections/sources/catalog/libraries/`
+- Cloud source ingestion patterns — polling vs. webhook architectures for SaaS API integration (Salesforce, Stripe, HubSpot)
+- Segment SDK payload formats — exact JSON structures produced by each SDK platform for all 6 event types
+- Security considerations for webhook-based cloud source ingestion — HMAC signature validation, rate limiting, replay protection
 
 ## 0.3 Dependency Inventory
 
 ### 0.3.1 Private and Public Packages
 
-The following table lists all key packages relevant to the Event Spec Parity feature addition, with exact versions drawn from `go.mod`:
+The following table lists all key packages relevant to the Sprint 2–3 Source SDK Compatibility feature addition, with exact versions drawn from `go.mod`:
 
 | Registry | Package | Version | Purpose |
-|---|---|---|---|
-| Go stdlib | `go` | 1.26.0 | Runtime version from `go.mod` |
-| GitHub | `github.com/rudderlabs/rudder-go-kit` | v0.72.3 | Core toolkit (config, logger, stats, httputil, jsonrs) |
-| GitHub | `github.com/rudderlabs/rudder-observability-kit` | v0.0.6 | Observability instrumentation (obskit) |
+|----------|---------|---------|---------|
+| Go stdlib | `go` | 1.26.0 | Runtime version from `go.mod` line 3 |
+| GitHub | `github.com/rudderlabs/rudder-go-kit` | v0.72.3 | Core toolkit — config, logger, stats, httputil, jsonrs, test docker resources |
+| GitHub | `github.com/rudderlabs/rudder-observability-kit` | v0.0.6 | Observability instrumentation (obskit labels) |
 | GitHub | `github.com/rudderlabs/rudder-schemas` | v0.9.1 | Shared schema definitions (stream.MessageProperties) |
 | GitHub | `github.com/rudderlabs/rudder-transformer/go` | v1.122.0 | Transformer Go client library |
-| GitHub | `github.com/rudderlabs/analytics-go` | v3.3.3+incompatible | RudderStack analytics client |
-| GitHub | `github.com/tidwall/gjson` | v1.18.0 | Fast JSON value extraction (used in validators) |
-| GitHub | `github.com/tidwall/sjson` | v1.2.5 | Fast JSON value mutation |
+| GitHub | `github.com/rudderlabs/analytics-go` | v3.3.3+incompatible | RudderStack analytics Go client |
+| GitHub | `github.com/go-chi/chi/v5` | v5.2.5 | HTTP router for Gateway endpoints — all SDK-facing routes |
+| GitHub | `github.com/rs/cors` | v1.11.1 | CORS middleware for browser-based SDK (analytics.js) access |
+| GitHub | `github.com/tidwall/gjson` | v1.18.0 | Fast JSON path querying for payload field extraction in tests |
+| GitHub | `github.com/tidwall/sjson` | v1.2.5 | Fast JSON mutation for test payload construction |
 | GitHub | `github.com/grafana/jsonparser` | v0.0.0-20250908162026-5c2524e07b4c | High-performance JSON parser |
-| GitHub | `github.com/go-chi/chi/v5` | v5.2.5 | HTTP router for Gateway endpoints |
 | GitHub | `github.com/stretchr/testify` | v1.11.1 | Test assertion library (assert, require) |
 | GitHub | `github.com/onsi/ginkgo/v2` | v2.24.0 | BDD test framework |
 | GitHub | `github.com/onsi/gomega` | v1.38.0 | BDD matcher library |
 | GitHub | `github.com/ory/dockertest/v3` | v3.12.0 | Docker container orchestration for integration tests |
 | GitHub | `go.uber.org/mock` | v0.6.0 | Interface mock generation |
 | GitHub | `github.com/google/go-cmp` | v0.7.0 | Deep structural comparison for test assertions |
-| GitHub | `github.com/google/uuid` | v1.6.0 | UUID generation (messageId) |
+| GitHub | `github.com/google/uuid` | v1.6.0 | UUID generation (messageId, anonymousId) |
 | GitHub | `github.com/samber/lo` | v1.52.0 | Go generics utility library (map, filter, chunk) |
-| GitHub | `github.com/lib/pq` | v1.11.2 | PostgreSQL driver |
+| GitHub | `github.com/lib/pq` | v1.11.2 | PostgreSQL driver for JobsDB integration tests |
 | GitHub | `github.com/golang-migrate/migrate/v4` | v4.18.3 | Database migration framework |
-| GitHub | `github.com/golang/mock` | v1.6.0 | Legacy mock generation (some existing tests) |
 | GitHub | `github.com/phayes/freeport` | v0.0.0-20220201140144-74d24b5ae9f5 | Dynamic port allocation for test isolation |
-| GitHub | `github.com/rs/cors` | v1.11.1 | CORS middleware |
-| GitHub | `github.com/klauspost/compress` | v1.18.4 | Compression (gzip support in Gateway and Router) |
-| GitHub | `github.com/evanphx/json-patch/v5` | v5.9.11 | JSON patch operations |
-| GitHub | `github.com/joho/godotenv` | v1.5.1 | Environment variable loading |
+| GitHub | `github.com/klauspost/compress` | v1.18.4 | Gzip compression/decompression for Gateway middleware |
+| GitHub | `github.com/joho/godotenv` | v1.5.1 | Environment variable loading for test configuration |
+| GitHub | `github.com/evanphx/json-patch/v5` | v5.9.11 | JSON patch operations for config diffs |
 
 ### 0.3.2 Dependency Updates
 
-**No new dependencies are required** for this feature. All validation, testing, and documentation work leverages the existing dependency set. The feature focuses on verifying and extending the behavior of existing code rather than introducing new external libraries.
+**No new external dependencies are required** for Sprint 2–3. All SDK compatibility testing, integration testing, and the cloud source framework proof-of-concept leverage the existing dependency set. The work focuses on:
+
+- Creating test fixtures that replicate Segment SDK payload formats using existing JSON libraries (`gjson`, `sjson`)
+- Building integration tests using the established `dockertest/v3` + `testhelper/webhook` + `testhelper/health` pattern
+- Designing the cloud source framework using Go standard library interfaces and the existing `gateway/webhook/` package as a reference
 
 **Import Updates (If applicable):**
 
-Files requiring import additions for new test utilities:
+Files requiring import additions for new test utilities and source files:
 
-- `gateway/event_spec_parity_test.go` — New file requiring imports from:
-  - `github.com/stretchr/testify/require`
-  - `github.com/tidwall/gjson`
-  - `github.com/rudderlabs/rudder-go-kit/httputil`
-  - `net/http`, `net/http/httptest`
-
-- `integration_test/event_spec_parity/event_spec_parity_test.go` — New file requiring imports from:
+- `integration_test/sdk_compatibility/sdk_compatibility_test.go` — New file requiring imports from:
   - `github.com/ory/dockertest/v3`
+  - `github.com/rudderlabs/rudder-go-kit/testhelper/docker/resource/postgres`
+  - `github.com/rudderlabs/rudder-go-kit/testhelper/docker/resource/transformer`
   - `github.com/rudderlabs/rudder-server/testhelper/health`
   - `github.com/rudderlabs/rudder-server/testhelper/webhook`
-  - `github.com/rudderlabs/rudder-server/testhelper/backendconfigtest`
   - `github.com/tidwall/gjson`
+  - `github.com/stretchr/testify/require`
+
+- `gateway/sdk_compatibility_test.go` — New file requiring imports from:
+  - `github.com/stretchr/testify/require`
+  - `github.com/tidwall/gjson`
+  - `net/http`, `net/http/httptest`, `encoding/base64`
+
+- `services/cloud-sources/cloud_source.go` — New file requiring imports from:
+  - `context`, `net/http`, `time`
+  - `github.com/rudderlabs/rudder-go-kit/config`
+  - `github.com/rudderlabs/rudder-go-kit/logger`
 
 **External Reference Updates:**
 
 | File | Update Type | Description |
-|---|---|---|
-| `gateway/openapi.yaml` | Schema | Add explicit `context.userAgentData` object schema if not present |
-| `docs/gap-report/event-spec-parity.md` | Documentation | Update gap status from ~95% to 100% |
-| `docs/gap-report/sprint-roadmap.md` | Documentation | Mark E-001 through E-004 epics as completed |
-| `docs/gap-report/index.md` | Documentation | Update Event Spec parity percentage in executive summary |
-| `README.md` | Documentation | Update Segment Spec parity claim |
-| `.github/workflows/tests.yaml` | CI/CD | Add event spec parity integration test to CI matrix if separate suite created |
+|------|-------------|-------------|
+| `docs/gap-report/source-catalog-parity.md` | Documentation | Update SDK Compatibility status from gaps to validated |
+| `docs/gap-report/sprint-roadmap.md` | Documentation | Mark E-005 through E-009 epics with progress |
+| `docs/gap-report/index.md` | Documentation | Update Source Catalog parity from ~60% to ~85% |
+| `README.md` | Documentation | Add SDK compatibility section and cloud source framework reference |
+| `gateway/openapi.yaml` | Schema | Verify all SDK-required endpoints are fully specified |
+| `.github/workflows/tests.yaml` | CI/CD | Add SDK compatibility integration test to CI matrix |
 
 ## 0.4 Integration Analysis
 
@@ -299,294 +275,390 @@ Files requiring import additions for new test utilities:
 
 **Direct Modifications Required:**
 
-- **`gateway/handle.go`** — The core request handler processes all incoming events. Lines around `406-410` handle `userAgent` extraction via `misc.MapLookup` for bot detection. Modification needed to add verification logic that `context.userAgentData` (the structured Client Hints object) is preserved alongside the string `userAgent` field through the batching, validation, and queueing stages. The `channel` field handling in the context object must be audited here.
+- **`gateway/handle_http_auth.go`** (lines 24–58): The `writeKeyAuth` middleware is the central authentication touchpoint for all Segment SDK requests. It extracts the writeKey via `r.BasicAuth()`, validates against the source map via `authRequestContextForWriteKey`, checks `SourceEnabled`, and populates `AuthRequestContext`. Verification needed that the exact `Authorization: Basic base64(writeKey:)` format (username=writeKey, password=empty string) is processed identically to Segment's authentication scheme across all SDK platforms.
 
-- **`gateway/openapi.yaml`** — The OpenAPI 3.0.3 specification (lines `688-940`) defines all payload schemas. The `context` schema (around lines `699-717`) defines sub-properties for `ip`, `library`, and `traits` but may not explicitly define `userAgentData` as a structured object with its sub-fields (`brands[]`, `mobile`, `platform`). This schema must be extended to include the `userAgentData` field definition for documentation completeness.
+- **`gateway/handle_http.go`** (lines 37–82): The handler wiring layer defines all event type handlers — `webIdentifyHandler`, `webTrackHandler`, `webPageHandler`, `webScreenHandler`, `webGroupHandler`, `webAliasHandler`, `webBatchHandler`. Each wraps the `writeKeyAuth` middleware around `webHandler()`. Modification needed to verify each handler processes SDK-specific payload shapes (e.g., batch payloads with mixed event types, beacon payloads without JSON content-type headers).
 
-- **`gateway/validator/validator.go`** — The validation mediator runs validators in sequence: `msgProperties`, `messageId`, `reqType`, `receivedAt`, `requestIP`, `rudderID`. No validator currently checks `context.userAgentData` structure. No new validator is needed (pass-through behavior is correct), but test coverage must verify validators do not strip or reject payloads containing Client Hints.
+- **`gateway/handle_lifecycle.go`** (lines 561–650): The `StartWebHandler` function registers all routes on the Chi router. The route map includes `/v1/identify`, `/v1/track`, `/v1/page`, `/v1/screen`, `/v1/group`, `/v1/alias`, `/v1/batch`, `/v1/import`, `/v1/webhook`, `/beacon/v1/batch`, `/pixel/v1/track`, `/pixel/v1/page`. Verification needed that no SDK-required endpoints are missing from registration.
 
-- **`gateway/gateway_test.go`** — The comprehensive test suite already includes userAgent-based test payloads (lines around 921, 931). This file must be extended with test cases that include `context.userAgentData` structured payloads to verify pass-through behavior.
+- **`gateway/handle_http_beacon.go`** (lines 13–47): The `beaconInterceptor` reads `writeKey` from query params, sets a Basic Auth header, and delegates to `webBatchHandler`. E-006 requires validation that `navigator.sendBeacon()` payloads from the JavaScript SDK are correctly intercepted, including Content-Type handling for `application/x-www-form-urlencoded` and `text/plain` content types that `sendBeacon` may produce.
 
-- **`gateway/handle_test.go`** — Must be extended with test cases for `context.channel` field handling and `context.userAgentData` preservation through the Handle pipeline.
+- **`gateway/handle_http_pixel.go`** (lines 24–131): The `pixelInterceptor` converts GET requests with query parameters into POST request bodies, always returning a 1x1 transparent GIF. E-006 requires validation that pixel tracking from web SDK image tags correctly maps query params to event fields.
 
-**Processor Touchpoints:**
+- **`gateway/handle.go`** (lines 85–153): The `webRequestHandler` processes incoming requests — reads body, validates size (4MB limit from config), extracts IP, and dispatches to the appropriate `RequestHandler`. E-007 requires verification that mobile SDK context auto-collection fields (`context.device`, `context.os`, `context.app`, `context.network`, `context.screen`) and lifecycle events pass through without modification.
 
-- **`processor/processor.go`** — The six-stage pipeline (preprocess → source hydration → pre-transform → user transform → destination transform → store) processes every event. Each stage must be verified to preserve the `context.userAgentData` object and all 18 standard context fields without stripping or modifying them. The `singularEventMetadata` function used in benchmarks must be verified to handle Client Hints payloads.
+- **`gateway/gateway_test.go`**: Extend with test cases that use exact payload formats from each Segment SDK platform (JS, iOS, Android, Node.js, Python, Go, Java, Ruby) to validate end-to-end processing.
 
-- **`processor/integrations/integrations.go`** — The `FilterClientIntegrations` function extracts the `integrations` object from events using `types.GetRudderEventVal`. This function must be verified to correctly handle the Segment Spec `integrations` field semantics, including the `All: true` default behavior and per-destination boolean/object toggles.
+- **`gateway/handle_test.go`**: Extend with tests for mobile-specific context fields (device info, OS version, app metadata) and server-side SDK library metadata in `context.library`.
 
-- **`processor/internal/transformer/destination_transformer/embedded/warehouse/events.go`** — This file contains event-type-specific aggregation logic for all six event types (`trackEvents`, `identifyEvents`, `pageEvents`, `screenEvents`, `groupEvents`, `aliasEvents`). Each function must be verified to correctly process Segment Spec reserved fields and traits. The `identifyCommonProps` function (line 275) sources traits from multiple locations (userProperties, context traits, traits, context) and must be verified to handle all 18 reserved identify traits correctly.
+- **`gateway/handle_http_auth_test.go`**: Extend with tests validating Write Key Basic Auth for all SDK authentication patterns — header-based auth (SDKs), query param auth (beacon/pixel), and empty password verification.
 
-- **`processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules.go`** — Defines reserved column rules per event type (`DefaultRules`, `TrackRules`, `IdentifyRules`, `PageRules`, `ScreenRules`, `AliasRules`, `GroupRules`, `ExtractRules`). These rule sets determine which fields map to reserved warehouse columns. Verification needed to ensure all Segment Spec reserved fields for each event type are represented.
+**Processor Touchpoints (Verification Only):**
 
-**Router Touchpoints:**
+- **`processor/processor.go`**: The 6-stage pipeline must preserve all SDK-specific context fields (mobile device info, app metadata, library info) without stripping or modifying them. Verification needed but no modification expected.
 
-- **`router/network.go`** — The `netHandle.SendPost` method handles REST payload marshalling with gzip support. Must be verified to serialize `context.userAgentData` correctly without stripping nested objects. Response redaction based on MIME types must not affect outbound Spec payloads.
+- **`processor/integrations/integrations.go`**: The `FilterClientIntegrations` function must correctly handle the `integrations` object from all SDK platforms. Verification only.
 
-- **`router/worker.go`** — Job intake, batching, and transformation must be verified to preserve all Spec fields including nested context objects.
+**Router Touchpoints (Verification Only):**
 
-**Warehouse Identity Touchpoints:**
+- **`router/network.go`**: The `SendPost` method handles payload serialization for destination delivery. Must be verified to correctly serialize all SDK-specific nested context objects.
 
-- **`warehouse/identity/identity.go`** — The Identity resolver handles merge-rule resolution for alias events in the warehouse context. This is the partial implementation that addresses ES-005 (Alias identity graph). The `applyRule` and `processMergeRules` methods drive the transactional merge flow. Verification needed to confirm alias events correctly trigger merge-rule processing.
+- **`router/worker.go`**: Job batching and delivery must preserve all SDK context fields through to destination.
 
-- **`processor/internal/transformer/destination_transformer/embedded/warehouse/idresolution.go`** — The `mergeEvents` function handles identity resolution for warehouse destinations, gated by `enableIDResolution` config flag. Must be verified to correctly process alias event merge properties.
+**Backend Config Touchpoints (Reference for Cloud Source Design):**
 
-**Integration Test Touchpoints:**
+- **`backend-config/types.go`** (lines 107–124): The `SourceT` struct defines source configuration including `WriteKey`, `SourceDefinition`, `Enabled`, and `Config`. E-009 must design the cloud source configuration model as an extension of this existing pattern.
 
-- **`integration_test/docker_test/`** — The full-stack Docker regression suite in `docker_test.go` sends `identify`, `batch`, `track`, `page`, `screen`, `alias`, `group`, pixel, and RETL traffic through the system. The `sendEventsToGateway` helper must be extended to include payloads with all Segment Spec fields, Client Hints data, reserved traits, and semantic event names.
+- **`backend-config/backend-config.go`**: The config fetch and cache system. E-009 must integrate cloud source configuration into the existing backend-config subscription model.
 
-- **`integration_test/docker_test/testdata/workspaceConfigTemplate.json`** — The workspace configuration template defines webhook destinations with `supportedMessageTypes` that already include all six core types (`alias`, `group`, `identify`, `page`, `screen`, `track`). This template serves as the baseline for parity testing.
+### 0.4.2 Dependency Injections
 
-**Configuration Touchpoints:**
+- **`gateway/handle_lifecycle.go`** (line 141–142): The `irh` (Import Request Handler) and `rrh` (Regular Request Handler) are initialized during Gateway setup. E-009 may require a new request handler type for cloud source ingestion if the proof-of-concept routes through the Gateway.
 
-- **`config/config.yaml`** — The Gateway configuration section (port 8080, 64 web workers, 256 DB writers, 4MB request size) does not require changes for event spec parity. However, the request size limit must be documented in the context of Segment's recommended 500KB batch size (ES-006).
+- **`gateway/handle_lifecycle.go`** (line 150): The `suppressUserHandler` is injected via the application features interface. E-009 cloud source framework may need similar feature-gated initialization.
+
+### 0.4.3 Database/Schema Updates
+
+- **No direct database schema changes** are required for Sprint 2–3. The Gateway persists events to JobsDB transparently, and the JobsDB schema accommodates all event payload shapes without modification.
+
+- **E-009 (Cloud Source Framework)**: The design document must address persistent storage requirements for cloud source credentials, polling cursors, and sync state. The proof-of-concept may leverage existing config storage or require a new schema — this is a design decision documented in the architecture document.
+
+### 0.4.4 Integration Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Gateway["Gateway Layer"]
-        HTTP["handle_http.go<br/>callType middleware"]
-        Handle["handle.go<br/>Request processing"]
-        Validator["validator/<br/>Payload validation"]
-        OpenAPI["openapi.yaml<br/>Schema definitions"]
+    subgraph SDKs["Segment SDK Clients"]
+        JS["JavaScript SDK<br/>(analytics.js / Analytics 2.0)"]
+        IOS["iOS SDK<br/>(analytics-ios / Swift)"]
+        AND["Android SDK<br/>(analytics-android / Kotlin)"]
+        NODE["Node.js SDK<br/>(analytics-node)"]
+        PY["Python SDK<br/>(analytics-python)"]
+        GOSK["Go SDK<br/>(analytics-go)"]
+        JAVA["Java SDK<br/>(analytics-java)"]
+        RUBY["Ruby SDK<br/>(analytics-ruby)"]
     end
 
-    subgraph Processor["Processor Layer"]
-        Pipeline["processor.go<br/>6-stage pipeline"]
-        Integrations["integrations.go<br/>FilterClientIntegrations"]
-        DestTransform["destination_transformer/<br/>Semantic event mapping"]
-        WHEvents["warehouse/events.go<br/>Event-type aggregation"]
-        Rules["rules/rules.go<br/>Reserved column rules"]
+    subgraph Gateway["RudderStack Gateway (Port 8080)"]
+        AUTH["writeKeyAuth<br/>Basic Auth: base64(writeKey:)"]
+        SPEC["/v1/identify | track | page<br/>screen | group | alias"]
+        BATCH["/v1/batch"]
+        BEACON["/beacon/v1/batch"]
+        PIXEL["/pixel/v1/track | page"]
+        IMPORT["/v1/import"]
+        WEBHOOK["/v1/webhook"]
     end
 
-    subgraph Router["Router Layer"]
-        Network["network.go<br/>Payload marshalling"]
-        Worker["worker.go<br/>Job delivery"]
+    subgraph Pipeline["Processing Pipeline"]
+        JOBSDB["JobsDB<br/>(PostgreSQL)"]
+        PROC["Processor<br/>6-stage pipeline"]
+        ROUTER["Router<br/>Destination delivery"]
     end
 
-    subgraph Warehouse["Warehouse Layer"]
-        Identity["identity.go<br/>Merge-rule resolution"]
-        IDResolution["idresolution.go<br/>Merge events"]
+    subgraph CloudSources["Cloud Source Framework (E-009 Design)"]
+        POLLER["API Poller<br/>(Salesforce, HubSpot...)"]
+        WHRECV["Webhook Receiver<br/>(Stripe, SendGrid...)"]
+        MAPPER["Schema Mapper<br/>→ Segment Spec events"]
     end
 
-    HTTP --> Handle --> Validator
-    Handle --> Pipeline
-    Pipeline --> Integrations
-    Pipeline --> DestTransform
-    DestTransform --> WHEvents --> Rules
-    Pipeline --> Network --> Worker
-    WHEvents --> IDResolution --> Identity
+    JS --> AUTH
+    IOS --> AUTH
+    AND --> AUTH
+    NODE --> AUTH
+    PY --> AUTH
+    GOSK --> AUTH
+    JAVA --> AUTH
+    RUBY --> AUTH
+
+    AUTH --> SPEC
+    AUTH --> BATCH
+    JS --> BEACON
+    JS --> PIXEL
+    AUTH --> IMPORT
+
+    POLLER --> MAPPER
+    WHRECV --> MAPPER
+    MAPPER --> WEBHOOK
+
+    SPEC --> JOBSDB
+    BATCH --> JOBSDB
+    BEACON --> JOBSDB
+    PIXEL --> JOBSDB
+    IMPORT --> JOBSDB
+    WEBHOOK --> JOBSDB
+
+    JOBSDB --> PROC --> ROUTER
 ```
-
 
 ## 0.5 Technical Implementation
 
 ### 0.5.1 File-by-File Execution Plan
 
-**Group 1 — Gateway Schema Validation and Client Hints (ES-001, E-001, E-003)**
+**Group 1 — Gateway API Surface Validation (E-005)**
 
-- **MODIFY: `gateway/openapi.yaml`** — Add explicit `userAgentData` object schema definition under the `context` property for all payload schemas (`IdentifyPayload`, `TrackPayload`, `PagePayload`, `ScreenPayload`, `GroupPayload`, `AliasPayload`). Define sub-properties: `brands` (array of objects with `brand` and `version`), `mobile` (boolean), `platform` (string), and optional `bitness`, `model`, `platformVersion`, `uaFullVersion`, `fullVersionList`, `wow64`. This ensures OpenAPI documentation completeness.
+- **CREATE: `gateway/sdk_compatibility_test.go`** — Comprehensive table-driven test suite that sends all 6 event types to the Gateway using exact Segment SDK payload formats. Each test case validates: (a) correct HTTP 200 response, (b) Write Key Basic Auth acceptance with `Authorization: Basic base64(writeKey:)`, (c) field-level preservation through the Gateway pipeline including `anonymousId`, `userId`, `messageId`, `timestamp`, `sentAt`, `context`, `integrations`, `type`. Tests must cover payload formats from JS, iOS, Android, Node.js, Python, Go, Java, and Ruby SDKs.
 
-- **MODIFY: `gateway/handle.go`** — Audit the event processing path to verify that `context.userAgentData` objects are not stripped during batching, validation, or queueing. The existing `userAgent` string extraction at lines ~406-410 for bot detection must be verified to not interfere with the structured `userAgentData` object. Add explicit handling to ensure both `context.userAgent` (string) and `context.userAgentData` (object) coexist correctly.
+- **CREATE: `gateway/sdk_auth_compat_test.go`** — Dedicated test file for Write Key Basic Auth compatibility. Tests must validate: (a) standard Basic Auth header with empty password (all SDKs), (b) writeKey in query params (beacon/pixel), (c) rejection of invalid writeKeys with correct 401 response, (d) rejection of disabled sources with 404 response, (e) case sensitivity handling, (f) special character handling in writeKeys.
 
-- **CREATE: `gateway/event_spec_parity_test.go`** — Comprehensive table-driven test suite that sends all 6 event types to the Gateway with full Segment Spec payloads and asserts field-level preservation. Each test case must cover: `anonymousId`, `userId`, `messageId`, `timestamp`, `sentAt`, `originalTimestamp`, `receivedAt`, `context` (all 18 fields including `userAgentData`), `integrations`, `type`, `version`, `channel`, and event-type-specific fields (`traits`, `event`, `properties`, `name`, `category`, `groupId`, `previousId`).
+- **MODIFY: `gateway/gateway_test.go`** — Extend existing test suite with Segment SDK-specific payload variations. Add test cases for: batch payloads with mixed event types (as produced by server-side SDKs), payloads with `context.library` metadata matching each SDK platform, payloads with SDK-specific `context.channel` values (`client` for web/mobile, `server` for server-side).
 
-- **CREATE: `gateway/client_hints_test.go`** — Dedicated test file for Client Hints pass-through verification. Tests must submit payloads with structured `context.userAgentData` containing `brands`, `mobile`, `platform`, and optional high-entropy fields, then verify the data is preserved through the Gateway pipeline using `gjson` assertions.
+- **MODIFY: `gateway/handle_test.go`** — Add test cases for SDK payload processing through the Handle pipeline, focusing on: mobile SDK context auto-collection fields (`context.device`, `context.os`, `context.app`, `context.network`, `context.screen`), server-side SDK batch semantics, and library version metadata preservation.
 
-- **MODIFY: `gateway/gateway_test.go`** — Add test cases with `context.userAgentData` payloads alongside existing `userAgent` string-based tests (around line 921). Add test cases verifying `context.channel` field preservation for `server`, `browser`, and `mobile` values.
+- **MODIFY: `gateway/handle_http_auth_test.go`** — Extend with comprehensive Write Key Basic Auth format tests covering all Segment SDK authentication patterns. Add tests for: empty password in Basic Auth header, query param writeKey for beacon endpoints, and Combined auth verification across all SDK variants.
 
-- **MODIFY: `gateway/handle_test.go`** — Extend Handle tests with `context.userAgentData` and `context.channel` field validation scenarios.
+- **MODIFY: `gateway/validator/validator_test.go`** — Add test cases confirming that all SDK payload formats pass the validator chain without rejection, including payloads with mobile-specific context fields, server-side batch payloads, and beacon payloads.
 
-- **MODIFY: `gateway/internal/bot/bot_test.go`** — Add test cases ensuring payloads with `context.userAgentData` (Client Hints) are not falsely flagged as bot traffic by the `IsBotUserAgent` function.
+- **MODIFY: `gateway/internal/bot/bot_test.go`** — Add test cases verifying that user-agent strings from all Segment SDKs (JavaScript, iOS, Android, Node.js, Python, Go, Java, Ruby) are not falsely flagged as bot traffic.
 
-- **MODIFY: `gateway/validator/validator_test.go`** — Add test cases confirming that the validator mediator chain does not reject payloads containing `context.userAgentData` structured objects.
+**Group 2 — JavaScript Web SDK Compatibility (E-006)**
 
-**Group 2 — Processor Parity Validation (E-002, ES-002, ES-003)**
+- **MODIFY: `gateway/handle_http_beacon_test.go`** — Extend with Analytics 2.0 `sendBeacon()` payload tests. Validate: (a) `application/x-www-form-urlencoded` content type handling, (b) `text/plain` content type from `sendBeacon`, (c) writeKey extraction from query params, (d) batch payload with mixed event types via beacon, (e) correct delegation to `webBatchHandler`.
 
-- **CREATE: `processor/event_spec_parity_test.go`** — Test suite validating that all Segment Spec fields survive the 6-stage Processor pipeline. Use mock transformer clients from `processor/transformer/mocks_transformer_client.go` to verify field preservation through each stage.
+- **MODIFY: `gateway/handle_http_pixel_test.go`** — Extend with web SDK pixel tracking tests. Validate: (a) `track` pixel with event name in query param, (b) `page` pixel with optional name param, (c) GIF response regardless of processing result, (d) query param to JSON payload conversion including nested `properties.*` params.
 
-- **CREATE: `processor/reserved_traits_test.go`** — Dedicated test file for reserved trait handling validation. Test all 18 identify reserved traits (`address`, `age`, `avatar`, `birthday`, `company`, `createdAt`, `description`, `email`, `firstName`, `gender`, `id`, `lastName`, `name`, `phone`, `title`, `username`, `website`) and all 12 group reserved traits (`address`, `avatar`, `createdAt`, `description`, `email`, `employees`, `id`, `industry`, `name`, `phone`, `website`, `plan`).
+- **MODIFY: `gateway/gateway_test.go`** — Add JavaScript SDK-specific test scenarios: (a) standard `analytics.js` identify/track/page/screen/group/alias payloads with `context.library.name: "analytics.js"` and `context.library.version`, (b) Analytics 2.0 payload format with `_metadata` field, (c) batch endpoint with mixed call types, (d) payloads with `context.page` auto-collected fields (URL, path, referrer, title, search).
 
-- **MODIFY: `processor/processor_test.go`** — Add semantic event category test scenarios that verify E-Commerce v2 events (`Order Completed`, `Product Viewed`, `Cart Viewed`), Video events (`Video Playback Started`), and Mobile lifecycle events (`Application Opened`) pass through the Processor without modification or rejection.
+**Group 3 — Mobile SDK Compatibility (E-007)**
 
-- **MODIFY: `processor/internal/transformer/destination_transformer/embedded/warehouse/events_test.go`** — Add test cases for each event type function (`trackEvents`, `identifyEvents`, `pageEvents`, `screenEvents`, `groupEvents`, `aliasEvents`) with full Segment Spec reserved field payloads.
+- **MODIFY: `gateway/handle_test.go`** — Add iOS and Android SDK-specific test scenarios: (a) `analytics-ios` payloads with `context.library.name: "analytics-ios"` and Swift-specific context fields, (b) `analytics-android` payloads with `context.library.name: "analytics-android"` and Kotlin-specific context fields, (c) mobile context auto-collection: `context.device` (id, manufacturer, model, name, type), `context.os` (name, version), `context.app` (name, version, build, namespace), `context.network` (bluetooth, carrier, cellular, wifi), `context.screen` (density, height, width), (d) lifecycle events: `Application Opened`, `Application Backgrounded`, `Application Updated`, `Application Installed`, (e) `screen` call type with category and name properties.
 
-- **MODIFY: `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules_test.go`** — Add test coverage verifying all Segment Spec reserved fields for each event type are correctly represented in rule maps.
+**Group 4 — Server-Side SDK Compatibility (E-008)**
 
-**Group 3 — Integration Testing (E-001 through E-004)**
+- **MODIFY: `gateway/gateway_test.go`** — Add server-side SDK-specific test scenarios for each platform:
+  - Node.js: `context.library.name: "analytics-node"`, batch endpoint with `messageId` auto-generation, `timestamp` ISO 8601 formatting
+  - Python: `context.library.name: "analytics-python"`, batch flushing behavior, `sentAt` field
+  - Go: `context.library.name: "analytics-go"`, `Enqueue()` method payload format
+  - Java: `context.library.name: "analytics-java"`, builder pattern payload format
+  - Ruby: `context.library.name: "analytics-ruby"`, batch endpoint with retry logic
 
-- **CREATE: `integration_test/event_spec_parity/event_spec_parity_test.go`** — Full-stack integration test using `dockertest/v3` to provision PostgreSQL, Transformer, and webhook services. Test flow: send all 6 event types with complete Segment Spec payloads → verify webhook delivery payloads contain all fields → verify warehouse table rows contain all expected columns. Include Client Hints, reserved traits, semantic events, and channel field payloads.
+- **MODIFY: `gateway/handle_test.go`** — Add server-side SDK batch payload tests: (a) mixed event type batches with all 6 call types, (b) batch payload size limits (verify 4MB config limit), (c) batch with large number of events, (d) server-side SDK retry behavior simulation (duplicate `messageId` handling).
 
-- **CREATE: `integration_test/event_spec_parity/testdata/workspaceConfigTemplate.json`** — Workspace configuration template with webhook destinations configured to accept all 6 event types.
+**Group 5 — Full-Stack Integration Testing (E-005, E-006, E-007, E-008)**
 
-- **CREATE: `integration_test/event_spec_parity/testdata/segment_spec_payloads.json`** — Canonical payload fixtures for all 6 event types with every Segment Spec field populated, drawn from `refs/segment-docs/src/connections/spec/` examples.
+- **CREATE: `integration_test/sdk_compatibility/sdk_compatibility_test.go`** — Full-stack integration test using `dockertest/v3` to provision PostgreSQL, Transformer, and webhook services. Test flow: send SDK-specific payloads for all platforms → verify webhook delivery preserves all fields → assert `context.library` metadata is correct per platform. Test scenarios:
+  - Gateway API surface validation with all `/v1/{type}` endpoints
+  - Write Key Basic Auth from all SDK platforms
+  - JavaScript SDK: standard calls, batch, beacon, pixel
+  - iOS SDK: identify, track, screen with mobile context
+  - Android SDK: identify, track, screen with mobile context
+  - Server-side SDKs: batch endpoint with mixed events per platform
+  - Lifecycle events: Application Opened, Application Backgrounded
+  - Context field preservation: all 18 standard context fields through full pipeline
 
-- **MODIFY: `integration_test/docker_test/docker_test.go`** — Extend the existing `testMainFlow` function to include Client Hints payloads and verify field preservation through to webhook destinations.
+- **CREATE: `integration_test/sdk_compatibility/testdata/workspaceConfigTemplate.json`** — Workspace configuration template with webhook destination accepting all 6 event types, configured with `supportedMessageTypes: ["identify", "track", "page", "screen", "group", "alias"]`.
 
-**Group 4 — Documentation and Gap Closure (ES-004, ES-006)**
+- **CREATE: `integration_test/sdk_compatibility/testdata/segment_js_payloads.json`** — Canonical `analytics.js` / Analytics 2.0 payload fixtures for all 6 call types plus batch and beacon formats. Include `context.page`, `context.userAgent`, and `context.library` metadata.
 
-- **MODIFY: `docs/gap-report/event-spec-parity.md`** — Update the Gap Summary table to mark ES-001, ES-002, ES-003, ES-006, and ES-007 as resolved. Update overall parity from ~95% to 100% (excluding ES-005 which is tracked in the Identity Parity dimension). Update per-event-type parity table.
+- **CREATE: `integration_test/sdk_compatibility/testdata/segment_ios_payloads.json`** — Canonical iOS SDK payload fixtures with mobile context auto-collection fields, lifecycle events, and `context.library.name: "analytics-ios"`.
 
-- **MODIFY: `docs/gap-report/sprint-roadmap.md`** — Update Sprint 1-2 section to reflect completion of E-001 through E-004 epics.
+- **CREATE: `integration_test/sdk_compatibility/testdata/segment_android_payloads.json`** — Canonical Android SDK payload fixtures with mobile context auto-collection fields, lifecycle events, and `context.library.name: "analytics-android"`.
 
-- **MODIFY: `docs/gap-report/index.md`** — Update executive summary Event Spec parity percentage.
+- **CREATE: `integration_test/sdk_compatibility/testdata/segment_server_payloads.json`** — Canonical server-side SDK payload fixtures for Node.js, Python, Go, Java, and Ruby with platform-specific `context.library` metadata and batch formats.
 
-- **CREATE: `docs/api-reference/event-spec/common-fields.md`** — Detailed API reference for all 11 common fields with parity confirmation.
+- **MODIFY: `integration_test/docker_test/docker_test.go`** — Extend the `sendEventsToGateway` function with SDK-specific payload formats to verify backwards compatibility with existing regression tests.
 
-- **CREATE: `docs/api-reference/event-spec/semantic-events.md`** — Documentation of semantic event category pass-through behavior with destination-specific mapping notes.
+**Group 6 — Cloud Source Framework Design and Proof-of-Concept (E-009)**
 
-- **CREATE: `docs/api-reference/event-spec/extensions.md`** — Documentation of RudderStack extension endpoints, merge call type, and batch size defaults.
+- **CREATE: `docs/architecture/cloud-source-framework.md`** — Comprehensive design document defining:
+  - Cloud source ingestion architecture (polling + webhook dual-mode)
+  - Connector interface definitions (`CloudSource`, `Poller`, `WebhookReceiver`, `SchemaMapper`)
+  - Credential management model (encrypted storage, runtime injection)
+  - Schema mapping layer (third-party API responses → Segment Spec events)
+  - Top-20 cloud source prioritization with architecture recommendations per source
+  - Polling cadence and rate limit management
+  - Error handling and retry semantics
+  - Integration with existing Gateway webhook endpoint
 
-- **MODIFY: `README.md`** — Update parity status from ~95% to 100% in the project documentation.
+- **CREATE: `services/cloud-sources/cloud_source.go`** — Interface definitions for the cloud source framework:
+  - `CloudSource` — top-level interface with `Start`, `Stop`, `Status` methods
+  - `Poller` — API polling interface with `Poll`, `SetCursor`, `GetCursor` methods
+  - `WebhookReceiver` — webhook ingestion interface with `Validate`, `Transform` methods
+  - `SchemaMapper` — event mapping interface with `MapToSegmentSpec` method
+
+- **CREATE: `services/cloud-sources/registry.go`** — Connector registry with `Register`, `Get`, `List` methods for managing cloud source connector plugins.
+
+- **CREATE: `services/cloud-sources/config.go`** — Configuration types for cloud source connectors: `CloudSourceConfig`, `CredentialConfig`, `PollingConfig`, `WebhookConfig`.
+
+- **CREATE: `services/cloud-sources/poller.go`** — Base polling implementation with rate-limited API polling, cursor-based pagination, and configurable polling intervals.
+
+- **CREATE: `services/cloud-sources/webhook_receiver.go`** — Base webhook receiver implementation with HMAC signature validation, payload normalization, and Segment Spec event generation.
+
+- **CREATE: `services/cloud-sources/schema_mapper.go`** — Schema mapping layer that transforms third-party API responses into Segment Spec events (`identify`, `track`, `group`).
+
+- **CREATE: `services/cloud-sources/connectors/stripe/stripe.go`** — Stripe connector proof-of-concept implementing the `WebhookReceiver` interface. Handles Stripe webhook events (e.g., `charge.succeeded`, `customer.created`) and maps them to Segment Spec `track` and `identify` events.
+
+- **CREATE: `services/cloud-sources/cloud_source_test.go`** — Unit tests for framework interfaces, registry, and configuration.
+
+- **CREATE: `services/cloud-sources/connectors/stripe/stripe_test.go`** — Unit tests for the Stripe connector proof-of-concept.
+
+**Group 7 — Documentation and Gap Report Updates (All Epics)**
+
+- **CREATE: `docs/guides/sdk-compatibility/segment-sdk-migration.md`** — Master migration guide with per-SDK instructions for endpoint URL swap and Write Key substitution.
+
+- **CREATE: `docs/guides/sdk-compatibility/web-sdk-guide.md`** — JavaScript/Analytics 2.0 compatibility guide documenting device-mode limitations, beacon and pixel endpoint support, and CORS configuration.
+
+- **CREATE: `docs/guides/sdk-compatibility/mobile-sdk-guide.md`** — iOS and Android SDK compatibility guide documenting lifecycle event support, context auto-collection, and mobile-specific considerations.
+
+- **CREATE: `docs/guides/sdk-compatibility/server-sdk-guide.md`** — Server-side SDK compatibility guide for Node.js, Python, Go, Java, Ruby with batch endpoint usage and retry behavior.
+
+- **MODIFY: `docs/gap-report/source-catalog-parity.md`** — Update SDK Compatibility Matrix to reflect validated compatibility for all tested platforms.
+
+- **MODIFY: `docs/gap-report/sprint-roadmap.md`** — Update Sprint 2–3 section to reflect epic progress and completion status.
+
+- **MODIFY: `docs/gap-report/index.md`** — Update Source Catalog parity from ~60% to ~85%.
+
+- **MODIFY: `README.md`** — Add SDK compatibility section with verified migration paths.
 
 ### 0.5.2 Implementation Approach per File
 
-- **Establish parity verification foundation** by creating comprehensive test suites (`gateway/event_spec_parity_test.go`, `processor/event_spec_parity_test.go`) that validate field-level preservation for all 6 event types against Segment Spec definitions
-- **Verify Client Hints pass-through** by tracing the `context.userAgentData` object through Gateway → Processor → Router → destination, ensuring the JSON object structure is preserved end-to-end
-- **Validate semantic event routing** by creating test fixtures for E-Commerce v2, Video, and Mobile semantic event categories and verifying destination transforms handle them correctly
-- **Validate reserved trait handling** by testing all 18 identify traits and 12 group traits through the pipeline and confirming no type coercion or data loss occurs
-- **Close documentation gaps** by updating the gap report, creating API reference documentation, and documenting RudderStack extensions
-- **Integrate into CI** by adding parity tests to the existing CI pipeline structure to prevent future regressions
+- **Establish SDK compatibility test foundation** by creating comprehensive test suites (`gateway/sdk_compatibility_test.go`, `gateway/sdk_auth_compat_test.go`) that validate each Segment SDK's exact payload format and authentication pattern against the Gateway
+- **Validate web SDK endpoints** by extending beacon and pixel handler tests to cover `analytics.js` / Analytics 2.0 specific payload formats, including `sendBeacon()` content type handling
+- **Verify mobile SDK context preservation** by testing iOS and Android payload formats through the full pipeline, ensuring mobile-specific context fields (`device`, `os`, `app`, `network`, `screen`) and lifecycle events are preserved
+- **Confirm server-side SDK batch compatibility** by testing batch endpoint with each server SDK's specific payload format and library metadata
+- **Integrate end-to-end validation** by creating a Docker-based integration test suite that exercises all SDK payload formats through Gateway → Processor → Router → webhook delivery
+- **Design the cloud source framework** by producing a design document and minimal proof-of-concept with interface definitions and a Stripe webhook connector example
+- **Close documentation gaps** by creating per-SDK migration guides and updating gap reports to reflect validated compatibility
 
 ### 0.5.3 User Interface Design
 
-Not applicable. The `rudder-server` repository is a backend data plane with no frontend components. All system interactions occur through programmatic APIs (HTTP REST, gRPC, UNIX socket RPC). The Event Spec Parity feature targets the HTTP REST API surface at the Gateway level (port 8080).
+Not applicable. The `rudder-server` repository is a backend data plane with no frontend components. All system interactions occur through programmatic APIs (HTTP REST, gRPC, UNIX socket RPC). The Sprint 2–3 Source SDK Compatibility feature targets the HTTP REST API surface at the Gateway level (port 8080) — validating that Segment SDK clients can connect without code modification beyond endpoint URL and Write Key substitution.
 
 ## 0.6 Scope Boundaries
 
 ### 0.6.1 Exhaustively In Scope
 
-**Gateway Source Files:**
-- `gateway/handle.go` — Client Hints and channel field audit
-- `gateway/handle_http.go` — callType middleware verification
-- `gateway/handle_http_auth.go` — Basic Auth scheme confirmation
-- `gateway/handle_http_beacon.go` — Beacon payload field preservation
-- `gateway/handle_http_pixel.go` — Pixel endpoint documentation
-- `gateway/handle_http_import.go` — Import endpoint parity verification
-- `gateway/handle_http_replay.go` — Extension endpoint documentation
-- `gateway/handle_http_retl.go` — Extension endpoint documentation
-- `gateway/handle_lifecycle.go` — Lifecycle verification
-- `gateway/gateway.go` — Constants and sentinel error verification
-- `gateway/types.go` — Request type definitions verification
-- `gateway/openapi.yaml` — Schema updates for `userAgentData`
-- `gateway/regular_handler.go` — Request handler verification
-- `gateway/import_handler.go` — Import handler verification
-- `gateway/validator/**/*.go` — Validator chain verification
-- `gateway/internal/bot/**/*.go` — Bot detection verification
-- `gateway/response/**/*.go` — Response code verification
-- `gateway/types/**/*.go` — Context type verification
+**Gateway Source Files (Modify/Verify):**
+- `gateway/handle_http.go` — Handler wiring verification for all SDK endpoints
+- `gateway/handle_http_auth.go` — Write Key Basic Auth compatibility validation
+- `gateway/handle_http_beacon.go` — Beacon endpoint for JavaScript SDK `sendBeacon()` payloads
+- `gateway/handle_http_pixel.go` — Pixel endpoints for web SDK image tag tracking
+- `gateway/handle_http_import.go` — Import endpoint compatibility verification
+- `gateway/handle.go` — Core request handler — SDK payload processing and context field preservation
+- `gateway/handle_lifecycle.go` — Route registration audit for complete SDK endpoint coverage
+- `gateway/handle_webhook.go` — Webhook handler reference for cloud source design
+- `gateway/gateway.go` — Constants and error responses
+- `gateway/types.go` — Request type definitions
+- `gateway/openapi.yaml` — OpenAPI specification verification
+- `gateway/regular_handler.go` — Regular request handler
+- `gateway/import_handler.go` — Import request handler
+- `gateway/validator/**/*.go` — Validator chain verification for SDK payloads
+- `gateway/internal/bot/**/*.go` — Bot detection verification for SDK user-agents
+- `gateway/response/**/*.go` — Response code and message verification
+- `gateway/types/**/*.go` — Context types and auth request context
+- `gateway/webhook/**/*.go` — Webhook pipeline reference for cloud source design
 
-**Gateway Test Files:**
-- `gateway/gateway_test.go` — Add Client Hints and channel test cases
-- `gateway/gateway_integration_test.go` — Add parity validation tests
-- `gateway/handle_test.go` — Add context field test cases
-- `gateway/handle_http_auth_test.go` — Verify Basic Auth coverage
-- `gateway/handle_http_beacon_test.go` — Verify beacon field preservation
-- `gateway/handle_http_pixel_test.go` — Verify pixel documentation
-- `gateway/validator/validator_test.go` — Add Client Hints validation tests
-- `gateway/internal/bot/bot_test.go` — Add Client Hints bot detection tests
-- `gateway/event_spec_parity_test.go` — New: comprehensive parity test suite
-- `gateway/client_hints_test.go` — New: Client Hints pass-through tests
+**Gateway Test Files (Modify/Create):**
+- `gateway/gateway_test.go` — Extend with SDK-specific payload tests
+- `gateway/handle_test.go` — Extend with mobile/server SDK context field tests
+- `gateway/handle_http_auth_test.go` — Extend with SDK auth pattern tests
+- `gateway/handle_http_beacon_test.go` — Extend with Analytics 2.0 beacon tests
+- `gateway/handle_http_pixel_test.go` — Extend with web SDK pixel tests
+- `gateway/gateway_integration_test.go` — Extend with SDK integration scenarios
+- `gateway/integration_test.go` — Extend with SDK compatibility scenarios
+- `gateway/validator/validator_test.go` — Extend with SDK payload validation tests
+- `gateway/internal/bot/bot_test.go` — Extend with SDK user-agent tests
+- `gateway/sdk_compatibility_test.go` — New: comprehensive SDK payload format tests
+- `gateway/sdk_auth_compat_test.go` — New: Write Key Basic Auth compatibility tests
 
-**Processor Source Files:**
-- `processor/processor.go` — Pipeline field preservation verification
-- `processor/pipeline_worker.go` — Channel orchestration verification
-- `processor/consent.go` — Consent filtering field preservation
-- `processor/trackingplan.go` — Tracking plan compatibility
-- `processor/src_hydration_stage.go` — Source hydration field preservation
-- `processor/integrations/integrations.go` — Integration filtering verification
-- `processor/internal/transformer/destination_transformer/embedded/warehouse/events.go` — Event-type aggregation verification
-- `processor/internal/transformer/destination_transformer/embedded/warehouse/idresolution.go` — Alias merge resolution verification
-- `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules.go` — Reserved column rule verification
+**Integration Test Files (Create/Modify):**
+- `integration_test/sdk_compatibility/**/*` — New: full-stack SDK compatibility test suite
+- `integration_test/docker_test/docker_test.go` — Extend with SDK payload variations
 
-**Processor Test Files:**
-- `processor/processor_test.go` — Add semantic event test scenarios
-- `processor/processor_bot_enricher_test.go` — Verify Client Hints handling
-- `processor/processor_event_dropping_test.go` — Verify Spec events not dropped
-- `processor/internal/transformer/destination_transformer/embedded/warehouse/events_test.go` — Add reserved trait tests
-- `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules_test.go` — Add reserved field coverage
-- `processor/event_spec_parity_test.go` — New: processor parity test suite
-- `processor/reserved_traits_test.go` — New: reserved trait validation tests
+**Cloud Source Framework Files (Create — E-009 Design & PoC):**
+- `services/cloud-sources/cloud_source.go` — Interface definitions
+- `services/cloud-sources/registry.go` — Connector registry
+- `services/cloud-sources/config.go` — Configuration types
+- `services/cloud-sources/poller.go` — Base polling implementation
+- `services/cloud-sources/webhook_receiver.go` — Base webhook receiver
+- `services/cloud-sources/schema_mapper.go` — Schema mapping layer
+- `services/cloud-sources/connectors/stripe/stripe.go` — Stripe PoC connector
+- `services/cloud-sources/cloud_source_test.go` — Framework unit tests
+- `services/cloud-sources/connectors/stripe/stripe_test.go` — Stripe PoC tests
 
-**Router Source Files (Verification Only):**
-- `router/network.go` — Payload serialization verification
-- `router/worker.go` — Job delivery field preservation
+**Documentation Files (Create/Modify):**
+- `docs/architecture/cloud-source-framework.md` — Cloud source design document
+- `docs/guides/sdk-compatibility/segment-sdk-migration.md` — Master SDK migration guide
+- `docs/guides/sdk-compatibility/web-sdk-guide.md` — JavaScript SDK guide
+- `docs/guides/sdk-compatibility/mobile-sdk-guide.md` — iOS/Android SDK guide
+- `docs/guides/sdk-compatibility/server-sdk-guide.md` — Server-side SDK guide
+- `docs/gap-report/source-catalog-parity.md` — Update parity status
+- `docs/gap-report/sprint-roadmap.md` — Update Sprint 2–3 epic status
+- `docs/gap-report/index.md` — Update executive summary parity
+- `README.md` — Add SDK compatibility section
 
-**Warehouse Source Files (Verification Only):**
-- `warehouse/identity/identity.go` — Alias merge-rule resolution documentation
+**Configuration Files (Verify):**
+- `config/config.yaml` — Gateway configuration verification
+- `config/sample.env` — Environment variable reference
 
-**Integration Test Files:**
-- `integration_test/docker_test/docker_test.go` — Extend with parity payloads
-- `integration_test/docker_test/testdata/workspaceConfigTemplate.json` — Template verification
-- `integration_test/event_spec_parity/**/*` — New: dedicated parity test suite
-- `integration_test/transformer_contract/` — Contract verification
+**Backend Config Files (Reference for E-009 design):**
+- `backend-config/types.go` — Source configuration model
+- `backend-config/backend-config.go` — Config fetch and cache system
 
-**Configuration Files:**
-- `config/config.yaml` — Configuration verification and documentation
-- `config/sample.env` — Environment variable verification
-
-**Documentation Files:**
-- `docs/gap-report/event-spec-parity.md` — Update to 100% parity
-- `docs/gap-report/sprint-roadmap.md` — Mark Sprint 1-2 epics complete
-- `docs/gap-report/index.md` — Update executive summary
-- `docs/api-reference/event-spec/**/*.md` — New: event spec API reference
-- `README.md` — Update parity status
-
-**Segment Reference Corpus (Read-Only):**
-- `refs/segment-docs/src/connections/spec/**/*.md` — Authoritative baseline
+**Segment Reference Corpus (Read-Only Baseline):**
+- `refs/segment-docs/src/connections/sources/catalog/libraries/**/*` — All SDK documentation
+- `refs/segment-docs/src/connections/sources/catalog/cloud-apps/**/*` — All 140 cloud source definitions
 
 ### 0.6.2 Explicitly Out of Scope
 
-- **Identity Graph Implementation (ES-005):** Building a real-time identity resolution service equivalent to Segment Unify is tracked under the Identity Parity dimension (Sprint 6-8, P2) and is explicitly out of scope for this Sprint 1-2 effort. The warehouse-level merge-rule resolution in `warehouse/identity/` is documented as partial parity.
-
-- **Destination Connector Expansion:** Adding new destination connectors or modifying existing destination-specific transformation logic is out of scope. This work is tracked under Sprint 3-5 (Destination Connector Expansion).
-
-- **Source SDK Modifications:** Modifying RudderStack client SDKs (JavaScript, iOS, Android, server-side) to alter `context.channel` auto-population behavior is out of scope. This work is tracked under Sprint 2-3 (Source SDK Compatibility).
-
-- **Functions and Transformation Framework:** Adding new transformation capabilities, custom function runtimes, or modifying the Transformer service is out of scope. This work is tracked under Sprint 4-6.
-
-- **Protocols and Tracking Plan Enforcement:** Adding reserved trait type validation at the Gateway or Processor level (beyond documentation and pass-through verification) is out of scope. The Segment Spec approach of pass-through traits with destination-level enforcement is confirmed as correct behavior.
-
-- **Performance Optimization:** No performance optimization work beyond what is required for feature correctness. Benchmarks must not regress, but no new performance targets are set.
-
-- **Refactoring of Existing Code:** No refactoring of existing architecture, code patterns, or module boundaries beyond what is strictly needed for gap closure.
-
-- **Warehouse Feature Enhancement:** Selective sync, replay, and advanced monitoring features are tracked under Sprint 7-9.
-
-- **Operational Tooling:** Advanced monitoring, alerting, and replay controls are tracked under Sprint 8-10.
+- **Destination Connector Expansion:** Adding or modifying destination connectors is tracked under Sprint 3–5 (E-010 through E-014) and is explicitly out of scope
+- **Functions and Transformation Framework:** Adding new transformation capabilities or custom function runtimes is tracked under Sprint 4–6 (E-015 through E-019)
+- **Protocols and Tracking Plan Enforcement:** Tracking plan validation enhancements are tracked under Sprint 5–7 (E-020 through E-025)
+- **Identity Resolution and Profiles:** Real-time identity graph implementation is tracked under Sprint 6–8 (E-026 through E-030)
+- **Warehouse Feature Enhancement:** Selective sync, backfill, and monitoring are tracked under Sprint 7–9 (E-031 through E-035)
+- **Operational Tooling:** Monitoring, alerting, and replay controls are tracked under Sprint 8–10 (E-036 through E-039)
+- **Production cloud source connectors:** E-009 is design-and-prototype only — production-grade connector implementations for Salesforce, HubSpot, Zendesk, etc. are deferred to Phase 2
+- **Device-mode destination support:** Client-side SDK destination forwarding is a native SDK concern, not a server-side Gateway feature
+- **RudderStack native SDK modifications:** Modifications to `rudder-sdk-js`, `rudder-sdk-ios`, `rudder-sdk-android` are out of scope — this sprint validates Segment SDK compatibility only
+- **Performance optimization:** No performance work beyond what is required for feature correctness; benchmarks must not regress
+- **Refactoring of existing code:** No architectural refactoring unrelated to SDK compatibility validation
+- **OTT SDK validation (Roku):** Identified as low priority (P2) in the gap report; deferred
 
 ## 0.7 Rules for Feature Addition
 
 ### 0.7.1 Feature-Specific Rules
 
-- **Segment Spec as Authoritative Baseline:** All field-level parity decisions must reference the Segment documentation corpus in `refs/segment-docs/src/connections/spec/`. When ambiguity exists between the OpenAPI spec and the Segment docs, the Segment docs take precedence for behavioral parity.
+- **Segment SDK Documentation as Authoritative Baseline:** All SDK compatibility decisions must reference the Segment documentation corpus in `refs/segment-docs/src/connections/sources/catalog/libraries/`. When ambiguity exists between observed SDK behavior and documented behavior, the documentation takes precedence.
 
-- **Pass-Through by Default:** RudderStack's Gateway treats all event payloads as pass-through — fields are accepted, stored, and forwarded without type enforcement or schema validation at the Gateway level. This behavior is correct per the Segment Spec approach and must be preserved. Trait validation and semantic enforcement happen at the destination connector level during transformation.
+- **Implement ALL Items in Scope:** For every epic (E-005 through E-009), implement ALL items listed in the scope description — do not skip any variant, endpoint, or sub-case mentioned in the epic description. This includes all 6 event types, all SDK platforms, all endpoint variants (standard, batch, beacon, pixel, import), and all authentication patterns.
 
-- **No Breaking Changes to Existing API:** All modifications must maintain backward compatibility with existing RudderStack users. The HTTP API surface (`/v1/identify`, `/v1/track`, `/v1/page`, `/v1/screen`, `/v1/group`, `/v1/alias`, `/v1/batch`) must continue to accept all currently valid payloads.
+- **Design-Only for E-009:** E-009 (Cloud source ingestion framework design) is explicitly marked "Design and prototype." Deliver a design document and a minimal proof-of-concept only — do not implement production-grade service code. The proof-of-concept must demonstrate the interface pattern and a single connector (Stripe webhook) as validation.
 
-- **Use `jsonrs` Instead of `encoding/json`:** Per the repository's `depguard` linting rule in `.golangci.yml`, all JSON serialization/deserialization must use the `jsonrs` library from `github.com/rudderlabs/rudder-go-kit`. Using `encoding/json` directly is banned.
+- **No Breaking Changes to Existing API:** All modifications must maintain backward compatibility with existing RudderStack users. The HTTP API surface (`/v1/identify`, `/v1/track`, `/v1/page`, `/v1/screen`, `/v1/group`, `/v1/alias`, `/v1/batch`, `/beacon/v1/batch`, `/pixel/v1/track`, `/pixel/v1/page`) must continue to accept all currently valid payloads without any behavioral change.
 
-- **Table-Driven Test Patterns:** All new tests must follow the codebase's established table-driven test pattern with `t.Run()` subtests for each scenario, using `testify/require` for assertions. Integration tests must use `dockertest/v3` for container orchestration.
+- **Use `jsonrs` Instead of `encoding/json`:** Per the repository's `depguard` linting rule in `.golangci.yml`, all JSON serialization/deserialization in new source files must use the `jsonrs` library from `github.com/rudderlabs/rudder-go-kit`. Using `encoding/json` directly is banned.
 
-- **OpenAPI Specification Consistency:** Any changes to the OpenAPI spec (`gateway/openapi.yaml`) must pass the `swagger-cli validate` verification step in the CI pipeline (`.github/workflows/verify.yml`).
+- **Table-Driven Test Patterns:** All new tests must follow the codebase's established table-driven test pattern with `t.Run()` subtests for each scenario, using `testify/require` for assertions. Integration tests must use `dockertest/v3` for container orchestration following the pattern established in `integration_test/docker_test/docker_test.go` and `integration_test/event_spec_parity/event_spec_parity_test.go`.
 
-- **Benchmark Non-Regression:** The existing `processorBenchmark_test.go` benchmark for `singularEventMetadata` must not regress due to any changes. Run benchmarks before and after changes to verify.
+- **Docker Requirement:** If any step requires Docker, start it first. Integration tests must provision containers (PostgreSQL, Transformer, webhook recorder) before executing test scenarios.
+
+- **Test Execution:** Run all tests after implementation. All existing tests must continue to pass — zero regressions.
+
+- **CI Fix Policy:** Fix all CI failures resolvable through code changes. Skip failures caused by missing repository secrets (AWS ECR credentials).
+
+- **OpenAPI Specification Consistency:** Any changes to the OpenAPI spec (`gateway/openapi.yaml`) must pass the `swagger-cli validate` verification step in the CI pipeline.
+
+- **Benchmark Non-Regression:** Existing benchmarks (e.g., `processorBenchmark_test.go`) must not regress due to any changes.
 
 ### 0.7.2 Integration Requirements
 
-- **Transformer Service Compatibility:** Event spec parity validation must account for the external Transformer service (`rudder-transformer` at port 9090). Semantic event category mapping (ES-002) is handled by destination-specific transforms in the Transformer, not by the Gateway or Processor.
+- **Transformer Service Compatibility:** SDK compatibility testing must account for the external Transformer service (`rudder-transformer` at port 9090). Event delivery through the full pipeline requires the Transformer for destination-specific transformations.
 
-- **Warehouse Compatibility:** All 6 event types must be correctly processed by the embedded warehouse transformer (`processor/internal/transformer/destination_transformer/embedded/warehouse/events.go`) and produce correct warehouse table rows with all Segment Spec reserved fields.
+- **Write Key Basic Auth Exactness:** The `Authorization: Basic base64(writeKey:)` format must be processed identically to Segment's scheme. The empty password field after the colon is critical — some SDKs may send `base64(writeKey)` without the trailing colon, and this behavior must be tested and documented.
+
+- **Batch Endpoint Mixed Types:** The `/v1/batch` endpoint must accept a `batch` array containing mixed event types (identify, track, page, screen, group, alias) in a single request, as this is the standard behavior for all server-side SDKs that flush events in batches.
+
+- **Beacon Content-Type Handling:** The JavaScript SDK's `sendBeacon()` may send payloads with `Content-Type: text/plain` or `Content-Type: application/x-www-form-urlencoded` instead of `application/json`. The Gateway must handle these content types correctly.
 
 - **CI Pipeline Integration:** New integration tests must be compatible with the existing CI pipeline structure in `.github/workflows/tests.yaml` and must run within the 30-minute timeout for integration tests.
 
 ### 0.7.3 Security Considerations
 
-- **No Sensitive Data in Test Fixtures:** Test payloads must use synthetic data (fake names, emails, IPs) and never include real user data or credentials.
+- **No Sensitive Data in Test Fixtures:** Test payloads must use synthetic data (fake names, emails, IPs, device IDs) and never include real user data, credentials, or API keys.
 
-- **SSRF Protection:** The Router's private IP blocking (`router/network.go`) must not be affected by any changes. All network-level security controls must remain intact.
+- **Cloud Source Credential Security (E-009 Design):** The cloud source framework design document must specify encrypted credential storage, runtime-only secret injection, and credential rotation support. The proof-of-concept must not hardcode any credentials.
 
-- **Authentication Integrity:** Write Key Basic Auth (`gateway/handle_http_auth.go`) must remain identical to Segment's authentication scheme. No changes to the auth flow are permitted.
+- **HMAC Webhook Signature Validation (E-009 Design):** The cloud source webhook receiver design must include HMAC signature validation for all webhook-based cloud sources (Stripe, SendGrid, etc.) to prevent webhook spoofing.
+
+- **Authentication Integrity:** Write Key Basic Auth (`gateway/handle_http_auth.go`) must remain identical to Segment's authentication scheme. No changes to the auth flow are permitted — this sprint validates existing behavior, not modifies it.
 
 ## 0.8 References
 
@@ -599,117 +671,104 @@ The following files and directories were comprehensively searched across the cod
 - `go.sum` — Checksum closure file
 - `Dockerfile` — Multi-stage Go build definition (GO_VERSION=1.26.0, Alpine 3.23)
 - `Makefile` — Build system, test commands, tool versions
-- `config/config.yaml` — Master runtime configuration (Gateway port 8080, worker counts, batch sizes)
+- `config/config.yaml` — Master runtime configuration (Gateway port 8080, 64 workers, 4MB request size limit)
 - `config/sample.env` — Environment variable documentation
+- `docker-compose.yml` — Docker Compose with PostgreSQL, Transformer, MinIO, etcd services
+- `rudder-docker.yml` — Rudder stack runtime composition
 - `README.md` — Project documentation
-- `CONTRIBUTING.md` — Contributor guidelines
-- `.golangci.yml` — Linter configuration (depguard, forbidigo rules)
-- `.deepsource.toml` — Static analysis configuration
-- `codecov.yml` — Coverage configuration
-- `docker-compose.yml` — Docker Compose configuration
-- `rudder-docker.yml` — Rudder stack runtime configuration
+- `.golangci.yml` — Linter configuration (depguard rules banning `encoding/json`)
 - `main.go` — Application entrypoint
 
 **Gateway Directory (Exhaustive):**
-- `gateway/handle_http.go` — HTTP handler wiring for all event types
-- `gateway/handle.go` — Core request handler
-- `gateway/handle_http_auth.go` — Authentication middleware
-- `gateway/handle_http_beacon.go` — Beacon tracking support
-- `gateway/handle_http_pixel.go` — Pixel tracking with GIF response
-- `gateway/handle_http_import.go` — Historical data import
-- `gateway/handle_http_replay.go` — Event replay re-ingestion
-- `gateway/handle_http_retl.go` — Reverse ETL event ingestion
-- `gateway/handle_lifecycle.go` — Lifecycle management
+- `gateway/handle_http.go` — HTTP handler wiring for all 11+ event type handlers
+- `gateway/handle.go` — Core request handler (36KB) — event processing, userAgent extraction, bot detection
+- `gateway/handle_http_auth.go` — Authentication middleware (11KB) — writeKeyAuth, webhookAuth, sourceIDAuth, authDestIDForSource, replaySourceIDAuth
+- `gateway/handle_http_beacon.go` — Beacon tracking support with writeKey query param interception
+- `gateway/handle_http_pixel.go` — Pixel tracking with GIF response, query param to JSON payload conversion
+- `gateway/handle_http_import.go` — Historical data import handler
+- `gateway/handle_http_replay.go` — Event replay re-ingestion handler
+- `gateway/handle_http_retl.go` — Reverse ETL event ingestion handler
+- `gateway/handle_lifecycle.go` — Route registration via Chi router, Gateway setup and lifecycle (27KB)
+- `gateway/handle_webhook.go` — Webhook handler with v1/v2 auth chain support
 - `gateway/handle_observability.go` — Observability helpers
 - `gateway/handle_diagnostics.go` — Diagnostic hooks
-- `gateway/handle_webhook.go` — Webhook pipeline glue
-- `gateway/types.go` — Shared request types
+- `gateway/types.go` — Shared request types: `webRequestT`, `RequestHandler` interface, `userWebRequestWorkerT`
 - `gateway/gateway.go` — Constants and sentinel errors
-- `gateway/openapi.yaml` — OpenAPI 3.0.3 specification
-- `gateway/regular_handler.go`, `gateway/import_handler.go` — Request handlers
-- `gateway/gateway_test.go`, `gateway/handle_test.go` — Test files
-- `gateway/gateway_integration_test.go`, `gateway/gateway_suite_test.go` — Integration/suite tests
-- `gateway/handle_http_auth_test.go`, `gateway/handle_http_beacon_test.go`, `gateway/handle_http_pixel_test.go` — Handler tests
-- `gateway/validator/` — Complete validator directory (7 validators + mediator + tests)
-- `gateway/internal/bot/` — Bot detection (bot.go, bot_test.go)
-- `gateway/response/` — Canonical response strings
-- `gateway/throttler/` — Rate limiting
-- `gateway/types/` — Context keys and types
-- `gateway/webhook/` — Webhook pipeline
-- `gateway/openapi/` — Generated API docs
-- `gateway/mocks/` — Mock interfaces
+- `gateway/openapi.yaml` — OpenAPI 3.0.3 specification (33KB) — all endpoint definitions and payload schemas
+- `gateway/regular_handler.go` — Regular request handler implementation
+- `gateway/import_handler.go` — Import request handler implementation
+- `gateway/response/response.go` — Canonical response strings (Ok, InvalidWriteKey, SourceDisabled, etc.)
+- `gateway/types/types.go` — `AuthRequestContext` struct with SourceCategory, WriteKey, SourceEnabled, SourceDetails
+- `gateway/validator/` — Complete validator directory (msgProperties, messageId, reqType, receivedAt, requestIP, rudderID validators)
+- `gateway/internal/bot/` — Bot detection (IsBotUserAgent function)
+- `gateway/webhook/auth/auth.go` — Webhook authentication middleware (WebhookAuth struct)
+- `gateway/webhook/setup.go` — Webhook pipeline setup
+- `gateway/webhook/webhook.go` — Webhook request handling
+- `gateway/webhook/webhookTransformer.go` — Webhook payload transformation
 
-**Processor Directory (Exhaustive):**
-- `processor/processor.go` — Core pipeline handler
-- `processor/pipeline_worker.go` — Channel orchestration
-- `processor/partition_worker.go` — Partition-level worker
-- `processor/manager.go` — Lifecycle orchestration
-- `processor/consent.go` — Consent filtering
-- `processor/trackingplan.go` — Tracking plan validation
-- `processor/src_hydration_stage.go` — Source hydration
-- `processor/events_response.go` — Transformer response handling
-- `processor/integrations/integrations.go` — Integration adapter
-- `processor/transformer/clients.go` — Transformer client factory
-- `processor/transformer/mocks_transformer_client.go` — Test mocks
-- `processor/internal/transformer/` — Internal transformer utilities
-- `processor/internal/transformer/destination_transformer/embedded/warehouse/events.go` — Warehouse event aggregation
-- `processor/internal/transformer/destination_transformer/embedded/warehouse/idresolution.go` — Identity resolution
-- `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules.go` — Reserved column rules
-- `processor/internal/transformer/destination_transformer/embedded/warehouse/internal/rules/rules_test.go` — Rules tests
-- `processor/types/`, `processor/testdata/`, `processor/isolation/`, `processor/eventfilter/`, `processor/delayed/`, `processor/usertransformer/` — Supporting packages
-- All `*_test.go` files in processor directory
+**Gateway Test Files (All):**
+- `gateway/gateway_test.go` (96KB), `gateway/handle_test.go` (49KB), `gateway/gateway_integration_test.go`, `gateway/integration_test.go`, `gateway/gateway_suite_test.go`, `gateway/handle_http_auth_test.go`, `gateway/handle_http_beacon_test.go`, `gateway/handle_http_pixel_test.go`, `gateway/event_spec_parity_test.go`, `gateway/client_hints_test.go`, `gateway/validator/validator_test.go`, `gateway/internal/bot/bot_test.go`, `gateway/webhook/auth/auth_test.go`, `gateway/webhook/webhook_test.go`, `gateway/webhook/webhookTransformer_test.go`
 
-**Router Directory:**
-- `router/handle.go`, `router/worker.go`, `router/network.go` — Core routing
-- `router/config.go`, `router/factory.go`, `router/types.go` — Configuration and types
-- `router/transformer/`, `router/batchrouter/` — Transformer proxy and batch routing
+**Backend Configuration:**
+- `backend-config/types.go` — `SourceT` struct (ID, WriteKey, Enabled, SourceDefinition, Config, Destinations)
+- `backend-config/backend-config.go` — Config fetch and cache mechanism
 
-**Warehouse Directory:**
-- `warehouse/identity/identity.go` — Identity resolver
+**Integration Tests:**
+- `integration_test/docker_test/docker_test.go` — Full-stack Docker regression suite (32KB)
+- `integration_test/docker_test/testdata/workspaceConfigTemplate.json` — Workspace config template
+- `integration_test/event_spec_parity/event_spec_parity_test.go` — Sprint 1–2 Event Spec Parity integration test
+- `integration_test/event_spec_parity/testdata/` — Test data for Event Spec Parity tests
+
+**Test Helpers:**
+- `testhelper/webhook/recorder.go` — Webhook request recorder (`Recorder` struct with `RequestsCount`, `Requests` methods)
+- `testhelper/health/checker.go` — Health check polling utility (`WaitUntilReady` function)
+- `testhelper/workspaceConfig/` — Workspace configuration test fixtures
 
 **Services Directory:**
-- `services/dedup/` — Deduplication service
-- `services/debugger/` — Debug pipeline
-- `services/transformer/` — Transformer feature polling
-- `services/streammanager/` — Streaming destination factory
+- `services/` — 19 service packages (alert, archiver, controlplane, debugger, dedup, diagnostics, fileuploader, geolocation, kvstoremanager, notifier, oauth, rmetrics, rsources, sql-migrator, streammanager, transformer, transientsource, validators)
 
-**Integration Test Directory:**
-- `integration_test/docker_test/` — Full-stack regression suite
-- `integration_test/docker_test/testdata/workspaceConfigTemplate.json` — Test template
-- `integration_test/transformer_contract/` — Transformer contract tests
+**Segment Reference Corpus (Read-Only):**
+- `refs/segment-docs/src/connections/sources/catalog/libraries/website/` — JavaScript SDK, Cloudflare, Shopify
+- `refs/segment-docs/src/connections/sources/catalog/libraries/mobile/` — iOS, Android, React Native, Flutter, Kotlin Android, Unity, Xamarin, AMP
+- `refs/segment-docs/src/connections/sources/catalog/libraries/server/` — Node.js, Python, Go, Java, Ruby, PHP, .NET, C#, Kotlin (Server), Clojure, Rust
+- `refs/segment-docs/src/connections/sources/catalog/libraries/ott/` — Roku
+- `refs/segment-docs/src/connections/sources/catalog/cloud-apps/` — 140 cloud app source directories (Salesforce, Stripe, HubSpot, Zendesk, Intercom, SendGrid, Twilio, Braze, Klaviyo, Iterable, and 130 more)
+- `refs/segment-docs/src/connections/spec/` — Segment Event Specification (identify, track, page, screen, group, alias, common fields)
 
 **Documentation Directory:**
-- `docs/gap-report/event-spec-parity.md` — Canonical gap report (961 lines)
-- `docs/gap-report/sprint-roadmap.md` — Sprint roadmap
-- `docs/gap-report/index.md` — Executive hub
-- `docs/architecture/`, `docs/api-reference/`, `docs/contributing/`, `docs/guides/`, `docs/reference/` — Documentation subdirectories
+- `docs/gap-report/sprint-roadmap.md` — Sprint roadmap (793 lines) — Sprint 2–3 section with E-005 to E-009 epic definitions
+- `docs/gap-report/source-catalog-parity.md` — Source Catalog Parity Analysis (723 lines) — SDK compatibility matrix, cloud source gap inventory
+- `docs/gap-report/index.md` — Gap report executive summary
+- `docs/gap-report/event-spec-parity.md` — Event Spec Parity Analysis (Sprint 1–2 reference)
+- `docs/architecture/` — Architecture documentation directory
+- `docs/guides/` — Guides documentation directory
 
-**Segment Reference Corpus:**
-- `refs/segment-docs/src/connections/spec/common.md` — Common fields and context object
-- `refs/segment-docs/src/connections/spec/identify.md` — Identify spec
-- `refs/segment-docs/src/connections/spec/track.md` — Track spec
-- `refs/segment-docs/src/connections/spec/page.md` — Page spec
-- `refs/segment-docs/src/connections/spec/screen.md` — Screen spec
-- `refs/segment-docs/src/connections/spec/group.md` — Group spec
-- `refs/segment-docs/src/connections/spec/alias.md` — Alias spec
-- `refs/segment-docs/src/connections/spec/ecommerce/v2.md` — E-Commerce v2 semantic events
-- `refs/segment-docs/src/connections/spec/video.md` — Video semantic events
-- `refs/segment-docs/src/connections/spec/mobile.md` — Mobile semantic events
-- `refs/segment-docs/src/connections/spec/index.md` — Spec overview
+**Blitzy Documentation:**
+- `blitzy/documentation/Technical Specifications.md` — Technical Specifications (715 lines) — Sprint 1–2 Agent Action Plan reference
+- `blitzy/documentation/Project Guide.md` — Project Guide (501 lines) — Sprint 1–2 completion report with test results
 
 **CI/CD:**
-- `.github/workflows/tests.yaml` — Test pipeline
-- `.github/workflows/verify.yml` — Verification pipeline
-- `.github/workflows/builds.yml` — Build pipeline
+- `.github/workflows/` — GitHub Actions workflows (tests, verify, builds)
 
 ### 0.8.2 Attachments
 
 No attachments were provided for this project.
 
-### 0.8.3 External References
+### 0.8.3 Referenced Documents
 
-- **Event Spec Parity Analysis (User-Referenced):** `https://github.com/Blitzy-Sandbox/blitzy-RudderStack/blob/dd431ecc2ab74b830707b7723d31de1d69eaec82/docs/gap-report/event-spec-parity.md` — The canonical gap report referenced by the user as the baseline for this Sprint 1-2 effort
-- **Segment Spec Documentation (Embedded Reference):** `refs/segment-docs/src/connections/spec/` — Complete Segment documentation mirror included in the repository as the authoritative baseline for parity assessment
-- **Client Hints API (W3C):** Referenced in Segment Spec `common.md` as the source for `context.userAgentData` structured data
+The following documents were explicitly referenced by the user as the basis for this Agent Action Plan:
+
+| Document | Path | Summary |
+|----------|------|---------|
+| Sprint Roadmap | `docs/gap-report/sprint-roadmap.md` | 793-line epic sequencing roadmap covering 10 sprints across 8 capability dimensions. Sprint 2–3 section defines E-005 (API surface validation), E-006 (JS SDK testing), E-007 (mobile SDK testing), E-008 (server SDK testing), E-009 (cloud source framework design). Estimated 24 engineering days. |
+| Source Catalog Parity | `docs/gap-report/source-catalog-parity.md` | 723-line gap analysis assessing SDK compatibility (~90% API-level, ~60% library coverage, ~3% cloud app sources, ~75% ingestion endpoints, ~80% auth scheme). Identifies 140 cloud app source gap as the single largest parity gap. Provides SDK compatibility matrix for 30+ SDK platforms. |
+| Technical Specifications | `blitzy/documentation/Technical Specifications.md` | 715-line technical specification from Sprint 1–2 (Event Spec Parity). Provides Agent Action Plan reference for existing implementation patterns, dependency inventory, integration analysis, and file-by-file execution plan. |
+| Project Guide | `blitzy/documentation/Project Guide.md` | 501-line project guide from Sprint 1–2. Documents 83.3% completion, 105 hours completed, 133 unit tests passing, Go 1.26.0 environment setup, and verification commands. Provides CI/CD and testing reference. |
+
+### 0.8.4 External References
+
+- **Segment SDK Documentation (Embedded Reference):** `refs/segment-docs/src/connections/sources/catalog/libraries/` — Complete Segment SDK documentation mirror for JavaScript, iOS, Android, Node.js, Python, Go, Java, Ruby, PHP, .NET, and additional platforms
+- **Segment Cloud Source Documentation (Embedded Reference):** `refs/segment-docs/src/connections/sources/catalog/cloud-apps/` — Complete Segment cloud app source documentation for 140 integrations
+- **Segment HTTP Tracking API:** Referenced in `gateway/openapi.yaml` — the `/v1/{type}` endpoint pattern matches Segment's `api.segment.io/v1/{type}` HTTP API
 - **rudder-server v1.68.1:** Current codebase version, Go 1.26.0, Elastic License 2.0
 
