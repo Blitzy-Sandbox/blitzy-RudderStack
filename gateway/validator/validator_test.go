@@ -373,3 +373,323 @@ func TestValidatorWithClientHintsPayload(t *testing.T) {
 		})
 	}
 }
+
+// TestSDKPayloadValidation verifies that all Segment SDK payload formats pass the
+// validator mediator chain without rejection. The validators only inspect top-level
+// gateway-injected fields (messageId, type, receivedAt, request_ip, rudderId) and
+// a msgProperties callback. SDK-specific nested context fields (context.device,
+// context.os, context.app, context.network, context.screen, context.library,
+// context.page, _metadata, sentAt) must NOT cause any validator to reject.
+func TestSDKPayloadValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		payload     string
+		props       *stream.MessageProperties
+		validatorFn func(*stream.MessageProperties) error
+		wantValid   bool
+		wantErr     bool
+	}{
+		{
+			name: "SDK payload with mobile-specific context fields passes validation",
+			payload: `{
+				"messageId": "msg-mobile-001",
+				"type": "track",
+				"event": "Product Viewed",
+				"userId": "mobile-user-001",
+				"anonymousId": "anon-mobile-001",
+				"receivedAt": "2024-09-15T10:00:00Z",
+				"request_ip": "203.0.113.10",
+				"rudderId": "rudder-mobile-001",
+				"context": {
+					"device": {
+						"id": "device-001",
+						"manufacturer": "Apple",
+						"model": "iPhone 15",
+						"name": "Test iPhone",
+						"type": "ios"
+					},
+					"os": {"name": "iOS", "version": "17.2"},
+					"app": {"name": "TestApp", "version": "2.1.0", "build": "1234", "namespace": "com.test.app"},
+					"network": {"bluetooth": false, "carrier": "T-Mobile", "cellular": true, "wifi": true},
+					"screen": {"density": 3, "height": 2532, "width": 1170},
+					"library": {"name": "analytics-ios", "version": "4.1.0"}
+				}
+			}`,
+			props: &stream.MessageProperties{
+				RequestType: "track",
+				RequestIP:   "203.0.113.10",
+				RoutingKey:  "test-routing-key",
+				WorkspaceID: "workspace-sdk",
+				SourceID:    "source-sdk",
+				ReceivedAt:  time.Now(),
+			},
+			validatorFn: func(*stream.MessageProperties) error { return nil },
+			wantValid:   true,
+			wantErr:     false,
+		},
+		{
+			name: "Server-side batch payload passes validation",
+			payload: `{
+				"messageId": "msg-server-001",
+				"type": "track",
+				"event": "Order Completed",
+				"userId": "server-user-001",
+				"receivedAt": "2024-09-15T10:01:00Z",
+				"request_ip": "203.0.113.20",
+				"rudderId": "rudder-server-001",
+				"context": {
+					"library": {"name": "analytics-node", "version": "6.2.0"},
+					"channel": "server"
+				},
+				"properties": {
+					"orderId": "order-123",
+					"revenue": 99.99,
+					"currency": "USD"
+				}
+			}`,
+			props: &stream.MessageProperties{
+				RequestType: "track",
+				RequestIP:   "203.0.113.20",
+				RoutingKey:  "test-routing-key",
+				WorkspaceID: "workspace-sdk",
+				SourceID:    "source-sdk",
+				ReceivedAt:  time.Now(),
+			},
+			validatorFn: func(*stream.MessageProperties) error { return nil },
+			wantValid:   true,
+			wantErr:     false,
+		},
+		{
+			name: "Beacon payload passes validation",
+			payload: `{
+				"messageId": "msg-beacon-001",
+				"type": "track",
+				"event": "Page View",
+				"anonymousId": "anon-beacon-001",
+				"receivedAt": "2024-09-15T10:02:00Z",
+				"request_ip": "203.0.113.30",
+				"rudderId": "rudder-beacon-001",
+				"context": {
+					"library": {"name": "analytics.js", "version": "2.0.0"},
+					"channel": "client",
+					"page": {
+						"url": "https://example.com/products",
+						"path": "/products",
+						"title": "Products",
+						"referrer": "https://example.com/"
+					},
+					"userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+				}
+			}`,
+			props: &stream.MessageProperties{
+				RequestType: "track",
+				RequestIP:   "203.0.113.30",
+				RoutingKey:  "test-routing-key",
+				WorkspaceID: "workspace-sdk",
+				SourceID:    "source-sdk",
+				ReceivedAt:  time.Now(),
+			},
+			validatorFn: func(*stream.MessageProperties) error { return nil },
+			wantValid:   true,
+			wantErr:     false,
+		},
+		{
+			name: "iOS SDK identify payload passes validation",
+			payload: `{
+				"messageId": "msg-ios-identify-001",
+				"type": "identify",
+				"userId": "ios-user-001",
+				"anonymousId": "anon-ios-001",
+				"receivedAt": "2024-09-15T10:03:00Z",
+				"request_ip": "203.0.113.40",
+				"rudderId": "rudder-ios-001",
+				"traits": {
+					"name": "Jane Doe",
+					"email": "jane.doe@example.com",
+					"plan": "premium"
+				},
+				"context": {
+					"library": {"name": "analytics-ios", "version": "4.1.0"},
+					"device": {"id": "ios-device-002", "manufacturer": "Apple", "model": "iPad Pro", "name": "Test iPad", "type": "ios"},
+					"os": {"name": "iPadOS", "version": "17.1"},
+					"app": {"name": "TestApp", "version": "3.0.0", "build": "5678", "namespace": "com.test.ipadapp"},
+					"network": {"bluetooth": true, "carrier": "AT&T", "cellular": false, "wifi": true},
+					"screen": {"density": 2, "height": 2732, "width": 2048},
+					"channel": "client"
+				}
+			}`,
+			props: &stream.MessageProperties{
+				RequestType: "identify",
+				RequestIP:   "203.0.113.40",
+				RoutingKey:  "test-routing-key",
+				WorkspaceID: "workspace-sdk",
+				SourceID:    "source-sdk",
+				ReceivedAt:  time.Now(),
+			},
+			validatorFn: func(*stream.MessageProperties) error { return nil },
+			wantValid:   true,
+			wantErr:     false,
+		},
+		{
+			name: "Android SDK track payload passes validation",
+			payload: `{
+				"messageId": "msg-android-track-001",
+				"type": "track",
+				"event": "Item Added to Cart",
+				"userId": "android-user-001",
+				"anonymousId": "anon-android-001",
+				"receivedAt": "2024-09-15T10:04:00Z",
+				"request_ip": "203.0.113.50",
+				"rudderId": "rudder-android-001",
+				"properties": {
+					"productId": "prod-789",
+					"quantity": 2,
+					"price": 29.99
+				},
+				"context": {
+					"library": {"name": "analytics-android", "version": "4.11.3"},
+					"device": {"id": "android-device-001", "manufacturer": "Samsung", "model": "Galaxy S24", "name": "Test Galaxy", "type": "android"},
+					"os": {"name": "Android", "version": "14"},
+					"app": {"name": "TestApp", "version": "4.0.0", "build": "9012", "namespace": "com.test.androidapp"},
+					"network": {"bluetooth": true, "carrier": "Verizon", "cellular": true, "wifi": false},
+					"screen": {"density": 2.75, "height": 2340, "width": 1080},
+					"channel": "client"
+				}
+			}`,
+			props: &stream.MessageProperties{
+				RequestType: "track",
+				RequestIP:   "203.0.113.50",
+				RoutingKey:  "test-routing-key",
+				WorkspaceID: "workspace-sdk",
+				SourceID:    "source-sdk",
+				ReceivedAt:  time.Now(),
+			},
+			validatorFn: func(*stream.MessageProperties) error { return nil },
+			wantValid:   true,
+			wantErr:     false,
+		},
+		{
+			name: "analytics.js page payload passes validation",
+			payload: `{
+				"messageId": "msg-js-page-001",
+				"type": "page",
+				"name": "Pricing",
+				"anonymousId": "anon-js-001",
+				"receivedAt": "2024-09-15T10:05:00Z",
+				"request_ip": "203.0.113.60",
+				"rudderId": "rudder-js-001",
+				"properties": {
+					"url": "https://example.com/pricing",
+					"path": "/pricing",
+					"title": "Pricing - Example",
+					"referrer": "https://example.com/",
+					"search": "?plan=enterprise"
+				},
+				"context": {
+					"library": {"name": "analytics.js", "version": "1.68.0"},
+					"page": {
+						"url": "https://example.com/pricing",
+						"path": "/pricing",
+						"title": "Pricing - Example",
+						"referrer": "https://example.com/",
+						"search": "?plan=enterprise"
+					},
+					"userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+					"channel": "client"
+				}
+			}`,
+			props: &stream.MessageProperties{
+				RequestType: "page",
+				RequestIP:   "203.0.113.60",
+				RoutingKey:  "test-routing-key",
+				WorkspaceID: "workspace-sdk",
+				SourceID:    "source-sdk",
+				ReceivedAt:  time.Now(),
+			},
+			validatorFn: func(*stream.MessageProperties) error { return nil },
+			wantValid:   true,
+			wantErr:     false,
+		},
+		{
+			name: "Server-side SDK payload with sentAt field passes validation",
+			payload: `{
+				"messageId": "msg-python-001",
+				"type": "identify",
+				"userId": "python-user-001",
+				"receivedAt": "2024-09-15T10:06:00Z",
+				"request_ip": "203.0.113.70",
+				"rudderId": "rudder-python-001",
+				"sentAt": "2024-09-15T10:05:58Z",
+				"traits": {
+					"email": "user@example.com",
+					"company": "Acme Corp"
+				},
+				"context": {
+					"library": {"name": "analytics-python", "version": "2.2.3"},
+					"channel": "server"
+				}
+			}`,
+			props: &stream.MessageProperties{
+				RequestType: "identify",
+				RequestIP:   "203.0.113.70",
+				RoutingKey:  "test-routing-key",
+				WorkspaceID: "workspace-sdk",
+				SourceID:    "source-sdk",
+				ReceivedAt:  time.Now(),
+			},
+			validatorFn: func(*stream.MessageProperties) error { return nil },
+			wantValid:   true,
+			wantErr:     false,
+		},
+		{
+			name: "Analytics 2.0 payload with _metadata field passes validation",
+			payload: `{
+				"messageId": "msg-a2-001",
+				"type": "track",
+				"event": "Experiment Viewed",
+				"anonymousId": "anon-a2-001",
+				"receivedAt": "2024-09-15T10:07:00Z",
+				"request_ip": "203.0.113.80",
+				"rudderId": "rudder-a2-001",
+				"properties": {
+					"experimentId": "exp-123",
+					"variationId": "var-A"
+				},
+				"context": {
+					"library": {"name": "analytics.js", "version": "2.1.0"},
+					"channel": "client"
+				},
+				"_metadata": {
+					"bundled": ["Amplitude", "Google Analytics"],
+					"unbundled": ["Mixpanel"],
+					"bundledIds": ["amp-123", "ga-456"]
+				}
+			}`,
+			props: &stream.MessageProperties{
+				RequestType: "track",
+				RequestIP:   "203.0.113.80",
+				RoutingKey:  "test-routing-key",
+				WorkspaceID: "workspace-sdk",
+				SourceID:    "source-sdk",
+				ReceivedAt:  time.Now(),
+			},
+			validatorFn: func(*stream.MessageProperties) error { return nil },
+			wantValid:   true,
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mediator := NewValidateMediator(logger.NOP, tt.validatorFn)
+			valid, err := mediator.Validate([]byte(tt.payload), tt.props)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tt.wantValid, valid,
+				"Validation result mismatch for test: %s", tt.name)
+		})
+	}
+}
