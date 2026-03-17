@@ -909,20 +909,20 @@ The `-u 'YOUR_WRITE_KEY:'` flag in curl sets the Basic Auth header with the writ
 The `writeKeyAuth` middleware in `gateway/handle_http_auth.go:24-58` processes authentication as follows:
 
 1. Extract write key and password from the `Authorization` header via `r.BasicAuth()`
-2. If Basic Auth is missing or the write key is empty, respond with `401` ("No write key in Basic Auth")
+2. If Basic Auth is missing or the write key is empty, respond with `401` (`"failed to read writekey from header"`)
 3. Look up the write key in the `enabledWriteKeySourceMap` (populated from backend-config)
-4. If the write key is not found, respond with `401` ("Invalid Write Key") and record an `invalidWriteKey` stat
-5. If the source is disabled, respond with `404` ("Source is disabled")
+4. If the write key is not found, respond with `401` (`"invalid write key"`) and record an `invalidWriteKey` stat
+5. If the source is disabled, respond with `404` (`"source is disabled"`)
 6. If valid, attach the `AuthRequestContext` (containing `SourceID`, `WorkspaceID`, `SourceCategory`, `WriteKey`) to the request context and delegate to the handler
 
 ### Error Responses
 
 | Scenario | HTTP Status | Response Body |
 |----------|------------|---------------|
-| Missing or empty write key | `401 Unauthorized` | `"No write key in Basic Auth"` |
-| Invalid write key | `401 Unauthorized` | `"Invalid Write Key"` |
-| Source disabled | `404 Not Found` | `"Source is disabled"` |
-| Valid write key, source enabled | `200 OK` | `"OK"` |
+| Missing or empty write key | `401 Unauthorized` | `"failed to read writekey from header"` |
+| Invalid write key | `401 Unauthorized` | `"invalid write key"` |
+| Source disabled | `404 Not Found` | `"source is disabled"` |
+| Valid write key, source enabled | `200 OK` | `"ok"` |
 
 ---
 

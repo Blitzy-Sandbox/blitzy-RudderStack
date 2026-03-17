@@ -1126,6 +1126,9 @@ Add the following permissions to your `AndroidManifest.xml`:
 - `INTERNET` — Required for sending events to the Gateway.
 - `ACCESS_NETWORK_STATE` — Enables the SDK to detect network type (WiFi, cellular) for the `context.network` object.
 
+**Dalvik User-Agent:**
+Android HTTP clients (including the Analytics-Kotlin SDK) send a `User-Agent` header with a Dalvik runtime prefix, for example: `Dalvik/2.1.0 (Linux; U; Android 14; Pixel 8 Build/UP1A.231005.007)`. The RudderStack Gateway's bot detection logic (`gateway/internal/bot/bot.go`) does not flag Dalvik user-agent strings as bot traffic, so no special configuration is required.
+
 ---
 
 ## Troubleshooting

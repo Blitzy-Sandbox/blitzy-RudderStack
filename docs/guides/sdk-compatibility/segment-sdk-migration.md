@@ -523,8 +523,8 @@ Where `<WRITE_KEY>` is the source write key and the colon (`:`) separates the us
 1. The Gateway extracts the write key from the `Authorization` header using Go's `r.BasicAuth()` method
 2. The write key is validated against the source configuration map (`enabledWriteKeySourceMap`)
 3. If valid and the source is enabled, the request is enriched with source metadata (`sourceID`, `workspaceID`, `sourceName`, `sourceCategory`) and passed to the handler
-4. If invalid: `401 Unauthorized` with `"Invalid Write Key"` message
-5. If source disabled: `404 Not Found` with `"Source is disabled"` message
+4. If invalid: `401 Unauthorized` with `"invalid write key"` message
+5. If source disabled: `404 Not Found` with `"source is disabled"` message
 
 > Source: `gateway/handle_http_auth.go:24-58` — `writeKeyAuth` middleware implementation
 
@@ -557,7 +557,7 @@ curl -X POST https://YOUR_DATA_PLANE_URL:8080/v1/track \
     }
   }'
 
-# Expected response: "OK" with HTTP 200
+# Expected response: "ok" with HTTP 200
 ```
 
 ### Beacon and Pixel Authentication
@@ -651,7 +651,7 @@ curl -X POST https://YOUR_DATA_PLANE_URL:8080/v1/identify \
       "plan": "Enterprise"
     }
   }'
-# Expected: HTTP 200 "OK"
+# Expected: HTTP 200 "ok"
 ```
 
 **Step 3: Send Test Track Event**
@@ -669,7 +669,7 @@ curl -X POST https://YOUR_DATA_PLANE_URL:8080/v1/track \
       "verified": true
     }
   }'
-# Expected: HTTP 200 "OK"
+# Expected: HTTP 200 "ok"
 ```
 
 **Step 4: Verify Batch Endpoint with Mixed Event Types**
@@ -693,7 +693,7 @@ curl -X POST https://YOUR_DATA_PLANE_URL:8080/v1/batch \
       }
     ]
   }'
-# Expected: HTTP 200 "OK"
+# Expected: HTTP 200 "ok"
 ```
 
 **Step 5: Check Destination Delivery**
