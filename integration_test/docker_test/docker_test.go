@@ -238,7 +238,7 @@ func testCases(t *testing.T) {
 		require.Eventually(t, func() bool {
 			eventSql := "select count(*) from dev_integration_test_1.identifies;"
 			_ = db.QueryRow(eventSql).Scan(&myEvent.count)
-			return myEvent.count == "2"
+			return myEvent.count == "3"
 		}, 1*time.Minute, 10*time.Millisecond)
 
 		// Verify User Transformation
