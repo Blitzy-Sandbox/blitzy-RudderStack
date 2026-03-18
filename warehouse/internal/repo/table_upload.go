@@ -53,6 +53,15 @@ type TableUploadSetOptions struct {
 	TotalEvents  *int64
 }
 
+// TableHealth represents per-table sync health status for health monitoring (E-033).
+type TableHealth struct {
+	TableName   string
+	Status      string
+	TotalEvents int64
+	LastExecAt  time.Time
+	Error       string
+}
+
 func NewTableUploads(db *sqlmiddleware.DB, conf *config.Config, opts ...Opt) *TableUploads {
 	r := &TableUploads{
 		repo: &repo{db: db, now: timeutil.Now, statsFactory: stats.NOP, repoType: tableUploadTableName},
@@ -138,6 +147,75 @@ func (tu *TableUploads) GetByUploadIDAndTableName(ctx context.Context, uploadID 
 		return tableUpload, fmt.Errorf("scanning table upload: %w", err)
 	}
 	return tableUpload, err
+}
+
+// GetHealthByTable retrieves per-table sync status for health monitoring.
+// It returns a slice of TableHealth entries for each table associated with the given upload,
+// ordered by table name. Nullable columns (total_events, last_exec_time, error) are
+// coalesced to their zero values to simplify downstream consumption.
+func (tu *TableUploads) GetHealthByTable(ctx context.Context, uploadID int64) ([]TableHealth, error) {
+	defer tu.TimerStat("get_health_by_table", nil)()
+
+	query := `SELECT table_name, status, COALESCE(total_events, 0), COALESCE(last_exec_time, '0001-01-01'::timestamp), COALESCE(error, '') FROM ` + tableUploadTableName + `
+	WHERE
+		wh_upload_id = $1
+	ORDER BY table_name;`
+
+	rows, err := tu.db.QueryContext(ctx, query, uploadID)
+	if err != nil {
+		return nil, fmt.Errorf("querying table health: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var healthEntries []TableHealth
+	for rows.Next() {
+		var h TableHealth
+		err := rows.Scan(
+			&h.TableName,
+			&h.Status,
+			&h.TotalEvents,
+			&h.LastExecAt,
+			&h.Error,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning table health: %w", err)
+		}
+		h.LastExecAt = h.LastExecAt.UTC()
+		healthEntries = append(healthEntries, h)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return healthEntries, nil
+}
+
+// GetExcludingTables retrieves table uploads for an upload, excluding specified tables.
+// When excludedTables is empty or nil, it behaves identically to GetByUploadID (backward compatible).
+// This supports selective sync (E-034) by allowing callers to filter out tables that should
+// not participate in the sync operation.
+func (tu *TableUploads) GetExcludingTables(ctx context.Context, uploadID int64, excludedTables []string) ([]model.TableUpload, error) {
+	defer tu.TimerStat("get_excluding_tables", nil)()
+
+	if len(excludedTables) == 0 {
+		return tu.GetByUploadID(ctx, uploadID)
+	}
+
+	query := `SELECT ` + tableUploadColumns + ` FROM ` + tableUploadTableName + `
+	WHERE
+		wh_upload_id = $1 AND
+		table_name != ALL($2);`
+
+	rows, err := tu.db.QueryContext(ctx, query, uploadID, pq.Array(excludedTables))
+	if err != nil {
+		return nil, fmt.Errorf("querying table uploads excluding tables: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	tableUploads, err := scanTableUploads(rows)
+	if err != nil {
+		return nil, fmt.Errorf("scanning table uploads: %w", err)
+	}
+	return tableUploads, nil
 }
 
 func scanTableUploads(rows *sqlmiddleware.Rows) ([]model.TableUpload, error) {
