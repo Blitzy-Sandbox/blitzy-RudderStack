@@ -41,6 +41,94 @@ import (
 	warehouseutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
 
+// mockBackfillH implements backfillHandler for testing E-032 backfill endpoints.
+type mockBackfillH struct {
+	triggerFn   func(w http.ResponseWriter, r *http.Request)
+	getStatusFn func(w http.ResponseWriter, r *http.Request)
+}
+
+func (m *mockBackfillH) TriggerBackfill(w http.ResponseWriter, r *http.Request) {
+	if m.triggerFn != nil {
+		m.triggerFn(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+func (m *mockBackfillH) GetBackfillStatus(w http.ResponseWriter, r *http.Request) {
+	if m.getStatusFn != nil {
+		m.getStatusFn(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// mockHealthMonitorH implements healthMonitorHandler for testing E-033 health monitoring endpoints.
+type mockHealthMonitorH struct {
+	getSummaryFn      func(w http.ResponseWriter, r *http.Request)
+	getBySourceDestFn func(w http.ResponseWriter, r *http.Request)
+}
+
+func (m *mockHealthMonitorH) GetHealthSummary(w http.ResponseWriter, r *http.Request) {
+	if m.getSummaryFn != nil {
+		m.getSummaryFn(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+func (m *mockHealthMonitorH) GetHealthBySourceDest(w http.ResponseWriter, r *http.Request) {
+	if m.getBySourceDestFn != nil {
+		m.getBySourceDestFn(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// mockSelectiveSyncH implements selectiveSyncHandler for testing E-034 selective sync endpoints.
+type mockSelectiveSyncH struct {
+	updateFn func(w http.ResponseWriter, r *http.Request)
+	getFn    func(w http.ResponseWriter, r *http.Request)
+}
+
+func (m *mockSelectiveSyncH) UpdateSelectiveSync(w http.ResponseWriter, r *http.Request) {
+	if m.updateFn != nil {
+		m.updateFn(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+func (m *mockSelectiveSyncH) GetSelectiveSync(w http.ResponseWriter, r *http.Request) {
+	if m.getFn != nil {
+		m.getFn(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// mockReplayH implements replayHandler for testing E-035 warehouse replay endpoints.
+type mockReplayH struct {
+	triggerFn   func(w http.ResponseWriter, r *http.Request)
+	getStatusFn func(w http.ResponseWriter, r *http.Request)
+}
+
+func (m *mockReplayH) TriggerReplay(w http.ResponseWriter, r *http.Request) {
+	if m.triggerFn != nil {
+		m.triggerFn(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+func (m *mockReplayH) GetReplayStatus(w http.ResponseWriter, r *http.Request) {
+	if m.getStatusFn != nil {
+		m.getStatusFn(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 func TestHTTPApi(t *testing.T) {
 	const (
 		workspaceID              = "test_workspace_id"
@@ -747,6 +835,459 @@ func TestHTTPApi(t *testing.T) {
 		})
 	})
 
+	t.Run("backfill handler", func(t *testing.T) {
+		backfillMock := &mockBackfillH{
+			triggerFn: func(w http.ResponseWriter, r *http.Request) {
+				defer func() { _ = r.Body.Close() }()
+
+				type bfReq struct {
+					SourceID      string `json:"source_id"`
+					DestinationID string `json:"destination_id"`
+					StartDate     string `json:"start_date"`
+					EndDate       string `json:"end_date"`
+				}
+
+				var payload bfReq
+				if err := jsonrs.NewDecoder(r.Body).Decode(&payload); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte(`{"status":"error","message":"invalid JSON in request body"}`))
+					return
+				}
+				if payload.SourceID == "" {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte(`{"status":"error","message":"missing source_id"}`))
+					return
+				}
+				if payload.DestinationID == "" {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte(`{"status":"error","message":"missing destination_id"}`))
+					return
+				}
+
+				startDate, sErr := time.Parse(time.RFC3339, payload.StartDate)
+				endDate, eErr := time.Parse(time.RFC3339, payload.EndDate)
+				if sErr != nil || eErr != nil || !startDate.Before(endDate) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte(`{"status":"error","message":"invalid date range"}`))
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				_ = jsonrs.NewEncoder(w).Encode(map[string]interface{}{
+					"jobID":  1,
+					"status": "Pending",
+				})
+			},
+		}
+
+		a := NewApi(config.MasterMode, config.New(), logger.NOP, stats.NOP, mockBackendConfig, db, n, tenantManager, bcManager, sourcesManager, triggerStore, backfillMock, nil, nil, nil)
+
+		t.Run("POST /v1/warehouse/backfill - valid request", func(t *testing.T) {
+			body := bytes.NewReader([]byte(`{
+				"source_id": "test_source_id",
+				"destination_id": "test_destination_id",
+				"start_date": "2024-01-01T00:00:00Z",
+				"end_date": "2024-01-15T00:00:00Z"
+			}`))
+			req := httptest.NewRequest(http.MethodPost, "/v1/warehouse/backfill", body)
+			req.Header.Set("Content-Type", "application/json")
+			resp := httptest.NewRecorder()
+
+			a.backfillH.TriggerBackfill(resp, req)
+
+			require.Equal(t, http.StatusOK, resp.Code)
+
+			var result map[string]interface{}
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&result)
+			require.NoError(t, decErr)
+			require.Equal(t, float64(1), result["jobID"])
+			require.Equal(t, "Pending", result["status"])
+		})
+
+		t.Run("POST /v1/warehouse/backfill - invalid JSON", func(t *testing.T) {
+			body := bytes.NewReader([]byte(`not valid json`))
+			req := httptest.NewRequest(http.MethodPost, "/v1/warehouse/backfill", body)
+			req.Header.Set("Content-Type", "application/json")
+			resp := httptest.NewRecorder()
+
+			a.backfillH.TriggerBackfill(resp, req)
+
+			require.Equal(t, http.StatusBadRequest, resp.Code)
+
+			var errResp map[string]string
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&errResp)
+			require.NoError(t, decErr)
+			require.Equal(t, "error", errResp["status"])
+			require.Contains(t, errResp["message"], "invalid JSON")
+		})
+
+		t.Run("POST /v1/warehouse/backfill - missing source_id", func(t *testing.T) {
+			body := bytes.NewReader([]byte(`{
+				"destination_id": "test_destination_id",
+				"start_date": "2024-01-01T00:00:00Z",
+				"end_date": "2024-01-15T00:00:00Z"
+			}`))
+			req := httptest.NewRequest(http.MethodPost, "/v1/warehouse/backfill", body)
+			req.Header.Set("Content-Type", "application/json")
+			resp := httptest.NewRecorder()
+
+			a.backfillH.TriggerBackfill(resp, req)
+
+			require.Equal(t, http.StatusBadRequest, resp.Code)
+
+			var errResp map[string]string
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&errResp)
+			require.NoError(t, decErr)
+			require.Equal(t, "error", errResp["status"])
+			require.Contains(t, errResp["message"], "source_id")
+		})
+
+		t.Run("POST /v1/warehouse/backfill - missing destination_id", func(t *testing.T) {
+			body := bytes.NewReader([]byte(`{
+				"source_id": "test_source_id",
+				"start_date": "2024-01-01T00:00:00Z",
+				"end_date": "2024-01-15T00:00:00Z"
+			}`))
+			req := httptest.NewRequest(http.MethodPost, "/v1/warehouse/backfill", body)
+			req.Header.Set("Content-Type", "application/json")
+			resp := httptest.NewRecorder()
+
+			a.backfillH.TriggerBackfill(resp, req)
+
+			require.Equal(t, http.StatusBadRequest, resp.Code)
+
+			var errResp map[string]string
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&errResp)
+			require.NoError(t, decErr)
+			require.Equal(t, "error", errResp["status"])
+			require.Contains(t, errResp["message"], "destination_id")
+		})
+
+		t.Run("POST /v1/warehouse/backfill - invalid date range", func(t *testing.T) {
+			body := bytes.NewReader([]byte(`{
+				"source_id": "test_source_id",
+				"destination_id": "test_destination_id",
+				"start_date": "2024-01-15T00:00:00Z",
+				"end_date": "2024-01-01T00:00:00Z"
+			}`))
+			req := httptest.NewRequest(http.MethodPost, "/v1/warehouse/backfill", body)
+			req.Header.Set("Content-Type", "application/json")
+			resp := httptest.NewRecorder()
+
+			a.backfillH.TriggerBackfill(resp, req)
+
+			require.Equal(t, http.StatusBadRequest, resp.Code)
+
+			var errResp map[string]string
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&errResp)
+			require.NoError(t, decErr)
+			require.Equal(t, "error", errResp["status"])
+			require.Contains(t, errResp["message"], "date range")
+		})
+	})
+
+	t.Run("health monitoring handler", func(t *testing.T) {
+		t.Run("GET /v1/warehouse/health - success", func(t *testing.T) {
+			healthMock := &mockHealthMonitorH{
+				getSummaryFn: func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					_ = jsonrs.NewEncoder(w).Encode(map[string]interface{}{
+						"sources": []interface{}{
+							map[string]interface{}{
+								"sourceID": sourceID,
+								"destinations": []interface{}{
+									map[string]interface{}{
+										"destID":       destinationID,
+										"syncDuration": map[string]interface{}{"p50": 120, "p95": 300},
+										"rowsSynced":   int64(1000),
+										"errorRate":    0.01,
+										"lastSync":     "2024-01-15T00:00:00Z",
+									},
+								},
+							},
+						},
+					})
+				},
+			}
+
+			a := NewApi(config.MasterMode, config.New(), logger.NOP, stats.NOP, mockBackendConfig, db, n, tenantManager, bcManager, sourcesManager, triggerStore, nil, healthMock, nil, nil)
+
+			req := httptest.NewRequest(http.MethodGet, "/v1/warehouse/health", nil)
+			resp := httptest.NewRecorder()
+
+			a.healthMonitorH.GetHealthSummary(resp, req)
+
+			require.Equal(t, http.StatusOK, resp.Code)
+
+			var result map[string]interface{}
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&result)
+			require.NoError(t, decErr)
+			require.Contains(t, result, "sources")
+			sources, ok := result["sources"].([]interface{})
+			require.True(t, ok)
+			require.Len(t, sources, 1)
+		})
+
+		t.Run("GET /v1/warehouse/health - empty state", func(t *testing.T) {
+			healthMock := &mockHealthMonitorH{
+				getSummaryFn: func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					_ = jsonrs.NewEncoder(w).Encode(map[string]interface{}{
+						"sources": []interface{}{},
+					})
+				},
+			}
+
+			a := NewApi(config.MasterMode, config.New(), logger.NOP, stats.NOP, mockBackendConfig, db, n, tenantManager, bcManager, sourcesManager, triggerStore, nil, healthMock, nil, nil)
+
+			req := httptest.NewRequest(http.MethodGet, "/v1/warehouse/health", nil)
+			resp := httptest.NewRecorder()
+
+			a.healthMonitorH.GetHealthSummary(resp, req)
+
+			require.Equal(t, http.StatusOK, resp.Code)
+
+			var result map[string]interface{}
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&result)
+			require.NoError(t, decErr)
+			sources, ok := result["sources"].([]interface{})
+			require.True(t, ok)
+			require.Empty(t, sources)
+		})
+
+		t.Run("GET /v1/warehouse/health/{sourceID}/{destID} - success", func(t *testing.T) {
+			healthMock := &mockHealthMonitorH{
+				getBySourceDestFn: func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					_ = jsonrs.NewEncoder(w).Encode(map[string]interface{}{
+						"sourceID":     sourceID,
+						"destID":       destinationID,
+						"syncDuration": map[string]interface{}{"p50": 120, "p95": 300},
+						"rowsSynced":   int64(1000),
+						"errorRate":    0.01,
+						"lastSync":     "2024-01-15T00:00:00Z",
+					})
+				},
+			}
+
+			a := NewApi(config.MasterMode, config.New(), logger.NOP, stats.NOP, mockBackendConfig, db, n, tenantManager, bcManager, sourcesManager, triggerStore, nil, healthMock, nil, nil)
+
+			req := httptest.NewRequest(http.MethodGet, "/v1/warehouse/health/test_source_id/test_destination_id", nil)
+			resp := httptest.NewRecorder()
+
+			a.healthMonitorH.GetHealthBySourceDest(resp, req)
+
+			require.Equal(t, http.StatusOK, resp.Code)
+
+			var result map[string]interface{}
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&result)
+			require.NoError(t, decErr)
+			require.Equal(t, sourceID, result["sourceID"])
+			require.Equal(t, destinationID, result["destID"])
+		})
+
+		t.Run("GET /v1/warehouse/health/{sourceID}/{destID} - not found", func(t *testing.T) {
+			healthMock := &mockHealthMonitorH{
+				getBySourceDestFn: func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = w.Write([]byte(`{"status":"error","message":"no health data found"}`))
+				},
+			}
+
+			a := NewApi(config.MasterMode, config.New(), logger.NOP, stats.NOP, mockBackendConfig, db, n, tenantManager, bcManager, sourcesManager, triggerStore, nil, healthMock, nil, nil)
+
+			req := httptest.NewRequest(http.MethodGet, "/v1/warehouse/health/unknown_source/unknown_dest", nil)
+			resp := httptest.NewRecorder()
+
+			a.healthMonitorH.GetHealthBySourceDest(resp, req)
+
+			require.Equal(t, http.StatusNotFound, resp.Code)
+		})
+	})
+
+	t.Run("selective sync handler", func(t *testing.T) {
+		selectiveSyncMock := &mockSelectiveSyncH{
+			updateFn: func(w http.ResponseWriter, r *http.Request) {
+				defer func() { _ = r.Body.Close() }()
+
+				type ssReq struct {
+					SourceID        string              `json:"source_id"`
+					DestinationID   string              `json:"destination_id"`
+					ExcludedTables  []string            `json:"excluded_tables"`
+					ExcludedColumns map[string][]string `json:"excluded_columns"`
+				}
+
+				var payload ssReq
+				if err := jsonrs.NewDecoder(r.Body).Decode(&payload); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte(`{"status":"error","message":"invalid JSON in request body"}`))
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				_ = jsonrs.NewEncoder(w).Encode(map[string]interface{}{
+					"status":   "updated",
+					"sourceID": payload.SourceID,
+					"destID":   payload.DestinationID,
+				})
+			},
+			getFn: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = jsonrs.NewEncoder(w).Encode(map[string]interface{}{
+					"source_id":       sourceID,
+					"destination_id":  destinationID,
+					"excluded_tables": []string{"table_a"},
+					"excluded_columns": map[string][]string{
+						"table_b": {"col_x"},
+					},
+				})
+			},
+		}
+
+		a := NewApi(config.MasterMode, config.New(), logger.NOP, stats.NOP, mockBackendConfig, db, n, tenantManager, bcManager, sourcesManager, triggerStore, nil, nil, selectiveSyncMock, nil)
+
+		t.Run("PUT /v1/warehouse/selective-sync - valid config", func(t *testing.T) {
+			body := bytes.NewReader([]byte(`{
+				"source_id": "test_source_id",
+				"destination_id": "test_destination_id",
+				"excluded_tables": ["table_a"],
+				"excluded_columns": {"table_b": ["col_x"]}
+			}`))
+			req := httptest.NewRequest(http.MethodPut, "/v1/warehouse/selective-sync", body)
+			req.Header.Set("Content-Type", "application/json")
+			resp := httptest.NewRecorder()
+
+			a.selectiveSyncH.UpdateSelectiveSync(resp, req)
+
+			require.Equal(t, http.StatusOK, resp.Code)
+
+			var result map[string]interface{}
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&result)
+			require.NoError(t, decErr)
+			require.Equal(t, "updated", result["status"])
+			require.Equal(t, sourceID, result["sourceID"])
+			require.Equal(t, destinationID, result["destID"])
+		})
+
+		t.Run("PUT /v1/warehouse/selective-sync - invalid JSON", func(t *testing.T) {
+			body := bytes.NewReader([]byte(`not valid json`))
+			req := httptest.NewRequest(http.MethodPut, "/v1/warehouse/selective-sync", body)
+			req.Header.Set("Content-Type", "application/json")
+			resp := httptest.NewRecorder()
+
+			a.selectiveSyncH.UpdateSelectiveSync(resp, req)
+
+			require.Equal(t, http.StatusBadRequest, resp.Code)
+		})
+
+		t.Run("GET /v1/warehouse/selective-sync/{sourceID}/{destID} - success", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/v1/warehouse/selective-sync/test_source_id/test_destination_id", nil)
+			resp := httptest.NewRecorder()
+
+			a.selectiveSyncH.GetSelectiveSync(resp, req)
+
+			require.Equal(t, http.StatusOK, resp.Code)
+
+			var result map[string]interface{}
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&result)
+			require.NoError(t, decErr)
+			require.Equal(t, sourceID, result["source_id"])
+			require.Equal(t, destinationID, result["destination_id"])
+		})
+	})
+
+	t.Run("replay handler", func(t *testing.T) {
+		replayMock := &mockReplayH{
+			triggerFn: func(w http.ResponseWriter, r *http.Request) {
+				defer func() { _ = r.Body.Close() }()
+
+				type rpReq struct {
+					SourceID      string `json:"source_id"`
+					DestinationID string `json:"destination_id"`
+					StartTime     string `json:"start_time"`
+					EndTime       string `json:"end_time"`
+				}
+
+				var payload rpReq
+				if err := jsonrs.NewDecoder(r.Body).Decode(&payload); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte(`{"status":"error","message":"invalid JSON in request body"}`))
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				_ = jsonrs.NewEncoder(w).Encode(map[string]interface{}{
+					"jobID":  1,
+					"status": "Pending",
+				})
+			},
+			getStatusFn: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = jsonrs.NewEncoder(w).Encode(map[string]interface{}{
+					"jobID":  1,
+					"status": "InProgress",
+				})
+			},
+		}
+
+		a := NewApi(config.MasterMode, config.New(), logger.NOP, stats.NOP, mockBackendConfig, db, n, tenantManager, bcManager, sourcesManager, triggerStore, nil, nil, nil, replayMock)
+
+		t.Run("POST /v1/warehouse/replay - valid request", func(t *testing.T) {
+			body := bytes.NewReader([]byte(`{
+				"source_id": "test_source_id",
+				"destination_id": "test_destination_id",
+				"start_time": "2024-01-01T00:00:00Z",
+				"end_time": "2024-01-15T00:00:00Z"
+			}`))
+			req := httptest.NewRequest(http.MethodPost, "/v1/warehouse/replay", body)
+			req.Header.Set("Content-Type", "application/json")
+			resp := httptest.NewRecorder()
+
+			a.replayH.TriggerReplay(resp, req)
+
+			require.Equal(t, http.StatusOK, resp.Code)
+
+			var result map[string]interface{}
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&result)
+			require.NoError(t, decErr)
+			require.Equal(t, float64(1), result["jobID"])
+			require.Equal(t, "Pending", result["status"])
+		})
+
+		t.Run("POST /v1/warehouse/replay - invalid JSON", func(t *testing.T) {
+			body := bytes.NewReader([]byte(`not valid json`))
+			req := httptest.NewRequest(http.MethodPost, "/v1/warehouse/replay", body)
+			req.Header.Set("Content-Type", "application/json")
+			resp := httptest.NewRecorder()
+
+			a.replayH.TriggerReplay(resp, req)
+
+			require.Equal(t, http.StatusBadRequest, resp.Code)
+		})
+
+		t.Run("GET /v1/warehouse/replay/{jobID} - success", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/v1/warehouse/replay/1", nil)
+			resp := httptest.NewRecorder()
+
+			a.replayH.GetReplayStatus(resp, req)
+
+			require.Equal(t, http.StatusOK, resp.Code)
+
+			var result map[string]interface{}
+			decErr := jsonrs.NewDecoder(resp.Body).Decode(&result)
+			require.NoError(t, decErr)
+			require.Equal(t, float64(1), result["jobID"])
+			require.Equal(t, "InProgress", result["status"])
+		})
+	})
+
 	t.Run("endpoints", func(t *testing.T) {
 		t.Run("normal mode", func(t *testing.T) {
 			webPort, err := kithelper.GetFreePort()
@@ -757,7 +1298,57 @@ func TestHTTPApi(t *testing.T) {
 
 			srvCtx, stopServer := context.WithCancel(ctx)
 
-			a := NewApi(config.MasterMode, c, logger.NOP, stats.NOP, mockBackendConfig, db, n, tenantManager, bcManager, sourcesManager, triggerStore, nil, nil, nil, nil)
+			// Provide non-nil mock handlers so that the Chi router registers the Sprint 7-9 routes.
+			integrationBackfillH := &mockBackfillH{
+				triggerFn: func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`{"jobID":1,"status":"Pending"}`))
+				},
+				getStatusFn: func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`{"jobID":1,"status":"Pending"}`))
+				},
+			}
+			integrationHealthH := &mockHealthMonitorH{
+				getSummaryFn: func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`{"sources":[]}`))
+				},
+				getBySourceDestFn: func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`{}`))
+				},
+			}
+			integrationSSH := &mockSelectiveSyncH{
+				updateFn: func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`{"status":"updated"}`))
+				},
+				getFn: func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`{}`))
+				},
+			}
+			integrationReplayH := &mockReplayH{
+				triggerFn: func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`{"jobID":1,"status":"Pending"}`))
+				},
+				getStatusFn: func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`{"jobID":1,"status":"Pending"}`))
+				},
+			}
+
+			a := NewApi(config.MasterMode, c, logger.NOP, stats.NOP, mockBackendConfig, db, n, tenantManager, bcManager, sourcesManager, triggerStore, integrationBackfillH, integrationHealthH, integrationSSH, integrationReplayH)
 
 			serverSetupCh := make(chan struct{})
 			go func() {
@@ -928,6 +1519,79 @@ func TestHTTPApi(t *testing.T) {
 				}()
 			})
 
+			t.Run("backfill", func(t *testing.T) {
+				backfillURL := fmt.Sprintf("%s/v1/warehouse/backfill", serverURL)
+				req, err := http.NewRequest(http.MethodPost, backfillURL, bytes.NewReader([]byte(`{
+					"source_id": "test_source_id",
+					"destination_id": "test_destination_id",
+					"start_date": "2024-01-01T00:00:00Z",
+					"end_date": "2024-01-15T00:00:00Z"
+				}`)))
+				require.NoError(t, err)
+				req.Header.Set("Content-Type", "application/json")
+
+				resp, err := (&http.Client{}).Do(req)
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+
+				defer func() {
+					httputil.CloseResponse(resp)
+				}()
+			})
+
+			t.Run("health summary", func(t *testing.T) {
+				healthURL := fmt.Sprintf("%s/v1/warehouse/health", serverURL)
+				req, err := http.NewRequest(http.MethodGet, healthURL, nil)
+				require.NoError(t, err)
+
+				resp, err := (&http.Client{}).Do(req)
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+
+				defer func() {
+					httputil.CloseResponse(resp)
+				}()
+			})
+
+			t.Run("selective sync update", func(t *testing.T) {
+				ssURL := fmt.Sprintf("%s/v1/warehouse/selective-sync", serverURL)
+				req, err := http.NewRequest(http.MethodPut, ssURL, bytes.NewReader([]byte(`{
+					"source_id": "test_source_id",
+					"destination_id": "test_destination_id",
+					"excluded_tables": ["table_a"]
+				}`)))
+				require.NoError(t, err)
+				req.Header.Set("Content-Type", "application/json")
+
+				resp, err := (&http.Client{}).Do(req)
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+
+				defer func() {
+					httputil.CloseResponse(resp)
+				}()
+			})
+
+			t.Run("replay", func(t *testing.T) {
+				replayURL := fmt.Sprintf("%s/v1/warehouse/replay", serverURL)
+				req, err := http.NewRequest(http.MethodPost, replayURL, bytes.NewReader([]byte(`{
+					"source_id": "test_source_id",
+					"destination_id": "test_destination_id",
+					"start_time": "2024-01-01T00:00:00Z",
+					"end_time": "2024-01-15T00:00:00Z"
+				}`)))
+				require.NoError(t, err)
+				req.Header.Set("Content-Type", "application/json")
+
+				resp, err := (&http.Client{}).Do(req)
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+
+				defer func() {
+					httputil.CloseResponse(resp)
+				}()
+			})
+
 			stopServer()
 
 			<-serverSetupCh
@@ -1006,6 +1670,30 @@ func TestHTTPApi(t *testing.T) {
 						url:    fmt.Sprintf("%s/internal/v1/warehouse/fetch-tables", serverURL),
 						method: http.MethodGet,
 						body:   nil,
+					},
+					{
+						name:   "backfill",
+						url:    fmt.Sprintf("%s/v1/warehouse/backfill", serverURL),
+						method: http.MethodPost,
+						body:   bytes.NewReader([]byte(`{}`)),
+					},
+					{
+						name:   "health summary",
+						url:    fmt.Sprintf("%s/v1/warehouse/health", serverURL),
+						method: http.MethodGet,
+						body:   nil,
+					},
+					{
+						name:   "selective sync update",
+						url:    fmt.Sprintf("%s/v1/warehouse/selective-sync", serverURL),
+						method: http.MethodPut,
+						body:   bytes.NewReader([]byte(`{}`)),
+					},
+					{
+						name:   "replay",
+						url:    fmt.Sprintf("%s/v1/warehouse/replay", serverURL),
+						method: http.MethodPost,
+						body:   bytes.NewReader([]byte(`{}`)),
 					},
 				}
 
