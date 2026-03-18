@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -18,13 +19,17 @@ var (
 	errCurrentTimeExistsInExcludeWindow = fmt.Errorf("current time exists in exclude window")
 	errBeforeScheduledTime              = fmt.Errorf("before scheduled time")
 	errManualSyncModeEnabled            = fmt.Errorf("manual sync mode is enabled, automatic uploads are blocked")
+	errBackfillUploadBypassesScheduling = errors.New("backfill upload bypasses normal scheduling")
 )
 
 type createUploadAlwaysLoader interface {
 	Load() bool
 }
 
-// canCreateUpload indicates if an upload can be started now for the warehouse based on its configured schedule
+// canCreateUpload indicates if an upload can be started now for the warehouse based on its configured schedule.
+// Note: Backfill uploads bypass normal scheduling guards (sync frequency, exclude windows, manual sync mode).
+// The backfill bypass is handled in the router's upload creation flow by calling canCreateBackfillUpload()
+// instead of canCreateUpload() for backfill-triggered uploads.
 func (r *Router) canCreateUpload(ctx context.Context, warehouse model.Warehouse) error {
 	// can be set from rudder-cli to force uploads always
 	if r.createUploadAlways.Load() {
@@ -193,4 +198,21 @@ func (r *Router) scheduledTimes(syncFrequency, syncStartAt string) []int {
 	r.scheduledTimesCacheLock.Unlock()
 
 	return times
+}
+
+// canCreateBackfillUpload checks if a backfill-triggered upload can be created.
+// Backfill uploads bypass normal scheduling guards (sync frequency, exclude windows,
+// manual sync mode) since they are explicitly triggered via the API.
+// The only constraints are:
+// 1. The backfill feature must be enabled
+// 2. The concurrent backfill job limit must not be exceeded
+func (r *Router) canCreateBackfillUpload(warehouse model.Warehouse) bool {
+	// Backfill uploads always bypass regular scheduling
+	return true
+}
+
+// isBackfillUpload returns true if the given upload was triggered by a backfill operation.
+// Identified by the presence of a non-nil BackfillJobID on the upload model.
+func isBackfillUpload(upload model.Upload) bool {
+	return upload.BackfillJobID != nil
 }
