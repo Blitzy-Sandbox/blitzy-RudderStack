@@ -47,7 +47,7 @@ This roadmap sequences the autonomous implementation of all gaps identified in t
 | Functions | ~40% | [Functions Parity Analysis](./functions-parity.md) |
 | Protocols | ~30% | [Protocols Parity Analysis](./protocols-parity.md) |
 | Identity Resolution | ~20% | [Identity Parity Analysis](./identity-parity.md) |
-| Warehouse Sync | ~80% | [Warehouse Parity Analysis](./warehouse-parity.md) |
+| Warehouse Sync | **~95%** ✅ | [Warehouse Parity Analysis](./warehouse-parity.md) |
 | Privacy & Governance | ~70% | Covered in [Protocols Parity Analysis](./protocols-parity.md) |
 
 Source: `README.md:66-84` | Source: `gateway/openapi.yaml:1-435`
@@ -81,7 +81,7 @@ quadrantChart
     quadrant-3 "Strategic Investment"
     quadrant-4 "Deprioritize"
     "Event Spec 100% (P0 ✅)": [0.10, 1.00]
-    "Warehouse ~80% (P1)": [0.30, 0.80]
+    "Warehouse ~95% (P1 ✅)": [0.30, 0.95]
     "Privacy ~70% (P2)": [0.35, 0.70]
     "Sources ~60% (P1)": [0.50, 0.60]
     "Functions ~40% (P1)": [0.65, 0.40]
@@ -98,7 +98,7 @@ quadrantChart
 | **P1** | Source SDK Compatibility | ~60% | Adoption-blocking — SDKs must connect without code changes | Medium | Sprint 2–3 |
 | **P1** | Destination Connectors | ~25–30% | Production-blocking — customers need their existing destinations | Very High | Sprint 3–5 |
 | **P1** | Functions / Transforms | ~40% | Production-blocking — custom logic required for most deployments | High | Sprint 4–6 |
-| **P1** | Warehouse Enhancement | ~80% | Production — selective sync and backfill are enterprise requirements | Medium | Sprint 7–9 |
+| **P1** ✅ | Warehouse Enhancement | **~95%** | Production — selective sync, backfill, health monitoring, replay all implemented — **COMPLETE** | Medium | Sprint 7–9 |
 | **P2** | Protocols / Tracking Plans | ~30% | Enterprise-blocking — data governance required for regulated industries | High | Sprint 5–7 |
 | **P2** | Identity Resolution | ~20% | Enterprise-blocking — unified profiles required for personalization | Very High | Sprint 6–8 |
 | **P3** | Operational Tooling | N/A | Enhancement — monitoring, alerting, and replay controls | Medium | Sprint 8–10 |
@@ -464,10 +464,10 @@ Source: `warehouse/identity/identity.go:36-60` (Identity struct and WarehouseMan
 
 ## Sprint 7–9: Warehouse Feature Enhancement
 
-**Priority:** P1 — High
+**Priority:** P1 — High ✅ COMPLETED
 **Duration:** 3 sprints (6 weeks)
-**Current Parity:** ~80%
-**Target Parity:** ~95%
+**Current Parity:** **~95%** ✅
+**Target Parity:** ~95% ✅ ACHIEVED
 **Reference:** [Warehouse Parity Analysis](./warehouse-parity.md)
 
 ### Objective
@@ -484,11 +484,11 @@ Source: `warehouse/integrations/` (9 connector implementations) | Source: `wareh
 
 | Epic ID | Title | Description | Effort |
 |---------|-------|-------------|--------|
-| **E-031** | Validate idempotent sync across all 9 connectors | Comprehensive integration testing of idempotent sync semantics for all 9 warehouse connectors. Verify that replay/retry scenarios produce identical warehouse state. Test merge strategies: SQL MERGE (Snowflake, Delta Lake, PostgreSQL), DELETE+INSERT (Redshift), dedup views (BigQuery), engine-level (ClickHouse), bulk CopyIn (MSSQL, Azure Synapse), and append-only (Datalake). | 8 days |
-| **E-032** | Implement backfill with configurable date ranges | Build a warehouse-level backfill API endpoint that triggers historical data sync for a specified date range, source, and warehouse destination. Support backfill from archiver (within retention window) and from staging files stored in object storage. Implement a backfill state that integrates with the existing 7-state upload machine. | 10 days |
-| **E-033** | Enhance warehouse health monitoring | Build a warehouse sync health monitoring system with per-upload metrics: sync status, duration, row counts, error classification, schema changes. Expose as Prometheus metrics and a dedicated HTTP API for dashboard integration. Add alerting thresholds for sync failures, latency spikes, and row count anomalies. | 8 days |
-| **E-034** | Add warehouse selective sync | Implement per-table and per-column sync filtering, allowing users to include or exclude specific tables and columns from warehouse sync. Configuration via backend-config with runtime filtering in the load file generation stage. | 6 days |
-| **E-035** | Implement warehouse replay from archived events | Build an end-to-end replay pipeline: archiver → replay handler → Gateway → Processor → warehouse. Enable warehouse-targeted replay that re-processes archived events through the warehouse pipeline only, bypassing real-time destination routing. | 8 days |
+| **E-031** | ✅ COMPLETED — Validate idempotent sync across all 9 connectors | Comprehensive integration testing of idempotent sync semantics for all 9 warehouse connectors. Verify that replay/retry scenarios produce identical warehouse state. Test merge strategies: SQL MERGE (Snowflake, Delta Lake, PostgreSQL), DELETE+INSERT (Redshift), dedup views (BigQuery), engine-level (ClickHouse), bulk CopyIn (MSSQL, Azure Synapse), and append-only (Datalake). | 8 days |
+| **E-032** | ✅ COMPLETED — Implement backfill with configurable date ranges | Build a warehouse-level backfill API endpoint that triggers historical data sync for a specified date range, source, and warehouse destination. Support backfill from archiver (within retention window) and from staging files stored in object storage. Implement a backfill state that integrates with the existing 7-state upload machine. | 10 days |
+| **E-033** | ✅ COMPLETED — Enhance warehouse health monitoring | Build a warehouse sync health monitoring system with per-upload metrics: sync status, duration, row counts, error classification, schema changes. Expose as Prometheus metrics and a dedicated HTTP API for dashboard integration. Add alerting thresholds for sync failures, latency spikes, and row count anomalies. | 8 days |
+| **E-034** | ✅ COMPLETED — Add warehouse selective sync | Implement per-table and per-column sync filtering, allowing users to include or exclude specific tables and columns from warehouse sync. Configuration via backend-config with runtime filtering in the load file generation stage. | 6 days |
+| **E-035** | ✅ COMPLETED — Implement warehouse replay from archived events | Build an end-to-end replay pipeline: archiver → replay handler → Gateway → Processor → warehouse. Enable warehouse-targeted replay that re-processes archived events through the warehouse pipeline only, bypassing real-time destination routing. | 8 days |
 
 ### Source Citations
 
@@ -503,11 +503,11 @@ Source: `warehouse/integrations/` (9 connector implementations) | Source: `wareh
 
 ### Success Criteria
 
-- [ ] All 9 connectors demonstrate idempotent sync: replaying the same events produces identical warehouse state
-- [ ] Backfill API supports configurable date range, source, and destination parameters
-- [ ] Health monitoring exposes per-upload metrics via Prometheus and HTTP API
-- [ ] Selective sync filters tables and columns at the load file generation stage
-- [ ] Warehouse replay re-processes archived events through the warehouse pipeline end-to-end
+- [x] All 9 connectors demonstrate idempotent sync: replaying the same events produces identical warehouse state
+- [x] Backfill API supports configurable date range, source, and destination parameters
+- [x] Health monitoring exposes per-upload metrics via Prometheus and HTTP API
+- [x] Selective sync filters tables and columns at the load file generation stage
+- [x] Warehouse replay re-processes archived events through the warehouse pipeline end-to-end
 
 ---
 
@@ -763,14 +763,14 @@ This critical path spans approximately 16 weeks and must be protected from sched
 | **M4: Functions Runtime Live** | End of Sprint 6 | Source, Destination, and Insert Functions with management API |
 | **M5: Protocols Enforcement** | End of Sprint 7 | JSON Schema validation, anomaly detection, 3 enforcement modes |
 | **M6: Real-Time Identity** | End of Sprint 8 | Identity graph with Profiles API achieving <200ms response |
-| **M7: Warehouse Complete** | End of Sprint 9 | Selective sync, backfill API, health monitoring |
+| **M7: Warehouse Complete** ✅ | End of Sprint 9 | ✅ Selective sync, backfill API, health monitoring, replay — all implemented |
 | **M8: Operational Maturity** | End of Sprint 10 | Full monitoring, alerting, and capacity planning |
 
 ### Parity Progression Forecast
 
 | Milestone | Event Spec | Destinations | Sources | Functions | Protocols | Identity | Warehouse | Overall |
 |-----------|-----------|-------------|---------|-----------|-----------|----------|-----------|---------|
-| **Current** | **100%** | ~28% | ~60% | ~40% | ~30% | ~20% | ~80% | ~54% |
+| **Current** | **100%** | ~28% | ~60% | ~40% | ~30% | ~20% | **~95%** | ~54% |
 | **M1** (Sprint 2) | **100%** | ~28% | ~60% | ~40% | ~30% | ~20% | ~80% | ~55% |
 | **M3** (Sprint 5) | 100% | **~50%** | **~85%** | ~40% | ~30% | ~20% | ~80% | ~63% |
 | **M4** (Sprint 6) | 100% | ~50% | ~85% | **~80%** | ~30% | ~20% | ~80% | ~68% |
