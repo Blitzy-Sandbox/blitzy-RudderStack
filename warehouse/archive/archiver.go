@@ -51,6 +51,32 @@ type uploadRecord struct {
 	workspaceID        string
 }
 
+// StagingFileMetadata contains metadata about an archived staging file
+// used by the backfill service to resolve available archived staging files
+// within a specified date range for a given source and destination.
+type StagingFileMetadata struct {
+	ID            int64
+	Location      string
+	SourceID      string
+	DestinationID string
+	CreatedAt     time.Time
+	TotalBytes    int
+}
+
+// ArchivedEventBatch represents a batch of archived events stored as gzipped JSONL.
+// Used by the replay handler to iterate over archived gateway event payloads.
+// The Data field is intentionally left empty by QueryArchivedEvents — the caller
+// must download the content from the cloud storage path specified in Location
+// using an appropriate file manager.
+type ArchivedEventBatch struct {
+	SourceID   string
+	Location   string // cloud storage path to the archived gzip JSONL data
+	Data       []byte // populated by the caller after downloading from Location
+	StartTime  time.Time
+	EndTime    time.Time
+	EventCount int64
+}
+
 type Archiver struct {
 	db            *sqlmw.DB
 	stats         stats.Stats
@@ -583,4 +609,162 @@ func (a *Archiver) deleteUploads(ctx context.Context, limit int) (int64, error) 
 		return 0, fmt.Errorf("error deleting uploads: %w", err)
 	}
 	return result.RowsAffected()
+}
+
+// ListArchivedStagingFiles queries the wh_staging_files table for staging files
+// matching the given source ID, destination ID, and date range. This method is used
+// by the backfill service (E-032) to discover available staging files for a historical
+// backfill operation within the archiver's retention window.
+//
+// The returned slice is ordered by created_at ascending. If no matching records are
+// found, it returns (nil, nil) — an empty result is not an error condition.
+func (a *Archiver) ListArchivedStagingFiles(
+	ctx context.Context,
+	sourceID, destID string,
+	startDate, endDate time.Time,
+) ([]StagingFileMetadata, error) {
+	a.log.Infon("[Archiver]: Listing archived staging files for backfill",
+		logger.NewStringField(logfield.SourceID, sourceID),
+		logger.NewStringField(logfield.DestinationID, destID),
+		logger.NewTimeField("startDate", startDate),
+		logger.NewTimeField("endDate", endDate),
+	)
+
+	sqlStatement := fmt.Sprintf(`
+		SELECT
+		  id, location, source_id, destination_id, created_at, total_bytes
+		FROM
+		  %s
+		WHERE
+		  source_id = $1
+		  AND destination_id = $2
+		  AND created_at >= $3
+		  AND created_at <= $4
+		ORDER BY
+		  created_at ASC;`,
+		pq.QuoteIdentifier(warehouseutils.WarehouseStagingFilesTable),
+	)
+
+	rows, err := a.db.QueryContext(ctx, sqlStatement,
+		sourceID,
+		destID,
+		startDate,
+		endDate,
+	)
+	if err != nil {
+		a.log.Errorn("[Archiver]: Error querying staging files for backfill listing",
+			logger.NewStringField(logfield.SourceID, sourceID),
+			logger.NewStringField(logfield.DestinationID, destID),
+			obskit.Error(err),
+		)
+		return nil, fmt.Errorf("querying staging files for backfill listing: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var files []StagingFileMetadata
+	for rows.Next() {
+		var f StagingFileMetadata
+		if err := rows.Scan(&f.ID, &f.Location, &f.SourceID, &f.DestinationID, &f.CreatedAt, &f.TotalBytes); err != nil {
+			a.log.Errorn("[Archiver]: Error scanning staging file for backfill listing", obskit.Error(err))
+			continue
+		}
+		files = append(files, f)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating staging files for backfill listing: %w", err)
+	}
+
+	a.log.Infon("[Archiver]: Completed listing archived staging files for backfill",
+		logger.NewStringField(logfield.SourceID, sourceID),
+		logger.NewStringField(logfield.DestinationID, destID),
+		logger.NewIntField("count", int64(len(files))),
+	)
+	return files, nil
+}
+
+// QueryArchivedEvents queries the wh_staging_files table for staging files whose
+// event time range falls within the specified time window. This method is used by
+// the warehouse replay handler (E-035) to discover archived event batches for
+// warehouse-targeted replay.
+//
+// The returned ArchivedEventBatch entries contain metadata (SourceID, Location,
+// StartTime, EndTime, EventCount) but the Data field is left empty. The caller
+// (replay retriever) is responsible for downloading the actual archived content
+// from the cloud storage location specified in the Location field using the
+// appropriate file manager.
+//
+// If no matching records are found, it returns (nil, nil) — an empty result is
+// not an error condition.
+func (a *Archiver) QueryArchivedEvents(
+	ctx context.Context,
+	sourceID string,
+	startTime, endTime time.Time,
+) ([]ArchivedEventBatch, error) {
+	a.log.Infon("[Archiver]: Querying archived events for replay",
+		logger.NewStringField(logfield.SourceID, sourceID),
+		logger.NewTimeField("startTime", startTime),
+		logger.NewTimeField("endTime", endTime),
+	)
+
+	sqlStatement := fmt.Sprintf(`
+		SELECT
+		  id, location, source_id, total_events, first_event_at, last_event_at
+		FROM
+		  %s
+		WHERE
+		  source_id = $1
+		  AND first_event_at >= $2
+		  AND last_event_at <= $3
+		ORDER BY
+		  first_event_at ASC;`,
+		pq.QuoteIdentifier(warehouseutils.WarehouseStagingFilesTable),
+	)
+
+	rows, err := a.db.QueryContext(ctx, sqlStatement,
+		sourceID,
+		startTime,
+		endTime,
+	)
+	if err != nil {
+		a.log.Errorn("[Archiver]: Error querying archived events for replay",
+			logger.NewStringField(logfield.SourceID, sourceID),
+			obskit.Error(err),
+		)
+		return nil, fmt.Errorf("querying archived events for replay: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var batches []ArchivedEventBatch
+	for rows.Next() {
+		var (
+			batch    ArchivedEventBatch
+			id       int64
+			totalEvt sql.NullInt64
+			firstEvt sql.NullTime
+			lastEvt  sql.NullTime
+		)
+		if err := rows.Scan(&id, &batch.Location, &batch.SourceID, &totalEvt, &firstEvt, &lastEvt); err != nil {
+			a.log.Errorn("[Archiver]: Error scanning archived event for replay", obskit.Error(err))
+			continue
+		}
+		if totalEvt.Valid {
+			batch.EventCount = totalEvt.Int64
+		}
+		if firstEvt.Valid {
+			batch.StartTime = firstEvt.Time
+		}
+		if lastEvt.Valid {
+			batch.EndTime = lastEvt.Time
+		}
+		batches = append(batches, batch)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating archived events for replay: %w", err)
+	}
+
+	a.log.Infon("[Archiver]: Completed querying archived events for replay",
+		logger.NewStringField(logfield.SourceID, sourceID),
+		logger.NewIntField("count", int64(len(batches))),
+	)
+	return batches, nil
 }
