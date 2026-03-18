@@ -43,6 +43,7 @@ import (
 	"github.com/rudderlabs/rudder-server/utils/misc"
 	"github.com/rudderlabs/rudder-server/utils/pubsub"
 	"github.com/rudderlabs/rudder-server/warehouse/bcm"
+	"github.com/rudderlabs/rudder-server/warehouse/healthmonitor"
 	sqlmw "github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/model"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/repo"
@@ -158,7 +159,8 @@ func TestGRPC(t *testing.T) {
 		triggerStore := &sync.Map{}
 		tenantManager := multitenant.New(c, mockBackendConfig)
 		bcManager := bcm.New(c, db, tenantManager, logger.NOP, stats.NOP)
-		grpcServer, err := NewGRPCServer(c, logger.NOP, stats.NOP, db, tenantManager, bcManager, triggerStore, nil)
+		healthRepo := healthmonitor.NewHealthRepo(db, stats.NOP)
+		grpcServer, err := NewGRPCServer(c, logger.NOP, stats.NOP, db, tenantManager, bcManager, triggerStore, healthRepo)
 		require.NoError(t, err)
 
 		tcpPort, err := kithelper.GetFreePort()
@@ -1966,6 +1968,220 @@ func TestGRPC(t *testing.T) {
 				DestinationId: destinationID,
 			})
 			require.NoError(t, err)
+		})
+
+		// E-033: Health Monitoring RPC tests — GetSyncHealth and GetHealthSummary.
+		// These tests validate the new gRPC endpoints added for warehouse health monitoring.
+		// Seed data is inserted via direct SQL into wh_sync_health so that the tests
+		// exercise the full gRPC transport path (client → server → repository → database).
+		t.Run("GetSyncHealth", func(t *testing.T) {
+			// Set up test data: create a staging file and upload so we have a valid
+			// upload_id for the foreign key in wh_sync_health.
+			now := time.Now().UTC().Truncate(time.Second)
+			repoUpload := repo.NewUploads(db, repo.WithNow(func() time.Time { return now }))
+			repoStaging := repo.NewStagingFiles(db, c, repo.WithNow(func() time.Time { return now }))
+
+			stagingID, err := repoStaging.Insert(ctx, &model.StagingFileWithSchema{})
+			require.NoError(t, err)
+
+			uploadID, err := repoUpload.CreateWithStagingFiles(ctx, model.Upload{
+				SourceID:        sourceID,
+				DestinationID:   destinationID,
+				DestinationType: destinationType,
+				WorkspaceID:     workspaceID,
+				Status:          model.ExportedData,
+				NextRetryTime:   now,
+			}, []*model.StagingFile{
+				{
+					ID:            stagingID,
+					SourceID:      sourceID,
+					DestinationID: destinationID,
+					WorkspaceID:   workspaceID,
+				},
+			})
+			require.NoError(t, err)
+
+			// Seed a health record for this upload via the healthmonitor repository.
+			err = healthRepo.RecordSyncHealth(ctx, &healthmonitor.SyncHealth{
+				UploadID:      uploadID,
+				SourceID:      sourceID,
+				DestinationID: destinationID,
+				DestType:      destinationType,
+				SourceType:    "sourceType",
+				WorkspaceID:   workspaceID,
+				Status:        "exported_data",
+				DurationMs:    5000,
+				RowsSynced:    1000,
+				RowsFailed:    0,
+				ErrorCategory: "",
+			})
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				_, _ = db.ExecContext(ctx, "DELETE FROM wh_sync_health WHERE upload_id = $1", uploadID)
+				_, _ = db.ExecContext(ctx, "DELETE FROM wh_table_uploads WHERE wh_upload_id = $1", uploadID)
+				_, _ = db.ExecContext(ctx, "DELETE FROM wh_uploads WHERE id = $1", uploadID)
+			})
+
+			t.Run("valid upload returns health data", func(t *testing.T) {
+				res, err := grpcClient.GetSyncHealth(ctx, &proto.GetSyncHealthRequest{
+					UploadId: uploadID,
+				})
+				require.NoError(t, err)
+				require.NotNil(t, res)
+				require.EqualValues(t, uploadID, res.GetUploadId())
+				require.Equal(t, sourceID, res.GetSourceId())
+				require.Equal(t, destinationID, res.GetDestinationId())
+				require.Equal(t, "exported_data", res.GetStatus())
+				require.EqualValues(t, 5000, res.GetDurationMs())
+				require.EqualValues(t, 1000, res.GetRowsSynced())
+				require.EqualValues(t, 0, res.GetRowsFailed())
+				require.Empty(t, res.GetErrorCategory())
+				require.NotNil(t, res.GetCreatedAt())
+			})
+
+			t.Run("non-existent upload ID returns not found", func(t *testing.T) {
+				res, err := grpcClient.GetSyncHealth(ctx, &proto.GetSyncHealthRequest{
+					UploadId: 999999,
+				})
+				require.Error(t, err)
+				require.Empty(t, res)
+
+				statusError, ok := status.FromError(err)
+				require.True(t, ok)
+				require.Equal(t, codes.NotFound, statusError.Code())
+			})
+
+			t.Run("missing upload ID returns invalid argument", func(t *testing.T) {
+				res, err := grpcClient.GetSyncHealth(ctx, &proto.GetSyncHealthRequest{
+					UploadId: 0,
+				})
+				require.Error(t, err)
+				require.Empty(t, res)
+
+				statusError, ok := status.FromError(err)
+				require.True(t, ok)
+				require.Equal(t, codes.InvalidArgument, statusError.Code())
+			})
+		})
+
+		t.Run("GetHealthSummary", func(t *testing.T) {
+			t.Cleanup(func() {
+				_, _ = db.ExecContext(ctx, "DELETE FROM wh_sync_health")
+			})
+
+			t.Run("empty state returns empty response", func(t *testing.T) {
+				// Ensure no health data exists.
+				_, _ = db.ExecContext(ctx, "DELETE FROM wh_sync_health")
+
+				res, err := grpcClient.GetHealthSummary(ctx, &proto.GetHealthSummaryRequest{
+					WorkspaceId: workspaceID,
+				})
+				require.NoError(t, err)
+				require.NotNil(t, res)
+				require.Empty(t, res.GetSources())
+			})
+
+			t.Run("returns aggregated health data", func(t *testing.T) {
+				// Set up test data: create uploads and health records to aggregate.
+				now := time.Now().UTC().Truncate(time.Second)
+				repoUpload := repo.NewUploads(db, repo.WithNow(func() time.Time { return now }))
+				repoStaging := repo.NewStagingFiles(db, c, repo.WithNow(func() time.Time { return now }))
+
+				var uploadIDs []int64
+				for i := range 3 {
+					fid, err := repoStaging.Insert(ctx, &model.StagingFileWithSchema{})
+					require.NoError(t, err)
+
+					uid, err := repoUpload.CreateWithStagingFiles(ctx, model.Upload{
+						SourceID:        sourceID,
+						DestinationID:   destinationID,
+						DestinationType: destinationType,
+						WorkspaceID:     workspaceID,
+						Status:          model.ExportedData,
+						NextRetryTime:   now,
+					}, []*model.StagingFile{
+						{
+							ID:            fid,
+							SourceID:      sourceID,
+							DestinationID: destinationID,
+							WorkspaceID:   workspaceID,
+						},
+					})
+					require.NoError(t, err)
+					uploadIDs = append(uploadIDs, uid)
+
+					err = healthRepo.RecordSyncHealth(ctx, &healthmonitor.SyncHealth{
+						UploadID:      uid,
+						SourceID:      sourceID,
+						DestinationID: destinationID,
+						DestType:      destinationType,
+						SourceType:    "sourceType",
+						WorkspaceID:   workspaceID,
+						Status:        "exported_data",
+						DurationMs:    int64(3000 + i*1000),
+						RowsSynced:    int64(500 + i*100),
+						RowsFailed:    0,
+						ErrorCategory: "",
+					})
+					require.NoError(t, err)
+				}
+
+				t.Cleanup(func() {
+					for _, uid := range uploadIDs {
+						_, _ = db.ExecContext(ctx, "DELETE FROM wh_sync_health WHERE upload_id = $1", uid)
+						_, _ = db.ExecContext(ctx, "DELETE FROM wh_table_uploads WHERE wh_upload_id = $1", uid)
+						_, _ = db.ExecContext(ctx, "DELETE FROM wh_uploads WHERE id = $1", uid)
+					}
+				})
+
+				res, err := grpcClient.GetHealthSummary(ctx, &proto.GetHealthSummaryRequest{
+					WorkspaceId: workspaceID,
+				})
+				require.NoError(t, err)
+				require.NotNil(t, res)
+				require.NotEmpty(t, res.GetSources())
+
+				// Verify the aggregated data contains our test source.
+				var found bool
+				for _, src := range res.GetSources() {
+					if src.GetSourceId() == sourceID {
+						found = true
+						require.NotEmpty(t, src.GetDestinations())
+						for _, dest := range src.GetDestinations() {
+							if dest.GetDestinationId() == destinationID {
+								require.NotZero(t, dest.GetRowsSynced())
+								require.NotNil(t, dest.GetLastSync())
+							}
+						}
+					}
+				}
+				require.True(t, found, "expected source %s in health summary", sourceID)
+			})
+
+			t.Run("unknown workspace returns unauthenticated", func(t *testing.T) {
+				res, err := grpcClient.GetHealthSummary(ctx, &proto.GetHealthSummaryRequest{
+					WorkspaceId: "unknown_workspace_id",
+				})
+				require.Error(t, err)
+				require.Empty(t, res)
+
+				statusError, ok := status.FromError(err)
+				require.True(t, ok)
+				require.Equal(t, codes.Unauthenticated, statusError.Code())
+			})
+
+			t.Run("empty workspace ID returns invalid argument", func(t *testing.T) {
+				res, err := grpcClient.GetHealthSummary(ctx, &proto.GetHealthSummaryRequest{
+					WorkspaceId: "",
+				})
+				require.Error(t, err)
+				require.Empty(t, res)
+
+				statusError, ok := status.FromError(err)
+				require.True(t, ok)
+				require.Equal(t, codes.InvalidArgument, statusError.Code())
+			})
 		})
 
 		server.GracefulStop()
