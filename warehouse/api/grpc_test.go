@@ -158,7 +158,7 @@ func TestGRPC(t *testing.T) {
 		triggerStore := &sync.Map{}
 		tenantManager := multitenant.New(c, mockBackendConfig)
 		bcManager := bcm.New(c, db, tenantManager, logger.NOP, stats.NOP)
-		grpcServer, err := NewGRPCServer(c, logger.NOP, stats.NOP, db, tenantManager, bcManager, triggerStore)
+		grpcServer, err := NewGRPCServer(c, logger.NOP, stats.NOP, db, tenantManager, bcManager, triggerStore, nil)
 		require.NoError(t, err)
 
 		tcpPort, err := kithelper.GetFreePort()
@@ -2098,7 +2098,7 @@ func TestGRPC(t *testing.T) {
 					c.Set(k, v)
 				}
 
-				g, err := NewGRPCServer(c, logger.NOP, stats.NOP, nil, nil, nil, nil)
+				g, err := NewGRPCServer(c, logger.NOP, stats.NOP, nil, nil, nil, nil, nil)
 				require.NoError(t, err)
 
 				aggType, err := g.getLatencyAggregationType(tc.srcMap, tc.sourceID)

@@ -45,6 +45,7 @@ import (
 	"github.com/rudderlabs/rudder-server/utils/misc"
 	"github.com/rudderlabs/rudder-server/utils/types/deployment"
 	cpclient "github.com/rudderlabs/rudder-server/warehouse/client/controlplane"
+	"github.com/rudderlabs/rudder-server/warehouse/healthmonitor"
 	sqlmw "github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/model"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/repo"
@@ -62,6 +63,18 @@ const (
 	syncFrequencyThresholdMinutes = 30
 )
 
+// healthRepository defines the interface for health monitoring data access.
+// This interface is satisfied by warehouse/healthmonitor.HealthRepo and enables
+// the GetSyncHealth and GetHealthSummary gRPC RPCs (E-033).
+type healthRepository interface {
+	// GetHealthByUpload retrieves a single sync health record for the given upload ID.
+	GetHealthByUpload(ctx context.Context, uploadID int64) (*healthmonitor.SyncHealth, error)
+	// GetHealthSummary returns an aggregated health summary across all source/destination pairs.
+	GetHealthSummary(ctx context.Context) (*healthmonitor.HealthSummaryResponse, error)
+	// GetHealthBySourceDest returns an aggregated health summary for a specific source-destination pair.
+	GetHealthBySourceDest(ctx context.Context, sourceID, destID string) (*healthmonitor.SourceHealthResponse, error)
+}
+
 type GRPC struct {
 	proto.UnimplementedWarehouseServer
 
@@ -78,6 +91,7 @@ type GRPC struct {
 	uploadRepo         *repo.Uploads
 	triggerStore       *sync.Map
 	fileManagerFactory filemanager.Factory
+	healthRepo         healthRepository // health monitoring repository for E-033 RPCs
 	now                func() time.Time
 
 	config struct {
@@ -103,6 +117,7 @@ func NewGRPCServer(
 	tenantManager *multitenant.Manager,
 	bcManager *bcm.BackendConfigManager,
 	triggerStore *sync.Map,
+	healthRepo healthRepository,
 ) (*GRPC, error) {
 	g := &GRPC{
 		conf:               conf,
@@ -115,6 +130,7 @@ func NewGRPCServer(
 		schemaRepo:         repo.NewWHSchemas(db, conf, logger, repo.WithStats(statsFactory)),
 		triggerStore:       triggerStore,
 		fileManagerFactory: filemanager.New,
+		healthRepo:         healthRepo,
 		now:                timeutil.Now,
 	}
 
@@ -1216,4 +1232,159 @@ func (g *GRPC) GetDestinationNamespaces(ctx context.Context, request *proto.GetD
 	return &proto.GetDestinationNamespacesResponse{
 		NamespaceMappings: protoMappings,
 	}, nil
+}
+
+// GetSyncHealth returns health metrics for a specific upload identified by its upload ID.
+// Part of E-033 Warehouse Health Monitoring Enhancement.
+func (g *GRPC) GetSyncHealth(ctx context.Context, request *proto.GetSyncHealthRequest) (*proto.GetSyncHealthResponse, error) {
+	log := g.logger.Withn(
+		logger.NewIntField(lf.UploadJobID, request.GetUploadId()),
+	)
+	log.Infon("Getting sync health")
+
+	// Validate input: upload_id must be a positive integer.
+	if request.GetUploadId() < 1 {
+		return &proto.GetSyncHealthResponse{},
+			status.Error(codes.Code(code.Code_INVALID_ARGUMENT), "upload_id must be greater than 0")
+	}
+
+	// Health monitoring may be disabled; in that case the repository is not injected.
+	if g.healthRepo == nil {
+		return &proto.GetSyncHealthResponse{},
+			status.Error(codes.Code(code.Code_UNAVAILABLE), "health monitoring is not enabled")
+	}
+
+	// Query health data for the specified upload.
+	health, err := g.healthRepo.GetHealthByUpload(ctx, request.GetUploadId())
+	if err != nil {
+		log.Warnn("unable to get sync health", obskit.Error(err))
+		if errors.Is(err, healthmonitor.ErrHealthNotFound) {
+			return &proto.GetSyncHealthResponse{},
+				status.Errorf(codes.Code(code.Code_NOT_FOUND), "no health data found for upload %d", request.GetUploadId())
+		}
+		return &proto.GetSyncHealthResponse{},
+			status.Errorf(codes.Code(code.Code_INTERNAL), "unable to get sync health: %v", err)
+	}
+	if health == nil {
+		return &proto.GetSyncHealthResponse{},
+			status.Errorf(codes.Code(code.Code_NOT_FOUND), "no health data found for upload %d", request.GetUploadId())
+	}
+
+	// Map healthmonitor.SyncHealth fields to proto.GetSyncHealthResponse.
+	return &proto.GetSyncHealthResponse{
+		UploadId:      health.UploadID,
+		SourceId:      health.SourceID,
+		DestinationId: health.DestinationID,
+		Status:        health.Status,
+		DurationMs:    health.DurationMs,
+		RowsSynced:    health.RowsSynced,
+		RowsFailed:    health.RowsFailed,
+		ErrorCategory: health.ErrorCategory,
+		CreatedAt:     timestamppb.New(health.CreatedAt),
+	}, nil
+}
+
+// GetHealthSummary returns aggregate health metrics for all source/destination pairs
+// within the specified workspace. Part of E-033 Warehouse Health Monitoring Enhancement.
+func (g *GRPC) GetHealthSummary(ctx context.Context, request *proto.GetHealthSummaryRequest) (*proto.GetHealthSummaryResponse, error) {
+	log := g.logger.Withn(
+		obskit.WorkspaceID(request.GetWorkspaceId()),
+	)
+	log.Infon("Getting health summary")
+
+	// Validate input: workspace_id is required.
+	if request.GetWorkspaceId() == "" {
+		return &proto.GetHealthSummaryResponse{},
+			status.Error(codes.Code(code.Code_INVALID_ARGUMENT), "workspace_id cannot be empty")
+	}
+
+	// Health monitoring may be disabled; in that case the repository is not injected.
+	if g.healthRepo == nil {
+		return &proto.GetHealthSummaryResponse{},
+			status.Error(codes.Code(code.Code_UNAVAILABLE), "health monitoring is not enabled")
+	}
+
+	// Verify workspace access: the workspace must have at least one source.
+	sourceIDs := g.bcManager.SourceIDsByWorkspace()[request.GetWorkspaceId()]
+	if len(sourceIDs) == 0 {
+		return &proto.GetHealthSummaryResponse{},
+			status.Errorf(codes.Code(code.Code_UNAUTHENTICATED), "no sources found for workspace: %v", request.GetWorkspaceId())
+	}
+
+	// Query the aggregated health summary from the repository.
+	summary, err := g.healthRepo.GetHealthSummary(ctx)
+	if err != nil {
+		log.Warnn("unable to get health summary", obskit.Error(err))
+		return &proto.GetHealthSummaryResponse{},
+			status.Errorf(codes.Code(code.Code_INTERNAL), "unable to get health summary: %v", err)
+	}
+
+	// Convert to proto response, filtering to only sources belonging to the workspace.
+	sourceIDSet := make(map[string]struct{}, len(sourceIDs))
+	for _, sid := range sourceIDs {
+		sourceIDSet[sid] = struct{}{}
+	}
+
+	return convertHealthSummaryToProto(summary, sourceIDSet), nil
+}
+
+// convertHealthSummaryToProto maps the healthmonitor HealthSummaryResponse
+// to the proto GetHealthSummaryResponse, filtering sources by the provided set.
+func convertHealthSummaryToProto(summary *healthmonitor.HealthSummaryResponse, allowedSourceIDs map[string]struct{}) *proto.GetHealthSummaryResponse {
+	if summary == nil {
+		return &proto.GetHealthSummaryResponse{}
+	}
+
+	var sources []*proto.SourceHealth
+	for _, src := range summary.Sources {
+		// Filter: only include sources belonging to the authenticated workspace.
+		if _, ok := allowedSourceIDs[src.SourceID]; !ok {
+			continue
+		}
+
+		var dests []*proto.DestinationHealth
+		for _, dest := range src.Destinations {
+			var lastSync *timestamppb.Timestamp
+			if dest.LastSync != "" {
+				if t, parseErr := time.Parse(time.RFC3339, dest.LastSync); parseErr == nil {
+					lastSync = timestamppb.New(t)
+				}
+			}
+
+			dests = append(dests, &proto.DestinationHealth{
+				DestinationId:  dest.DestID,
+				DestType:       dest.DestType,
+				Status:         deriveHealthStatus(dest.ErrorRate),
+				SyncDurationMs: dest.SyncDuration.Avg,
+				RowsSynced:     dest.RowsSynced,
+				ErrorRate:      dest.ErrorRate,
+				LastSync:       lastSync,
+			})
+		}
+
+		sources = append(sources, &proto.SourceHealth{
+			SourceId:     src.SourceID,
+			Destinations: dests,
+		})
+	}
+
+	return &proto.GetHealthSummaryResponse{
+		Sources: sources,
+	}
+}
+
+// deriveHealthStatus returns a human-readable health status string based on the
+// error rate for a source-destination pair.
+// - "healthy": no errors (errorRate == 0)
+// - "degraded": some errors but below critical threshold (0 < errorRate < 0.1)
+// - "unhealthy": critical error rate (errorRate >= 0.1)
+func deriveHealthStatus(errorRate float64) string {
+	switch {
+	case errorRate <= 0:
+		return string(healthmonitor.HealthStatusHealthy)
+	case errorRate < 0.1:
+		return string(healthmonitor.HealthStatusDegraded)
+	default:
+		return string(healthmonitor.HealthStatusUnhealthy)
+	}
 }

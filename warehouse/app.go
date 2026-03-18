@@ -189,6 +189,7 @@ func (a *App) Setup(ctx context.Context) error {
 		a.tenantManager,
 		a.bcManager,
 		a.triggerStore,
+		nil, // healthRepo: will be injected when health monitoring is fully wired (E-033)
 	)
 	if err != nil {
 		return fmt.Errorf("cannot create grpc server: %w", err)
