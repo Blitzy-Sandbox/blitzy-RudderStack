@@ -23,6 +23,14 @@ service Warehouse {
   rpc GetSyncLatency(SyncLatencyRequest) returns (SyncLatencyResponse);
   rpc SyncWHSchema(SyncWHSchemaRequest) returns (google.protobuf.Empty);
   rpc GetDestinationNamespaces(GetDestinationNamespacesRequest) returns (GetDestinationNamespacesResponse);
+
+  // E-032: Backfill RPCs
+  rpc TriggerBackfill(TriggerBackfillRequest) returns (TriggerBackfillResponse);
+  rpc GetBackfillStatus(GetBackfillStatusRequest) returns (GetBackfillStatusResponse);
+
+  // E-033: Health Monitoring RPCs
+  rpc GetSyncHealth(GetSyncHealthRequest) returns (GetSyncHealthResponse);
+  rpc GetHealthSummary(GetHealthSummaryRequest) returns (GetHealthSummaryResponse);
 }
 
 message Pagination {
@@ -210,4 +218,74 @@ message GetDestinationNamespacesResponse {
 message NamespaceMapping {
   string source_id = 1;
   string namespace = 2;
+}
+
+// E-032: Backfill messages
+message TriggerBackfillRequest {
+  string source_id = 1;
+  string destination_id = 2;
+  string workspace_id = 3;
+  google.protobuf.Timestamp start_date = 4;
+  google.protobuf.Timestamp end_date = 5;
+}
+
+message TriggerBackfillResponse {
+  int64 job_id = 1;
+  string status = 2;
+}
+
+message GetBackfillStatusRequest {
+  int64 job_id = 1;
+  string workspace_id = 2;
+}
+
+message GetBackfillStatusResponse {
+  int64 job_id = 1;
+  string source_id = 2;
+  string destination_id = 3;
+  string status = 4;
+  google.protobuf.Timestamp start_date = 5;
+  google.protobuf.Timestamp end_date = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// E-033: Health Monitoring messages
+message GetSyncHealthRequest {
+  int64 upload_id = 1;
+}
+
+message GetSyncHealthResponse {
+  int64 upload_id = 1;
+  string source_id = 2;
+  string destination_id = 3;
+  string status = 4;
+  int64 duration_ms = 5;
+  int64 rows_synced = 6;
+  int64 rows_failed = 7;
+  string error_category = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message GetHealthSummaryRequest {
+  string workspace_id = 1;
+}
+
+message SourceHealth {
+  string source_id = 1;
+  repeated DestinationHealth destinations = 2;
+}
+
+message DestinationHealth {
+  string destination_id = 1;
+  string dest_type = 2;
+  string status = 3;
+  int64 sync_duration_ms = 4;
+  int64 rows_synced = 5;
+  double error_rate = 6;
+  google.protobuf.Timestamp last_sync = 7;
+}
+
+message GetHealthSummaryResponse {
+  repeated SourceHealth sources = 1;
 }
