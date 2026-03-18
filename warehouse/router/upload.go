@@ -55,6 +55,21 @@ const (
 
 type tableNameT string
 
+// selectiveSyncChecker provides table/column exclusion predicates for selective sync (E-034).
+// Implemented by selectivesync.SelectiveSyncService — defined locally to avoid import cycles.
+type selectiveSyncChecker interface {
+	IsTableExcluded(sourceID, destID, table string) bool
+	IsColumnExcluded(sourceID, destID, table, column string) bool
+}
+
+// syncHealthRecorder records sync health entries for the health monitoring system (E-033).
+// Implemented by healthmonitor.HealthMonitor — defined locally to avoid import cycles.
+// The health parameter is typed as interface{} to prevent a direct dependency on the
+// healthmonitor package; concrete callers pass *healthmonitor.SyncHealth.
+type syncHealthRecorder interface {
+	RecordSyncHealth(ctx context.Context, health interface{}) error
+}
+
 type UploadJobFactory struct {
 	reporting            types.Reporting
 	db                   *sqlquerywrapper.DB
@@ -64,6 +79,12 @@ type UploadJobFactory struct {
 	logger               logger.Logger
 	statsFactory         stats.Stats
 	encodingFactory      *encoding.Factory
+
+	// Selective sync (E-034) — propagated to every UploadJob
+	selectiveSyncSvc selectiveSyncChecker
+
+	// Health monitoring (E-033) — propagated to every UploadJob
+	healthMonitor syncHealthRecorder
 }
 
 type loadFilesRepo interface {
@@ -101,6 +122,12 @@ type UploadJob struct {
 	stagingFiles []*model.StagingFile
 	alertSender  alerta.AlertSender
 	now          func() time.Time
+
+	// Selective sync (E-034) — table/column exclusion predicates
+	selectiveSyncSvc selectiveSyncChecker
+
+	// Health monitoring (E-033) — sync health recording
+	healthMonitor syncHealthRecorder
 
 	pendingTableUploads      []model.PendingTableUpload
 	pendingTableUploadsRepo  pendingTableUploadsRepo
@@ -191,6 +218,8 @@ func (f *UploadJobFactory) NewUploadJob(ctx context.Context, dto *model.UploadJo
 		upload:               dto.Upload,
 		warehouse:            dto.Warehouse,
 		stagingFiles:         dto.StagingFiles,
+		selectiveSyncSvc:     f.selectiveSyncSvc, // E-034: propagate selective sync predicates
+		healthMonitor:        f.healthMonitor,     // E-033: propagate health monitor
 
 		pendingTableUploadsRepo: repo.NewUploads(f.db, repo.WithStats(f.statsFactory)),
 		pendingTableUploads:     []model.PendingTableUpload{},
