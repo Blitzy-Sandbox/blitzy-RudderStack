@@ -1940,7 +1940,7 @@ func (x *NamespaceMapping) GetNamespace() string {
 	return ""
 }
 
-// E-032: Backfill messages
+// E-032: Backfill Messages
 type TriggerBackfillRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -2233,7 +2233,7 @@ func (x *GetBackfillStatusResponse) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// E-033: Health Monitoring messages
+// E-033: Health Monitoring Messages
 type GetSyncHealthRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

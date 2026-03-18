@@ -220,7 +220,7 @@ message NamespaceMapping {
   string namespace = 2;
 }
 
-// E-032: Backfill messages
+// E-032: Backfill Messages
 message TriggerBackfillRequest {
   string source_id = 1;
   string destination_id = 2;
@@ -250,7 +250,7 @@ message GetBackfillStatusResponse {
   google.protobuf.Timestamp updated_at = 8;
 }
 
-// E-033: Health Monitoring messages
+// E-033: Health Monitoring Messages
 message GetSyncHealthRequest {
   int64 upload_id = 1;
 }
