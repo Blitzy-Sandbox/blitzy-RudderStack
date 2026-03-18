@@ -22,6 +22,12 @@ import (
 	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
 )
 
+// maxVarcharLength is the maximum allowable length for string identifier fields
+// (source_id, destination_id, workspace_id) that map to VARCHAR(64) columns in
+// the wh_backfill_jobs table. Pre-validating at the HTTP layer prevents
+// PostgreSQL constraint violation errors from surfacing as generic 500 errors.
+const maxVarcharLength = 64
+
 // BackfillTrigger defines the service interface that the HTTP handler depends on.
 // It decouples the handler from the concrete BackfillService, enabling straightforward
 // mock-based unit testing following established warehouse patterns.
@@ -81,6 +87,23 @@ func (h *Handler) TriggerBackfill(w http.ResponseWriter, r *http.Request) {
 		h.writeErrorResponse(w, http.StatusBadRequest, "destination_id is required")
 		return
 	}
+
+	// Validate field lengths to prevent PostgreSQL VARCHAR(64) overflow errors
+	// at the database layer (wh_backfill_jobs table columns are VARCHAR(64)).
+	// This returns a user-friendly 400 error instead of a generic 500.
+	if len(req.SourceID) > maxVarcharLength {
+		h.writeErrorResponse(w, http.StatusBadRequest, "source_id exceeds maximum length of 64 characters")
+		return
+	}
+	if len(req.DestinationID) > maxVarcharLength {
+		h.writeErrorResponse(w, http.StatusBadRequest, "destination_id exceeds maximum length of 64 characters")
+		return
+	}
+	if len(req.WorkspaceID) > maxVarcharLength {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspace_id exceeds maximum length of 64 characters")
+		return
+	}
+
 	if req.StartDate.IsZero() {
 		h.writeErrorResponse(w, http.StatusBadRequest, "start_date is required")
 		return

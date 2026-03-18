@@ -280,16 +280,20 @@ func (h *ReplayHandler) Trigger(ctx context.Context, req ReplayRequest) (*Replay
 		return nil, ErrReplayDisabled
 	}
 
-	// 1a. Validate that the gateway client is configured. The GatewayClient may be nil
-	// when the replay handler is instantiated during Setup() before the gateway is available.
-	// This guard prevents a nil pointer panic when executeReplay() calls gateway.SendReplayBatch().
-	if h.gateway == nil {
-		return nil, errors.New("replay gateway client not configured")
-	}
-
-	// 2. Validate request fields (source_id, destination_id, time range).
+	// 2. Validate request fields (source_id, destination_id, time range) BEFORE
+	// checking infrastructure dependencies. This ensures invalid requests always
+	// receive a proper 400 response with field-level details, even when the
+	// gateway client is not yet available (e.g., during application startup).
 	if err := req.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid replay request: %w", err)
+	}
+
+	// 2a. Validate that the gateway client is configured. The GatewayClient may be nil
+	// when the replay handler is instantiated during Setup() before the gateway is available.
+	// This guard prevents a nil pointer panic when executeReplay() calls gateway.SendReplayBatch().
+	// Returns the sentinel ErrGatewayNotConfigured, mapped to HTTP 503 by mapServiceError().
+	if h.gateway == nil {
+		return nil, ErrGatewayNotConfigured
 	}
 
 	// 3. Check concurrent replay limit to prevent resource exhaustion.
@@ -594,10 +598,11 @@ func writeJSONResp(w http.ResponseWriter, statusCode int, data any) {
 // both ReplayHandler and Handler HTTP methods.
 //
 // Error mapping:
-//   - ErrReplayDisabled       → 403 Forbidden
+//   - ErrReplayDisabled        → 403 Forbidden
 //   - ErrConcurrentLimitReached → 429 Too Many Requests
-//   - ErrInvalidReplayRequest → 400 Bad Request
-//   - Other errors            → 500 Internal Server Error
+//   - ErrInvalidReplayRequest  → 400 Bad Request
+//   - ErrGatewayNotConfigured  → 503 Service Unavailable
+//   - Other errors             → 500 Internal Server Error
 func mapServiceError(w http.ResponseWriter, log logger.Logger, err error) {
 	switch {
 	case errors.Is(err, ErrReplayDisabled):
@@ -606,6 +611,8 @@ func mapServiceError(w http.ResponseWriter, log logger.Logger, err error) {
 		writeErrorResp(w, http.StatusTooManyRequests, err.Error())
 	case errors.Is(err, ErrInvalidReplayRequest):
 		writeErrorResp(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, ErrGatewayNotConfigured):
+		writeErrorResp(w, http.StatusServiceUnavailable, err.Error())
 	default:
 		log.Errorn("replay trigger failed", obskit.Error(err))
 		writeErrorResp(w, http.StatusInternalServerError, "internal server error")

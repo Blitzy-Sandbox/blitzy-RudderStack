@@ -65,6 +65,11 @@ var (
 	// ErrInvalidReplayRequest is returned for invalid replay request parameters.
 	// It is wrapped with specific field-level details via fmt.Errorf in Validate().
 	ErrInvalidReplayRequest = errors.New("invalid replay request")
+
+	// ErrGatewayNotConfigured is returned when the replay handler's GatewayClient
+	// dependency is nil. This occurs when the gateway is not yet available during
+	// application startup. Mapped to HTTP 503 Service Unavailable in the handler.
+	ErrGatewayNotConfigured = errors.New("replay gateway client not configured")
 )
 
 // ReplayRequest is the DTO for triggering a warehouse replay via the HTTP API.
