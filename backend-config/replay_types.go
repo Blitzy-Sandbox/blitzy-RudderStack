@@ -27,7 +27,14 @@ func (c *ConfigT) ApplyReplaySources() {
 			newSource.OriginalID = s.ID
 			newSource.WriteKey = id
 			newSource.Config = jsonparser.Delete(s.Config, "eventUpload") // no event uploads for replay sources for now
-			newSource.Destinations = nil                                  // destinations are added later
+			if replay.WarehouseOnly {
+				// Inject warehouse-only routing flag into the source config so the Processor
+				// can detect it and route events exclusively to warehouse destinations.
+				if cfg, err := jsonparser.Set(newSource.Config, []byte("true"), "warehouseOnly"); err == nil {
+					newSource.Config = cfg
+				}
+			}
+			newSource.Destinations = nil // destinations are added later
 			return &newSource
 		}), []*SourceT{nil})
 		destinations := lo.OmitByValues(lo.MapValues(replay.Destinations, func(value EventReplayDestination, id string) *DestinationT {
@@ -62,9 +69,10 @@ func (c *ConfigT) ApplyReplaySources() {
 }
 
 type EventReplayConfig struct {
-	Sources      map[string]EventReplaySource      `json:"sources"`
-	Destinations map[string]EventReplayDestination `json:"destinations"`
-	Connections  []EventReplayConnection           `json:"connections"`
+	Sources       map[string]EventReplaySource      `json:"sources"`
+	Destinations  map[string]EventReplayDestination `json:"destinations"`
+	Connections   []EventReplayConnection           `json:"connections"`
+	WarehouseOnly bool                              `json:"warehouseOnly"`
 }
 
 type EventReplaySource struct {
