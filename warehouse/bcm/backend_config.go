@@ -26,6 +26,19 @@ import (
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
 
+// selectiveSyncConfigEntry holds the parsed selective sync configuration
+// for a specific source+destination pair. This is an internal representation
+// parsed from destination.Config["selectiveSync"].
+type selectiveSyncConfigEntry struct {
+	// excludedTables is a list of table names to exclude from warehouse sync.
+	// An empty list means all tables are included.
+	excludedTables []string
+
+	// excludedColumns is a map of table name -> list of column names to exclude.
+	// An empty map means all columns are included for all tables.
+	excludedColumns map[string][]string
+}
+
 func New(
 	c *config.Config,
 	db *sqlquerywrapper.DB,
@@ -47,6 +60,7 @@ func New(
 		stats:                stats,
 		InitialConfigFetched: make(chan struct{}),
 		connectionsMap:       make(map[string]map[string]model.Warehouse),
+		selectiveSyncConfigs: make(map[string]selectiveSyncConfigEntry),
 	}
 	if c.GetBool("ENABLE_TUNNELLING", true) {
 		bcm.internalControlPlaneClient = cpclient.NewInternalClientWithCache(
@@ -84,6 +98,9 @@ type BackendConfigManager struct {
 
 	sourceIDsByWorkspace   map[string][]string // workspaceID -> []sourceIDs
 	sourceIDsByWorkspaceMu sync.RWMutex
+
+	selectiveSyncConfigs   map[string]selectiveSyncConfigEntry // "sourceID:destID" -> parsed config
+	selectiveSyncConfigsMu sync.RWMutex
 }
 
 func (bcm *BackendConfigManager) Start(ctx context.Context) {
@@ -142,6 +159,7 @@ func (bcm *BackendConfigManager) processData(ctx context.Context, data map[strin
 		warehouses           []model.Warehouse
 		sourceIDsByWorkspace = make(map[string][]string)
 		connectionsMap       = make(map[string]map[string]model.Warehouse)
+		selectiveSyncConfigs = make(map[string]selectiveSyncConfigEntry)
 	)
 
 	for workspaceID, wConfig := range data {
@@ -176,6 +194,12 @@ func (bcm *BackendConfigManager) processData(ctx context.Context, data map[strin
 
 				warehouses = append(warehouses, warehouse)
 
+				// Parse selective sync configuration from destination config (E-034).
+				// Gracefully handle missing selectiveSync block — default to no exclusions.
+				if ssRaw, ok := destination.Config["selectiveSync"].(map[string]any); ok {
+					selectiveSyncConfigs[source.ID+":"+destination.ID] = parseSelectiveSyncConfig(ssRaw)
+				}
+
 				if _, ok := connectionsMap[destination.ID]; !ok {
 					connectionsMap[destination.ID] = make(map[string]model.Warehouse)
 				}
@@ -208,6 +232,10 @@ func (bcm *BackendConfigManager) processData(ctx context.Context, data map[strin
 	bcm.sourceIDsByWorkspaceMu.Lock()
 	bcm.sourceIDsByWorkspace = sourceIDsByWorkspace
 	bcm.sourceIDsByWorkspaceMu.Unlock()
+
+	bcm.selectiveSyncConfigsMu.Lock()
+	bcm.selectiveSyncConfigs = selectiveSyncConfigs
+	bcm.selectiveSyncConfigsMu.Unlock()
 
 	bcm.subscriptionsMu.Lock()
 	for _, sub := range bcm.subscriptions {
@@ -308,6 +336,24 @@ func (bcm *BackendConfigManager) WarehousesByDestID(destID string) []model.Wareh
 	})
 }
 
+// SelectiveSyncConfig retrieves the parsed selective sync configuration for a
+// specific source and destination pair. Returns the lists of excluded tables and
+// excluded columns, along with a boolean indicating whether a selective sync
+// configuration was found.
+//
+// When ok is false, no selective sync configuration exists for this pair,
+// meaning all tables and columns should be included in sync (default behavior).
+func (bcm *BackendConfigManager) SelectiveSyncConfig(sourceID, destID string) (excludedTables []string, excludedColumns map[string][]string, ok bool) {
+	bcm.selectiveSyncConfigsMu.RLock()
+	defer bcm.selectiveSyncConfigsMu.RUnlock()
+
+	cfg, found := bcm.selectiveSyncConfigs[sourceID+":"+destID]
+	if !found {
+		return nil, nil, false
+	}
+	return cfg.excludedTables, cfg.excludedColumns, true
+}
+
 func (bcm *BackendConfigManager) attachSSHTunnellingInfo(
 	ctx context.Context,
 	upstream backendconfig.DestinationT,
@@ -349,6 +395,50 @@ func deepCopy(src, dest any) error {
 		return err
 	}
 	return jsonrs.Unmarshal(buf, dest)
+}
+
+// parseSelectiveSyncConfig extracts selective sync configuration from a raw
+// destination config map. It handles type assertions defensively, skipping
+// any entries that don't match expected types.
+//
+// Expected structure:
+//
+//	{
+//	  "tables": ["excluded_table_1", "excluded_table_2"],
+//	  "columns": {
+//	    "table_name": ["excluded_col_1", "excluded_col_2"]
+//	  }
+//	}
+func parseSelectiveSyncConfig(ssConfig map[string]any) selectiveSyncConfigEntry {
+	var entry selectiveSyncConfigEntry
+
+	// Parse excluded tables list
+	if tables, ok := ssConfig["tables"].([]any); ok {
+		entry.excludedTables = make([]string, 0, len(tables))
+		for _, t := range tables {
+			if s, ok := t.(string); ok {
+				entry.excludedTables = append(entry.excludedTables, s)
+			}
+		}
+	}
+
+	// Parse excluded columns map (table -> []column)
+	if columns, ok := ssConfig["columns"].(map[string]any); ok {
+		entry.excludedColumns = make(map[string][]string, len(columns))
+		for table, cols := range columns {
+			if colList, ok := cols.([]any); ok {
+				colStrings := make([]string, 0, len(colList))
+				for _, c := range colList {
+					if s, ok := c.(string); ok {
+						colStrings = append(colStrings, s)
+					}
+				}
+				entry.excludedColumns[table] = colStrings
+			}
+		}
+	}
+
+	return entry
 }
 
 func (bcm *BackendConfigManager) persistSSLFileErrorStat(
