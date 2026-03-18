@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -34,8 +35,10 @@ func (gw *Handle) webReplayHandler() http.HandlerFunc {
 // (including context) flows into the job payload stored in JobsDB and processed by the Processor.
 func (gw *Handle) withWarehouseReplayTag(delegate http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Only intercept when the warehouse replay header is present and set to "true"
-		if r.Header.Get("X-Warehouse-Replay") != "true" {
+		// Only intercept when the warehouse replay header is present and set to "true".
+		// Use case-insensitive comparison per RFC 7230: HTTP header values for boolean
+		// flags should be handled case-insensitively to accept "true", "True", "TRUE", etc.
+		if !strings.EqualFold(r.Header.Get("X-Warehouse-Replay"), "true") {
 			delegate.ServeHTTP(w, r)
 			return
 		}
