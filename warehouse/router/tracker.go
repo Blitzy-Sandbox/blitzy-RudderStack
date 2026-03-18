@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
@@ -72,6 +73,16 @@ func (r *Router) trackSync(ctx context.Context, warehouse *model.Warehouse) erro
 	}
 
 	r.recordUploadMissingMetric(warehouse, exists)
+
+	// Health alerting (E-033): emit health-related stats for the health monitor.
+	// Retrieve the actual upload status when a terminal-state upload exists so that
+	// recordHealthAlertMetrics can distinguish success from failure states.
+	var uploadStatus string
+	if exists {
+		uploadStatus = r.getLatestUploadStatusForHealth(ctx, warehouse, createdAt)
+	}
+	r.recordHealthAlertMetrics(*warehouse, exists, uploadStatus)
+
 	return nil
 }
 
@@ -169,5 +180,62 @@ func (r *Router) recordUploadMissingMetric(warehouse *model.Warehouse, exists bo
 		metric.Gauge(0)
 	} else {
 		metric.Gauge(1)
+	}
+}
+
+// getLatestUploadStatusForHealth retrieves the actual upload status string for health alerting.
+// It queries for the most recent terminal-state upload matching the same criteria as checkUploadStatus,
+// returning the status string so that recordHealthAlertMetrics can distinguish between success (ExportedData)
+// and failure (Aborted, *_failed) states.
+func (r *Router) getLatestUploadStatusForHealth(ctx context.Context, warehouse *model.Warehouse, createdAt time.Time) string {
+	query := `
+		SELECT status
+		FROM ` + whutils.WarehouseUploadsTable + `
+		WHERE source_id = $1 AND destination_id = $2 AND
+			  (status = $3 OR status = $4 OR status LIKE $5) AND
+			  updated_at > $6
+		ORDER BY updated_at DESC
+		LIMIT 1;`
+	queryArgs := []any{
+		warehouse.Source.ID,
+		warehouse.Destination.ID,
+		model.ExportedData,
+		model.Aborted,
+		"%_failed",
+		createdAt.Format(misc.RFC3339Milli),
+	}
+
+	var status string
+	if err := r.db.QueryRowContext(ctx, query, queryArgs...).Scan(&status); err != nil {
+		return ""
+	}
+	return status
+}
+
+// recordHealthAlertMetrics emits health alerting stats for the health monitor (E-033).
+// Called alongside the existing upload missing metric to provide richer monitoring data
+// for the warehouse health monitoring subsystem. Uses the standard tag set consistent
+// with upload_stats.go: module, sourceID, destID, destType, sourceType.
+func (r *Router) recordHealthAlertMetrics(warehouse model.Warehouse, hasUpload bool, uploadStatus string) {
+	tags := stats.Tags{
+		"module":     moduleName,
+		"sourceID":   warehouse.Source.ID,
+		"destID":     warehouse.Destination.ID,
+		"destType":   r.destType,
+		"sourceType": warehouse.Source.SourceDefinition.Name,
+	}
+
+	// Emit failed sync alert counter when the upload reached a failure terminal state
+	if hasUpload && (strings.HasSuffix(uploadStatus, "_failed") || uploadStatus == model.Aborted) {
+		r.statsFactory.NewTaggedStat("warehouse_health_sync_failed", stats.CountType, tags).Increment()
+	}
+
+	// Emit upload missing alert gauge for health monitor consumption.
+	// This parallels the existing warehouse_track_upload_missing metric but uses
+	// the health monitor's metric namespace and tag set for dashboard integration.
+	if !hasUpload {
+		r.statsFactory.NewTaggedStat("warehouse_health_upload_missing", stats.GaugeType, tags).Gauge(1)
+	} else {
+		r.statsFactory.NewTaggedStat("warehouse_health_upload_missing", stats.GaugeType, tags).Gauge(0)
 	}
 }
