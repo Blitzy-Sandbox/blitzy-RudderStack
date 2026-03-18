@@ -136,6 +136,16 @@ func (job *UploadJob) identityMappingsTableName() string {
 	return whutils.ToProviderCase(job.warehouse.Type, whutils.IdentityMappingsTable)
 }
 
+// isTableExcludedBySelectiveSync returns true if the table is excluded by selective sync (E-034).
+// Returns false if selective sync is not configured, ensuring backward compatibility with existing
+// warehouse configurations that do not use selective sync.
+func (job *UploadJob) isTableExcludedBySelectiveSync(tableName string) bool {
+	if job.selectiveSyncSvc == nil {
+		return false
+	}
+	return job.selectiveSyncSvc.IsTableExcluded(job.upload.SourceID, job.upload.DestinationID, tableName)
+}
+
 func (job *UploadJob) TablesToSkip() (map[string]model.PendingTableUpload, map[string]model.PendingTableUpload, error) {
 	job.pendingTableUploadsOnce.Do(func() {
 		job.pendingTableUploads, job.pendingTableUploadsError = job.pendingTableUploadsRepo.PendingTableUploads(
@@ -191,6 +201,16 @@ func (job *UploadJob) getLoadFilesTableMap() (loadFilesMap map[tableNameT]bool, 
 func (job *UploadJob) exportUserTables(loadFilesTableMap map[tableNameT]bool) (err error) {
 	uploadSchema := job.upload.UploadSchema
 	if _, ok := uploadSchema[job.identifiesTableName()]; ok {
+		// Skip user tables excluded by selective sync (E-034).
+		// User tables (identifies + users) are loaded as a pair, so if the identifies
+		// table is excluded, the entire user table export is skipped.
+		if job.isTableExcludedBySelectiveSync(job.identifiesTableName()) {
+			job.logger.Debugn("selective sync: excluding user tables from export",
+				logger.NewStringField("table", job.identifiesTableName()),
+			)
+			return nil
+		}
+
 		defer job.stats.userTablesLoadTime.RecordDuration()()
 		var loadErrors []error
 		loadErrors, err = job.loadUserTables(loadFilesTableMap)
@@ -457,6 +477,11 @@ func (job *UploadJob) processLoadTableResponse(errorMap map[string]error) (error
 }
 
 func (job *UploadJob) exportIdentities() (err error) {
+	// Note: Identity tables (identity_merge_rules, identity_mappings) are infrastructure tables
+	// and are NOT subject to selective sync exclusion (E-034). They are always exported
+	// regardless of selective sync configuration, because they underpin identity resolution
+	// across all warehouse destinations.
+
 	// Load Identities if enabled
 	uploadSchema := job.upload.UploadSchema
 	if whutils.IDResolutionEnabled() && slices.Contains(whutils.IdentityEnabledWarehouses, job.warehouse.Type) {
@@ -614,7 +639,21 @@ func (job *UploadJob) exportRegularTables(specialTables []string, loadFilesTable
 	// Export all other tables
 	defer job.stats.otherTablesLoadTime.RecordDuration()()
 
-	loadErrors := job.loadAllTablesExcept(specialTables, loadFilesTableMap)
+	// Build the skip list starting with special tables (user + identity tables).
+	// Append any tables excluded by selective sync (E-034) so they are also skipped
+	// during the parallel load phase.
+	skipTables := make([]string, 0, len(specialTables))
+	skipTables = append(skipTables, specialTables...)
+	for tableName := range job.upload.UploadSchema {
+		if job.isTableExcludedBySelectiveSync(tableName) {
+			skipTables = append(skipTables, tableName)
+			job.logger.Debugn("selective sync: excluding table from export",
+				logger.NewStringField("table", tableName),
+			)
+		}
+	}
+
+	loadErrors := job.loadAllTablesExcept(skipTables, loadFilesTableMap)
 
 	if len(loadErrors) > 0 {
 		err = misc.ConcatErrors(loadErrors)
