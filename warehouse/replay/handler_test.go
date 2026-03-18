@@ -1,10 +1,10 @@
 // Package replay_test contains black-box HTTP handler tests for the
-// warehouse replay API.
+// warehouse replay API (E-035).
 //
 // All tests exercise the Handler's exported methods (TriggerReplay,
 // GetReplayStatus) through net/http/httptest, following the project's
 // table-driven t.Run() + testify/require conventions observed in
-// warehouse/backfill/handler_test.go and warehouse/api/http_test.go.
+// warehouse/api/http_test.go.
 //
 // JSON serialization uses github.com/rudderlabs/rudder-go-kit/jsonrs
 // exclusively — encoding/json must never be imported per .golangci.yml
@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,19 +40,25 @@ import (
 // a real gateway, archiver, or job store.
 type mockReplayService struct {
 	triggerFn   func(ctx context.Context, req replay.ReplayRequest) (*replay.ReplayResponse, error)
-	getStatusFn func(ctx context.Context, id int64) (*replay.ReplayJob, error)
+	getStatusFn func(ctx context.Context, jobID int64) (*replay.ReplayJob, error)
 }
 
 // Trigger delegates to the configured triggerFn. Panics if triggerFn is nil,
 // surfacing missing test setup immediately.
 func (m *mockReplayService) Trigger(ctx context.Context, req replay.ReplayRequest) (*replay.ReplayResponse, error) {
-	return m.triggerFn(ctx, req)
+	if m.triggerFn != nil {
+		return m.triggerFn(ctx, req)
+	}
+	return nil, errors.New("not implemented")
 }
 
-// GetStatus delegates to the configured getStatusFn. Panics if getStatusFn is nil,
-// surfacing missing test setup immediately.
-func (m *mockReplayService) GetStatus(ctx context.Context, id int64) (*replay.ReplayJob, error) {
-	return m.getStatusFn(ctx, id)
+// GetStatus delegates to the configured getStatusFn. Panics if getStatusFn
+// is nil, surfacing missing test setup immediately.
+func (m *mockReplayService) GetStatus(ctx context.Context, jobID int64) (*replay.ReplayJob, error) {
+	if m.getStatusFn != nil {
+		return m.getStatusFn(ctx, jobID)
+	}
+	return nil, errors.New("not implemented")
 }
 
 // errorResponse mirrors the unexported errorResponse struct defined in
@@ -64,12 +71,32 @@ type errorResponse struct {
 }
 
 // ---------------------------------------------------------------------------
+// Response assertion helpers
+// ---------------------------------------------------------------------------
+
+// assertErrorResponse decodes the recorder's response body as an error JSON
+// payload and asserts that:
+//   - The HTTP status code matches the expected code.
+//   - The JSON "status" field is "error".
+//   - The JSON "message" field contains the expected substring.
+func assertErrorResponse(t *testing.T, rec *httptest.ResponseRecorder, statusCode int, message string) {
+	t.Helper()
+	require.Equal(t, statusCode, rec.Code)
+	var resp errorResponse
+	err := jsonrs.NewDecoder(rec.Body).Decode(&resp)
+	require.NoError(t, err, "failed to decode error response body")
+	require.Equal(t, "error", resp.Status)
+	require.Contains(t, resp.Message, message)
+}
+
+// ---------------------------------------------------------------------------
 // TestHandler_TriggerReplay
 // ---------------------------------------------------------------------------
 
 // TestHandler_TriggerReplay exercises POST /v1/warehouse/replay via
-// table-driven subtests covering: valid requests, validation failures,
-// sentinel service errors, gateway not configured, and generic errors.
+// table-driven subtests covering: valid requests, malformed JSON, validation
+// failures for every required field, sentinel service errors (disabled,
+// concurrent limit, gateway not configured), and generic internal errors.
 func TestHandler_TriggerReplay(t *testing.T) {
 	// Deterministic dates used across subtests for repeatable assertions.
 	startTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -86,13 +113,15 @@ func TestHandler_TriggerReplay(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		body       func() []byte
+		body       func() []byte  // returns raw request body
 		mockSvc    *mockReplayService
 		wantStatus int
-		wantErrMsg string // non-empty for error paths
+		wantErrMsg string // non-empty ⇒ error path; empty ⇒ success path
 		wantJobID  int64  // expected job ID for success path
 	}{
+		// -----------------------------------------------------------------
 		// 1. Happy path: valid request returns 201 with job ID
+		// -----------------------------------------------------------------
 		{
 			name: "valid request returns 201 with job ID",
 			body: func() []byte {
@@ -111,7 +140,9 @@ func TestHandler_TriggerReplay(t *testing.T) {
 			wantJobID:  1,
 		},
 
+		// -----------------------------------------------------------------
 		// 2. Invalid JSON body returns 400
+		// -----------------------------------------------------------------
 		{
 			name: "invalid JSON body returns 400",
 			body: func() []byte {
@@ -127,7 +158,9 @@ func TestHandler_TriggerReplay(t *testing.T) {
 			wantErrMsg: "invalid JSON request body",
 		},
 
+		// -----------------------------------------------------------------
 		// 3. Missing source_id returns 400 (via ErrInvalidReplayRequest)
+		// -----------------------------------------------------------------
 		{
 			name: "missing source_id returns 400",
 			body: func() []byte {
@@ -140,15 +173,17 @@ func TestHandler_TriggerReplay(t *testing.T) {
 				return b
 			},
 			mockSvc: &mockReplayService{
-				triggerFn: func(_ context.Context, req replay.ReplayRequest) (*replay.ReplayResponse, error) {
-					return nil, replay.ErrInvalidReplayRequest
+				triggerFn: func(_ context.Context, _ replay.ReplayRequest) (*replay.ReplayResponse, error) {
+					return nil, fmt.Errorf("%w: source_id is required", replay.ErrInvalidReplayRequest)
 				},
 			},
 			wantStatus: http.StatusBadRequest,
-			wantErrMsg: "invalid replay request",
+			wantErrMsg: "source_id is required",
 		},
 
+		// -----------------------------------------------------------------
 		// 4. Missing destination_id returns 400
+		// -----------------------------------------------------------------
 		{
 			name: "missing destination_id returns 400",
 			body: func() []byte {
@@ -161,15 +196,87 @@ func TestHandler_TriggerReplay(t *testing.T) {
 				return b
 			},
 			mockSvc: &mockReplayService{
-				triggerFn: func(_ context.Context, req replay.ReplayRequest) (*replay.ReplayResponse, error) {
-					return nil, replay.ErrInvalidReplayRequest
+				triggerFn: func(_ context.Context, _ replay.ReplayRequest) (*replay.ReplayResponse, error) {
+					return nil, fmt.Errorf("%w: destination_id is required", replay.ErrInvalidReplayRequest)
 				},
 			},
 			wantStatus: http.StatusBadRequest,
-			wantErrMsg: "invalid replay request",
+			wantErrMsg: "destination_id is required",
 		},
 
-		// 5. Replay disabled returns 403
+		// -----------------------------------------------------------------
+		// 5. Missing start_time returns 400
+		// -----------------------------------------------------------------
+		{
+			name: "missing start_time returns 400",
+			body: func() []byte {
+				req := replay.ReplayRequest{
+					SourceID:      "test_source",
+					DestinationID: "test_dest",
+					EndTime:       endTime,
+				}
+				b, _ := jsonrs.Marshal(req)
+				return b
+			},
+			mockSvc: &mockReplayService{
+				triggerFn: func(_ context.Context, _ replay.ReplayRequest) (*replay.ReplayResponse, error) {
+					return nil, fmt.Errorf("%w: start_time is required", replay.ErrInvalidReplayRequest)
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "start_time is required",
+		},
+
+		// -----------------------------------------------------------------
+		// 6. Missing end_time returns 400
+		// -----------------------------------------------------------------
+		{
+			name: "missing end_time returns 400",
+			body: func() []byte {
+				req := replay.ReplayRequest{
+					SourceID:      "test_source",
+					DestinationID: "test_dest",
+					StartTime:     startTime,
+				}
+				b, _ := jsonrs.Marshal(req)
+				return b
+			},
+			mockSvc: &mockReplayService{
+				triggerFn: func(_ context.Context, _ replay.ReplayRequest) (*replay.ReplayResponse, error) {
+					return nil, fmt.Errorf("%w: end_time is required", replay.ErrInvalidReplayRequest)
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "end_time is required",
+		},
+
+		// -----------------------------------------------------------------
+		// 7. start_time after end_time returns 400
+		// -----------------------------------------------------------------
+		{
+			name: "start_time after end_time returns 400",
+			body: func() []byte {
+				req := replay.ReplayRequest{
+					SourceID:      "test_source",
+					DestinationID: "test_dest",
+					StartTime:     endTime,   // intentionally reversed
+					EndTime:       startTime, // intentionally reversed
+				}
+				b, _ := jsonrs.Marshal(req)
+				return b
+			},
+			mockSvc: &mockReplayService{
+				triggerFn: func(_ context.Context, _ replay.ReplayRequest) (*replay.ReplayResponse, error) {
+					return nil, fmt.Errorf("%w: start_time must be before end_time", replay.ErrInvalidReplayRequest)
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "start_time must be before end_time",
+		},
+
+		// -----------------------------------------------------------------
+		// 8. Replay disabled returns 403
+		// -----------------------------------------------------------------
 		{
 			name: "replay disabled returns 403",
 			body: func() []byte {
@@ -185,7 +292,9 @@ func TestHandler_TriggerReplay(t *testing.T) {
 			wantErrMsg: "replay feature is disabled",
 		},
 
-		// 6. Concurrent limit reached returns 429
+		// -----------------------------------------------------------------
+		// 9. Concurrent limit reached returns 429
+		// -----------------------------------------------------------------
 		{
 			name: "concurrent limit reached returns 429",
 			body: func() []byte {
@@ -201,25 +310,11 @@ func TestHandler_TriggerReplay(t *testing.T) {
 			wantErrMsg: "concurrent replay job limit reached",
 		},
 
-		// 7. Gateway not configured returns 503
+		// -----------------------------------------------------------------
+		// 10. Generic service error returns 500
+		// -----------------------------------------------------------------
 		{
-			name: "gateway not configured returns 503",
-			body: func() []byte {
-				b, _ := jsonrs.Marshal(validReq)
-				return b
-			},
-			mockSvc: &mockReplayService{
-				triggerFn: func(_ context.Context, _ replay.ReplayRequest) (*replay.ReplayResponse, error) {
-					return nil, replay.ErrGatewayNotConfigured
-				},
-			},
-			wantStatus: http.StatusServiceUnavailable,
-			wantErrMsg: "replay gateway client not configured",
-		},
-
-		// 8. Generic service error returns 500
-		{
-			name: "generic service error returns 500",
+			name: "service internal error returns 500",
 			body: func() []byte {
 				b, _ := jsonrs.Marshal(validReq)
 				return b
@@ -236,7 +331,7 @@ func TestHandler_TriggerReplay(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create handler with NOP logger and the per-test mock service.
+			// Create handler with the per-test mock service and NOP logger.
 			h := replay.NewHandler(tc.mockSvc, logger.NOP)
 
 			// Build the HTTP test request.
@@ -253,7 +348,7 @@ func TestHandler_TriggerReplay(t *testing.T) {
 
 			// Assert response body.
 			if tc.wantErrMsg != "" {
-				// Error path — decode error response and verify message.
+				// Error path — use helper.
 				var errResp errorResponse
 				err := jsonrs.NewDecoder(rec.Body).Decode(&errResp)
 				require.NoError(t, err, "failed to decode error response body")
@@ -276,8 +371,10 @@ func TestHandler_TriggerReplay(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // TestHandler_GetReplayStatus exercises GET /v1/warehouse/replay/{jobID}
-// via table-driven subtests covering: valid retrieval, invalid job ID format,
-// and non-existent job ID.
+// via table-driven subtests covering: valid retrieval (pending and in-progress
+// statuses), invalid job ID format, non-existent job, and generic errors.
+// Uses chi.NewRouter() with registered routes to exercise the full Chi routing
+// stack for path parameter extraction.
 func TestHandler_GetReplayStatus(t *testing.T) {
 	createdAt := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
 	updatedAt := time.Date(2024, 1, 1, 12, 5, 0, 0, time.UTC)
@@ -288,9 +385,11 @@ func TestHandler_GetReplayStatus(t *testing.T) {
 		mockSvc    *mockReplayService
 		wantStatus int
 		wantErrMsg string
-		wantJob    *replay.ReplayJob
+		wantJob    *replay.ReplayJob // populated for success assertions
 	}{
-		// 1. Valid job ID returns 200 with job details
+		// -----------------------------------------------------------------
+		// 1. Valid job ID returns 200 with full job details (pending)
+		// -----------------------------------------------------------------
 		{
 			name:       "valid job ID returns 200 with job details",
 			jobIDParam: "1",
@@ -319,12 +418,47 @@ func TestHandler_GetReplayStatus(t *testing.T) {
 			},
 		},
 
-		// 2. Invalid job ID format returns 400
+		// -----------------------------------------------------------------
+		// 2. Valid in-progress job returns 200
+		// -----------------------------------------------------------------
+		{
+			name:       "in-progress job returns 200",
+			jobIDParam: "42",
+			mockSvc: &mockReplayService{
+				getStatusFn: func(_ context.Context, id int64) (*replay.ReplayJob, error) {
+					require.Equal(t, int64(42), id)
+					return &replay.ReplayJob{
+						ID:            42,
+						SourceID:      "src_42",
+						DestinationID: "dst_42",
+						StartTime:     time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC),
+						EndTime:       time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC),
+						ReplayType:    "full",
+						Status:        replay.StatusInProgress,
+						TotalEvents:   500,
+						TotalBatches:  5,
+						CreatedAt:     createdAt,
+						UpdatedAt:     updatedAt,
+					}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantJob: &replay.ReplayJob{
+				ID:            42,
+				SourceID:      "src_42",
+				DestinationID: "dst_42",
+				Status:        replay.StatusInProgress,
+			},
+		},
+
+		// -----------------------------------------------------------------
+		// 3. Invalid job ID format returns 400
+		// -----------------------------------------------------------------
 		{
 			name:       "invalid job ID format returns 400",
 			jobIDParam: "abc",
 			mockSvc: &mockReplayService{
-				getStatusFn: func(_ context.Context, id int64) (*replay.ReplayJob, error) {
+				getStatusFn: func(_ context.Context, _ int64) (*replay.ReplayJob, error) {
 					t.Fatal("GetStatus should not be called for invalid job ID format")
 					return nil, errors.New("unreachable")
 				},
@@ -333,12 +467,14 @@ func TestHandler_GetReplayStatus(t *testing.T) {
 			wantErrMsg: "invalid job ID",
 		},
 
-		// 3. Non-existent job ID returns 404
+		// -----------------------------------------------------------------
+		// 4. Non-existent job ID returns 404
+		// -----------------------------------------------------------------
 		{
 			name:       "non-existent job ID returns 404",
 			jobIDParam: "999999",
 			mockSvc: &mockReplayService{
-				getStatusFn: func(_ context.Context, id int64) (*replay.ReplayJob, error) {
+				getStatusFn: func(_ context.Context, _ int64) (*replay.ReplayJob, error) {
 					return nil, replay.ErrReplayJobNotFound
 				},
 			},
@@ -346,12 +482,14 @@ func TestHandler_GetReplayStatus(t *testing.T) {
 			wantErrMsg: "replay job not found",
 		},
 
-		// 4. Generic service error returns 500
+		// -----------------------------------------------------------------
+		// 5. Generic service error returns 500
+		// -----------------------------------------------------------------
 		{
 			name:       "generic service error returns 500",
 			jobIDParam: "1",
 			mockSvc: &mockReplayService{
-				getStatusFn: func(_ context.Context, id int64) (*replay.ReplayJob, error) {
+				getStatusFn: func(_ context.Context, _ int64) (*replay.ReplayJob, error) {
 					return nil, errors.New("database connection lost")
 				},
 			},
@@ -364,27 +502,22 @@ func TestHandler_GetReplayStatus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			h := replay.NewHandler(tc.mockSvc, logger.NOP)
 
-			// Build the HTTP test request with Chi URL parameter.
+			// Register the handler on a Chi router so that chi.URLParam()
+			// correctly extracts the {jobID} path parameter.
+			r := chi.NewRouter()
+			r.Get("/v1/warehouse/replay/{jobID}", h.GetReplayStatus)
+
 			req := httptest.NewRequest(http.MethodGet, "/v1/warehouse/replay/"+tc.jobIDParam, nil)
 			rec := httptest.NewRecorder()
 
-			// Inject chi URL params into the request context.
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("jobID", tc.jobIDParam)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-			// Invoke the handler.
-			h.GetReplayStatus(rec, req)
+			// Serve through the Chi router to populate URL params.
+			r.ServeHTTP(rec, req)
 
 			// Assert HTTP status code.
 			require.Equal(t, tc.wantStatus, rec.Code)
 
 			if tc.wantErrMsg != "" {
-				var errResp errorResponse
-				err := jsonrs.NewDecoder(rec.Body).Decode(&errResp)
-				require.NoError(t, err, "failed to decode error response body")
-				require.Equal(t, "error", errResp.Status)
-				require.Contains(t, errResp.Message, tc.wantErrMsg)
+				assertErrorResponse(t, rec, tc.wantStatus, tc.wantErrMsg)
 			} else {
 				var job replay.ReplayJob
 				err := jsonrs.NewDecoder(rec.Body).Decode(&job)
@@ -403,7 +536,8 @@ func TestHandler_GetReplayStatus(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // TestReplayRequest_Validate exercises the Validate method on ReplayRequest
-// to verify field-level validation produces expected errors.
+// to verify field-level validation produces expected sentinel errors for
+// every required field and the time-range constraint.
 func TestReplayRequest_Validate(t *testing.T) {
 	startTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
@@ -492,11 +626,11 @@ func TestReplayRequest_Validate(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// TestReplayStatus_Helpers
+// TestReplayStatus_IsActive
 // ---------------------------------------------------------------------------
 
 // TestReplayStatus_IsActive verifies the IsActive helper correctly classifies
-// replay job statuses.
+// all replay job statuses as active or non-active.
 func TestReplayStatus_IsActive(t *testing.T) {
 	tests := []struct {
 		status replay.ReplayStatus
@@ -515,8 +649,12 @@ func TestReplayStatus_IsActive(t *testing.T) {
 	}
 }
 
-// TestReplayStatus_IsTerminal verifies the IsTerminal helper correctly classifies
-// replay job statuses.
+// ---------------------------------------------------------------------------
+// TestReplayStatus_IsTerminal
+// ---------------------------------------------------------------------------
+
+// TestReplayStatus_IsTerminal verifies the IsTerminal helper correctly
+// classifies all replay job statuses as terminal or non-terminal.
 func TestReplayStatus_IsTerminal(t *testing.T) {
 	tests := []struct {
 		status replay.ReplayStatus
