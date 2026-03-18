@@ -387,6 +387,37 @@ func (sf *StagingFiles) GetForUploadID(ctx context.Context, uploadID int64) ([]*
 	return parseStagingFiles(rows)
 }
 
+// GetByDateRange retrieves staging files within the specified date range for a source and destination.
+// Used by the backfill service (E-032) to find staging files for historical data sync,
+// and by the replay system (E-035) for archived event retrieval.
+func (sf *StagingFiles) GetByDateRange(ctx context.Context, sourceID, destID string, startDate, endDate time.Time) ([]*model.StagingFile, error) {
+	defer sf.TimerStat("get_by_date_range", stats.Tags{
+		"destId": destID,
+	})()
+
+	query := `SELECT ` + stagingTableColumns + ` FROM ` + stagingTableName + `
+	WHERE
+		source_id = $1 AND
+		destination_id = $2 AND
+		first_event_at >= $3 AND
+		last_event_at <= $4
+	ORDER BY id ASC;`
+
+	rows, err := sf.db.QueryContext(ctx, query, sourceID, destID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("querying staging files by date range: %w", err)
+	}
+
+	entries, err := parseStagingFiles(rows)
+	if err != nil {
+		return nil, fmt.Errorf("parsing staging files by date range: %w", err)
+	}
+	if entries == nil {
+		entries = []*model.StagingFile{}
+	}
+	return entries, nil
+}
+
 func (sf *StagingFiles) Pending(ctx context.Context, sourceID, destinationID string) ([]*model.StagingFile, error) {
 	defer sf.TimerStat("pending", stats.Tags{
 		"destId": destinationID,
