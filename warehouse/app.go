@@ -36,13 +36,18 @@ import (
 	whadmin "github.com/rudderlabs/rudder-server/warehouse/admin"
 	"github.com/rudderlabs/rudder-server/warehouse/api"
 	"github.com/rudderlabs/rudder-server/warehouse/archive"
+	"github.com/rudderlabs/rudder-server/warehouse/backfill"
 	"github.com/rudderlabs/rudder-server/warehouse/bcm"
 	"github.com/rudderlabs/rudder-server/warehouse/constraints"
 	"github.com/rudderlabs/rudder-server/warehouse/encoding"
+	"github.com/rudderlabs/rudder-server/warehouse/healthmonitor"
 	"github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/mode"
+	whrepo "github.com/rudderlabs/rudder-server/warehouse/internal/repo"
 	"github.com/rudderlabs/rudder-server/warehouse/multitenant"
+	"github.com/rudderlabs/rudder-server/warehouse/replay"
 	"github.com/rudderlabs/rudder-server/warehouse/router"
+	"github.com/rudderlabs/rudder-server/warehouse/selectivesync"
 	"github.com/rudderlabs/rudder-server/warehouse/slave"
 	"github.com/rudderlabs/rudder-server/warehouse/source"
 	warehouseutils "github.com/rudderlabs/rudder-server/warehouse/utils"
@@ -70,6 +75,15 @@ type App struct {
 	triggerStore       *sync.Map
 	createUploadAlways *atomic.Bool
 
+	// Sprint 7-9 feature subsystems — instantiated in Setup(), started in Run().
+	// These fields are nil-safe: when the corresponding feature is disabled,
+	// the subsystem is still instantiated but its Run() method returns immediately
+	// or its predicates return safe defaults (e.g., include everything for selective sync).
+	backfillService  *backfill.BackfillService        // E-032: Backfill orchestrator
+	healthMonitor    *healthmonitor.HealthMonitor      // E-033: Health monitoring aggregator
+	selectiveSyncSvc *selectivesync.SelectiveSyncService // E-034: Selective sync filter service
+	replayHandler    *replay.ReplayHandler             // E-035: Warehouse replay orchestrator
+
 	appName string
 
 	config struct {
@@ -89,6 +103,88 @@ type App struct {
 		configBackendURL string
 		region           string
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Interface adapters — bridge return-type mismatches between the archive layer
+// and the consumer interfaces declared in the backfill and replay packages.
+// These are lightweight wrappers; each method delegates to the underlying
+// implementation and performs a trivial projection (e.g., extracting IDs).
+// ---------------------------------------------------------------------------
+
+// backfillArchiverAdapter satisfies backfill.ArchiverQuerier by wrapping
+// *archive.Archiver and extracting staging file IDs from the richer
+// StagingFileMetadata structs that the archiver returns.
+type backfillArchiverAdapter struct {
+	archiver *archive.Archiver
+}
+
+func (a *backfillArchiverAdapter) ListArchivedStagingFiles(
+	ctx context.Context,
+	sourceID, destID string,
+	startDate, endDate time.Time,
+) ([]int64, error) {
+	files, err := a.archiver.ListArchivedStagingFiles(ctx, sourceID, destID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, len(files))
+	for i, f := range files {
+		ids[i] = f.ID
+	}
+	return ids, nil
+}
+
+// backfillStagingAdapter satisfies backfill.StagingFileQuerier by wrapping
+// *whrepo.StagingFiles and extracting IDs from the full StagingFile models
+// returned by the repository.
+type backfillStagingAdapter struct {
+	repo *whrepo.StagingFiles
+}
+
+func (a *backfillStagingAdapter) GetByDateRange(
+	ctx context.Context,
+	sourceID, destID string,
+	startDate, endDate time.Time,
+) ([]int64, error) {
+	files, err := a.repo.GetByDateRange(ctx, sourceID, destID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, len(files))
+	for i, f := range files {
+		ids[i] = f.ID
+	}
+	return ids, nil
+}
+
+// replayArchiverAdapter satisfies replay.ArchiverQuerier by wrapping
+// *archive.Archiver and converting archive.ArchivedEventBatch structs
+// to the replay.ArchivedEventBatch type expected by the replay package.
+type replayArchiverAdapter struct {
+	archiver *archive.Archiver
+}
+
+func (a *replayArchiverAdapter) QueryArchivedEvents(
+	ctx context.Context,
+	sourceID string,
+	startTime, endTime time.Time,
+) ([]replay.ArchivedEventBatch, error) {
+	batches, err := a.archiver.QueryArchivedEvents(ctx, sourceID, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]replay.ArchivedEventBatch, len(batches))
+	for i, b := range batches {
+		result[i] = replay.ArchivedEventBatch{
+			SourceID:   b.SourceID,
+			Data:       b.Data,
+			StartTime:  b.StartTime,
+			EndTime:    b.EndTime,
+			EventCount: b.EventCount,
+		}
+	}
+	return result, nil
 }
 
 func New(
@@ -181,6 +277,89 @@ func (a *App) Setup(ctx context.Context) error {
 		a.notifier,
 	)
 
+	// ---------------------------------------------------------------------------
+	// Sprint 7-9: Instantiate new subsystem services
+	// ---------------------------------------------------------------------------
+
+	// E-032: Backfill service — orchestrates historical data sync for date ranges.
+	// A shared Archiver instance provides both the backfill and replay subsystems
+	// access to archived staging files and events. Adapter types bridge the
+	// return-type mismatches between archive.Archiver and the consumer interfaces
+	// (backfill.ArchiverQuerier returns []int64 while archive.Archiver returns
+	// []StagingFileMetadata; similarly for replay).
+	backfillRepo := backfill.NewRepository(a.db)
+	whArchiver := archive.New(
+		a.conf,
+		a.logger,
+		a.statsFactory,
+		a.db,
+		a.fileManagerFactory,
+		a.tenantManager,
+	)
+	stagingFilesRepo := whrepo.NewStagingFiles(a.db, a.conf)
+	a.backfillService = backfill.NewBackfillService(
+		a.conf,
+		a.logger,
+		a.statsFactory,
+		backfillRepo,
+		&backfillArchiverAdapter{archiver: whArchiver},
+		&backfillStagingAdapter{repo: stagingFilesRepo},
+	)
+
+	// E-033: Health monitor — aggregates per-upload metrics, emits Prometheus metrics,
+	// and evaluates alerting thresholds for failure rates, latency spikes, and anomalies.
+	// The HealthRepo is created separately so it can be shared with the gRPC server
+	// and the HTTP health handler, both of which need direct repository access for
+	// their query-only endpoints.
+	healthRepo := healthmonitor.NewHealthRepo(a.db, a.statsFactory)
+	a.healthMonitor = healthmonitor.NewHealthMonitor(
+		a.conf,
+		a.logger,
+		a.statsFactory,
+		a.db,
+	)
+
+	// E-034: Selective sync — per-table and per-column filtering service. Configuration
+	// is loaded from the database via a repository and cached with a configurable TTL.
+	selectiveSyncRepo := selectivesync.NewRepository(a.db)
+	a.selectiveSyncSvc = selectivesync.NewSelectiveSyncService(
+		a.conf,
+		a.logger,
+		selectiveSyncRepo,
+	)
+
+	// E-035: Replay handler — warehouse-targeted replay pipeline coordinating archiver
+	// event retrieval and Gateway injection with X-Warehouse-Replay header.
+	// The replayArchiverAdapter converts archive.ArchivedEventBatch to
+	// replay.ArchivedEventBatch for the retriever interface.
+	replayRetriever := replay.NewArchivedEventRetriever(
+		a.conf,
+		a.logger,
+		a.statsFactory,
+		&replayArchiverAdapter{archiver: whArchiver},
+	)
+	a.replayHandler = replay.NewReplayHandler(
+		ctx,
+		a.conf,
+		a.logger,
+		a.statsFactory,
+		replayRetriever,
+		nil, // GatewayClient: not available during Setup(); replay HTTP handler validates at request time
+	)
+
+	// ---------------------------------------------------------------------------
+	// Sprint 7-9: Create HTTP handlers for API injection
+	// ---------------------------------------------------------------------------
+
+	backfillHTTPHandler := backfill.NewHandler(a.logger, a.backfillService)
+	healthMonitorHTTPHandler := healthmonitor.NewHealthHandler(a.logger, healthRepo)
+	selectiveSyncHTTPHandler := selectivesync.NewHandler(a.logger, a.selectiveSyncSvc)
+	replayHTTPHandler := replay.NewHandler(a.replayHandler, a.logger)
+
+	// ---------------------------------------------------------------------------
+	// gRPC and HTTP API wiring with Sprint 7-9 handlers
+	// ---------------------------------------------------------------------------
+
 	a.grpcServer, err = api.NewGRPCServer(
 		a.conf,
 		a.logger,
@@ -189,7 +368,7 @@ func (a *App) Setup(ctx context.Context) error {
 		a.tenantManager,
 		a.bcManager,
 		a.triggerStore,
-		nil, // healthRepo: will be injected when health monitoring is fully wired (E-033)
+		healthRepo, // E-033: health monitoring repository for gRPC RPCs
 	)
 	if err != nil {
 		return fmt.Errorf("cannot create grpc server: %w", err)
@@ -207,10 +386,10 @@ func (a *App) Setup(ctx context.Context) error {
 		a.bcManager,
 		a.sourcesManager,
 		a.triggerStore,
-		nil, // backfillHandler — wired when backfill feature is enabled (E-032)
-		nil, // healthMonitorHandler — wired when health monitoring is enabled (E-033)
-		nil, // selectiveSyncHandler — wired when selective sync is enabled (E-034)
-		nil, // replayHandler — wired when warehouse replay is enabled (E-035)
+		backfillHTTPHandler,      // E-032: Backfill API handler
+		healthMonitorHTTPHandler, // E-033: Health Monitoring API handler
+		selectiveSyncHTTPHandler, // E-034: Selective Sync API handler
+		replayHTTPHandler,        // E-035: Warehouse Replay API handler
 	)
 	a.admin = whadmin.New(
 		a.bcManager,
@@ -459,6 +638,20 @@ func (a *App) Run(ctx context.Context) error {
 		g.Go(crash.NotifyWarehouse(func() error {
 			return a.sourcesManager.Run(gCtx)
 		}))
+
+		// E-033: Start the health monitor periodic collection loop.
+		// The monitor checks its own enabled flag internally and returns nil
+		// immediately on context cancellation for graceful shutdown.
+		g.Go(crash.NotifyWarehouse(func() error {
+			return a.healthMonitor.Run(gCtx)
+		}))
+
+		// E-032: Start the backfill service background monitor loop.
+		// The service checks its own enabled flag internally and skips
+		// processing when disabled, maintaining backward compatibility.
+		g.Go(crash.NotifyWarehouse(func() error {
+			return a.backfillService.Run(gCtx)
+		}))
 	}
 
 	g.Go(func() error {
@@ -527,6 +720,13 @@ func (a *App) onConfigDataEvent(
 					a.encodingFactory,
 					a.triggerStore,
 					a.createUploadAlways,
+					// Sprint 7-9 functional options — inject E-033 health monitor
+					// and E-034 selective sync service into each Router instance.
+					// The Router propagates these to its UploadJobFactory and all
+					// UploadJob instances for per-upload health recording and
+					// per-table/per-column filtering during load file generation.
+					router.WithSelectiveSyncService(a.selectiveSyncSvc),
+					router.WithHealthMonitor(a.healthMonitor),
 				)
 				dstToWhRouter[destination.DestinationDefinition.Name] = r
 				diffRouters[destination.DestinationDefinition.Name] = r
