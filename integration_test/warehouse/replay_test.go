@@ -42,9 +42,9 @@ const replayTestHTTPTimeout time.Duration = 15 * time.Second
 type replayRequestPayload struct {
 	SourceID      string `json:"source_id"`
 	DestinationID string `json:"destination_id"`
-	StartTime     string `json:"start_time"`
-	EndTime       string `json:"end_time"`
-	ReplayType    string `json:"replay_type"`
+	StartTime     string `json:"start_time,omitempty"`
+	EndTime       string `json:"end_time,omitempty"`
+	ReplayType    string `json:"replay_type,omitempty"`
 }
 
 // replayResponsePayload is the test DTO for deserializing replay API responses.
@@ -62,13 +62,23 @@ type replayErrorPayload struct {
 
 // mockGatewayClient is a test double for the replay.GatewayClient interface.
 // It records all calls and returns configurable errors for controlled test scenarios.
+// When blockCh is non-nil, SendReplayBatch blocks until the channel is closed or
+// the context is cancelled, keeping replay jobs in InProgress state for concurrency tests.
 type mockGatewayClient struct {
 	batches [][]byte
 	err     error
+	blockCh chan struct{} // when set, SendReplayBatch blocks until closed
 }
 
-func (m *mockGatewayClient) SendReplayBatch(_ context.Context, batch []byte) error {
+func (m *mockGatewayClient) SendReplayBatch(ctx context.Context, batch []byte) error {
 	m.batches = append(m.batches, batch)
+	if m.blockCh != nil {
+		select {
+		case <-m.blockCh:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	return m.err
 }
 
@@ -781,8 +791,13 @@ func TestWarehouseReplay(t *testing.T) {
 			},
 		}
 
-		// Make the gateway block to keep the first job active
-		ts.gateway.err = fmt.Errorf("simulated gateway delay for concurrent test")
+		// Make the gateway block to keep the first job in InProgress state.
+		// Using a blocking channel instead of just an error — an error would cause
+		// the job to fail immediately and transition to terminal state before the
+		// second request arrives.
+		blockCh := make(chan struct{})
+		defer close(blockCh) // unblock on test exit to prevent goroutine leak
+		ts.gateway.blockCh = blockCh
 
 		// First replay should succeed
 		firstResp := doReplayPost(t, ts.serverURL, replayRequestPayload{
