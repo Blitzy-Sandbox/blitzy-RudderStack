@@ -67,7 +67,7 @@ func TestReaderLoader(t *testing.T) {
 		})
 
 		for range lines {
-			c := ef.NewEventLoader(writer, loadFileType, destinationType)
+			c := ef.NewEventLoader(writer, loadFileType, destinationType, nil)
 
 			c.AddColumn("column1", "bigint", 1234567890)
 			c.AddEmptyColumn("column10")
@@ -214,7 +214,7 @@ func TestReaderLoader(t *testing.T) {
 		})
 
 		for range lines {
-			c := ef.NewEventLoader(writer, loadFileType, destinationType)
+			c := ef.NewEventLoader(writer, loadFileType, destinationType, nil)
 			c.AddColumn("column1", "bigint", 1234567890)
 			c.AddColumn("column2", "int", 2)
 			c.AddColumn("column3", "float", 1.11)
@@ -276,7 +276,7 @@ func TestReaderLoader(t *testing.T) {
 		})
 
 		for range lines {
-			c := ef.NewEventLoader(writer, loadFileType, destinationType)
+			c := ef.NewEventLoader(writer, loadFileType, destinationType, nil)
 			c.AddColumn("column1", "bigint", 1234567890)
 			c.AddColumn("column2", "int", 2)
 			c.AddColumn("column3", "float", 1.11)

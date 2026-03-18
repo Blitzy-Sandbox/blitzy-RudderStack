@@ -65,15 +65,82 @@ type EventLoader interface {
 	Write() error
 }
 
-func (m *Factory) NewEventLoader(w LoadFileWriter, loadFileType, destinationType string) EventLoader {
+func (m *Factory) NewEventLoader(w LoadFileWriter, loadFileType, destinationType string, excludedColumns []string) EventLoader {
+	var loader EventLoader
 	switch loadFileType {
 	case warehouseutils.LoadFileTypeJson:
-		return newJSONLoader(w, destinationType)
+		loader = newJSONLoader(w, destinationType)
 	case warehouseutils.LoadFileTypeParquet:
-		return newParquetLoader(w, destinationType)
+		loader = newParquetLoader(w, destinationType)
 	default:
-		return newCSVLoader(w, destinationType)
+		loader = newCSVLoader(w, destinationType)
 	}
+
+	if len(excludedColumns) > 0 {
+		exclusionSet := make(map[string]struct{}, len(excludedColumns))
+		for _, col := range excludedColumns {
+			exclusionSet[col] = struct{}{}
+		}
+		return &filteringEventLoader{
+			inner:           loader,
+			excludedColumns: exclusionSet,
+		}
+	}
+	return loader
+}
+
+// filteringEventLoader wraps an EventLoader and filters out excluded columns.
+// When a column name matches an entry in the exclusion set, the AddColumn,
+// AddEmptyColumn, and AddRow calls for that column are silently skipped.
+// This is used by the selective sync feature (E-034) to exclude specific
+// columns from warehouse load files during encoding.
+type filteringEventLoader struct {
+	inner           EventLoader
+	excludedColumns map[string]struct{}
+}
+
+func (f *filteringEventLoader) IsLoadTimeColumn(columnName string) bool {
+	return f.inner.IsLoadTimeColumn(columnName)
+}
+
+func (f *filteringEventLoader) GetLoadTimeFormat(columnName string) string {
+	return f.inner.GetLoadTimeFormat(columnName)
+}
+
+func (f *filteringEventLoader) AddColumn(columnName, columnType string, val any) {
+	if _, excluded := f.excludedColumns[columnName]; excluded {
+		return
+	}
+	f.inner.AddColumn(columnName, columnType, val)
+}
+
+func (f *filteringEventLoader) AddRow(columnNames, values []string) {
+	filteredNames := make([]string, 0, len(columnNames))
+	filteredValues := make([]string, 0, len(values))
+	for i, name := range columnNames {
+		if _, excluded := f.excludedColumns[name]; !excluded {
+			filteredNames = append(filteredNames, name)
+			if i < len(values) {
+				filteredValues = append(filteredValues, values[i])
+			}
+		}
+	}
+	f.inner.AddRow(filteredNames, filteredValues)
+}
+
+func (f *filteringEventLoader) AddEmptyColumn(columnName string) {
+	if _, excluded := f.excludedColumns[columnName]; excluded {
+		return
+	}
+	f.inner.AddEmptyColumn(columnName)
+}
+
+func (f *filteringEventLoader) WriteToString() (string, error) {
+	return f.inner.WriteToString()
+}
+
+func (f *filteringEventLoader) Write() error {
+	return f.inner.Write()
 }
 
 // EventReader is an interface for reading events from a load file
