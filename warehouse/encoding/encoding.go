@@ -119,17 +119,19 @@ func (f *filteringEventLoader) AddColumn(columnName, columnType string, val any)
 }
 
 func (f *filteringEventLoader) AddRow(columnNames, values []string) {
-	filteredNames := make([]string, 0, len(columnNames))
-	filteredValues := make([]string, 0, len(values))
+	// Preserve positional alignment by keeping ALL column names and replacing
+	// excluded column values with empty strings. This matches the AddColumn approach
+	// where excluded columns use AddEmptyColumn to maintain schema alignment for
+	// positional loaders (Parquet, CSV).
+	alignedValues := make([]string, len(columnNames))
 	for i, name := range columnNames {
-		if _, excluded := f.excludedColumns[name]; !excluded {
-			filteredNames = append(filteredNames, name)
-			if i < len(values) {
-				filteredValues = append(filteredValues, values[i])
-			}
+		if _, excluded := f.excludedColumns[name]; excluded {
+			alignedValues[i] = "" // null placeholder preserving position
+		} else if i < len(values) {
+			alignedValues[i] = values[i]
 		}
 	}
-	f.inner.AddRow(filteredNames, filteredValues)
+	f.inner.AddRow(columnNames, alignedValues)
 }
 
 func (f *filteringEventLoader) AddEmptyColumn(columnName string) {

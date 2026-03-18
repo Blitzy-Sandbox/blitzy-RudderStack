@@ -58,8 +58,8 @@ type tableNameT string
 // selectiveSyncChecker provides table/column exclusion predicates for selective sync (E-034).
 // Implemented by selectivesync.SelectiveSyncService — defined locally to avoid import cycles.
 type selectiveSyncChecker interface {
-	IsTableExcluded(sourceID, destID, table string) bool
-	IsColumnExcluded(sourceID, destID, table, column string) bool
+	IsTableExcluded(ctx context.Context, sourceID, destID, table string) bool
+	IsColumnExcluded(ctx context.Context, sourceID, destID, table, column string) bool
 }
 
 // syncHealthRecorder records sync health entries for the health monitoring system (E-033).

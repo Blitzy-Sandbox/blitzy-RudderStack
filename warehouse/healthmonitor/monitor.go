@@ -191,19 +191,28 @@ func (m *HealthMonitor) purge(ctx context.Context) error {
 //
 // The method is safe for concurrent calls from multiple upload job goroutines,
 // as the underlying repository handles database-level concurrency.
-func (m *HealthMonitor) RecordSyncHealth(ctx context.Context, health *SyncHealth) error {
+// RecordSyncHealth records a sync health entry. The health parameter is typed as
+// interface{} to satisfy the syncHealthRecorder local interface in warehouse/router/upload.go,
+// avoiding a direct import cycle. Callers must pass a *SyncHealth value; any other type
+// will return an error.
+func (m *HealthMonitor) RecordSyncHealth(ctx context.Context, health interface{}) error {
 	if !m.config.enabled.Load() {
 		return nil
 	}
 
-	if err := m.repository.RecordSyncHealth(ctx, health); err != nil {
+	h, ok := health.(*SyncHealth)
+	if !ok {
+		return fmt.Errorf("RecordSyncHealth: expected *SyncHealth, got %T", health)
+	}
+
+	if err := m.repository.RecordSyncHealth(ctx, h); err != nil {
 		return fmt.Errorf("recording sync health: %w", err)
 	}
 
 	// Emit real-time per-upload Prometheus metrics. This provides immediate metric
 	// visibility for individual uploads, complementing the periodic aggregate emission
 	// from the HealthMetrics.EmitMetrics() path in the collect() loop.
-	m.metrics.EmitUploadMetrics(health)
+	m.metrics.EmitUploadMetrics(h)
 
 	return nil
 }

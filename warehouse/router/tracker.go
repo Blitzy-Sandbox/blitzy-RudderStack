@@ -218,11 +218,12 @@ func (r *Router) getLatestUploadStatusForHealth(ctx context.Context, warehouse *
 // with upload_stats.go: module, sourceID, destID, destType, sourceType.
 func (r *Router) recordHealthAlertMetrics(warehouse model.Warehouse, hasUpload bool, uploadStatus string) {
 	tags := stats.Tags{
-		"module":     moduleName,
-		"sourceID":   warehouse.Source.ID,
-		"destID":     warehouse.Destination.ID,
-		"destType":   r.destType,
-		"sourceType": warehouse.Source.SourceDefinition.Name,
+		"module":      moduleName,
+		"workspaceId": warehouse.WorkspaceID,
+		"sourceID":    warehouse.Source.ID,
+		"destID":      warehouse.Destination.ID,
+		"destType":    r.destType,
+		"sourceType":  warehouse.Source.SourceDefinition.Name,
 	}
 
 	// Emit failed sync alert counter when the upload reached a failure terminal state

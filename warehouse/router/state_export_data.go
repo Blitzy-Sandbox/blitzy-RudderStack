@@ -143,7 +143,7 @@ func (job *UploadJob) isTableExcludedBySelectiveSync(tableName string) bool {
 	if job.selectiveSyncSvc == nil {
 		return false
 	}
-	return job.selectiveSyncSvc.IsTableExcluded(job.upload.SourceID, job.upload.DestinationID, tableName)
+	return job.selectiveSyncSvc.IsTableExcluded(job.ctx, job.upload.SourceID, job.upload.DestinationID, tableName)
 }
 
 func (job *UploadJob) TablesToSkip() (map[string]model.PendingTableUpload, map[string]model.PendingTableUpload, error) {

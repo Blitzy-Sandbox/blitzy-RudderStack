@@ -13,11 +13,16 @@ func (job *UploadJob) createTableUploads() error {
 	destType := job.warehouse.Type
 	tables := make([]string, 0, len(schemaForUpload))
 	for t := range schemaForUpload {
-		// Skip tables excluded by selective sync (E-034).
-		// Identity tables are infrastructure tables and bypass selective sync
-		// exclusion — they should never appear in the exclusion configuration.
-		if job.selectiveSyncSvc != nil && job.selectiveSyncSvc.IsTableExcluded(
-			job.upload.SourceID, job.upload.DestinationID, t,
+		// Identity tables (merge_rules, mappings) are infrastructure tables that must NEVER
+		// be excluded by selective sync. They are required by exportIdentities() which updates
+		// table upload records via tableUploadsRepo. Matching the protection pattern in
+		// state_export_data.go, identity tables bypass the selective sync check entirely.
+		isIdentity := t == whutils.ToProviderCase(destType, whutils.IdentityMergeRulesTable) ||
+			t == whutils.ToProviderCase(destType, whutils.IdentityMappingsTable)
+
+		// Skip tables excluded by selective sync (E-034), but never identity tables.
+		if !isIdentity && job.selectiveSyncSvc != nil && job.selectiveSyncSvc.IsTableExcluded(
+			job.ctx, job.upload.SourceID, job.upload.DestinationID, t,
 		) {
 			job.logger.Debugn("selective sync: skipping table upload creation for excluded table",
 				logger.NewStringField("table", t),

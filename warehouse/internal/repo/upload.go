@@ -56,7 +56,8 @@ const (
 		timings,
 		COALESCE(metadata->>'priority', '` + defaultPriority + `')::int,
 		first_event_at,
-		last_event_at
+		last_event_at,
+		backfill_job_id
 	`
 )
 
@@ -329,21 +330,51 @@ func (u *Uploads) GetByBackfillJobID(ctx context.Context, backfillJobID int64) (
 	return uploads, nil
 }
 
-// CreateWithBackfill creates an upload record with a backfill_job_id FK.
-// Similar to CreateWithStagingFiles but includes the backfill_job_id in the INSERT.
-func (u *Uploads) CreateWithBackfill(ctx context.Context, upload model.Upload) (int64, error) {
-	defer (*repo)(u).TimerStat("create_with_backfill", stats.Tags{
-		"destId":      upload.DestinationID,
-		"destType":    upload.DestinationType,
-		"workspaceId": upload.WorkspaceID,
-	})()
+// CountActiveBackfillUploads returns the number of uploads with a non-null backfill_job_id
+// that are currently in a non-terminal state (not ExportedData and not Aborted).
+// Used by the scheduling layer to enforce maxConcurrentJobs limits on backfill operations.
+func (u *Uploads) CountActiveBackfillUploads(ctx context.Context) (int64, error) {
+	defer (*repo)(u).TimerStat("count_active_backfill_uploads", nil)()
+
+	var count int64
+	err := u.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM `+uploadsTableName+`
+		WHERE backfill_job_id IS NOT NULL
+		AND status NOT IN ($1, $2)`,
+		model.ExportedData, model.Aborted,
+	).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("counting active backfill uploads: %w", err)
+	}
+	return count, nil
+}
+
+// CreateWithBackfill creates an upload record with a backfill_job_id FK and links the
+// provided staging files to the upload in a single transaction. This is the backfill
+// counterpart of CreateWithStagingFiles, including the backfill_job_id column in the INSERT.
+func (u *Uploads) CreateWithBackfill(ctx context.Context, upload model.Upload, files []*model.StagingFile) (int64, error) {
+	startJSONID := files[0].ID
+	endJSONID := files[len(files)-1].ID
+
+	stagingFileIDs := make([]int64, len(files))
+	for i, file := range files {
+		stagingFileIDs[i] = file.ID
+	}
+
+	var firstEventAt, lastEventAt time.Time
+	if !files[0].FirstEventAt.IsZero() {
+		firstEventAt = files[0].FirstEventAt
+	}
+	if !files[len(files)-1].LastEventAt.IsZero() {
+		lastEventAt = files[len(files)-1].LastEventAt
+	}
 
 	metadataMap := UploadMetadata{
-		UseRudderStorage: upload.UseRudderStorage,
-		SourceTaskRunID:  upload.SourceTaskRunID,
-		SourceJobID:      upload.SourceJobID,
-		SourceJobRunID:   upload.SourceJobRunID,
-		LoadFileType:     upload.LoadFileType,
+		UseRudderStorage: files[0].UseRudderStorage,
+		SourceTaskRunID:  files[0].SourceTaskRunID,
+		SourceJobID:      files[0].SourceJobID,
+		SourceJobRunID:   files[0].SourceJobRunID,
+		LoadFileType:     warehouseutils.GetLoadFileType(upload.DestinationType),
 		Retried:          upload.Retried,
 		Priority:         upload.Priority,
 		NextRetryTime:    upload.NextRetryTime,
@@ -354,19 +385,19 @@ func (u *Uploads) CreateWithBackfill(ctx context.Context, upload model.Upload) (
 		return 0, fmt.Errorf("marshaling metadata: %w", err)
 	}
 
+	defer (*repo)(u).TimerStat("create_with_backfill", stats.Tags{
+		"destId":      upload.DestinationID,
+		"destType":    upload.DestinationType,
+		"workspaceId": upload.WorkspaceID,
+	})()
+
 	now := u.now()
 
-	var firstEventAt, lastEventAt any
-	if !upload.FirstEventAt.IsZero() {
-		firstEventAt = upload.FirstEventAt
-	}
-	if !upload.LastEventAt.IsZero() {
-		lastEventAt = upload.LastEventAt
-	}
-
 	var uploadID int64
-	err = u.db.QueryRowContext(ctx,
-		`INSERT INTO `+uploadsTableName+` (
+
+	err = u.db.WithTx(ctx, func(tx *sqlmiddleware.Tx) error {
+		err := tx.QueryRow(
+			`INSERT INTO `+uploadsTableName+` (
 			source_id, namespace, workspace_id, destination_id,
 			destination_type, start_staging_file_id,
 			end_staging_file_id, start_load_file_id,
@@ -381,29 +412,49 @@ func (u *Uploads) CreateWithBackfill(ctx context.Context, upload model.Upload) (
 			$11, $12, $13, $14, $15, $16, $17, $18
 			) RETURNING id;`,
 
-		upload.SourceID,
-		upload.Namespace,
-		upload.WorkspaceID,
-		upload.DestinationID,
-		upload.DestinationType,
-		upload.StagingFileStartID,
-		upload.StagingFileEndID,
-		0,
-		0,
-		upload.Status,
-		"{}",
-		"{}",
-		metadata,
-		firstEventAt,
-		lastEventAt,
-		now,
-		now,
-		upload.BackfillJobID,
-	).Scan(&uploadID)
-	if err != nil {
-		return 0, fmt.Errorf("inserting backfill upload: %w", err)
-	}
+			upload.SourceID,
+			upload.Namespace,
+			upload.WorkspaceID,
+			upload.DestinationID,
+			upload.DestinationType,
+			startJSONID,
+			endJSONID,
+			0,
+			0,
+			upload.Status,
+			"{}",
+			"{}",
+			metadata,
+			firstEventAt,
+			lastEventAt,
+			now,
+			now,
+			upload.BackfillJobID,
+		).Scan(&uploadID)
+		if err != nil {
+			return fmt.Errorf("inserting backfill upload: %w", err)
+		}
 
+		result, err := tx.Exec(
+			`UPDATE `+stagingTableName+` SET upload_id = $1 WHERE id = ANY($2)`,
+			uploadID, pq.Array(stagingFileIDs),
+		)
+		if err != nil {
+			return fmt.Errorf("updating staging files: %w", err)
+		}
+
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("updating staging files: rows affected: %w", err)
+		}
+		if affected != int64(len(stagingFileIDs)) {
+			return fmt.Errorf("updating staging files: not all rows were updated: %d != %d", affected, len(stagingFileIDs))
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
 	return uploadID, nil
 }
 
@@ -670,6 +721,7 @@ func scanUpload(scan scanFn, upload *model.Upload) error {
 		firstEventAt, lastEventAt sql.NullTime
 		metadataRaw               []byte
 		timingsRaw                []byte
+		backfillJobID             sql.NullInt64
 	)
 
 	err := scan(
@@ -693,12 +745,16 @@ func scanUpload(scan scanFn, upload *model.Upload) error {
 		&upload.Priority,
 		&firstEventAt,
 		&lastEventAt,
+		&backfillJobID,
 	)
 	if err != nil {
 		return err
 	}
 	upload.FirstEventAt = firstEventAt.Time.UTC()
 	upload.LastEventAt = lastEventAt.Time.UTC()
+	if backfillJobID.Valid {
+		upload.BackfillJobID = &backfillJobID.Int64
+	}
 
 	if err := jsonrs.Unmarshal(schema, &upload.UploadSchema); err != nil {
 		return fmt.Errorf("unmarshal upload schema: %w", err)

@@ -468,7 +468,7 @@ func TestGroupStagingFiles(t *testing.T) {
 				}
 				maxSizeMB := 100
 
-				batches := lf.GroupStagingFiles(tc.files, maxSizeMB)
+				batches := lf.GroupStagingFiles(context.Background(), tc.files, maxSizeMB)
 				require.Equal(t, len(tc.batchSizes), len(batches), "number of batches mismatch")
 
 				actualBatchSizes := make([]int, len(batches))
@@ -591,7 +591,7 @@ func TestGroupStagingFiles(t *testing.T) {
 					Logger: logger.NOP,
 				}
 
-				batches := lf.GroupStagingFiles(tc.files, 100)
+				batches := lf.GroupStagingFiles(context.Background(), tc.files, 100)
 				require.Equal(t, len(tc.batchSizes), len(batches), "number of batches mismatch")
 
 				// Get actual batch sizes

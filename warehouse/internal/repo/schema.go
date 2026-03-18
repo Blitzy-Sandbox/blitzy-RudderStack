@@ -298,7 +298,7 @@ func (sh *WHSchema) GetForNamespace(ctx context.Context, destID, namespace strin
 // Filtering is applied at the Go level after fetching the full schema, not at the SQL level
 // (since the schema column is JSONB containing a full table→columns map).
 // When excludedTables is empty or nil, it behaves identically to GetForNamespace.
-func (sh *WHSchema) GetSchemaExcludingTables(ctx context.Context, sourceID, destID, namespace string, excludedTables []string) (model.WHSchema, error) {
+func (sh *WHSchema) GetSchemaExcludingTables(ctx context.Context, destID, namespace string, excludedTables []string) (model.WHSchema, error) {
 	defer sh.TimerStat("get_schema_excluding_tables", stats.Tags{"destId": destID})()
 
 	whSchema, err := sh.GetForNamespace(ctx, destID, namespace)

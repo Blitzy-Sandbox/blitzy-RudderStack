@@ -63,7 +63,7 @@ type LoadFileGenerator struct {
 	// When non-nil, table-level exclusion filtering is applied during load file generation.
 	// When nil, no filtering occurs (backward compatible default).
 	SelectiveSyncService interface {
-		IsTableExcluded(sourceID, destID, table string) bool
+		IsTableExcluded(ctx context.Context, sourceID, destID, table string) bool
 	}
 
 	publishBatchSize             int
@@ -363,7 +363,7 @@ func (lf *LoadFileGenerator) createUploadV2Jobs(ctx context.Context, job *model.
 		return fmt.Errorf("populating destination revision ID: %w", err)
 	}
 	g, gCtx := errgroup.WithContext(ctx)
-	stagingFileGroups := lf.GroupStagingFiles(stagingFiles, lf.Conf.GetInt("Warehouse.loadFiles.maxSizeInMB", 512))
+	stagingFileGroups := lf.GroupStagingFiles(ctx, stagingFiles, lf.Conf.GetInt("Warehouse.loadFiles.maxSizeInMB", 512))
 	for i, fileGroups := range lo.Chunk(stagingFileGroups, publishBatchSize) {
 		for j, group := range fileGroups {
 			lf.Logger.Infon("Processing chunk and group",
@@ -463,7 +463,7 @@ type stagingFileGroupKey struct {
 
 // GroupStagingFiles groups staging files based on their key characteristics
 // and then applies size constraints within each group. The maxSizeMB parameter controls the maximum size of any table within a group.
-func (lf *LoadFileGenerator) GroupStagingFiles(files []*model.StagingFile, maxSizeMB int) [][]*model.StagingFile {
+func (lf *LoadFileGenerator) GroupStagingFiles(ctx context.Context, files []*model.StagingFile, maxSizeMB int) [][]*model.StagingFile {
 	// E-034: Apply selective sync table-level filtering if service is configured.
 	// Staging files whose tables are ALL excluded are removed from processing.
 	// Files with only SOME tables excluded are kept — column-level filtering
@@ -471,7 +471,7 @@ func (lf *LoadFileGenerator) GroupStagingFiles(files []*model.StagingFile, maxSi
 	if lf.SelectiveSyncService != nil && len(files) > 0 {
 		filtered := make([]*model.StagingFile, 0, len(files))
 		for _, file := range files {
-			if lf.isStagingFileFullyExcluded(file) {
+			if lf.isStagingFileFullyExcluded(ctx, file) {
 				lf.Logger.Infon("[WH]: Skipping staging file — all tables excluded by selective sync",
 					logger.NewIntField("stagingFileID", file.ID))
 				continue
@@ -506,12 +506,12 @@ func (lf *LoadFileGenerator) GroupStagingFiles(files []*model.StagingFile, maxSi
 // BytesPerTable map are excluded by the selective sync service.
 // Returns false if the file has no tables (BytesPerTable is empty or nil),
 // preserving the file for processing as it may contain data that hasn't been categorized.
-func (lf *LoadFileGenerator) isStagingFileFullyExcluded(file *model.StagingFile) bool {
+func (lf *LoadFileGenerator) isStagingFileFullyExcluded(ctx context.Context, file *model.StagingFile) bool {
 	if len(file.BytesPerTable) == 0 {
 		return false // No table info — don't exclude, let it be processed
 	}
 	for table := range file.BytesPerTable {
-		if !lf.SelectiveSyncService.IsTableExcluded(file.SourceID, file.DestinationID, table) {
+		if !lf.SelectiveSyncService.IsTableExcluded(ctx, file.SourceID, file.DestinationID, table) {
 			return false // At least one table is included
 		}
 	}

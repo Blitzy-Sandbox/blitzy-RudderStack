@@ -9,6 +9,9 @@ import (
 
 	"github.com/samber/lo/mutable"
 
+	"github.com/rudderlabs/rudder-go-kit/logger"
+	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
+
 	"github.com/rudderlabs/rudder-server/utils/timeutil"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/model"
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
@@ -204,10 +207,38 @@ func (r *Router) scheduledTimes(syncFrequency, syncStartAt string) []int {
 // Backfill uploads bypass normal scheduling guards (sync frequency, exclude windows,
 // manual sync mode) since they are explicitly triggered via the API.
 // The only constraints are:
-// 1. The backfill feature must be enabled
-// 2. The concurrent backfill job limit must not be exceeded
-func (r *Router) canCreateBackfillUpload(warehouse model.Warehouse) bool {
-	// Backfill uploads always bypass regular scheduling
+// 1. The backfill feature must be enabled (Warehouse.backfill.enabled, default false)
+// 2. The concurrent backfill job limit must not be exceeded (Warehouse.backfill.maxConcurrentJobs, default 3)
+func (r *Router) canCreateBackfillUpload(ctx context.Context, warehouse model.Warehouse) bool {
+	if !r.config.backfillEnabled.Load() {
+		r.logger.Warnn("backfill upload rejected: feature is disabled",
+			logger.NewStringField("sourceID", warehouse.Source.ID),
+			logger.NewStringField("destID", warehouse.Destination.ID),
+		)
+		return false
+	}
+
+	maxConcurrent := r.config.backfillMaxConcurrentJobs.Load()
+	activeCount, err := r.uploadRepo.CountActiveBackfillUploads(ctx)
+	if err != nil {
+		r.logger.Warnn("backfill upload rejected: failed to count active backfill uploads",
+			obskit.Error(err),
+			logger.NewStringField("sourceID", warehouse.Source.ID),
+			logger.NewStringField("destID", warehouse.Destination.ID),
+		)
+		return false
+	}
+
+	if activeCount >= int64(maxConcurrent) {
+		r.logger.Infon("backfill upload rejected: concurrent job limit reached",
+			logger.NewIntField("activeCount", activeCount),
+			logger.NewIntField("maxConcurrent", int64(maxConcurrent)),
+			logger.NewStringField("sourceID", warehouse.Source.ID),
+			logger.NewStringField("destID", warehouse.Destination.ID),
+		)
+		return false
+	}
+
 	return true
 }
 

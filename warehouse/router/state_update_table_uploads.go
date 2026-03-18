@@ -14,7 +14,7 @@ func (job *UploadJob) updateTableUploadsCounts() error {
 			// and table upload creation stages, but we guard here to prevent count
 			// propagation for any table that should be excluded.
 			if job.selectiveSyncSvc != nil && job.selectiveSyncSvc.IsTableExcluded(
-				job.upload.SourceID, job.upload.DestinationID, tableName,
+				job.ctx, job.upload.SourceID, job.upload.DestinationID, tableName,
 			) {
 				continue
 			}

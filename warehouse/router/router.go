@@ -113,6 +113,8 @@ type Router struct {
 		warehouseSyncFreqIgnore           config.ValueLoader[bool]
 		cronTrackerRetries                config.ValueLoader[int64]
 		uploadBufferTimeInMin             config.ValueLoader[time.Duration]
+		backfillEnabled                   config.ValueLoader[bool]
+		backfillMaxConcurrentJobs         config.ValueLoader[int]
 	}
 
 	stats struct {
@@ -206,12 +208,13 @@ func New(
 		db:                   r.db,
 		destinationValidator: validations.NewDestinationValidator(),
 		loadFile: &loadfiles.LoadFileGenerator{
-			Conf:               r.conf,
-			Logger:             r.logger.Child("loadfile"),
-			Notifier:           r.notifier,
-			StageRepo:          r.stagingRepo,
-			LoadRepo:           repo.NewLoadFiles(db, r.conf, repo.WithStats(r.statsFactory)),
-			ControlPlaneClient: controlPlaneClient,
+			Conf:                 r.conf,
+			Logger:               r.logger.Child("loadfile"),
+			Notifier:             r.notifier,
+			StageRepo:            r.stagingRepo,
+			LoadRepo:             repo.NewLoadFiles(db, r.conf, repo.WithStats(r.statsFactory)),
+			ControlPlaneClient:   controlPlaneClient,
+			SelectiveSyncService: r.selectiveSyncSvc, // E-034: wire selective sync for staging file pre-filtering
 		},
 		encodingFactory:  encodingFactory,
 		selectiveSyncSvc: r.selectiveSyncSvc, // E-034: propagate selective sync to all UploadJob instances
@@ -758,6 +761,8 @@ func (r *Router) loadReloadableConfig(whName string) {
 	r.config.warehouseSyncFreqIgnore = r.conf.GetReloadableBoolVar(false, "Warehouse.warehouseSyncFreqIgnore")
 	r.config.cronTrackerRetries = r.conf.GetReloadableInt64Var(5, 1, "Warehouse.cronTrackerRetries")
 	r.config.uploadBufferTimeInMin = r.conf.GetReloadableDurationVar(180, time.Minute, "Warehouse.uploadBufferTimeInMin")
+	r.config.backfillEnabled = r.conf.GetReloadableBoolVar(false, "Warehouse.backfill.enabled")
+	r.config.backfillMaxConcurrentJobs = r.conf.GetReloadableIntVar(3, 1, "Warehouse.backfill.maxConcurrentJobs")
 }
 
 func (r *Router) loadStats() {
@@ -796,7 +801,7 @@ func (r *Router) copyWarehouses() []model.Warehouse {
 func (r *Router) CreateBackfillUpload(ctx context.Context, warehouse model.Warehouse, backfillJobID int64) error {
 	// Validate that backfill uploads are permitted for this warehouse.
 	// canCreateBackfillUpload checks feature-level and concurrency constraints.
-	if !r.canCreateBackfillUpload(warehouse) {
+	if !r.canCreateBackfillUpload(ctx, warehouse) {
 		return fmt.Errorf("backfill upload not allowed for warehouse %s: %w",
 			warehouse.Identifier, errBackfillUploadBypassesScheduling)
 	}
@@ -841,7 +846,7 @@ func (r *Router) CreateBackfillUpload(ctx context.Context, warehouse model.Wareh
 
 	batches := service.StageFileBatching(stagingFilesList, r.config.stagingFilesBatchSize.Load())
 	for _, batch := range batches {
-		if _, err := r.uploadRepo.CreateWithStagingFiles(ctx, upload, batch); err != nil {
+		if _, err := r.uploadRepo.CreateWithBackfill(ctx, upload, batch); err != nil {
 			return fmt.Errorf("creating backfill upload: %w", err)
 		}
 	}

@@ -665,8 +665,12 @@ func (a *Archiver) ListArchivedStagingFiles(
 	for rows.Next() {
 		var f StagingFileMetadata
 		if err := rows.Scan(&f.ID, &f.Location, &f.SourceID, &f.DestinationID, &f.CreatedAt, &f.TotalBytes); err != nil {
-			a.log.Errorn("[Archiver]: Error scanning staging file for backfill listing", obskit.Error(err))
-			continue
+			a.log.Errorn("[Archiver]: Error scanning staging file for backfill listing",
+				obskit.Error(err),
+				logger.NewStringField(logfield.SourceID, sourceID),
+				logger.NewStringField(logfield.DestinationID, destID),
+			)
+			return nil, fmt.Errorf("scanning staging file for backfill listing: %w", err)
 		}
 		files = append(files, f)
 	}
@@ -744,8 +748,11 @@ func (a *Archiver) QueryArchivedEvents(
 			lastEvt  sql.NullTime
 		)
 		if err := rows.Scan(&id, &batch.Location, &batch.SourceID, &totalEvt, &firstEvt, &lastEvt); err != nil {
-			a.log.Errorn("[Archiver]: Error scanning archived event for replay", obskit.Error(err))
-			continue
+			a.log.Errorn("[Archiver]: Error scanning archived event for replay",
+				obskit.Error(err),
+				logger.NewStringField(logfield.SourceID, sourceID),
+			)
+			return nil, fmt.Errorf("scanning archived event for replay: %w", err)
 		}
 		if totalEvt.Valid {
 			batch.EventCount = totalEvt.Int64
