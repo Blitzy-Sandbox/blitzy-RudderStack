@@ -1253,7 +1253,7 @@ func TestSchema(t *testing.T) {
 					err:     tc.mockErr,
 				})
 				require.NoError(t, err)
-				uploadSchema, err := sch.ConsolidateStagingFilesSchema(ctx, stagingFiles)
+				uploadSchema, err := sch.ConsolidateStagingFilesSchema(ctx, stagingFiles, nil)
 				if tc.wantError == nil {
 					require.NoError(t, err)
 				} else {
