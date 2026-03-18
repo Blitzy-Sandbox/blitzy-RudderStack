@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,6 +33,150 @@ import (
 	warehouseclient "github.com/rudderlabs/rudder-server/warehouse/client"
 	warehouseutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
+
+// IdempotentStagingConfig configures the generation of idempotent staging files
+// for testing warehouse connector merge/dedup strategies under replay scenarios.
+type IdempotentStagingConfig struct {
+	TableName       string  // Target table name for the staging events
+	EventCount      int     // Number of unique events to generate
+	DuplicateRatio  float64 // Ratio of duplicates (0.0 = no dupes, 1.0 = all duped)
+	Format          string  // Staging file format (e.g., "json", "csv", "parquet")
+	SourceID        string  // Source identifier
+	DestinationID   string  // Destination identifier
+	WorkspaceID     string  // Workspace identifier
+	DestinationType string  // Warehouse destination type (e.g., warehouseutils.SNOWFLAKE)
+}
+
+// IdempotentStagingResult contains the output of idempotent staging file generation,
+// including paths to the generated files and expected post-dedup checksums for validation.
+type IdempotentStagingResult struct {
+	StagingFilePaths  []string          // Paths to generated staging files
+	ExpectedChecksums map[string]string // Table name → expected SHA256 checksum for validation
+	UniqueEventCount  int               // Count of unique events (after dedup)
+	TotalEventCount   int               // Total events including duplicates
+}
+
+// RenderIdempotentStagingFiles generates staging files with configurable duplicate
+// ratios for testing idempotent sync behavior across warehouse connectors. It
+// produces deterministic events using seeded random generation and SHA1-based UUIDs,
+// enabling reproducible replay/retry scenarios. The returned result includes expected
+// post-dedup checksums for validating that warehouse merge strategies produce
+// identical state after processing duplicate events.
+func RenderIdempotentStagingFiles(t testing.TB, cfg IdempotentStagingConfig) IdempotentStagingResult {
+	t.Helper()
+
+	// Fixed namespace UUID for deterministic event ID generation across runs.
+	// This ensures that given the same table name and event index, the same
+	// UUID is produced regardless of when or where the test executes.
+	idempotentNamespace := uuid.MustParse("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+
+	// Seeded random source for reproducible duplicate selection. The seed is
+	// derived from the configuration to ensure identical duplicate patterns
+	// across test runs with the same parameters.
+	seed := int64(len(cfg.TableName) + cfg.EventCount)
+	rng := rand.New(rand.NewSource(seed)) //nolint:gosec // deterministic seed required for test reproducibility
+
+	// Standard column schema for idempotent testing events.
+	columns := map[string]string{
+		"id":          "string",
+		"received_at": "datetime",
+		"event":       "string",
+		"user_id":     "string",
+	}
+
+	// idempotentEvent represents a single staging event with metadata and data
+	// fields compatible with the warehouse staging file format.
+	type idempotentEvent struct {
+		Metadata map[string]any `json:"metadata"`
+		Data     map[string]any `json:"data"`
+	}
+
+	// Generate cfg.EventCount unique events, each with a deterministic UUID
+	// derived from the namespace and event index via SHA1 hashing.
+	uniqueEvents := make([]idempotentEvent, 0, cfg.EventCount)
+	for i := 0; i < cfg.EventCount; i++ {
+		eventID := uuid.NewSHA1(idempotentNamespace, []byte(fmt.Sprintf("%s-%d", cfg.TableName, i)))
+		data := map[string]any{
+			"id":          eventID.String(),
+			"received_at": "2024-01-15T10:00:00Z",
+			"event":       "test_event",
+			"user_id":     fmt.Sprintf("user_%d", i),
+		}
+		ev := idempotentEvent{
+			Metadata: map[string]any{
+				"table":   cfg.TableName,
+				"columns": columns,
+			},
+			Data: data,
+		}
+		uniqueEvents = append(uniqueEvents, ev)
+	}
+
+	// Inject duplicates: select events using the seeded RNG for reproducibility.
+	// The duplicate count is derived from the configured ratio applied to the
+	// unique event count.
+	duplicateCount := int(float64(cfg.EventCount) * cfg.DuplicateRatio)
+	allEvents := make([]idempotentEvent, 0, cfg.EventCount+duplicateCount)
+	allEvents = append(allEvents, uniqueEvents...)
+
+	for i := 0; i < duplicateCount; i++ {
+		idx := rng.Intn(cfg.EventCount)
+		allEvents = append(allEvents, uniqueEvents[idx])
+	}
+
+	totalEventCount := cfg.EventCount + duplicateCount
+
+	// Create gzip staging file using the established misc.CreateGZ pattern.
+	tmpDir := t.TempDir()
+	gzipFilePath := filepath.Join(tmpDir, fmt.Sprintf("idempotent_%s_%d.json.gz", cfg.TableName, time.Now().UnixNano()))
+
+	err := os.MkdirAll(filepath.Dir(gzipFilePath), os.ModePerm)
+	require.NoError(t, err)
+
+	gzWriter, err := misc.CreateGZ(gzipFilePath)
+	require.NoError(t, err)
+	defer func() { _ = gzWriter.CloseGZ() }()
+
+	// Serialize events as newline-delimited JSON using jsonrs (never encoding/json).
+	output := new(strings.Builder)
+	for _, ev := range allEvents {
+		outputJSON, err := jsonrs.Marshal(ev)
+		require.NoError(t, err)
+
+		_, err = output.WriteString(string(outputJSON) + "\n")
+		require.NoError(t, err)
+	}
+
+	err = gzWriter.WriteGZ(output.String())
+	require.NoError(t, err)
+
+	// Register cleanup for temporary staging files.
+	t.Cleanup(func() {
+		if err := os.Remove(gzWriter.File.Name()); err != nil {
+			t.Logf("failed to remove idempotent staging temp file: %s", gzWriter.File.Name())
+		}
+	})
+
+	// Compute SHA256 checksums of unique events only to produce the expected
+	// post-dedup state. Only the Data portion of each unique event is hashed,
+	// as warehouse merge strategies deduplicate based on event data content.
+	hasher := sha256.New()
+	for _, ev := range uniqueEvents {
+		dataJSON, err := jsonrs.Marshal(ev.Data)
+		require.NoError(t, err)
+
+		_, err = hasher.Write(dataJSON)
+		require.NoError(t, err)
+	}
+	hexChecksum := hex.EncodeToString(hasher.Sum(nil))
+
+	return IdempotentStagingResult{
+		StagingFilePaths:  []string{gzipFilePath},
+		ExpectedChecksums: map[string]string{cfg.TableName: hexChecksum},
+		UniqueEventCount:  cfg.EventCount,
+		TotalEventCount:   totalEventCount,
+	}
+}
 
 func createStagingFile(t testing.TB, testConfig *TestConfig) {
 	var stagingFile string
