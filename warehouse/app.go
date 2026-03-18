@@ -206,6 +206,10 @@ func (a *App) Setup(ctx context.Context) error {
 		a.bcManager,
 		a.sourcesManager,
 		a.triggerStore,
+		nil, // backfillHandler — wired when backfill feature is enabled (E-032)
+		nil, // healthMonitorHandler — wired when health monitoring is enabled (E-033)
+		nil, // selectiveSyncHandler — wired when selective sync is enabled (E-034)
+		nil, // replayHandler — wired when warehouse replay is enabled (E-035)
 	)
 	a.admin = whadmin.New(
 		a.bcManager,
