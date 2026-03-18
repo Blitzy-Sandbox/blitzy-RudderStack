@@ -280,6 +280,13 @@ func (h *ReplayHandler) Trigger(ctx context.Context, req ReplayRequest) (*Replay
 		return nil, ErrReplayDisabled
 	}
 
+	// 1a. Validate that the gateway client is configured. The GatewayClient may be nil
+	// when the replay handler is instantiated during Setup() before the gateway is available.
+	// This guard prevents a nil pointer panic when executeReplay() calls gateway.SendReplayBatch().
+	if h.gateway == nil {
+		return nil, errors.New("replay gateway client not configured")
+	}
+
 	// 2. Validate request fields (source_id, destination_id, time range).
 	if err := req.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid replay request: %w", err)

@@ -59,7 +59,6 @@ import (
 	. "github.com/rudderlabs/rudder-server/utils/tx" //nolint:staticcheck
 	reportingtypes "github.com/rudderlabs/rudder-server/utils/types"
 	"github.com/rudderlabs/rudder-server/utils/workerpool"
-	"github.com/rudderlabs/rudder-server/warehouse/replay"
 )
 
 // Custom type definitions for deeply nested map
@@ -302,12 +301,19 @@ func buildStatTags(sourceID, workspaceID string, destination *backendconfig.Dest
 	}
 }
 
-// isWarehouseReplayEvent checks if the given job parameters contain the warehouse-only
-// replay flag. This flag is set by the Gateway replay handler when it receives a request
-// with the X-Warehouse-Replay header (see warehouse/replay package).
-// The Gateway encodes this as "warehouse_only": "true" in the job parameters JSON.
-func isWarehouseReplayEvent(params []byte) bool {
-	return gjson.GetBytes(params, "warehouse_only").String() == replay.WarehouseReplayHeaderValue
+// isWarehouseReplayEvent checks if the given job's event payload contains the
+// warehouse-only replay flag. This flag is injected by the Gateway's
+// withWarehouseReplayTag middleware (gateway/handle_http_replay.go) into each
+// event's "context" object when the X-Warehouse-Replay header is present on
+// the replay request.
+//
+// The middleware injects a JSON boolean true via sjson.SetBytes, so we verify
+// the value is strictly a JSON boolean true (gjson.True type) as a
+// defense-in-depth measure against event payload spoofing — string "true"
+// or other truthy values are rejected.
+func isWarehouseReplayEvent(eventPayload []byte) bool {
+	result := gjson.GetBytes(eventPayload, "batch.0.context.warehouseOnly")
+	return result.Type == gjson.True
 }
 
 func (proc *Handle) newUserTransformationStat(
@@ -2106,14 +2112,16 @@ func (proc *Handle) preprocessStage(partition string, subJobs subJob, delay time
 		groupedEventsBySourceId[SourceIDT(sourceId)] = append(groupedEventsBySourceId[SourceIDT(sourceId)], transformerEvent)
 	}
 
-	// E-035: Detect warehouse-only replay flag from job parameters.
+	// E-035: Detect warehouse-only replay flag from the event payload.
 	// When the Gateway receives a replay request with the X-Warehouse-Replay header,
-	// it encodes a "warehouse_only" flag in the job parameters. We detect this flag here
-	// and propagate it via context so downstream stages (specifically destinationTransformStage)
-	// can route events exclusively to the batch router for warehouse destinations,
-	// bypassing the regular router for real-time delivery.
+	// the withWarehouseReplayTag middleware (gateway/handle_http_replay.go) injects
+	// "warehouseOnly": true into each event's "context" object within the EventPayload.
+	// We detect this flag here and propagate it via context so downstream stages
+	// (specifically destinationTransformStage) can route events exclusively to the
+	// batch router for warehouse destinations, bypassing the regular router for
+	// real-time delivery.
 	for _, job := range jobList {
-		if isWarehouseReplayEvent(job.Parameters) {
+		if isWarehouseReplayEvent(job.EventPayload) {
 			subJobs.ctx = context.WithValue(subJobs.ctx, warehouseOnlyCtxKey{}, true)
 			break
 		}

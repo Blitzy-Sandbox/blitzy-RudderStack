@@ -249,6 +249,13 @@ func TestApplyReplayConfig(t *testing.T) {
 		require.Len(t, c.Sources, 2)
 		require.Equal(t, "er-s-1", c.Sources[1].ID)
 
+		// When WarehouseOnly is false (zero value), verify the "warehouseOnly" key is
+		// NOT present in the serialized source config JSON. This confirms that the
+		// zero-value backward-compatible path does not inject the routing flag,
+		// so non-warehouse replay sources route through the full pipeline as before.
+		require.NotContains(t, string(c.Sources[1].Config), "warehouseOnly",
+			"source config must NOT contain warehouseOnly key when WarehouseOnly is false (zero value)")
+
 		// Verify WarehouseOnly defaults to false (backward compatibility)
 		replayConfig, ok := c.EventReplays["er-1"]
 		require.True(t, ok)
