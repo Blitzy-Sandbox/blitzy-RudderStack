@@ -181,6 +181,22 @@ Warehouse:
     enableArraySupport: false
   deltalake:
     loadTableStrategy: MERGE
+  backfill:
+    enabled: false
+    maxDateRangeDays: 90
+    maxConcurrentJobs: 3
+  healthMonitor:
+    enabled: true
+    collectionIntervalSeconds: 60
+    retentionDays: 30
+  selectiveSync:
+    enabled: false
+    cacheRefreshMinutes: 5
+  replay:
+    enabled: false
+    maxConcurrentReplays: 2
+    batchSize: 1000
+    timeoutMinutes: 60
 Processor:
   webPort: 8086
   loopSleep: 10ms
