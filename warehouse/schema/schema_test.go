@@ -25,6 +25,7 @@ import (
 	sqlmiddleware "github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/model"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/repo"
+	"github.com/rudderlabs/rudder-server/warehouse/selectivesync"
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
 
@@ -1487,6 +1488,272 @@ func TestSchema(t *testing.T) {
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "warehouse fetch error")
 		})
+	})
+
+	t.Run("ConsolidateStagingFilesSchema_SelectiveSync", func(t *testing.T) {
+		sourceID := "test_source_id"
+		destinationID := "test_destination_id"
+		namespace := "test_namespace"
+		destType := whutils.RS
+		workspaceID := "test-workspace-id"
+
+		stagingFiles := lo.RepeatBy(10, func(index int) *model.StagingFile {
+			return &model.StagingFile{ID: int64(index)}
+		})
+
+		ctx := context.Background()
+
+		testCases := []struct {
+			name                string
+			warehouseType       string
+			warehouseSchema     model.Schema
+			mockSchemas         []model.Schema
+			selectiveSyncConfig *selectivesync.SelectiveSyncConfig
+			expectedSchema      model.Schema
+		}{
+			{
+				name:          "exclude single table from consolidated schema",
+				warehouseType: whutils.RS,
+				mockSchemas: []model.Schema{
+					{
+						"test-table-1": model.TableSchema{
+							"test_int":  "int",
+							"test_str":  "string",
+							"test_bool": "boolean",
+						},
+					},
+					{
+						"test-table-2": model.TableSchema{
+							"test_float":     "float",
+							"test_timestamp": "timestamp",
+						},
+					},
+				},
+				selectiveSyncConfig: &selectivesync.SelectiveSyncConfig{
+					ExcludedTables: []string{"test-table-1"},
+				},
+				expectedSchema: model.Schema{
+					"test-table-2": model.TableSchema{
+						"test_float":     "float",
+						"test_timestamp": "timestamp",
+					},
+					"rudder_discards": model.TableSchema{
+						"column_name":  "string",
+						"column_value": "string",
+						"received_at":  "datetime",
+						"row_id":       "string",
+						"table_name":   "string",
+						"uuid_ts":      "datetime",
+						"reason":       "string",
+					},
+				},
+			},
+			{
+				name:          "exclude specific columns from a table",
+				warehouseType: whutils.RS,
+				mockSchemas: []model.Schema{
+					{
+						"test-table": model.TableSchema{
+							"test_int":   "int",
+							"test_str":   "string",
+							"test_bool":  "boolean",
+							"test_float": "float",
+						},
+					},
+				},
+				selectiveSyncConfig: &selectivesync.SelectiveSyncConfig{
+					ExcludedColumns: map[string][]string{
+						"test-table": {"test_int", "test_bool"},
+					},
+				},
+				expectedSchema: model.Schema{
+					"test-table": model.TableSchema{
+						"test_str":   "string",
+						"test_float": "float",
+					},
+					"rudder_discards": model.TableSchema{
+						"column_name":  "string",
+						"column_value": "string",
+						"received_at":  "datetime",
+						"row_id":       "string",
+						"table_name":   "string",
+						"uuid_ts":      "datetime",
+						"reason":       "string",
+					},
+				},
+			},
+			{
+				name:          "exclude multiple tables and columns",
+				warehouseType: whutils.RS,
+				mockSchemas: []model.Schema{
+					{
+						"table-a": model.TableSchema{
+							"col1": "int",
+							"col2": "string",
+						},
+						"table-b": model.TableSchema{
+							"col1": "int",
+							"col2": "string",
+							"col3": "boolean",
+						},
+						"table-c": model.TableSchema{
+							"col1": "float",
+							"col2": "timestamp",
+						},
+					},
+				},
+				selectiveSyncConfig: &selectivesync.SelectiveSyncConfig{
+					ExcludedTables: []string{"table-a"},
+					ExcludedColumns: map[string][]string{
+						"table-b": {"col2"},
+					},
+				},
+				expectedSchema: model.Schema{
+					"table-b": model.TableSchema{
+						"col1": "int",
+						"col3": "boolean",
+					},
+					"table-c": model.TableSchema{
+						"col1": "float",
+						"col2": "timestamp",
+					},
+					"rudder_discards": model.TableSchema{
+						"column_name":  "string",
+						"column_value": "string",
+						"received_at":  "datetime",
+						"row_id":       "string",
+						"table_name":   "string",
+						"uuid_ts":      "datetime",
+						"reason":       "string",
+					},
+				},
+			},
+			{
+				name:          "nil SelectiveSyncConfig produces unchanged result (backward compatibility)",
+				warehouseType: whutils.RS,
+				mockSchemas: []model.Schema{
+					{
+						"test-table": model.TableSchema{
+							"test_int":  "int",
+							"test_str":  "string",
+							"test_bool": "boolean",
+						},
+					},
+				},
+				selectiveSyncConfig: nil,
+				expectedSchema: model.Schema{
+					"test-table": model.TableSchema{
+						"test_int":  "int",
+						"test_str":  "string",
+						"test_bool": "boolean",
+					},
+					"rudder_discards": model.TableSchema{
+						"column_name":  "string",
+						"column_value": "string",
+						"received_at":  "datetime",
+						"row_id":       "string",
+						"table_name":   "string",
+						"uuid_ts":      "datetime",
+						"reason":       "string",
+					},
+				},
+			},
+			{
+				name:          "empty SelectiveSyncConfig produces unchanged result",
+				warehouseType: whutils.RS,
+				mockSchemas: []model.Schema{
+					{
+						"test-table": model.TableSchema{
+							"test_int":  "int",
+							"test_str":  "string",
+							"test_bool": "boolean",
+						},
+					},
+				},
+				selectiveSyncConfig: &selectivesync.SelectiveSyncConfig{
+					ExcludedTables:  []string{},
+					ExcludedColumns: map[string][]string{},
+				},
+				expectedSchema: model.Schema{
+					"test-table": model.TableSchema{
+						"test_int":  "int",
+						"test_str":  "string",
+						"test_bool": "boolean",
+					},
+					"rudder_discards": model.TableSchema{
+						"column_name":  "string",
+						"column_value": "string",
+						"received_at":  "datetime",
+						"row_id":       "string",
+						"table_name":   "string",
+						"uuid_ts":      "datetime",
+						"reason":       "string",
+					},
+				},
+			},
+			{
+				name:          "exclude all columns from a table effectively excludes the table",
+				warehouseType: whutils.RS,
+				mockSchemas: []model.Schema{
+					{
+						"test-table": model.TableSchema{
+							"col1": "int",
+							"col2": "string",
+						},
+					},
+				},
+				selectiveSyncConfig: &selectivesync.SelectiveSyncConfig{
+					ExcludedColumns: map[string][]string{
+						"test-table": {"col1", "col2"},
+					},
+				},
+				expectedSchema: model.Schema{
+					"rudder_discards": model.TableSchema{
+						"column_name":  "string",
+						"column_value": "string",
+						"received_at":  "datetime",
+						"row_id":       "string",
+						"table_name":   "string",
+						"uuid_ts":      "datetime",
+						"reason":       "string",
+					},
+				},
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				warehouse := model.Warehouse{
+					Source: backendconfig.SourceT{
+						ID: sourceID,
+					},
+					Destination: backendconfig.DestinationT{
+						ID: destinationID,
+						DestinationDefinition: backendconfig.DestinationDefinitionT{
+							Name: destType,
+						},
+					},
+					WorkspaceID: workspaceID,
+					Namespace:   namespace,
+					Type:        tc.warehouseType,
+				}
+				sch, err := New(context.Background(), warehouse, config.New(), logger.NOP, stats.NOP, &mockFetchSchemaRepo{}, &mockSchemaRepo{
+					schemaMap: map[string]model.WHSchema{
+						"test_destination_id_test_namespace": {
+							Schema:    tc.warehouseSchema,
+							ExpiresAt: time.Now().Add(time.Second * 10),
+						},
+					},
+				}, &mockStagingFileRepo{
+					schemas: tc.mockSchemas,
+				})
+				require.NoError(t, err)
+				uploadSchema, err := sch.ConsolidateStagingFilesSchema(ctx, stagingFiles, tc.selectiveSyncConfig)
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedSchema, uploadSchema)
+			})
+		}
 	})
 
 	t.Run("IsSchemaOutdated", func(t *testing.T) {
