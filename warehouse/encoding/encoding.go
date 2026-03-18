@@ -109,6 +109,10 @@ func (f *filteringEventLoader) GetLoadTimeFormat(columnName string) string {
 
 func (f *filteringEventLoader) AddColumn(columnName, columnType string, val any) {
 	if _, excluded := f.excludedColumns[columnName]; excluded {
+		// Insert a null placeholder so positional loaders (Parquet, CSV) keep
+		// columns aligned with the schema.  Map-based loaders (JSON) will emit
+		// a null key, which readers return as "".
+		f.inner.AddEmptyColumn(columnName)
 		return
 	}
 	f.inner.AddColumn(columnName, columnType, val)
@@ -129,9 +133,9 @@ func (f *filteringEventLoader) AddRow(columnNames, values []string) {
 }
 
 func (f *filteringEventLoader) AddEmptyColumn(columnName string) {
-	if _, excluded := f.excludedColumns[columnName]; excluded {
-		return
-	}
+	// Always pass through to the inner loader — even for excluded columns —
+	// so that positional loaders (Parquet, CSV) maintain schema alignment.
+	// The inner loader writes a null/empty placeholder which readers return as "".
 	f.inner.AddEmptyColumn(columnName)
 }
 
