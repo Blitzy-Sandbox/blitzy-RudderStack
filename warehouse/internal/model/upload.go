@@ -22,6 +22,8 @@ const (
 	ExportingDataFailed       = "exporting_data_failed"
 	Aborted                   = "aborted"
 	Failed                    = "failed"
+	BackfillPending           = "backfill_pending"
+	BackfillInProgress        = "backfill_in_progress"
 )
 
 type JobErrorType = string
@@ -90,7 +92,11 @@ type Upload struct {
 	LoadFileType     string
 	NextRetryTime    time.Time
 	Priority         int
-	Retried          bool
+
+	// Backfill
+	BackfillJobID *int64
+
+	Retried bool
 
 	StagingFileStartID int64
 	StagingFileEndID   int64
