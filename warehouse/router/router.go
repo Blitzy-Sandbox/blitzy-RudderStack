@@ -794,6 +794,13 @@ func (r *Router) copyWarehouses() []model.Warehouse {
 // repository and does not touch the in-progress map (the upload will be picked up by
 // the normal runUploadJobAllocator loop).
 func (r *Router) CreateBackfillUpload(ctx context.Context, warehouse model.Warehouse, backfillJobID int64) error {
+	// Validate that backfill uploads are permitted for this warehouse.
+	// canCreateBackfillUpload checks feature-level and concurrency constraints.
+	if !r.canCreateBackfillUpload(warehouse) {
+		return fmt.Errorf("backfill upload not allowed for warehouse %s: %w",
+			warehouse.Identifier, errBackfillUploadBypassesScheduling)
+	}
+
 	r.logger.Infon("creating backfill upload",
 		logger.NewIntField("backfillJobID", backfillJobID),
 		logger.NewStringField("sourceID", warehouse.Source.ID),
@@ -811,6 +818,12 @@ func (r *Router) CreateBackfillUpload(ctx context.Context, warehouse model.Wareh
 		NextRetryTime:   r.now(),
 		Priority:        50, // Backfill uploads run at elevated priority
 		BackfillJobID:   &backfillJobID,
+	}
+
+	// Verify the upload is properly configured as a backfill operation
+	// before proceeding with staging file lookup and batch creation.
+	if !isBackfillUpload(upload) {
+		return fmt.Errorf("internal error: backfill upload missing BackfillJobID for job %d", backfillJobID)
 	}
 
 	// Fetch pending staging files for the warehouse — backfill uploads still
