@@ -102,12 +102,12 @@ func NewSelectiveSyncService(
 		cache: make(map[string]*cachedConfig),
 	}
 	s.config.enabled = conf.GetReloadableBoolVar(
-		false,
-		"Warehouse.selectiveSync.enabled",
+		DefaultEnabled,
+		ConfigKeyEnabled,
 	)
 	s.config.cacheRefreshMinutes = conf.GetReloadableIntVar(
-		5, 1,
-		"Warehouse.selectiveSync.cacheRefreshMinutes",
+		DefaultCacheRefreshMinutes, 1,
+		ConfigKeyCacheRefreshMinutes,
 	)
 	return s
 }
@@ -164,15 +164,15 @@ func (s *SelectiveSyncService) getConfig(ctx context.Context, sourceID, destID s
 //   - Any error occurs during configuration lookup (fail open)
 //   - The table is not in the excluded tables list
 //
-// This method is thread-safe and can be called concurrently. It uses
-// context.Background() because it is called from state machine code that may
-// not have an HTTP request context available.
-func (s *SelectiveSyncService) IsTableExcluded(sourceID, destID, table string) bool {
+// This method is thread-safe and can be called concurrently. Callers should
+// pass a request or upload context to enable deadline propagation and
+// cancellation during the repository lookup on cache miss.
+func (s *SelectiveSyncService) IsTableExcluded(ctx context.Context, sourceID, destID, table string) bool {
 	if !s.config.enabled.Load() {
 		return false
 	}
 
-	cfg, err := s.getConfig(context.Background(), sourceID, destID)
+	cfg, err := s.getConfig(ctx, sourceID, destID)
 	if err != nil {
 		// Fail open: on error, default to including the table.
 		// Log at debug level to avoid log spam on every predicate call.
@@ -203,13 +203,15 @@ func (s *SelectiveSyncService) IsTableExcluded(sourceID, destID, table string) b
 //   - The table has no column-level exclusions
 //   - The column is not in the excluded columns list for the table
 //
-// This method is thread-safe and can be called concurrently.
-func (s *SelectiveSyncService) IsColumnExcluded(sourceID, destID, table, column string) bool {
+// This method is thread-safe and can be called concurrently. Callers should
+// pass a request or upload context to enable deadline propagation and
+// cancellation during the repository lookup on cache miss.
+func (s *SelectiveSyncService) IsColumnExcluded(ctx context.Context, sourceID, destID, table, column string) bool {
 	if !s.config.enabled.Load() {
 		return false
 	}
 
-	cfg, err := s.getConfig(context.Background(), sourceID, destID)
+	cfg, err := s.getConfig(ctx, sourceID, destID)
 	if err != nil {
 		// Fail open: on error, default to including the column.
 		s.log.Warnn("selective sync config lookup failed, defaulting to include",
@@ -269,10 +271,10 @@ func (s *SelectiveSyncService) UpdateConfig(ctx context.Context, req SelectiveSy
 	}
 
 	if req.SourceID == "" {
-		return nil, fmt.Errorf("source_id is required")
+		return nil, ErrMissingSourceID
 	}
 	if req.DestinationID == "" {
-		return nil, fmt.Errorf("destination_id is required")
+		return nil, ErrMissingDestinationID
 	}
 
 	cfg := SelectiveSyncConfig{

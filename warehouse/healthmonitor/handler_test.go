@@ -305,7 +305,9 @@ func TestHealthHandler_GetHealthBySourceDest(t *testing.T) {
 
 	t.Run("unknown sourceID", func(t *testing.T) {
 		// When the repository returns nil for an unknown source/dest pair
-		// (no error), the handler responds with HTTP 200 and a null body.
+		// (no error), the handler responds with HTTP 200 and an empty
+		// SourceHealthResponse with an empty Destinations slice (not null),
+		// ensuring consistent JSON array responses for dashboard consumption.
 		repo := &mockHealthRepo{
 			sourceHealth:    nil,
 			sourceHealthErr: nil,
@@ -325,9 +327,10 @@ func TestHealthHandler_GetHealthBySourceDest(t *testing.T) {
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
-		// The response body should be "null\n" since the handler passes
-		// a nil SourceHealthResponse to writeJSONResponse.
-		require.Contains(t, rec.Body.String(), "null")
+		// The response body should contain the sourceID and an empty destinations
+		// array, matching GetHealthSummary's empty-array convention.
+		require.Contains(t, rec.Body.String(), "unknown-source")
+		require.Contains(t, rec.Body.String(), "destinations")
 	})
 
 	t.Run("missing parameters", func(t *testing.T) {

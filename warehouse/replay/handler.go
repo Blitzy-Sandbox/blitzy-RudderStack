@@ -153,6 +153,24 @@ func (s *replayJobStore) ActiveCount() int64 {
 	return count
 }
 
+// PruneTerminalJobs removes terminal (Completed/Failed) jobs that are older than
+// the given retention duration. This prevents unbounded memory growth in the
+// in-memory job store over the lifetime of the process.
+func (s *replayJobStore) PruneTerminalJobs(retention time.Duration) int {
+	cutoff := time.Now().Add(-retention)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	pruned := 0
+	for id, job := range s.jobs {
+		if IsTerminal(job.Status) && job.UpdatedAt.Before(cutoff) {
+			delete(s.jobs, id)
+			pruned++
+		}
+	}
+	return pruned
+}
+
 // ---------------------------------------------------------------------------
 // ReplayHandler — Full orchestrator
 // ---------------------------------------------------------------------------
@@ -176,6 +194,13 @@ type ReplayHandler struct {
 	retriever    *ArchivedEventRetriever
 	gateway      GatewayClient
 
+	// shutdownCtx is derived from the server's lifecycle context, enabling
+	// graceful shutdown of in-flight replay goroutines when the server stops.
+	// Background replay pipelines inherit this context (with an added timeout)
+	// instead of using context.Background(), ensuring they are cancelled when
+	// the server shuts down.
+	shutdownCtx context.Context
+
 	// Reloadable configuration loaded from config.go via LoadConfig().
 	replayCfg Config
 
@@ -198,12 +223,14 @@ var _ ReplayTrigger = (*ReplayHandler)(nil)
 // without process restart.
 //
 // Parameters:
+//   - shutdownCtx: Server lifecycle context for graceful shutdown of in-flight replays
 //   - conf: Configuration instance for loading reloadable parameters
 //   - log: Structured logger for diagnostic output (Child("replay") is created)
 //   - statsFactory: Prometheus-compatible stats factory for metric emission
 //   - retriever: ArchivedEventRetriever for querying archived events
 //   - gateway: GatewayClient for sending replay batches to Gateway
 func NewReplayHandler(
+	shutdownCtx context.Context,
 	conf *config.Config,
 	log logger.Logger,
 	statsFactory stats.Stats,
@@ -216,6 +243,7 @@ func NewReplayHandler(
 		statsFactory: statsFactory,
 		retriever:    retriever,
 		gateway:      gateway,
+		shutdownCtx:  shutdownCtx,
 		jobs:         newReplayJobStore(),
 	}
 
@@ -223,11 +251,14 @@ func NewReplayHandler(
 	// warehouse/archive/archiver.go pattern (lines 92-98).
 	h.replayCfg = LoadConfig(conf)
 
-	// Stats counters — follows warehouse/archive/archiver.go pattern (line 100).
-	h.replayTriggered = statsFactory.NewStat("warehouse.replay.triggered", stats.CountType)
-	h.replayFailed = statsFactory.NewStat("warehouse.replay.failed", stats.CountType)
-	h.replayCompleted = statsFactory.NewStat("warehouse.replay.completed", stats.CountType)
-	h.replayBatchSent = statsFactory.NewStat("warehouse.replay.batchSent", stats.CountType)
+	// Stats counters — follows warehouse/router/upload_stats.go pattern using
+	// NewTaggedStat with the standard warehouse tag set for Prometheus metric
+	// aggregation by module.
+	warehouseTag := stats.Tags{"module": "warehouse"}
+	h.replayTriggered = statsFactory.NewTaggedStat("warehouse.replay.triggered", stats.CountType, warehouseTag)
+	h.replayFailed = statsFactory.NewTaggedStat("warehouse.replay.failed", stats.CountType, warehouseTag)
+	h.replayCompleted = statsFactory.NewTaggedStat("warehouse.replay.completed", stats.CountType, warehouseTag)
+	h.replayBatchSent = statsFactory.NewTaggedStat("warehouse.replay.batchSent", stats.CountType, warehouseTag)
 
 	return h
 }
@@ -293,10 +324,10 @@ func (h *ReplayHandler) Trigger(ctx context.Context, req ReplayRequest) (*Replay
 		logger.NewStringField("destinationID", req.DestinationID),
 	)
 
-	// 7. Start replay pipeline asynchronously with a detached context.
-	// We use context.Background() so the pipeline is not cancelled when
-	// the HTTP request context ends.
-	go h.executeReplay(context.Background(), jobID, req)
+	// 7. Start replay pipeline asynchronously with the server shutdown context.
+	// We use h.shutdownCtx (not r.Context()) so the pipeline is not cancelled
+	// when the HTTP request ends, but IS cancelled on graceful server shutdown.
+	go h.executeReplay(h.shutdownCtx, jobID, req)
 
 	// 8. Return response with the assigned job ID and pending status.
 	return &ReplayResponse{
@@ -330,12 +361,15 @@ func (h *ReplayHandler) executeReplay(ctx context.Context, jobID int64, req Repl
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Transition job to InProgress.
+	// Transition job to InProgress. If this fails, explicitly fail the job
+	// to prevent it from being stuck in Pending state permanently.
 	if err := h.jobs.UpdateStatus(jobID, StatusInProgress); err != nil {
 		h.log.Errorn("failed to update replay job status to in_progress",
 			obskit.Error(err),
 			logger.NewIntField("jobID", jobID),
 		)
+		_ = h.jobs.UpdateError(jobID, fmt.Sprintf("failed to transition to in_progress: %v", err))
+		h.replayFailed.Increment()
 		return
 	}
 
@@ -436,74 +470,7 @@ func (h *ReplayHandler) executeReplay(ctx context.Context, jobID int64, req Repl
 }
 
 // ---------------------------------------------------------------------------
-// ReplayHandler — HTTP Handler Methods
-// ---------------------------------------------------------------------------
-
-// TriggerReplay handles POST /v1/warehouse/replay requests.
-// It parses the JSON request body, delegates to Trigger(), and returns a
-// structured JSON response with the job ID and initial status.
-//
-// HTTP status codes:
-//   - 200: Replay job created successfully
-//   - 400: Invalid request body or validation error
-//   - 403: Replay feature is disabled
-//   - 429: Concurrent replay limit reached
-//   - 500: Internal server error
-func (h *ReplayHandler) TriggerReplay(w http.ResponseWriter, r *http.Request) {
-	defer func() { _ = r.Body.Close() }()
-
-	var req ReplayRequest
-	if err := jsonrs.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.log.Warnn("invalid JSON in replay request body", obskit.Error(err))
-		writeErrorResp(w, http.StatusBadRequest, "invalid JSON request body")
-		return
-	}
-
-	resp, err := h.Trigger(r.Context(), req)
-	if err != nil {
-		mapServiceError(w, h.log, err)
-		return
-	}
-
-	writeJSONResp(w, http.StatusOK, resp)
-}
-
-// GetReplayStatus handles GET /v1/warehouse/replay/{jobID} requests.
-// It extracts the job ID from the URL path, retrieves the job status,
-// and returns a structured JSON response.
-//
-// HTTP status codes:
-//   - 200: Job status retrieved successfully
-//   - 400: Invalid job ID in URL path
-//   - 404: Replay job not found
-//   - 500: Internal server error
-func (h *ReplayHandler) GetReplayStatus(w http.ResponseWriter, r *http.Request) {
-	jobIDStr := chi.URLParam(r, "jobID")
-	jobID, err := strconv.ParseInt(jobIDStr, 10, 64)
-	if err != nil {
-		writeErrorResp(w, http.StatusBadRequest, "invalid job ID")
-		return
-	}
-
-	job, err := h.GetStatus(r.Context(), jobID)
-	if err != nil {
-		if errors.Is(err, ErrReplayJobNotFound) {
-			writeErrorResp(w, http.StatusNotFound, "replay job not found")
-			return
-		}
-		h.log.Errorn("failed to get replay status",
-			obskit.Error(err),
-			logger.NewIntField("jobID", jobID),
-		)
-		writeErrorResp(w, http.StatusInternalServerError, "failed to get replay status")
-		return
-	}
-
-	writeJSONResp(w, http.StatusOK, job)
-}
-
-// ---------------------------------------------------------------------------
-// Handler — Thin HTTP handler wrapper
+// Handler — HTTP handler wrapper
 // ---------------------------------------------------------------------------
 
 // Handler provides HTTP handler methods that delegate business logic to a
@@ -532,7 +499,8 @@ func NewHandler(service ReplayTrigger, log logger.Logger) *Handler {
 
 // TriggerReplay handles POST /v1/warehouse/replay requests.
 // It parses the JSON request body, delegates to the ReplayTrigger.Trigger()
-// method, and returns a structured JSON response.
+// method, and returns a structured JSON response with HTTP 201 Created
+// status for the newly created replay job resource.
 func (h *Handler) TriggerReplay(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 
@@ -549,7 +517,7 @@ func (h *Handler) TriggerReplay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSONResp(w, http.StatusOK, resp)
+	writeJSONResp(w, http.StatusCreated, resp)
 }
 
 // GetReplayStatus handles GET /v1/warehouse/replay/{jobID} requests.

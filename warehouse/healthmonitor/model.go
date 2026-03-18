@@ -1,7 +1,6 @@
 package healthmonitor
 
 import (
-	"encoding/json"
 	"errors"
 	"time"
 )
@@ -74,11 +73,10 @@ type SyncHealth struct {
 
 	// SchemaChanges stores arbitrary JSON data describing schema changes detected
 	// during this sync cycle. Stored as JSONB in the wh_sync_health table.
-	// Uses json.RawMessage for type reference only (not for Marshal/Unmarshal operations,
-	// which use jsonrs per .golangci.yml rules). Consistent with the pattern in
-	// warehouse/internal/model/upload.go (Error field) and
-	// warehouse/internal/model/staging.go (Schema field).
-	SchemaChanges json.RawMessage `json:"schemaChanges"`
+	// Uses []byte to avoid importing encoding/json, consistent with the backfill
+	// package's approach for JSONB data and the project's depguard rules that
+	// restrict encoding/json usage. All Marshal/Unmarshal operations use jsonrs.
+	SchemaChanges []byte `json:"schemaChanges"`
 
 	// CreatedAt records when this health record was persisted to the wh_sync_health table.
 	CreatedAt time.Time `json:"createdAt"`
@@ -133,6 +131,10 @@ type SourceHealth struct {
 	// SourceType is the source type (e.g., "web", "android", "ios", "cloud").
 	SourceType string `json:"sourceType"`
 
+	// WorkspaceID is the workspace that owns this source. Required for tenant isolation
+	// and Prometheus metric tagging per AAP standard warehouse tag set.
+	WorkspaceID string `json:"workspaceID"`
+
 	// Destinations contains health metrics for each destination connected to this source.
 	Destinations []*DestinationHealth `json:"destinations"`
 }
@@ -183,6 +185,9 @@ type SourceHealthResponse struct {
 
 	// SourceType is the source type (e.g., "web", "android", "ios", "cloud").
 	SourceType string `json:"sourceType"`
+
+	// WorkspaceID is the workspace that owns this source.
+	WorkspaceID string `json:"workspaceID"`
 
 	// Destinations contains health metrics for the filtered destinations.
 	Destinations []*DestinationHealth `json:"destinations"`

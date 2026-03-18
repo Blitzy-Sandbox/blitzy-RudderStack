@@ -156,10 +156,10 @@ func (a *AlertingEvaluator) Evaluate(summary *HealthSummaryResponse) {
 			if dest == nil {
 				continue
 			}
-			a.evaluateFailureRate(source.SourceID, dest.DestID, dest.ErrorRate)
-			a.evaluateDurationSpike(source.SourceID, dest.DestID, dest.SyncDuration.Avg)
-			a.evaluateRowCountAnomaly(source.SourceID, dest.DestID, dest.RowsSynced, dest.PreviousRowsSynced)
-			a.evaluateSchemaDrift(source.SourceID, dest.DestID, dest.SchemaChanges)
+			a.evaluateFailureRate(source.WorkspaceID, source.SourceID, dest.DestID, dest.DestType, source.SourceType, dest.ErrorRate)
+			a.evaluateDurationSpike(source.WorkspaceID, source.SourceID, dest.DestID, dest.DestType, source.SourceType, dest.SyncDuration.Avg)
+			a.evaluateRowCountAnomaly(source.WorkspaceID, source.SourceID, dest.DestID, dest.DestType, source.SourceType, dest.RowsSynced, dest.PreviousRowsSynced)
+			a.evaluateSchemaDrift(source.WorkspaceID, source.SourceID, dest.DestID, dest.DestType, source.SourceType, dest.SchemaChanges)
 		}
 	}
 }
@@ -170,7 +170,7 @@ func (a *AlertingEvaluator) Evaluate(summary *HealthSummaryResponse) {
 //
 // The error rate is a float64 value between 0.0 and 1.0, where 0.0 means no errors
 // and 1.0 means all syncs failed.
-func (a *AlertingEvaluator) evaluateFailureRate(sourceID, destID string, errorRate float64) {
+func (a *AlertingEvaluator) evaluateFailureRate(workspaceID, sourceID, destID, destType, sourceType string, errorRate float64) {
 	threshold := a.config.failureRateThreshold.Load()
 	if errorRate <= threshold {
 		return
@@ -188,7 +188,7 @@ func (a *AlertingEvaluator) evaluateFailureRate(sourceID, destID string, errorRa
 		logger.NewFloatField("threshold", threshold),
 	)
 
-	a.emitAlert(AlertTypeFailureRate, sourceID, destID)
+	a.emitAlert(AlertTypeFailureRate, workspaceID, sourceID, destID, destType, sourceType)
 	a.recordAlert(alertKey)
 }
 
@@ -197,7 +197,7 @@ func (a *AlertingEvaluator) evaluateFailureRate(sourceID, destID string, errorRa
 // counter with alertType=duration_spike.
 //
 // The avgDurationMs parameter is the average sync duration in milliseconds.
-func (a *AlertingEvaluator) evaluateDurationSpike(sourceID, destID string, avgDurationMs int64) {
+func (a *AlertingEvaluator) evaluateDurationSpike(workspaceID, sourceID, destID, destType, sourceType string, avgDurationMs int64) {
 	threshold := int64(a.config.durationSpikeThresholdMs.Load())
 	if avgDurationMs <= threshold {
 		return
@@ -215,7 +215,7 @@ func (a *AlertingEvaluator) evaluateDurationSpike(sourceID, destID string, avgDu
 		logger.NewIntField("thresholdMs", threshold),
 	)
 
-	a.emitAlert(AlertTypeDurationSpike, sourceID, destID)
+	a.emitAlert(AlertTypeDurationSpike, workspaceID, sourceID, destID, destType, sourceType)
 	a.recordAlert(alertKey)
 }
 
@@ -229,7 +229,7 @@ func (a *AlertingEvaluator) evaluateDurationSpike(sourceID, destID string, avgDu
 //
 // If the drop exceeds the threshold and the cooldown period has elapsed, emits a
 // warehouse_health_alert counter with alertType=row_count_anomaly.
-func (a *AlertingEvaluator) evaluateRowCountAnomaly(sourceID, destID string, rowsSynced, previousRowsSynced int64) {
+func (a *AlertingEvaluator) evaluateRowCountAnomaly(workspaceID, sourceID, destID, destType, sourceType string, rowsSynced, previousRowsSynced int64) {
 	// No baseline to compare against — skip anomaly detection.
 	if previousRowsSynced <= 0 {
 		return
@@ -257,7 +257,7 @@ func (a *AlertingEvaluator) evaluateRowCountAnomaly(sourceID, destID string, row
 		logger.NewIntField("dropPercentThreshold", int64(dropPercent)),
 	)
 
-	a.emitAlert(AlertTypeRowCountAnomaly, sourceID, destID)
+	a.emitAlert(AlertTypeRowCountAnomaly, workspaceID, sourceID, destID, destType, sourceType)
 	a.recordAlert(alertKey)
 }
 
@@ -266,7 +266,7 @@ func (a *AlertingEvaluator) evaluateRowCountAnomaly(sourceID, destID string, row
 //
 // If schema changes are detected (count > 0) and the cooldown period has elapsed,
 // emits a warehouse_health_alert counter with alertType=schema_drift.
-func (a *AlertingEvaluator) evaluateSchemaDrift(sourceID, destID string, schemaChanges int64) {
+func (a *AlertingEvaluator) evaluateSchemaDrift(workspaceID, sourceID, destID, destType, sourceType string, schemaChanges int64) {
 	if !a.config.schemaDriftEnabled.Load() {
 		return
 	}
@@ -286,7 +286,7 @@ func (a *AlertingEvaluator) evaluateSchemaDrift(sourceID, destID string, schemaC
 		logger.NewIntField("schemaChanges", schemaChanges),
 	)
 
-	a.emitAlert(AlertTypeSchemaDrift, sourceID, destID)
+	a.emitAlert(AlertTypeSchemaDrift, workspaceID, sourceID, destID, destType, sourceType)
 	a.recordAlert(alertKey)
 }
 
@@ -329,15 +329,42 @@ func (a *AlertingEvaluator) recordAlert(alertKey string) {
 // emitAlert emits a warehouse_health_alert counter metric with the standard tag set.
 // Tags follow the pattern established in warehouse/router/upload_stats.go:
 //   - module: "warehouse" (constant, identifies the subsystem)
+//   - workspaceId: the workspace owning the source-destination pair
 //   - alertType: the type of alert (failure_rate, duration_spike, row_count_anomaly, schema_drift)
 //   - sourceID: the RudderStack source identifier
 //   - destID: the warehouse destination identifier
-func (a *AlertingEvaluator) emitAlert(alertType AlertType, sourceID, destID string) {
+//   - destType: the warehouse destination type (e.g., "SNOWFLAKE", "BQ", "RS")
+//   - sourceType: the source type (e.g., "web", "android", "ios", "cloud")
+func (a *AlertingEvaluator) emitAlert(alertType AlertType, workspaceID, sourceID, destID, destType, sourceType string) {
 	tags := stats.Tags{
-		"module":    "warehouse",
-		"alertType": string(alertType),
-		"sourceID":  sourceID,
-		"destID":    destID,
+		"module":      "warehouse",
+		"workspaceId": workspaceID,
+		"alertType":   string(alertType),
+		"sourceID":    sourceID,
+		"destID":      destID,
+		"destType":    destType,
+		"sourceType":  sourceType,
 	}
 	a.statsFactory.NewTaggedStat(alertMetricName, stats.CountType, tags).Increment()
+}
+
+// PruneCooldowns removes expired cooldown entries from the lastAlertTime map.
+// An entry is expired when the time since its last alert exceeds twice the cooldown period.
+// This prevents unbounded growth of the map when source/destination pairs are removed
+// or change over time.
+//
+// Thread-safe: protected by sync.Mutex.
+func (a *AlertingEvaluator) PruneCooldowns() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	cooldown := time.Duration(a.config.cooldownMinutes.Load()) * time.Minute
+	expiry := 2 * cooldown // Keep entries for 2x the cooldown period before pruning.
+	now := a.now()
+
+	for key, lastTime := range a.lastAlertTime {
+		if now.Sub(lastTime) > expiry {
+			delete(a.lastAlertTime, key)
+		}
+	}
 }

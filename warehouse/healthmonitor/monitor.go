@@ -32,6 +32,9 @@ type HealthMonitor struct {
 	logger       logger.Logger
 	statsFactory stats.Stats
 
+	// now returns the current time. Defaults to time.Now but can be overridden for testing.
+	now func() time.Time
+
 	repository *HealthRepo
 	metrics    *HealthMetrics
 	alerting   *AlertingEvaluator
@@ -67,6 +70,7 @@ func NewHealthMonitor(
 		conf:         conf,
 		logger:       log.Child("healthmonitor"),
 		statsFactory: statsFactory,
+		now:          time.Now,
 	}
 
 	// Reloadable configuration using the established config pattern
@@ -120,6 +124,10 @@ func (m *HealthMonitor) Run(ctx context.Context) error {
 			if err := m.purge(ctx); err != nil {
 				m.logger.Errorn("error purging old health records", obskit.Error(err))
 			}
+
+			// Prune expired cooldown entries from the alerting evaluator to prevent
+			// unbounded growth of the lastAlertTime map.
+			m.alerting.PruneCooldowns()
 		}
 	}
 }
@@ -155,7 +163,7 @@ func (m *HealthMonitor) collect(ctx context.Context) error {
 // If records are purged, an info-level log is emitted with the count and retention period.
 func (m *HealthMonitor) purge(ctx context.Context) error {
 	retentionDays := m.config.retentionDays.Load()
-	before := time.Now().AddDate(0, 0, -retentionDays)
+	before := m.now().AddDate(0, 0, -retentionDays)
 
 	count, err := m.repository.PurgeOldRecords(ctx, before)
 	if err != nil {
@@ -191,6 +199,11 @@ func (m *HealthMonitor) RecordSyncHealth(ctx context.Context, health *SyncHealth
 	if err := m.repository.RecordSyncHealth(ctx, health); err != nil {
 		return fmt.Errorf("recording sync health: %w", err)
 	}
+
+	// Emit real-time per-upload Prometheus metrics. This provides immediate metric
+	// visibility for individual uploads, complementing the periodic aggregate emission
+	// from the HealthMetrics.EmitMetrics() path in the collect() loop.
+	m.metrics.EmitUploadMetrics(health)
 
 	return nil
 }

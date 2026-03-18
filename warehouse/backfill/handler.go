@@ -103,8 +103,9 @@ func (h *Handler) TriggerBackfill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return the created backfill job response.
-	h.writeJSONResponse(w, http.StatusOK, resp)
+	// Return the created backfill job response with HTTP 201 Created
+	// since the POST endpoint creates a new backfill job resource.
+	h.writeJSONResponse(w, http.StatusCreated, resp)
 }
 
 // GetBackfillStatus handles GET /v1/warehouse/backfill/{jobID} requests.

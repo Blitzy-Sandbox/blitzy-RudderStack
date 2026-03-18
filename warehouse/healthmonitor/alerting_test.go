@@ -28,6 +28,7 @@ func testHealthSummary(sourceID, destID string, opts ...func(*DestinationHealth)
 			{
 				SourceID:     sourceID,
 				SourceType:   "test_source",
+				WorkspaceID:  "test_workspace",
 				Destinations: []*DestinationHealth{dest},
 			},
 		},
@@ -45,10 +46,13 @@ func TestAlertingEvaluator_EvaluateThresholds(t *testing.T) {
 
 	alertTags := func(alertType AlertType) stats.Tags {
 		return stats.Tags{
-			"module":    "warehouse",
-			"alertType": string(alertType),
-			"sourceID":  sourceID,
-			"destID":    destID,
+			"module":      "warehouse",
+			"workspaceId": "test_workspace",
+			"alertType":   string(alertType),
+			"sourceID":    sourceID,
+			"destID":      destID,
+			"destType":    "SNOWFLAKE",
+			"sourceType":  "test_source",
 		}
 	}
 
@@ -151,10 +155,13 @@ func TestAlertingEvaluator_Cooldown(t *testing.T) {
 	)
 
 	failureRateTags := stats.Tags{
-		"module":    "warehouse",
-		"alertType": string(AlertTypeFailureRate),
-		"sourceID":  sourceID,
-		"destID":    destID,
+		"module":      "warehouse",
+		"workspaceId": "test_workspace",
+		"alertType":   string(AlertTypeFailureRate),
+		"sourceID":    sourceID,
+		"destID":      destID,
+		"destType":    "SNOWFLAKE",
+		"sourceType":  "test_source",
 	}
 
 	t.Run("alert suppressed during cooldown period", func(t *testing.T) {
@@ -249,10 +256,13 @@ func TestAlertingEvaluator_Cooldown(t *testing.T) {
 		evaluator.Evaluate(summary2)
 
 		durationSpikeTags := stats.Tags{
-			"module":    "warehouse",
-			"alertType": string(AlertTypeDurationSpike),
-			"sourceID":  sourceID,
-			"destID":    destID,
+			"module":      "warehouse",
+			"workspaceId": "test_workspace",
+			"alertType":   string(AlertTypeDurationSpike),
+			"sourceID":    sourceID,
+			"destID":      destID,
+			"destType":    "SNOWFLAKE",
+			"sourceType":  "test_source",
 		}
 
 		// Failure rate stays at 1 (cooldown suppressed the second emission).
@@ -277,10 +287,13 @@ func TestAlertingEvaluator_AlertSuppression(t *testing.T) {
 
 	alertTags := func(alertType AlertType) stats.Tags {
 		return stats.Tags{
-			"module":    "warehouse",
-			"alertType": string(alertType),
-			"sourceID":  sourceID,
-			"destID":    destID,
+			"module":      "warehouse",
+			"workspaceId": "test_workspace",
+			"alertType":   string(alertType),
+			"sourceID":    sourceID,
+			"destID":      destID,
+			"destType":    "SNOWFLAKE",
+			"sourceType":  "test_source",
 		}
 	}
 

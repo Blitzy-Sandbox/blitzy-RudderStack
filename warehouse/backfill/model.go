@@ -67,7 +67,8 @@ type BackfillJob struct {
 }
 
 // BackfillRequest is the DTO for triggering a backfill via the HTTP API.
-// It captures the required parameters: source, destination, and date range.
+// It captures the required parameters: source, destination, date range, and workspace.
+// WorkspaceID is required per AAP for tenant isolation and stats tagging.
 // JSON tags follow the jsonrs marshaling convention (wire-compatible with encoding/json tags).
 type BackfillRequest struct {
 	// SourceID identifies the event source to backfill from.
@@ -75,6 +76,10 @@ type BackfillRequest struct {
 
 	// DestinationID identifies the warehouse destination to backfill into.
 	DestinationID string `json:"destination_id"`
+
+	// WorkspaceID is the workspace that owns this source-destination pair.
+	// Required for tenant isolation and stats tagging per AAP requirements.
+	WorkspaceID string `json:"workspace_id"`
 
 	// StartDate is the inclusive start of the backfill date range.
 	StartDate time.Time `json:"start_date"`

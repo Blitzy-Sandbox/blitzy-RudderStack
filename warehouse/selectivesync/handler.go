@@ -184,6 +184,8 @@ func (h *Handler) handleServiceError(w http.ResponseWriter, err error) {
 		h.writeErrorResponse(w, http.StatusForbidden, err.Error())
 	case errors.Is(err, ErrSelectiveSyncNotFound):
 		h.writeErrorResponse(w, http.StatusNotFound, err.Error())
+	case errors.Is(err, ErrMissingSourceID), errors.Is(err, ErrMissingDestinationID):
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
 	default:
 		h.log.Errorn("selective sync operation failed", obskit.Error(err))
 		h.writeErrorResponse(w, http.StatusInternalServerError, "internal server error")

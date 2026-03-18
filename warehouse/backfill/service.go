@@ -149,6 +149,10 @@ type BackfillService struct {
 	backfillFailed    stats.Counter
 	backfillCompleted stats.Counter
 
+	// now is an injectable clock function for testability.
+	// Defaults to time.Now in the constructor; can be overridden for tests.
+	now func() time.Time
+
 	// mu protects concurrent access to trackedJobs from the Trigger method
 	// (API goroutine) and the monitorJobs method (background goroutine).
 	mu sync.Mutex
@@ -195,6 +199,7 @@ func NewBackfillService(
 		archiver:     archiver,
 		stagingRepo:  stagingRepo,
 		cfg:          LoadConfig(conf),
+		now:          time.Now,
 		trackedJobs:  make(map[int64]struct{}),
 	}
 
@@ -264,9 +269,12 @@ func (s *BackfillService) Trigger(ctx context.Context, req BackfillRequest) (*Ba
 	// Step 4: Create the backfill job record in the repository.
 	// The repository always sets status to StatusPending regardless
 	// of what we pass, but we set it here for clarity.
+	// WorkspaceID is propagated from the request for tenant isolation
+	// and stats tagging per AAP requirements.
 	job := BackfillJob{
 		SourceID:      req.SourceID,
 		DestinationID: req.DestinationID,
+		WorkspaceID:   req.WorkspaceID,
 		StartDate:     req.StartDate,
 		EndDate:       req.EndDate,
 		Status:        StatusPending,
@@ -323,11 +331,6 @@ func (s *BackfillService) GetStatus(ctx context.Context, jobID int64) (*Backfill
 //
 //	go backfillService.Run(ctx)
 func (s *BackfillService) Run(ctx context.Context) error {
-	if !s.cfg.Enabled.Load() {
-		s.log.Infon("backfill service is disabled, not starting monitor")
-		return nil
-	}
-
 	s.log.Infon("starting backfill background monitor")
 
 	for {
@@ -336,6 +339,11 @@ func (s *BackfillService) Run(ctx context.Context) error {
 			s.log.Infon("context cancelled, stopping backfill monitor")
 			return nil
 		case <-time.After(s.cfg.MonitorInterval.Load()):
+			// Check enabled flag per-tick so that runtime config toggling
+			// (via reloadable config) takes effect without restarting the monitor.
+			if !s.cfg.Enabled.Load() {
+				continue
+			}
 			s.monitorJobs(ctx)
 		}
 	}
@@ -449,7 +457,7 @@ func (s *BackfillService) processPendingJob(ctx context.Context, job BackfillJob
 	// Determine the archiver retention cutoff. Dates after this cutoff
 	// are within the archiver's retention window and can be resolved
 	// from the archiver's stored events.
-	retentionCutoff := time.Now().AddDate(0, 0, -ArchiverRetentionWindowDays)
+	retentionCutoff := s.now().AddDate(0, 0, -ArchiverRetentionWindowDays)
 
 	var fileIDs []int64
 	var err error

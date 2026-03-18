@@ -51,6 +51,7 @@ func newTestMonitor(t *testing.T, enabled bool, intervalSeconds, retentionDays i
 		repository:   repo,
 		metrics:      metrics,
 		alerting:     alerting,
+		now:          time.Now,
 	}
 
 	m.config.enabled = config.SingleValueLoader(enabled)
@@ -62,13 +63,17 @@ func newTestMonitor(t *testing.T, enabled bool, intervalSeconds, retentionDays i
 
 // healthSummaryColumns returns the column names for the GetHealthSummary SQL result set,
 // matching the SELECT clause in getHealthSummarySQL from repository.go.
+// Includes workspace_id, error_category, and schema_changes_count columns
+// added for health monitoring alerting and metrics pipeline.
 func healthSummaryColumns() []string {
 	return []string{
 		"source_id", "destination_id", "dest_type", "source_type",
+		"workspace_id",
 		"total_syncs", "successful_syncs",
 		"avg_duration_ms", "min_duration_ms", "max_duration_ms",
 		"total_rows_synced", "total_rows_failed",
 		"last_sync",
+		"error_category", "schema_changes_count",
 	}
 }
 
@@ -97,6 +102,7 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 			"dest-1",          // destination_id
 			"SNOWFLAKE",       // dest_type
 			"web",             // source_type
+			"workspace-1",     // workspace_id
 			int64(100),        // total_syncs
 			int64(95),         // successful_syncs
 			float64(5000),     // avg_duration_ms
@@ -105,6 +111,8 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 			int64(50000),      // total_rows_synced
 			int64(100),        // total_rows_failed
 			fixedNow,          // last_sync
+			"permission_error", // error_category
+			int64(2),          // schema_changes_count
 		)
 		mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
@@ -119,11 +127,12 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 
 		// Assert: Prometheus metrics were emitted correctly.
 		baseTags := stats.Tags{
-			"module":     "warehouse",
-			"sourceID":   "source-1",
-			"destID":     "dest-1",
-			"destType":   "SNOWFLAKE",
-			"sourceType": "web",
+			"module":      "warehouse",
+			"workspaceId": "workspace-1",
+			"sourceID":    "source-1",
+			"destID":      "dest-1",
+			"destType":    "SNOWFLAKE",
+			"sourceType":  "web",
 		}
 
 		// Duration histogram: avg_duration_ms (5000) / 1000.0 = 5.0 seconds
@@ -144,11 +153,12 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 		// Errors counter: 5 errors (100 - 95)
 		errorTags := stats.Tags{
 			"module":         "warehouse",
+			"workspaceId":    "workspace-1",
 			"sourceID":       "source-1",
 			"destID":         "dest-1",
 			"destType":       "SNOWFLAKE",
 			"sourceType":     "web",
-			"error_category": "",
+			"error_category": "permission_error",
 		}
 		errorMeasurement := statsStore.Get(metricSyncErrorsTotal, errorTags)
 		require.NotNil(t, errorMeasurement)
@@ -226,6 +236,7 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 			"dest-2",          // destination_id
 			"BQ",              // dest_type
 			"android",         // source_type
+			"workspace-2",     // workspace_id
 			int64(100),        // total_syncs
 			int64(80),         // successful_syncs (20% failure)
 			float64(3000),     // avg_duration_ms
@@ -234,6 +245,8 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 			int64(30000),      // total_rows_synced
 			int64(200),        // total_rows_failed
 			fixedNow,          // last_sync
+			"",                // error_category
+			int64(0),          // schema_changes_count
 		)
 		mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
@@ -245,11 +258,12 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 
 		// Assert: status gauge is 0.0 (unhealthy) because error rate 20% > 10% threshold.
 		statusTags := stats.Tags{
-			"module":     "warehouse",
-			"sourceID":   "source-2",
-			"destID":     "dest-2",
-			"destType":   "BQ",
-			"sourceType": "android",
+			"module":      "warehouse",
+			"workspaceId": "workspace-2",
+			"sourceID":    "source-2",
+			"destID":      "dest-2",
+			"destType":    "BQ",
+			"sourceType":  "android",
 		}
 		statusMeasurement := statsStore.Get(metricSyncStatus, statusTags)
 		require.NotNil(t, statusMeasurement)
@@ -438,6 +452,7 @@ func TestHealthMonitor_Run_PeriodicCollection(t *testing.T) {
 				"dst-periodic",    // destination_id
 				"RS",              // dest_type
 				"ios",             // source_type
+				"ws-periodic",     // workspace_id
 				int64(10),         // total_syncs
 				int64(10),         // successful_syncs
 				float64(2000),     // avg_duration_ms
@@ -446,6 +461,8 @@ func TestHealthMonitor_Run_PeriodicCollection(t *testing.T) {
 				int64(5000),       // total_rows_synced
 				int64(0),          // total_rows_failed
 				fixedNow,          // last_sync
+				"",                // error_category
+				int64(0),          // schema_changes_count
 			)
 			mock.ExpectQuery("SELECT").WillReturnRows(summaryRows)
 
@@ -477,11 +494,12 @@ func TestHealthMonitor_Run_PeriodicCollection(t *testing.T) {
 
 		// Assert: Verify metrics were emitted at least twice (multiple cycles).
 		periodicTags := stats.Tags{
-			"module":     "warehouse",
-			"sourceID":   "src-periodic",
-			"destID":     "dst-periodic",
-			"destType":   "RS",
-			"sourceType": "ios",
+			"module":      "warehouse",
+			"workspaceId": "ws-periodic",
+			"sourceID":    "src-periodic",
+			"destID":      "dst-periodic",
+			"destType":    "RS",
+			"sourceType":  "ios",
 		}
 		durationValues := statsStore.Get(metricSyncDuration, periodicTags)
 		require.NotNil(t, durationValues)

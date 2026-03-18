@@ -113,13 +113,15 @@ func NewArchivedEventRetriever(
 		ConfigKeyBatchSize,
 	)
 
-	// Stats counters — follows warehouse/archive/archiver.go pattern (line 100).
-	// These counters track cumulative events retrieved and errors for Prometheus scraping.
-	r.eventsRetrieved = statsFactory.NewStat(
-		"warehouse.replay.eventsRetrieved", stats.CountType,
+	// Stats counters — follows warehouse/router/upload_stats.go pattern using
+	// NewTaggedStat with the standard warehouse tag set for Prometheus metric
+	// aggregation by module.
+	warehouseTag := stats.Tags{"module": "warehouse"}
+	r.eventsRetrieved = statsFactory.NewTaggedStat(
+		"warehouse.replay.eventsRetrieved", stats.CountType, warehouseTag,
 	)
-	r.retrievalErrors = statsFactory.NewStat(
-		"warehouse.replay.retrievalErrors", stats.CountType,
+	r.retrievalErrors = statsFactory.NewTaggedStat(
+		"warehouse.replay.retrievalErrors", stats.CountType, warehouseTag,
 	)
 
 	return r
@@ -209,57 +211,13 @@ func (r *ArchivedEventRetriever) Retrieve(
 }
 
 // deserializeBatch decompresses a gzipped JSONL batch and parses each line into
-// an ArchivedEvent. This follows the same format the archiver uses to store events
-// (see warehouse/archive/archiver.go lines 143-172 where TableJSONArchiver creates
-// gzipped JSON output).
-//
-// The function:
-//  1. Creates a gzip reader from the batch's compressed data
-//  2. Uses a bufio.Scanner to read lines, with a configurable buffer up to maxTokenSize (10 MB)
-//  3. Deserializes each non-empty line using jsonrs.Unmarshal (NOT encoding/json)
+// an ArchivedEvent. This delegates to the exported DeserializeGzipJSONL utility
+// function which implements the full decompression and parsing pipeline.
 //
 // Empty lines are silently skipped. If any line fails to deserialize, the function
-// returns an error with the line number for debugging.
+// returns an error for debugging.
 func (r *ArchivedEventRetriever) deserializeBatch(batch ArchivedEventBatch) ([]ArchivedEvent, error) {
-	if len(batch.Data) == 0 {
-		return nil, nil
-	}
-
-	// 1. Decompress gzip data from the batch
-	gzReader, err := gzip.NewReader(bytes.NewReader(batch.Data))
-	if err != nil {
-		return nil, fmt.Errorf("creating gzip reader: %w", err)
-	}
-	defer func() { _ = gzReader.Close() }()
-
-	// 2. Read line by line (JSONL format — one JSON object per line)
-	var events []ArchivedEvent
-	scanner := bufio.NewScanner(gzReader)
-
-	// Increase scanner buffer for large event payloads.
-	// Default scanner buffer is 64KB; archived events can be much larger.
-	scanner.Buffer(make([]byte, 0, initialBufSize), maxTokenSize)
-
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue // skip empty lines between JSON objects
-		}
-
-		var event ArchivedEvent
-		if err := jsonrs.Unmarshal(line, &event); err != nil {
-			return nil, fmt.Errorf("deserializing event at line %d: %w", lineNum, err)
-		}
-		events = append(events, event)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scanning JSONL lines: %w", err)
-	}
-
-	return events, nil
+	return DeserializeGzipJSONL(batch.Data)
 }
 
 // DeserializeGzipJSONL decompresses gzipped JSONL data and returns individual event

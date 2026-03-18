@@ -129,6 +129,15 @@ func (h *HealthHandler) GetHealthBySourceDest(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Return an empty response with zero-value fields instead of null JSON body
+	// when no health data exists, matching GetHealthSummary's empty-array convention.
+	if health == nil {
+		health = &SourceHealthResponse{
+			SourceID:     sourceID,
+			Destinations: make([]*DestinationHealth, 0),
+		}
+	}
+
 	h.writeJSONResponse(w, http.StatusOK, health)
 }
 

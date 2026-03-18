@@ -77,13 +77,14 @@ func NewHealthMetrics(statsFactory stats.Stats) *HealthMetrics {
 // Additional tags can be provided via the variadic extraTags parameter.
 // Extra tags are merged into the base tag set, with later values overwriting
 // earlier ones for duplicate keys.
-func (m *HealthMetrics) buildTags(sourceID, destID, destType, sourceType string, extraTags ...stats.Tags) stats.Tags {
+func (m *HealthMetrics) buildTags(workspaceID, sourceID, destID, destType, sourceType string, extraTags ...stats.Tags) stats.Tags {
 	tags := stats.Tags{
-		"module":     "warehouse",
-		"sourceID":   sourceID,
-		"destID":     destID,
-		"destType":   destType,
-		"sourceType": sourceType,
+		"module":      "warehouse",
+		"workspaceId": workspaceID,
+		"sourceID":    sourceID,
+		"destID":      destID,
+		"destType":    destType,
+		"sourceType":  sourceType,
 	}
 	for _, extra := range extraTags {
 		for k, v := range extra {
@@ -119,7 +120,7 @@ func (m *HealthMetrics) EmitMetrics(summary *HealthSummaryResponse) {
 				continue
 			}
 
-			tags := m.buildTags(source.SourceID, dest.DestID, dest.DestType, source.SourceType)
+			tags := m.buildTags(source.WorkspaceID, source.SourceID, dest.DestID, dest.DestType, source.SourceType)
 
 			// Emit sync duration histogram: convert average duration from ms to seconds.
 			// Uses the aggregate average from the health summary, providing a representative
@@ -135,7 +136,7 @@ func (m *HealthMetrics) EmitMetrics(summary *HealthSummaryResponse) {
 			// Only emitted when there are actual errors to avoid zero-value noise.
 			if dest.ErrorCount > 0 {
 				errorTags := m.buildTags(
-					source.SourceID, dest.DestID, dest.DestType, source.SourceType,
+					source.WorkspaceID, source.SourceID, dest.DestID, dest.DestType, source.SourceType,
 					stats.Tags{"error_category": dest.ErrorCategory},
 				)
 				m.statsFactory.NewTaggedStat(metricSyncErrorsTotal, stats.CountType, errorTags).
@@ -179,7 +180,7 @@ func (m *HealthMetrics) EmitUploadMetrics(health *SyncHealth) {
 		return
 	}
 
-	tags := m.buildTags(health.SourceID, health.DestinationID, health.DestType, health.SourceType)
+	tags := m.buildTags(health.WorkspaceID, health.SourceID, health.DestinationID, health.DestType, health.SourceType)
 
 	// Duration histogram: convert upload duration from ms to seconds.
 	m.statsFactory.NewTaggedStat(metricSyncDuration, stats.HistogramType, tags).
@@ -193,7 +194,7 @@ func (m *HealthMetrics) EmitUploadMetrics(health *SyncHealth) {
 	// providing error classification for alerting and dashboards.
 	if health.RowsFailed > 0 {
 		errorTags := m.buildTags(
-			health.SourceID, health.DestinationID, health.DestType, health.SourceType,
+			health.WorkspaceID, health.SourceID, health.DestinationID, health.DestType, health.SourceType,
 			stats.Tags{"error_category": health.ErrorCategory},
 		)
 		m.statsFactory.NewTaggedStat(metricSyncErrorsTotal, stats.CountType, errorTags).
@@ -201,7 +202,7 @@ func (m *HealthMetrics) EmitUploadMetrics(health *SyncHealth) {
 	}
 
 	// Schema changes counter: emitted as a single increment when the upload detected
-	// schema changes. The SchemaChanges field is a json.RawMessage, so we check for
+	// schema changes. The SchemaChanges field is []byte (JSONB), so we check for
 	// non-nil and non-empty to determine if schema changes occurred.
 	if len(health.SchemaChanges) > 0 {
 		m.statsFactory.NewTaggedStat(metricSchemaChangesTotal, stats.CountType, tags).
