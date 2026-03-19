@@ -53,6 +53,16 @@ type SyncHealth struct {
 	// WorkspaceID is the workspace that owns this source-destination pair.
 	WorkspaceID string `json:"workspaceID"`
 
+	// SourceName is the human-readable name of the RudderStack source.
+	// Used to compute the warehouseID composite tag for Prometheus metric emission,
+	// matching the tag computation in warehouse/router/upload_stats.go warehouseTagName().
+	SourceName string `json:"sourceName"`
+
+	// DestName is the human-readable name of the warehouse destination.
+	// Used to compute the warehouseID composite tag for Prometheus metric emission,
+	// matching the tag computation in warehouse/router/upload_stats.go warehouseTagName().
+	DestName string `json:"destName"`
+
 	// Status is the final upload status (e.g., "exported_data", "aborted", "failed").
 	// Maps to warehouse/internal/model/upload.go status constants.
 	Status string `json:"status"`
@@ -135,6 +145,10 @@ type SourceHealth struct {
 	// and Prometheus metric tagging per AAP standard warehouse tag set.
 	WorkspaceID string `json:"workspaceID"`
 
+	// SourceName is the human-readable name of the source, used for computing the
+	// warehouseID composite tag in Prometheus metric emission.
+	SourceName string `json:"sourceName"`
+
 	// Destinations contains health metrics for each destination connected to this source.
 	Destinations []*DestinationHealth `json:"destinations"`
 }
@@ -147,6 +161,10 @@ type DestinationHealth struct {
 
 	// DestType is the warehouse destination type (e.g., "SNOWFLAKE", "BQ", "RS").
 	DestType string `json:"destType"`
+
+	// DestName is the human-readable name of the warehouse destination, used for
+	// computing the warehouseID composite tag in Prometheus metric emission.
+	DestName string `json:"destName"`
 
 	// SyncDuration provides aggregated duration statistics (min/max/avg/p95) in milliseconds.
 	SyncDuration DurationStats `json:"syncDuration"`
@@ -188,6 +206,10 @@ type SourceHealthResponse struct {
 
 	// WorkspaceID is the workspace that owns this source.
 	WorkspaceID string `json:"workspaceID"`
+
+	// SourceName is the human-readable name of the source, used for computing the
+	// warehouseID composite tag in Prometheus metric emission.
+	SourceName string `json:"sourceName"`
 
 	// Destinations contains health metrics for the filtered destinations.
 	Destinations []*DestinationHealth `json:"destinations"`

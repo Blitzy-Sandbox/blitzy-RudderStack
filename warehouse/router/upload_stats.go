@@ -204,6 +204,8 @@ func (job *UploadJob) recordSyncHealth(status string, rowsSynced, rowsFailed int
 		DestType:      job.warehouse.Destination.DestinationDefinition.Name,
 		SourceType:    job.warehouse.Source.SourceDefinition.Name,
 		WorkspaceID:   job.warehouse.WorkspaceID,
+		SourceName:    job.warehouse.Source.Name,
+		DestName:      job.warehouse.Destination.Name,
 		Status:        status,
 		DurationMs:    durationMs,
 		RowsSynced:    rowsSynced,

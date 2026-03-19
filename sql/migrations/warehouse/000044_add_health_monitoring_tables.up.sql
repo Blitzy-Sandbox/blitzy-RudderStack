@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS wh_sync_health (
     dest_type VARCHAR(64) NOT NULL DEFAULT '',
     source_type VARCHAR(64) NOT NULL DEFAULT '',
     workspace_id VARCHAR(64) NOT NULL DEFAULT '',
+    source_name VARCHAR(256) NOT NULL DEFAULT '',
+    dest_name VARCHAR(256) NOT NULL DEFAULT '',
     status VARCHAR(64) NOT NULL,
     duration_ms BIGINT,
     rows_synced BIGINT,

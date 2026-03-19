@@ -27,6 +27,8 @@ const (
 		dest_type,
 		source_type,
 		workspace_id,
+		source_name,
+		dest_name,
 		status,
 		duration_ms,
 		rows_synced,
@@ -40,16 +42,16 @@ const (
 	insertSyncHealthSQL = `
 		INSERT INTO ` + syncHealthTableName + ` (
 			upload_id, source_id, destination_id, dest_type, source_type,
-			workspace_id, status, duration_ms, rows_synced, rows_failed,
-			error_category, schema_changes, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+			workspace_id, source_name, dest_name, status, duration_ms,
+			rows_synced, rows_failed, error_category, schema_changes, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING id
 	`
 
 	// getHealthSummarySQL aggregates health metrics per source-destination pair
 	// for the specified time window. Returns total sync counts, success counts,
 	// duration aggregates (avg/min/max), row totals, error category, schema changes count,
-	// and the last sync time.
+	// the last sync time, and source/dest names for warehouseID tag computation.
 	getHealthSummarySQL = `
 		SELECT
 			source_id,
@@ -57,6 +59,8 @@ const (
 			dest_type,
 			source_type,
 			workspace_id,
+			COALESCE(MAX(source_name), '') as source_name,
+			COALESCE(MAX(dest_name), '') as dest_name,
 			COUNT(*) as total_syncs,
 			COUNT(CASE WHEN status = 'exported_data' THEN 1 END) as successful_syncs,
 			AVG(duration_ms) as avg_duration_ms,
@@ -103,7 +107,7 @@ const (
 
 	// getHealthBySourceDestSQL aggregates health metrics for a specific source-destination
 	// pair within the given time window. Returns the same aggregate columns as the summary
-	// including error category and schema changes count.
+	// including error category, schema changes count, and source/dest names for warehouseID tag.
 	getHealthBySourceDestSQL = `
 		SELECT
 			source_id,
@@ -111,6 +115,8 @@ const (
 			dest_type,
 			source_type,
 			workspace_id,
+			COALESCE(MAX(source_name), '') as source_name,
+			COALESCE(MAX(dest_name), '') as dest_name,
 			COUNT(*) as total_syncs,
 			COUNT(CASE WHEN status = 'exported_data' THEN 1 END) as successful_syncs,
 			AVG(duration_ms) as avg_duration_ms,
@@ -217,6 +223,8 @@ func (r *HealthRepo) RecordSyncHealth(ctx context.Context, health *SyncHealth) e
 		health.DestType,
 		health.SourceType,
 		health.WorkspaceID,
+		health.SourceName,
+		health.DestName,
 		health.Status,
 		health.DurationMs,
 		health.RowsSynced,
@@ -265,6 +273,7 @@ func (r *HealthRepo) GetHealthSummary(ctx context.Context) (*HealthSummaryRespon
 	for rows.Next() {
 		var (
 			sourceID, destID, destType, sourceType, workspaceID string
+			sourceName, destName                                string
 			totalSyncs, successfulSyncs                         int64
 			avgDurationMs, minDurationMs, maxDurationMs         sql.NullFloat64
 			totalRowsSynced, totalRowsFailed                    sql.NullInt64
@@ -275,6 +284,7 @@ func (r *HealthRepo) GetHealthSummary(ctx context.Context) (*HealthSummaryRespon
 
 		if err := rows.Scan(
 			&sourceID, &destID, &destType, &sourceType, &workspaceID,
+			&sourceName, &destName,
 			&totalSyncs, &successfulSyncs,
 			&avgDurationMs, &minDurationMs, &maxDurationMs,
 			&totalRowsSynced, &totalRowsFailed,
@@ -294,6 +304,7 @@ func (r *HealthRepo) GetHealthSummary(ctx context.Context) (*HealthSummaryRespon
 		destHealth := &DestinationHealth{
 			DestID:   destID,
 			DestType: destType,
+			DestName: destName,
 			SyncDuration: DurationStats{
 				Min: int64(minDurationMs.Float64),
 				Max: int64(maxDurationMs.Float64),
@@ -318,6 +329,7 @@ func (r *HealthRepo) GetHealthSummary(ctx context.Context) (*HealthSummaryRespon
 				SourceID:     sourceID,
 				SourceType:   sourceType,
 				WorkspaceID:  workspaceID,
+				SourceName:   sourceName,
 				Destinations: make([]*DestinationHealth, 0),
 			}
 		}
@@ -400,6 +412,7 @@ func (r *HealthRepo) GetHealthBySourceDest(ctx context.Context, sourceID, destID
 	for rows.Next() {
 		var (
 			srcID, dstID, destType, sourceType, workspaceID string
+			sourceName, destName                            string
 			totalSyncs, successfulSyncs                     int64
 			avgDurationMs, minDurationMs, maxDurationMs     sql.NullFloat64
 			totalRowsSynced, totalRowsFailed                sql.NullInt64
@@ -410,6 +423,7 @@ func (r *HealthRepo) GetHealthBySourceDest(ctx context.Context, sourceID, destID
 
 		if err := rows.Scan(
 			&srcID, &dstID, &destType, &sourceType, &workspaceID,
+			&sourceName, &destName,
 			&totalSyncs, &successfulSyncs,
 			&avgDurationMs, &minDurationMs, &maxDurationMs,
 			&totalRowsSynced, &totalRowsFailed,
@@ -429,6 +443,7 @@ func (r *HealthRepo) GetHealthBySourceDest(ctx context.Context, sourceID, destID
 		destHealth := &DestinationHealth{
 			DestID:   dstID,
 			DestType: destType,
+			DestName: destName,
 			SyncDuration: DurationStats{
 				Min: int64(minDurationMs.Float64),
 				Max: int64(maxDurationMs.Float64),
@@ -450,6 +465,7 @@ func (r *HealthRepo) GetHealthBySourceDest(ctx context.Context, sourceID, destID
 			SourceID:     srcID,
 			SourceType:   sourceType,
 			WorkspaceID:  workspaceID,
+			SourceName:   sourceName,
 			Destinations: []*DestinationHealth{destHealth},
 		}
 	}
@@ -482,6 +498,8 @@ func (r *HealthRepo) GetHealthByUpload(ctx context.Context, uploadID int64) (*Sy
 		&health.DestType,
 		&health.SourceType,
 		&health.WorkspaceID,
+		&health.SourceName,
+		&health.DestName,
 		&health.Status,
 		&health.DurationMs,
 		&health.RowsSynced,

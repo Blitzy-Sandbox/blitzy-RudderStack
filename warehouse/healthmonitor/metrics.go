@@ -2,6 +2,8 @@ package healthmonitor
 
 import (
 	"github.com/rudderlabs/rudder-go-kit/stats"
+
+	"github.com/rudderlabs/rudder-server/utils/misc"
 )
 
 // Prometheus metric name constants matching the AAP specification for
@@ -65,10 +67,20 @@ func NewHealthMetrics(statsFactory stats.Stats) *HealthMetrics {
 	}
 }
 
-// buildTags creates the standard tag set for health monitoring metrics.
+// warehouseTagName computes the composite warehouseID tag value, replicating the logic
+// from warehouse/router/upload_stats.go warehouseTagName(). The warehouseID tag is
+// critical for dashboard filtering consistency between upload pipeline metrics and
+// health monitoring metrics.
+func warehouseTagName(destID, sourceName, destName, sourceID string) string {
+	return misc.GetTagName(destID, sourceName, destName, misc.TailTruncateStr(sourceID, 6))
+}
+
+// buildTags creates the standard 7-tag set for health monitoring metrics.
 // Tags follow the pattern established in warehouse/router/upload_stats.go buildTags():
 //
 //	module      — always "warehouse"
+//	workspaceId — workspace identifier for tenant isolation
+//	warehouseID — composite tag from destID, sourceName, destName, sourceID (for dashboard filtering)
 //	sourceID    — RudderStack source identifier
 //	destID      — warehouse destination identifier
 //	destType    — warehouse destination type (e.g., "SNOWFLAKE", "BQ", "RS")
@@ -77,10 +89,11 @@ func NewHealthMetrics(statsFactory stats.Stats) *HealthMetrics {
 // Additional tags can be provided via the variadic extraTags parameter.
 // Extra tags are merged into the base tag set, with later values overwriting
 // earlier ones for duplicate keys.
-func (m *HealthMetrics) buildTags(workspaceID, sourceID, destID, destType, sourceType string, extraTags ...stats.Tags) stats.Tags {
+func (m *HealthMetrics) buildTags(workspaceID, sourceID, destID, destType, sourceType, sourceName, destName string, extraTags ...stats.Tags) stats.Tags {
 	tags := stats.Tags{
 		"module":      "warehouse",
 		"workspaceId": workspaceID,
+		"warehouseID": warehouseTagName(destID, sourceName, destName, sourceID),
 		"sourceID":    sourceID,
 		"destID":      destID,
 		"destType":    destType,
@@ -120,7 +133,7 @@ func (m *HealthMetrics) EmitMetrics(summary *HealthSummaryResponse) {
 				continue
 			}
 
-			tags := m.buildTags(source.WorkspaceID, source.SourceID, dest.DestID, dest.DestType, source.SourceType)
+			tags := m.buildTags(source.WorkspaceID, source.SourceID, dest.DestID, dest.DestType, source.SourceType, source.SourceName, dest.DestName)
 
 			// Emit sync duration histogram: convert average duration from ms to seconds.
 			// Uses the aggregate average from the health summary, providing a representative
@@ -136,7 +149,7 @@ func (m *HealthMetrics) EmitMetrics(summary *HealthSummaryResponse) {
 			// Only emitted when there are actual errors to avoid zero-value noise.
 			if dest.ErrorCount > 0 {
 				errorTags := m.buildTags(
-					source.WorkspaceID, source.SourceID, dest.DestID, dest.DestType, source.SourceType,
+					source.WorkspaceID, source.SourceID, dest.DestID, dest.DestType, source.SourceType, source.SourceName, dest.DestName,
 					stats.Tags{"error_category": dest.ErrorCategory},
 				)
 				m.statsFactory.NewTaggedStat(metricSyncErrorsTotal, stats.CountType, errorTags).
@@ -180,7 +193,7 @@ func (m *HealthMetrics) EmitUploadMetrics(health *SyncHealth) {
 		return
 	}
 
-	tags := m.buildTags(health.WorkspaceID, health.SourceID, health.DestinationID, health.DestType, health.SourceType)
+	tags := m.buildTags(health.WorkspaceID, health.SourceID, health.DestinationID, health.DestType, health.SourceType, health.SourceName, health.DestName)
 
 	// Duration histogram: convert upload duration from ms to seconds.
 	m.statsFactory.NewTaggedStat(metricSyncDuration, stats.HistogramType, tags).
@@ -194,7 +207,7 @@ func (m *HealthMetrics) EmitUploadMetrics(health *SyncHealth) {
 	// providing error classification for alerting and dashboards.
 	if health.RowsFailed > 0 {
 		errorTags := m.buildTags(
-			health.WorkspaceID, health.SourceID, health.DestinationID, health.DestType, health.SourceType,
+			health.WorkspaceID, health.SourceID, health.DestinationID, health.DestType, health.SourceType, health.SourceName, health.DestName,
 			stats.Tags{"error_category": health.ErrorCategory},
 		)
 		m.statsFactory.NewTaggedStat(metricSyncErrorsTotal, stats.CountType, errorTags).

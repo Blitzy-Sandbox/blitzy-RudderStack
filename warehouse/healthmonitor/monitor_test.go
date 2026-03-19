@@ -68,7 +68,7 @@ func newTestMonitor(t *testing.T, enabled bool, intervalSeconds, retentionDays i
 func healthSummaryColumns() []string {
 	return []string{
 		"source_id", "destination_id", "dest_type", "source_type",
-		"workspace_id",
+		"workspace_id", "source_name", "dest_name",
 		"total_syncs", "successful_syncs",
 		"avg_duration_ms", "min_duration_ms", "max_duration_ms",
 		"total_rows_synced", "total_rows_failed",
@@ -103,6 +103,8 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 			"SNOWFLAKE",       // dest_type
 			"web",             // source_type
 			"workspace-1",     // workspace_id
+			"Source One",      // source_name
+			"Dest One",        // dest_name
 			int64(100),        // total_syncs
 			int64(95),         // successful_syncs
 			float64(5000),     // avg_duration_ms
@@ -129,6 +131,7 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 		baseTags := stats.Tags{
 			"module":      "warehouse",
 			"workspaceId": "workspace-1",
+			"warehouseID": warehouseTagName("dest-1", "Source One", "Dest One", "source-1"),
 			"sourceID":    "source-1",
 			"destID":      "dest-1",
 			"destType":    "SNOWFLAKE",
@@ -154,6 +157,7 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 		errorTags := stats.Tags{
 			"module":         "warehouse",
 			"workspaceId":    "workspace-1",
+			"warehouseID":    warehouseTagName("dest-1", "Source One", "Dest One", "source-1"),
 			"sourceID":       "source-1",
 			"destID":         "dest-1",
 			"destType":       "SNOWFLAKE",
@@ -237,6 +241,8 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 			"BQ",              // dest_type
 			"android",         // source_type
 			"workspace-2",     // workspace_id
+			"Source Two",      // source_name
+			"Dest Two",        // dest_name
 			int64(100),        // total_syncs
 			int64(80),         // successful_syncs (20% failure)
 			float64(3000),     // avg_duration_ms
@@ -260,6 +266,7 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 		statusTags := stats.Tags{
 			"module":      "warehouse",
 			"workspaceId": "workspace-2",
+			"warehouseID": warehouseTagName("dest-2", "Source Two", "Dest Two", "source-2"),
 			"sourceID":    "source-2",
 			"destID":      "dest-2",
 			"destType":    "BQ",
@@ -453,6 +460,8 @@ func TestHealthMonitor_Run_PeriodicCollection(t *testing.T) {
 				"RS",              // dest_type
 				"ios",             // source_type
 				"ws-periodic",     // workspace_id
+				"Periodic Src",    // source_name
+				"Periodic Dst",    // dest_name
 				int64(10),         // total_syncs
 				int64(10),         // successful_syncs
 				float64(2000),     // avg_duration_ms
@@ -496,6 +505,7 @@ func TestHealthMonitor_Run_PeriodicCollection(t *testing.T) {
 		periodicTags := stats.Tags{
 			"module":      "warehouse",
 			"workspaceId": "ws-periodic",
+			"warehouseID": warehouseTagName("dst-periodic", "Periodic Src", "Periodic Dst", "src-periodic"),
 			"sourceID":    "src-periodic",
 			"destID":      "dst-periodic",
 			"destType":    "RS",
@@ -568,6 +578,8 @@ func TestHealthMonitor_RecordSyncHealth(t *testing.T) {
 				health.DestType,
 				health.SourceType,
 				health.WorkspaceID,
+				health.SourceName,
+				health.DestName,
 				health.Status,
 				health.DurationMs,
 				health.RowsSynced,
@@ -613,6 +625,8 @@ func TestHealthMonitor_RecordSyncHealth(t *testing.T) {
 				health.DestType,
 				health.SourceType,
 				health.WorkspaceID,
+				health.SourceName,
+				health.DestName,
 				health.Status,
 				health.DurationMs,
 				health.RowsSynced,
@@ -660,6 +674,8 @@ func TestHealthMonitor_RecordSyncHealth(t *testing.T) {
 				health.DestType,
 				health.SourceType,
 				health.WorkspaceID,
+				health.SourceName,
+				health.DestName,
 				health.Status,
 				health.DurationMs,
 				health.RowsSynced,
@@ -727,6 +743,8 @@ func TestHealthMonitor_RecordSyncHealth(t *testing.T) {
 				health.DestType,
 				health.SourceType,
 				health.WorkspaceID,
+				health.SourceName,
+				health.DestName,
 				health.Status,
 				health.DurationMs,
 				health.RowsSynced,
