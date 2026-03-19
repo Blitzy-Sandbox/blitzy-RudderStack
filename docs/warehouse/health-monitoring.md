@@ -322,9 +322,9 @@ Health monitoring data is persisted to the `wh_sync_health` table, created by mi
 | `source_type` | `VARCHAR(64)` | `NOT NULL` | Source type (e.g., `web`, `android`) |
 | `workspace_id` | `VARCHAR(64)` | `NOT NULL` | Workspace identifier |
 | `status` | `VARCHAR(64)` | `NOT NULL` | Final upload status (e.g., `exported_data`, `aborted`) |
-| `duration_ms` | `BIGINT` | `NOT NULL` | Total sync duration in milliseconds |
-| `rows_synced` | `BIGINT` | `NOT NULL` | Number of rows successfully synced |
-| `rows_failed` | `BIGINT` | `NOT NULL` | Number of rows that failed during sync |
+| `duration_ms` | `BIGINT` | | Total sync duration in milliseconds |
+| `rows_synced` | `BIGINT` | | Number of rows successfully synced |
+| `rows_failed` | `BIGINT` | | Number of rows that failed during sync |
 | `error_category` | `VARCHAR(64)` | | Error classification (empty for successful syncs) |
 | `schema_changes` | `JSONB` | | JSON object describing schema changes detected during sync |
 | `created_at` | `TIMESTAMPTZ` | `DEFAULT NOW()` | Timestamp when the health record was created |
@@ -333,8 +333,8 @@ Health monitoring data is persisted to the `wh_sync_health` table, created by mi
 
 | Index | Columns | Purpose |
 |---|---|---|
-| `idx_wh_sync_health_source_dest_created` | `(source_id, destination_id, created_at)` | Efficient aggregate queries by source/destination pair within time windows |
-| `idx_wh_sync_health_upload` | `(upload_id)` | Fast lookup of health records by upload ID |
+| `wh_sync_health_source_dest_created_at_idx` | `(source_id, destination_id, created_at)` | Efficient aggregate queries by source/destination pair within time windows |
+| `wh_sync_health_upload_id_idx` | `(upload_id)` | Fast lookup of health records by upload ID |
 
 > Source: `sql/migrations/warehouse/000044_add_health_monitoring_tables.up.sql`, `warehouse/healthmonitor/repository.go:16-37`
 

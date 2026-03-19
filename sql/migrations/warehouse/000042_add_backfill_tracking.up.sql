@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS wh_backfill_jobs (
     workspace_id VARCHAR(64) NOT NULL,
     start_date TIMESTAMPTZ NOT NULL,
     end_date TIMESTAMPTZ NOT NULL,
-    status VARCHAR(64) NOT NULL DEFAULT 'Pending',
+    status VARCHAR(64) NOT NULL DEFAULT 'pending',
     metadata JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ

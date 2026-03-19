@@ -140,6 +140,7 @@ Triggers a new warehouse replay job that re-processes archived events through th
 | `403 Forbidden` | `ErrReplayDisabled` | Warehouse replay feature is disabled via `Warehouse.replay.enabled` |
 | `429 Too Many Requests` | `ErrConcurrentLimitReached` | Maximum concurrent replay jobs limit reached (`Warehouse.replay.maxConcurrentReplays`) |
 | `500 Internal Server Error` | — | Unexpected internal error |
+| `503 Service Unavailable` | `ErrGatewayNotConfigured` | Gateway replay endpoint is not configured |
 
 > Source: `warehouse/replay/handler.go:500-521`, `warehouse/replay/model.go:52-68`
 
