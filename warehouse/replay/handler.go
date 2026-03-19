@@ -481,6 +481,46 @@ func (h *ReplayHandler) executeReplay(ctx context.Context, jobID int64, req Repl
 }
 
 // ---------------------------------------------------------------------------
+// ReplayHandler — Background Pruning Loop
+// ---------------------------------------------------------------------------
+
+// Run starts a background loop that periodically prunes terminal replay jobs
+// from the in-memory job store, preventing unbounded memory growth over the
+// lifetime of the process.
+//
+// The loop follows the same context-cancellable select{} pattern established
+// in warehouse/healthmonitor/monitor.go Run() and warehouse/backfill/service.go
+// Run(): each tick uses time.After (matching warehouse/archive/cron.go convention),
+// checks the reloadable enabled flag, and performs the pruning work.
+//
+// This method is designed to be started via errgroup in warehouse/app.go:
+//
+//	g.Go(crash.NotifyWarehouse(func() error {
+//	    return replayHandler.Run(gCtx)
+//	}))
+func (h *ReplayHandler) Run(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			h.log.Infon("context is cancelled, stopped running replay pruning loop")
+			return nil
+		case <-time.After(h.replayCfg.PruneInterval.Load()):
+			if !h.replayCfg.Enabled.Load() {
+				continue
+			}
+
+			retention := h.replayCfg.PruneRetention.Load()
+			pruned := h.jobs.PruneTerminalJobs(retention)
+			if pruned > 0 {
+				h.log.Infon("pruned terminal replay jobs from in-memory store",
+					logger.NewIntField("prunedCount", int64(pruned)),
+				)
+			}
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Handler — HTTP handler wrapper
 // ---------------------------------------------------------------------------
 

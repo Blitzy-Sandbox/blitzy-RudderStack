@@ -65,6 +65,13 @@ type BackfillRepository interface {
 	// in an active (non-terminal) state: StatusPending or StatusInProgress.
 	// Used by the service to enforce concurrency limits.
 	GetActiveCount(ctx context.Context) (int64, error)
+
+	// CreateIfUnderLimit atomically checks that the number of active
+	// (Pending or InProgress) backfill jobs is below maxConcurrent and
+	// inserts a new job only if the limit is not reached. This prevents
+	// the TOCTOU race condition inherent in separate GetActiveCount + Create calls.
+	// Returns (0, ErrConcurrentLimitReached) if the limit is already met.
+	CreateIfUnderLimit(ctx context.Context, job BackfillJob, maxConcurrent int) (int64, error)
 }
 
 // ArchiverQuerier defines the interface for querying archived staging files
@@ -256,21 +263,12 @@ func (s *BackfillService) Trigger(ctx context.Context, req BackfillRequest) (*Ba
 		return nil, err
 	}
 
-	// Step 3: Concurrency limit check — prevent overwhelming the warehouse
-	// or object storage backend with too many concurrent backfill operations.
-	activeCount, err := s.repo.GetActiveCount(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("checking active backfill count: %w", err)
-	}
-	if activeCount >= int64(s.cfg.MaxConcurrentJobs.Load()) {
-		return nil, ErrConcurrentLimitReached
-	}
-
-	// Step 4: Create the backfill job record in the repository.
-	// The repository always sets status to StatusPending regardless
-	// of what we pass, but we set it here for clarity.
-	// WorkspaceID is propagated from the request for tenant isolation
-	// and stats tagging per AAP requirements.
+	// Step 3+4 (atomic): Create the backfill job with an atomic concurrency
+	// limit check. CreateIfUnderLimit uses a single SQL CTE that counts active
+	// jobs and inserts only if the count is below the configured maximum.
+	// This eliminates the TOCTOU race condition that existed when GetActiveCount
+	// and Create were separate operations — concurrent requests can no longer
+	// all pass the count check before any of them persist.
 	job := BackfillJob{
 		SourceID:      req.SourceID,
 		DestinationID: req.DestinationID,
@@ -279,7 +277,7 @@ func (s *BackfillService) Trigger(ctx context.Context, req BackfillRequest) (*Ba
 		EndDate:       req.EndDate,
 		Status:        StatusPending,
 	}
-	id, err := s.repo.Create(ctx, job)
+	id, err := s.repo.CreateIfUnderLimit(ctx, job, s.cfg.MaxConcurrentJobs.Load())
 	if err != nil {
 		s.backfillFailed.Increment()
 		return nil, fmt.Errorf("creating backfill job: %w", err)

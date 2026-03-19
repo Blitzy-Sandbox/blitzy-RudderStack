@@ -293,9 +293,9 @@ func TestHealthMonitor_PurgeOldRecords(t *testing.T) {
 		// Arrange: 30-day retention, mock returns 5 deleted records.
 		m, _, mock, _ := newTestMonitor(t, true, 60, 30)
 
-		// Expect a DELETE query with a timestamp argument (any time arg).
+		// Expect a batched DELETE query with a timestamp argument and batch size.
 		mock.ExpectExec("DELETE FROM").
-			WithArgs(sqlmock.AnyArg()).
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
 			WillReturnResult(sqlmock.NewResult(0, 5))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -315,7 +315,7 @@ func TestHealthMonitor_PurgeOldRecords(t *testing.T) {
 		m, _, mock, _ := newTestMonitor(t, true, 60, 30)
 
 		mock.ExpectExec("DELETE FROM").
-			WithArgs(sqlmock.AnyArg()).
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
 			WillReturnResult(sqlmock.NewResult(0, 0))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -337,7 +337,7 @@ func TestHealthMonitor_PurgeOldRecords(t *testing.T) {
 				m, _, mock, _ := newTestMonitor(t, true, 60, retDays)
 
 				mock.ExpectExec("DELETE FROM").
-					WithArgs(sqlmock.AnyArg()).
+					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(0, 3))
 
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -355,7 +355,7 @@ func TestHealthMonitor_PurgeOldRecords(t *testing.T) {
 		m, _, mock, _ := newTestMonitor(t, true, 60, 30)
 
 		mock.ExpectExec("DELETE FROM").
-			WithArgs(sqlmock.AnyArg()).
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
 			WillReturnError(fmt.Errorf("disk full"))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -476,7 +476,7 @@ func TestHealthMonitor_Run_PeriodicCollection(t *testing.T) {
 			mock.ExpectQuery("SELECT").WillReturnRows(summaryRows)
 
 			mock.ExpectExec("DELETE FROM").
-				WithArgs(sqlmock.AnyArg()).
+				WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
 				WillReturnResult(sqlmock.NewResult(0, 0))
 		}
 

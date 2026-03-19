@@ -248,6 +248,7 @@ func (r *Repository) ListByWorkspace(ctx context.Context, workspaceID string) ([
 		FROM `+selectiveSyncTableName+`
 		WHERE workspace_id = $1
 		ORDER BY created_at DESC
+		LIMIT 100
 	`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("listing selective sync configs by workspace: %w", err)

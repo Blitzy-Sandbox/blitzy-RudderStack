@@ -652,6 +652,15 @@ func (a *App) Run(ctx context.Context) error {
 		g.Go(crash.NotifyWarehouse(func() error {
 			return a.backfillService.Run(gCtx)
 		}))
+
+		// E-035: Start the replay handler background pruning loop.
+		// Periodically removes terminal (Completed/Failed) replay jobs from
+		// the in-memory store to prevent unbounded memory growth. The loop
+		// checks its own enabled flag internally and respects context
+		// cancellation for graceful shutdown.
+		g.Go(crash.NotifyWarehouse(func() error {
+			return a.replayHandler.Run(gCtx)
+		}))
 	}
 
 	g.Go(func() error {

@@ -140,10 +140,17 @@ const (
 		GROUP BY source_id, destination_id, dest_type, source_type, workspace_id
 	`
 
-	// purgeOldRecordsSQL deletes health records older than the specified timestamp.
-	purgeOldRecordsSQL = `
+	// purgeOldRecordsBatchSQL deletes a bounded batch of health records older than
+	// the specified timestamp. Using ctid-based subquery limits the number of rows
+	// deleted per statement, preventing long-running transactions that could lock
+	// the table for extended periods when many records need purging.
+	purgeOldRecordsBatchSQL = `
 		DELETE FROM ` + syncHealthTableName + `
-		WHERE created_at < $1
+		WHERE ctid IN (
+			SELECT ctid FROM ` + syncHealthTableName + `
+			WHERE created_at < $1
+			LIMIT $2
+		)
 	`
 )
 
@@ -529,17 +536,39 @@ func (r *HealthRepo) GetHealthByUpload(ctx context.Context, uploadID int64) (*Sy
 	return &health, nil
 }
 
-// PurgeOldRecords deletes health records with created_at before the specified timestamp.
-// Returns the number of rows deleted. This is called periodically by the HealthMonitor
-// to enforce the configured retention window (default: 30 days).
+// purgeDefaultBatchSize is the number of rows deleted per batch during
+// PurgeOldRecords. Keeps individual DELETE transactions short to avoid
+// holding table-level locks for extended periods under heavy accumulation.
+const purgeDefaultBatchSize = 1000
+
+// PurgeOldRecords deletes health records with created_at before the specified timestamp
+// in batches to prevent long-running transactions that could lock the table.
+// Returns the total number of rows deleted across all batches.
+// This is called periodically by the HealthMonitor to enforce the configured
+// retention window (default: 30 days).
 func (r *HealthRepo) PurgeOldRecords(ctx context.Context, before time.Time) (int64, error) {
-	result, err := r.db.ExecContext(ctx, purgeOldRecordsSQL, before)
-	if err != nil {
-		return 0, fmt.Errorf("purging old health records: %w", err)
+	var totalDeleted int64
+	for {
+		// Check context cancellation between batches to support graceful shutdown.
+		if ctx.Err() != nil {
+			return totalDeleted, ctx.Err()
+		}
+
+		result, err := r.db.ExecContext(ctx, purgeOldRecordsBatchSQL, before, purgeDefaultBatchSize)
+		if err != nil {
+			return totalDeleted, fmt.Errorf("purging old health records (batch): %w", err)
+		}
+		batchDeleted, err := result.RowsAffected()
+		if err != nil {
+			return totalDeleted, fmt.Errorf("getting rows affected after purge batch: %w", err)
+		}
+		totalDeleted += batchDeleted
+
+		// If fewer rows were deleted than the batch size, all matching records
+		// have been purged and we can stop iterating.
+		if batchDeleted < purgeDefaultBatchSize {
+			break
+		}
 	}
-	count, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("getting rows affected after purge: %w", err)
-	}
-	return count, nil
+	return totalDeleted, nil
 }

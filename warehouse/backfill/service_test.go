@@ -33,11 +33,12 @@ import (
 // interface. Each function field controls the return value of the corresponding
 // repository method, enabling isolated tests for every service code path.
 type mockBackfillRepo struct {
-	createFn         func(ctx context.Context, job backfill.BackfillJob) (int64, error)
-	getFn            func(ctx context.Context, id int64) (backfill.BackfillJob, error)
-	updateStatusFn   func(ctx context.Context, id int64, status string) error
-	listBySourceFn   func(ctx context.Context, sourceID string) ([]backfill.BackfillJob, error)
-	getActiveCountFn func(ctx context.Context) (int64, error)
+	createFn              func(ctx context.Context, job backfill.BackfillJob) (int64, error)
+	getFn                 func(ctx context.Context, id int64) (backfill.BackfillJob, error)
+	updateStatusFn        func(ctx context.Context, id int64, status string) error
+	listBySourceFn        func(ctx context.Context, sourceID string) ([]backfill.BackfillJob, error)
+	getActiveCountFn      func(ctx context.Context) (int64, error)
+	createIfUnderLimitFn  func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error)
 }
 
 func (m *mockBackfillRepo) Create(ctx context.Context, job backfill.BackfillJob) (int64, error) {
@@ -73,6 +74,13 @@ func (m *mockBackfillRepo) GetActiveCount(ctx context.Context) (int64, error) {
 		return m.getActiveCountFn(ctx)
 	}
 	return 0, errors.New("mockBackfillRepo.GetActiveCount not configured")
+}
+
+func (m *mockBackfillRepo) CreateIfUnderLimit(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
+	if m.createIfUnderLimitFn != nil {
+		return m.createIfUnderLimitFn(ctx, job, maxConcurrent)
+	}
+	return 0, errors.New("mockBackfillRepo.CreateIfUnderLimit not configured")
 }
 
 // mockArchiverQuerier is a configurable test double for the
@@ -157,16 +165,14 @@ func TestBackfillService_Trigger(t *testing.T) {
 
 	t.Run("valid request creates backfill job", func(t *testing.T) {
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
-				return 0, nil
-			},
-			createFn: func(ctx context.Context, job backfill.BackfillJob) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
 				require.Equal(t, "test_source", job.SourceID)
 				require.Equal(t, "test_dest", job.DestinationID)
 				require.Equal(t, "test_workspace", job.WorkspaceID)
 				require.Equal(t, startDate, job.StartDate)
 				require.Equal(t, endDate, job.EndDate)
 				require.Equal(t, backfill.StatusPending, job.Status)
+				require.Equal(t, 3, maxConcurrent) // default MaxConcurrentJobs
 				return 42, nil
 			},
 		}
@@ -266,9 +272,10 @@ func TestBackfillService_Trigger(t *testing.T) {
 
 	t.Run("concurrent job limit exceeded", func(t *testing.T) {
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
-				// Return the max concurrent jobs (3), triggering the limit
-				return 3, nil
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
+				// Simulate the atomic limit check returning ErrConcurrentLimitReached
+				// when the active count is at or above the configured maximum.
+				return 0, backfill.ErrConcurrentLimitReached
 			},
 		}
 
@@ -305,10 +312,7 @@ func TestBackfillService_Trigger(t *testing.T) {
 
 		var jobStatusAfterMonitor string
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
-				return 0, nil
-			},
-			createFn: func(ctx context.Context, job backfill.BackfillJob) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
 				return 1, nil
 			},
 			getFn: func(ctx context.Context, id int64) (backfill.BackfillJob, error) {
@@ -381,10 +385,7 @@ func TestBackfillService_Trigger(t *testing.T) {
 
 		var jobStatusAfterMonitor string
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
-				return 0, nil
-			},
-			createFn: func(ctx context.Context, job backfill.BackfillJob) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
 				return 2, nil
 			},
 			getFn: func(ctx context.Context, id int64) (backfill.BackfillJob, error) {
@@ -439,12 +440,12 @@ func TestBackfillService_Trigger(t *testing.T) {
 
 	t.Run("context cancellation", func(t *testing.T) {
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
 				// Propagate context error to simulate a cancelled DB call.
 				if ctx.Err() != nil {
 					return 0, ctx.Err()
 				}
-				return 0, nil
+				return 1, nil
 			},
 		}
 
@@ -495,10 +496,7 @@ func TestBackfillService_Trigger(t *testing.T) {
 	t.Run("repository create failure returns wrapped error", func(t *testing.T) {
 		repoErr := errors.New("database connection lost")
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
-				return 0, nil
-			},
-			createFn: func(ctx context.Context, job backfill.BackfillJob) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
 				return 0, repoErr
 			},
 		}
@@ -516,10 +514,10 @@ func TestBackfillService_Trigger(t *testing.T) {
 		require.ErrorIs(t, err, repoErr)
 	})
 
-	t.Run("active count query failure returns wrapped error", func(t *testing.T) {
+	t.Run("atomic limit check query failure returns wrapped error", func(t *testing.T) {
 		repoErr := errors.New("query timeout")
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
 				return 0, repoErr
 			},
 		}
@@ -560,10 +558,8 @@ func TestBackfillService_Trigger(t *testing.T) {
 
 	t.Run("concurrent jobs at limit minus one allows creation", func(t *testing.T) {
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
-				return 2, nil // limit is 3, so 2 is below the threshold
-			},
-			createFn: func(ctx context.Context, job backfill.BackfillJob) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
+				// Simulate the atomic check succeeding: 2 active jobs < 3 limit
 				return 99, nil
 			},
 		}
@@ -726,10 +722,7 @@ func TestBackfillService_Run(t *testing.T) {
 		var getCallCount atomic.Int64
 
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
-				return 0, nil
-			},
-			createFn: func(ctx context.Context, job backfill.BackfillJob) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
 				return 1, nil
 			},
 			getFn: func(ctx context.Context, id int64) (backfill.BackfillJob, error) {
@@ -789,10 +782,7 @@ func TestBackfillService_Run(t *testing.T) {
 		var getCallCount atomic.Int64
 
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
-				return 0, nil
-			},
-			createFn: func(ctx context.Context, job backfill.BackfillJob) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
 				return 1, nil
 			},
 			getFn: func(ctx context.Context, id int64) (backfill.BackfillJob, error) {
@@ -856,10 +846,7 @@ func TestBackfillService_Run(t *testing.T) {
 		var failedStatus string
 
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
-				return 0, nil
-			},
-			createFn: func(ctx context.Context, job backfill.BackfillJob) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
 				return 1, nil
 			},
 			getFn: func(ctx context.Context, id int64) (backfill.BackfillJob, error) {
@@ -918,10 +905,7 @@ func TestBackfillService_Run(t *testing.T) {
 		var updateCalled atomic.Bool
 
 		repo := &mockBackfillRepo{
-			getActiveCountFn: func(ctx context.Context) (int64, error) {
-				return 0, nil
-			},
-			createFn: func(ctx context.Context, job backfill.BackfillJob) (int64, error) {
+			createIfUnderLimitFn: func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error) {
 				return 1, nil
 			},
 			getFn: func(ctx context.Context, id int64) (backfill.BackfillJob, error) {

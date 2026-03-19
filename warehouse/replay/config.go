@@ -29,6 +29,15 @@ const (
 	// ConfigKeyTimeoutMinutes is the configuration key for the maximum duration
 	// (in minutes) allowed for a single replay job before it is considered timed out.
 	ConfigKeyTimeoutMinutes = "Warehouse.replay.timeoutMinutes"
+
+	// ConfigKeyPruneIntervalSeconds is the configuration key for how frequently
+	// (in seconds) terminal replay jobs are pruned from the in-memory job store.
+	ConfigKeyPruneIntervalSeconds = "Warehouse.replay.pruneIntervalSeconds"
+
+	// ConfigKeyPruneRetentionMinutes is the configuration key for how long
+	// (in minutes) terminal replay jobs are retained in the in-memory store
+	// before being eligible for pruning.
+	ConfigKeyPruneRetentionMinutes = "Warehouse.replay.pruneRetentionMinutes"
 )
 
 // Default value constants provide safe fallback values for all replay configuration
@@ -52,6 +61,17 @@ const (
 	// A value of 60 translates to 1 hour (60 * time.Minute) when used with
 	// GetReloadableDurationVar's time.Minute timescale.
 	DefaultTimeoutMinutes = 60
+
+	// DefaultPruneIntervalSeconds is the default interval between pruning
+	// cycles for terminal replay jobs. Set to 300 seconds (5 minutes) to
+	// balance memory cleanup with minimal CPU overhead.
+	DefaultPruneIntervalSeconds = 300
+
+	// DefaultPruneRetentionMinutes is the default retention period for terminal
+	// replay jobs. Jobs in Completed or Failed state older than this duration
+	// are removed from the in-memory store. Set to 60 minutes (1 hour) to
+	// give clients sufficient time to query final job status.
+	DefaultPruneRetentionMinutes = 60
 )
 
 // Config holds all replay configuration values using reloadable loaders.
@@ -83,6 +103,17 @@ type Config struct {
 	// and marked as failed. The value is loaded as a time.Duration with
 	// minute-level granularity.
 	TimeoutMinutes config.ValueLoader[time.Duration]
+
+	// PruneInterval controls how frequently the background pruning loop
+	// removes terminal (Completed/Failed) replay jobs from the in-memory
+	// job store. Loaded as a time.Duration with second-level granularity.
+	PruneInterval config.ValueLoader[time.Duration]
+
+	// PruneRetention controls how long terminal replay jobs are kept in
+	// the in-memory store before becoming eligible for pruning. Jobs older
+	// than this duration are removed during the next prune cycle.
+	// Loaded as a time.Duration with minute-level granularity.
+	PruneRetention config.ValueLoader[time.Duration]
 }
 
 // LoadConfig initializes all replay configuration from the provided config instance.
@@ -113,6 +144,14 @@ func LoadConfig(conf *config.Config) Config {
 		TimeoutMinutes: conf.GetReloadableDurationVar(
 			DefaultTimeoutMinutes, time.Minute,
 			ConfigKeyTimeoutMinutes,
+		),
+		PruneInterval: conf.GetReloadableDurationVar(
+			DefaultPruneIntervalSeconds, time.Second,
+			ConfigKeyPruneIntervalSeconds,
+		),
+		PruneRetention: conf.GetReloadableDurationVar(
+			DefaultPruneRetentionMinutes, time.Minute,
+			ConfigKeyPruneRetentionMinutes,
 		),
 	}
 }

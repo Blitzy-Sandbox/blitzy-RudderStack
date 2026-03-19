@@ -211,7 +211,8 @@ func (r *Repository) ListBySource(ctx context.Context, sourceID string) ([]Backf
 		`SELECT `+backfillJobColumns+`
 		FROM `+backfillJobsTableName+`
 		WHERE source_id = $1
-		ORDER BY created_at DESC`,
+		ORDER BY created_at DESC
+		LIMIT 100`,
 		sourceID,
 	)
 	if err != nil {
@@ -258,4 +259,94 @@ func (r *Repository) GetActiveCount(ctx context.Context) (int64, error) {
 		return 0, fmt.Errorf("getting active backfill job count: %w", err)
 	}
 	return count, nil
+}
+
+// CreateIfUnderLimit atomically checks that the number of active (Pending or InProgress)
+// backfill jobs is below maxConcurrent, and inserts a new job only if the limit is
+// not reached. This eliminates the TOCTOU race condition that exists when
+// GetActiveCount and Create are called as separate operations.
+//
+// The implementation uses a CTE (Common Table Expression) to perform the count
+// check and conditional insert in a single SQL statement, providing atomicity
+// at the database level without requiring explicit advisory locks.
+//
+// Returns:
+//   - (id, nil) if the job was successfully created under the limit
+//   - (0, ErrConcurrentLimitReached) if the active job count >= maxConcurrent
+//   - (0, error) for any other database error
+func (r *Repository) CreateIfUnderLimit(ctx context.Context, job BackfillJob, maxConcurrent int) (int64, error) {
+	defer r.timerStat("create_if_under_limit", stats.Tags{
+		"sourceId":      job.SourceID,
+		"destinationId": job.DestinationID,
+		"workspaceId":   job.WorkspaceID,
+	})()
+
+	// Serialize metadata using jsonrs (mandated JSON package per .golangci.yml depguard rule).
+	var metadataBytes []byte
+	if job.Metadata != nil {
+		var err error
+		metadataBytes, err = jsonrs.Marshal(rawJSON(job.Metadata))
+		if err != nil {
+			return 0, fmt.Errorf("marshalling backfill job metadata: %w", err)
+		}
+	}
+
+	now := r.now()
+
+	// Use an explicit transaction with a PostgreSQL advisory lock to serialise
+	// concurrent backfill-creation attempts. The advisory lock (released
+	// automatically on COMMIT/ROLLBACK) guarantees that only one transaction
+	// at a time can evaluate the active-job count and insert, eliminating the
+	// TOCTOU race that arises when multiple requests check the count under
+	// READ COMMITTED isolation before any of them commit their inserts.
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("beginning transaction for backfill creation: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }() // no-op after Commit
+
+	// Acquire a transaction-scoped advisory lock. The constant 'backfill_concurrent_limit'
+	// is hashed by hashtext() to produce a stable int4 key. All concurrent callers
+	// block here until the holding transaction completes.
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext('backfill_concurrent_limit'))`); err != nil {
+		return 0, fmt.Errorf("acquiring advisory lock for backfill creation: %w", err)
+	}
+
+	var id int64
+	// Count active jobs and insert in the same serialised transaction.
+	// If the count >= limit, the SELECT yields zero rows, the INSERT inserts
+	// nothing, and QueryRowContext returns sql.ErrNoRows — mapped to
+	// ErrConcurrentLimitReached.
+	err = tx.QueryRowContext(ctx,
+		`WITH active_check AS (
+			SELECT COUNT(*) AS cnt
+			FROM `+backfillJobsTableName+`
+			WHERE status IN ($1, $2)
+		)
+		INSERT INTO `+backfillJobsTableName+` (
+			source_id, destination_id, workspace_id,
+			start_date, end_date, status, metadata,
+			created_at, updated_at
+		)
+		SELECT $3, $4, $5, $6, $7, $8, $9, $10, $11
+		FROM active_check
+		WHERE active_check.cnt < $12
+		RETURNING id`,
+		StatusPending, StatusInProgress,
+		job.SourceID, job.DestinationID, job.WorkspaceID,
+		job.StartDate, job.EndDate, StatusPending,
+		metadataBytes, now, now,
+		maxConcurrent,
+	).Scan(&id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrConcurrentLimitReached
+		}
+		return 0, fmt.Errorf("creating backfill job with limit check: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("committing backfill job creation: %w", err)
+	}
+	return id, nil
 }
