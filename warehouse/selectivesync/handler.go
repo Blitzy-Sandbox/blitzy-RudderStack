@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -110,6 +111,32 @@ func (h *Handler) UpdateSelectiveSync(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.DestinationID == "" {
 		h.writeErrorResponse(w, http.StatusBadRequest, "destination_id is required")
+		return
+	}
+
+	// Reject null bytes (\u0000) in string fields. PostgreSQL VARCHAR columns
+	// reject null bytes, causing a database-level error that would surface as an
+	// opaque 500 Internal Server Error. By validating at the handler layer, we
+	// return a clear 400 Bad Request with an actionable error message.
+	// This covers all string fields: identifiers and JSONB-serialized values.
+	if containsNullByte(req.SourceID) {
+		h.writeErrorResponse(w, http.StatusBadRequest, "source_id contains invalid characters")
+		return
+	}
+	if containsNullByte(req.DestinationID) {
+		h.writeErrorResponse(w, http.StatusBadRequest, "destination_id contains invalid characters")
+		return
+	}
+	if containsNullByte(req.WorkspaceID) {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspace_id contains invalid characters")
+		return
+	}
+	if containsNullByteInSlice(req.ExcludedTables) {
+		h.writeErrorResponse(w, http.StatusBadRequest, "excluded_tables contains invalid characters")
+		return
+	}
+	if containsNullByteInColumnMap(req.ExcludedColumns) {
+		h.writeErrorResponse(w, http.StatusBadRequest, "excluded_columns contains invalid characters")
 		return
 	}
 
@@ -229,4 +256,40 @@ func (h *Handler) writeJSONResponse(w http.ResponseWriter, statusCode int, data 
 	if err := jsonrs.NewEncoder(w).Encode(data); err != nil {
 		h.log.Errorn("failed to encode response", obskit.Error(err))
 	}
+}
+
+// containsNullByte reports whether s contains a Unicode null byte (U+0000).
+// PostgreSQL VARCHAR columns reject null bytes, causing a database-level error
+// that would otherwise surface as a 500 Internal Server Error. This helper
+// enables handler-level validation to return 400 Bad Request instead.
+func containsNullByte(s string) bool {
+	return strings.ContainsRune(s, 0)
+}
+
+// containsNullByteInSlice checks whether any string in the slice contains
+// a null byte. Used to validate excluded_tables arrays before database storage.
+func containsNullByteInSlice(ss []string) bool {
+	for _, s := range ss {
+		if containsNullByte(s) {
+			return true
+		}
+	}
+	return false
+}
+
+// containsNullByteInColumnMap checks whether any key or value string in the
+// excluded_columns map contains a null byte. Used to validate the full map
+// structure before JSONB serialization and database storage.
+func containsNullByteInColumnMap(m map[string][]string) bool {
+	for k, cols := range m {
+		if containsNullByte(k) {
+			return true
+		}
+		for _, col := range cols {
+			if containsNullByte(col) {
+				return true
+			}
+		}
+	}
+	return false
 }

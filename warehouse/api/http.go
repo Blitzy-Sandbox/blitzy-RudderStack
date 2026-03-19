@@ -175,6 +175,7 @@ func (a *Api) Start(ctx context.Context) error {
 	srvMux := chi.NewRouter()
 	srvMux.Use(
 		chiware.StatMiddleware(ctx, a.statsFactory, "warehouse"),
+		securityHeadersMiddleware,
 	)
 
 	if mode.IsStandAlone(a.mode) {
@@ -200,6 +201,20 @@ func (a *Api) Start(ctx context.Context) error {
 		ReadHeaderTimeout: a.config.readerHeaderTimeout,
 	}
 	return kithttputil.ListenAndServe(ctx, srv)
+}
+
+// securityHeadersMiddleware is a Chi-compatible middleware that sets essential
+// security response headers on every HTTP response. This is a defense-in-depth
+// measure for the internal warehouse API.
+//
+// Headers applied:
+//   - X-Content-Type-Options: nosniff — prevents MIME type sniffing attacks
+//     by instructing browsers to strictly follow the declared Content-Type.
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (a *Api) addMasterEndpoints(ctx context.Context, r chi.Router) {

@@ -14,6 +14,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -85,6 +86,23 @@ func (h *Handler) TriggerBackfill(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.DestinationID == "" {
 		h.writeErrorResponse(w, http.StatusBadRequest, "destination_id is required")
+		return
+	}
+
+	// Reject null bytes (\u0000) in string fields. PostgreSQL VARCHAR columns
+	// reject null bytes, causing a database-level error that would surface as an
+	// opaque 500 Internal Server Error. By validating at the handler layer, we
+	// return a clear 400 Bad Request with an actionable error message.
+	if containsNullByte(req.SourceID) {
+		h.writeErrorResponse(w, http.StatusBadRequest, "source_id contains invalid characters")
+		return
+	}
+	if containsNullByte(req.DestinationID) {
+		h.writeErrorResponse(w, http.StatusBadRequest, "destination_id contains invalid characters")
+		return
+	}
+	if containsNullByte(req.WorkspaceID) {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspace_id contains invalid characters")
 		return
 	}
 
@@ -217,4 +235,12 @@ func (h *Handler) writeJSONResponse(w http.ResponseWriter, statusCode int, data 
 	if err := jsonrs.NewEncoder(w).Encode(data); err != nil {
 		h.log.Errorn("failed to encode response", obskit.Error(err))
 	}
+}
+
+// containsNullByte reports whether s contains a Unicode null byte (U+0000).
+// PostgreSQL VARCHAR columns reject null bytes, causing a database-level error
+// that would otherwise surface as a 500 Internal Server Error. This helper
+// enables handler-level validation to return 400 Bad Request instead.
+func containsNullByte(s string) bool {
+	return strings.ContainsRune(s, 0)
 }
