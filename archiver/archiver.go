@@ -2,9 +2,12 @@ package archiver
 
 import (
 	"bufio"
+	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sync"
 	"time"
 
@@ -12,6 +15,7 @@ import (
 
 	"github.com/rudderlabs/rudder-go-kit/bytesize"
 	"github.com/rudderlabs/rudder-go-kit/config"
+	"github.com/rudderlabs/rudder-go-kit/filemanager"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	"github.com/rudderlabs/rudder-go-kit/stats"
 	kitsync "github.com/rudderlabs/rudder-go-kit/sync"
@@ -30,6 +34,13 @@ type archiver struct {
 
 	archiveTrigger           func() <-chan time.Time
 	adaptivePayloadLimitFunc payload.AdaptiveLimiterFunc
+
+	// workspaceIDResolver resolves a source ID to its workspace ID, enabling the
+	// storage-backed operations (ListArchivedStagingFiles, QueryArchivedEvents).
+	// The storageProvider.GetFileManager() requires a workspace ID to select the
+	// correct storage backend. When nil, these operations return empty results.
+	// Set via WithWorkspaceResolver option.
+	workspaceIDResolver func(ctx context.Context, sourceID string) (string, error)
 
 	stopArchivalTrigger context.CancelFunc
 	waitGroup           *errgroup.Group
@@ -220,11 +231,20 @@ type ArchivedStagingFile struct {
 // ArchivedEventIterator provides a streaming interface for iterating over
 // archived gateway event payloads without loading all into memory.
 // Consumers must call Close() when done to release resources.
+//
+// Design note: Next() returns raw JSON bytes ([]byte) rather than a typed
+// ArchivedEvent struct. This is intentional — the archiver stores events as
+// gzipped JSONL (one JSON object per line), and returning raw bytes avoids an
+// unnecessary deserialization/re-serialization cycle since consumers (the replay
+// handler) need to inject events back into the Gateway as raw JSON payloads.
+// The caller can deserialize selectively if needed (e.g., to extract metadata).
 type ArchivedEventIterator interface {
 	// Next returns the next archived event payload as raw JSON bytes.
 	// Returns io.EOF when no more events are available.
+	// Returns nil, io.EOF when all events across all underlying readers are exhausted.
 	Next() ([]byte, error)
-	// Close releases all resources held by the iterator.
+	// Close releases all resources held by the iterator, including any
+	// temporary files and gzip readers created during download.
 	Close() error
 }
 
@@ -376,37 +396,69 @@ func (a *archiver) ListArchivedStagingFiles(
 	return stagingFiles, nil
 }
 
-// listArchivedFilesForPrefix is an internal helper that queries object storage for archived
-// files matching a specific prefix and converts them to staging file models.
-// The archiver's storageProvider resolves workspace-specific file managers at the caller level;
-// this helper constructs staging file entries with archived location metadata that the
-// backfill service can later resolve to actual object storage paths.
+// listArchivedFilesForPrefix queries object storage for archived files matching the
+// given prefix, returning actual file metadata from the storage backend.
+//
+// The archiver stores files at: sourceID/archiveFrom/date/hour/instanceID/filename.json.gz
+// This method lists all files under the given prefix (typically sourceID/archiveFrom/date/hour)
+// and converts the storage file metadata into ArchivedStagingFile entries.
+//
+// Requires a workspaceIDResolver to be configured via WithWorkspaceResolver. When the
+// resolver is not set, returns nil (empty list) without error — the production backfill
+// and replay paths use warehouse/archive/archiver.go which has database-backed queries,
+// bypassing this gateway-level listing entirely.
 func (a *archiver) listArchivedFilesForPrefix(
 	ctx context.Context,
 	sourceID, prefix, destID string,
 	baseTime time.Time,
 ) ([]ArchivedStagingFile, error) {
-	// Check for context cancellation before processing this prefix
 	select {
 	case <-ctx.Done():
 		return nil, fmt.Errorf("listing archived files: %w", ctx.Err())
 	default:
 	}
 
-	// Create a staging file entry representing the archived data at this prefix.
-	// The actual workspace resolution and file manager access is handled by the
-	// caller via the backfill service, which has workspace context.
-	var result []ArchivedStagingFile
-	sf := ArchivedStagingFile{
-		SourceID:      sourceID,
-		DestinationID: destID,
-		Location:      prefix,
-		FirstEventAt:  baseTime,
-		LastEventAt:   baseTime.Add(time.Hour),
-		CreatedAt:     baseTime,
+	// Without a workspace resolver, storage operations cannot proceed because
+	// storageProvider.GetFileManager() requires a workspace ID. Return empty
+	// results — the production path uses the warehouse archiver adapter.
+	if a.workspaceIDResolver == nil {
+		return nil, nil
 	}
-	result = append(result, sf)
 
+	workspaceID, err := a.workspaceIDResolver(ctx, sourceID)
+	if err != nil {
+		return nil, fmt.Errorf("resolving workspace for source %q: %w", sourceID, err)
+	}
+
+	fm, err := a.storageProvider.GetFileManager(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("getting file manager for workspace %q: %w", workspaceID, err)
+	}
+
+	// List all archived files stored under this prefix using the storage backend's
+	// native listing API. Each file is converted to an ArchivedStagingFile entry
+	// with metadata derived from the file's storage key and last-modified timestamp.
+	session := fm.ListFilesWithPrefix(ctx, "", prefix, 1000)
+	var result []ArchivedStagingFile
+	for {
+		fileInfos, err := session.Next()
+		if err != nil {
+			return result, fmt.Errorf("listing files with prefix %q: %w", prefix, err)
+		}
+		if len(fileInfos) == 0 {
+			break
+		}
+		for _, fi := range fileInfos {
+			result = append(result, ArchivedStagingFile{
+				SourceID:      sourceID,
+				DestinationID: destID,
+				Location:      fi.Key,
+				FirstEventAt:  fi.LastModified,
+				LastEventAt:   fi.LastModified,
+				CreatedAt:     fi.LastModified,
+			})
+		}
+	}
 	return result, nil
 }
 
@@ -506,27 +558,201 @@ func (a *archiver) QueryArchivedEvents(
 	return iterator, nil
 }
 
-// downloadArchivedFile attempts to download an archived file from object storage
-// and return a reader for its contents. Returns nil reader if the file does not
-// exist at the specified location (not treated as an error).
+// downloadArchivedFile downloads archived files from object storage for a given
+// location prefix, returning a reader over the decompressed (gzipped JSONL) content.
 //
-// The archiver stores files using workspace-specific file managers. In the full
-// production pipeline, this method would:
-//  1. Resolve the workspace for the given sourceID
-//  2. Obtain the file manager via a.storageProvider.GetFileManager(ctx, workspaceID)
-//  3. Download the file from the resolved location
-//  4. Return a gzip.NewReader wrapping the downloaded content
+// The archiver stores files at: sourceID/archiveFrom/date/hour/instanceID/filename.json.gz
+// Since the caller provides hour-level prefixes (e.g., "src123/gw/2024-01-15/10"),
+// this method first lists all files under the prefix, then downloads and decompresses
+// each one. When multiple files exist under the same prefix (from concurrent archiver
+// instances), they are combined into a single sequential reader.
 //
-// Currently returns nil to allow the replay handler to resolve workspace context
-// and perform the actual download through the backfill/replay service layer.
+// Returns nil, nil when:
+//   - The workspaceIDResolver is not configured (production routes via warehouse adapter)
+//   - No files are found under the specified prefix
+//
+// Requires a workspaceIDResolver to be configured via WithWorkspaceResolver. Without
+// it, the method returns nil reader and nil error, because storageProvider.GetFileManager()
+// needs a workspace ID. The production replay path uses warehouse/archive/archiver.go
+// via adapter types in warehouse/app.go, which has database-backed queries.
 func (a *archiver) downloadArchivedFile(
-	_ context.Context,
-	_, _ string,
+	ctx context.Context,
+	sourceID, locationPrefix string,
 ) (io.ReadCloser, error) {
-	// Returns nil reader when no archived file is found at the location.
-	// This is intentional: "file not found" is not an error condition for the
-	// caller, which simply skips nil readers. When the full production pipeline
-	// is integrated, this method will resolve workspace-specific file managers
-	// and download actual archived files.
-	return nil, nil //nolint:nilnil // nil reader + nil error signals "no file found" by design
+	// Without a workspace resolver, storage download cannot proceed because
+	// storageProvider.GetFileManager() requires a workspace ID.
+	if a.workspaceIDResolver == nil {
+		return nil, nil //nolint:nilnil // nil reader signals "not configured" — production uses warehouse adapter
+	}
+
+	workspaceID, err := a.workspaceIDResolver(ctx, sourceID)
+	if err != nil {
+		return nil, fmt.Errorf("resolving workspace for source %q: %w", sourceID, err)
+	}
+
+	fm, err := a.storageProvider.GetFileManager(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("getting file manager for workspace %q: %w", workspaceID, err)
+	}
+
+	// List all archived files under this prefix to discover actual file keys.
+	// The archiver may produce multiple files per hour from concurrent instances.
+	session := fm.ListFilesWithPrefix(ctx, "", locationPrefix, 100)
+	var fileKeys []string
+	for {
+		infos, err := session.Next()
+		if err != nil {
+			return nil, fmt.Errorf("listing files under prefix %q: %w", locationPrefix, err)
+		}
+		if len(infos) == 0 {
+			break
+		}
+		for _, fi := range infos {
+			fileKeys = append(fileKeys, fi.Key)
+		}
+	}
+
+	if len(fileKeys) == 0 {
+		return nil, nil //nolint:nilnil // no archived files at this prefix
+	}
+
+	// Download and decompress each archived file found under the prefix.
+	var readers []io.ReadCloser
+	for _, key := range fileKeys {
+		reader, err := a.downloadAndDecompress(ctx, fm, key)
+		if err != nil {
+			// Clean up already-opened readers on error to prevent resource leaks.
+			for _, r := range readers {
+				_ = r.Close()
+			}
+			return nil, fmt.Errorf("downloading archived file %q: %w", key, err)
+		}
+		if reader != nil {
+			readers = append(readers, reader)
+		}
+	}
+
+	if len(readers) == 0 {
+		return nil, nil //nolint:nilnil // all files missing or empty
+	}
+	if len(readers) == 1 {
+		return readers[0], nil
+	}
+	// Combine multiple decompressed readers into a single sequential reader.
+	return &multiArchivedReader{readers: readers}, nil
+}
+
+// downloadAndDecompress downloads a single archived file from object storage and
+// returns a reader over its decompressed content. The archived files are gzipped
+// JSONL (one JSON object per line), so this wraps the raw download in a gzip reader.
+//
+// Uses a temporary file as an intermediary because the filemanager.Download API
+// writes to io.WriterAt (for parallel/ranged downloads), while gzip.NewReader
+// needs io.Reader. The temp file is automatically cleaned up when the returned
+// reader is closed.
+func (a *archiver) downloadAndDecompress(
+	ctx context.Context,
+	fm filemanager.FileManager,
+	key string,
+) (io.ReadCloser, error) {
+	tmpFile, err := os.CreateTemp("", "archiver-dl-*.json.gz")
+	if err != nil {
+		return nil, fmt.Errorf("creating temp file: %w", err)
+	}
+
+	if err := fm.Download(ctx, tmpFile, key); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpFile.Name())
+		// A missing key is not an error — the file may have been deleted between
+		// listing and download (race with archival retention cleanup).
+		if errors.Is(err, filemanager.ErrKeyNotFound) {
+			return nil, nil //nolint:nilnil // file no longer exists
+		}
+		return nil, fmt.Errorf("downloading %q: %w", key, err)
+	}
+
+	// Seek back to start after the download wrote to the file.
+	if _, err := tmpFile.Seek(0, io.SeekStart); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpFile.Name())
+		return nil, fmt.Errorf("seeking temp file: %w", err)
+	}
+
+	gzReader, err := gzip.NewReader(tmpFile)
+	if err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpFile.Name())
+		return nil, fmt.Errorf("creating gzip reader for %q: %w", key, err)
+	}
+
+	return &archivedFileReader{
+		gzipReader: gzReader,
+		tmpFile:    tmpFile,
+		tmpPath:    tmpFile.Name(),
+	}, nil
+}
+
+// archivedFileReader wraps a gzip reader backed by a temporary file, providing
+// automatic cleanup of the temp file when the reader is closed. This is needed
+// because filemanager.Download writes to io.WriterAt (a temp file), while the
+// consuming gzipJSONLIterator reads from io.Reader.
+type archivedFileReader struct {
+	gzipReader io.ReadCloser
+	tmpFile    *os.File
+	tmpPath    string
+}
+
+func (r *archivedFileReader) Read(p []byte) (int, error) {
+	return r.gzipReader.Read(p)
+}
+
+// Close releases the gzip reader, closes the backing temp file, and removes
+// the temp file from disk. Returns the first error encountered.
+func (r *archivedFileReader) Close() error {
+	var firstErr error
+	if err := r.gzipReader.Close(); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	if err := r.tmpFile.Close(); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	// Best-effort removal — ignore errors (e.g., file already removed).
+	_ = os.Remove(r.tmpPath)
+	return firstErr
+}
+
+// multiArchivedReader combines multiple io.ReadClosers into a single sequential
+// reader. When one reader is fully consumed (returns io.EOF), it transparently
+// advances to the next. All underlying readers are closed when Close() is called.
+type multiArchivedReader struct {
+	readers []io.ReadCloser
+	current int
+}
+
+func (r *multiArchivedReader) Read(p []byte) (int, error) {
+	for r.current < len(r.readers) {
+		n, err := r.readers[r.current].Read(p)
+		if n > 0 {
+			return n, err
+		}
+		if errors.Is(err, io.EOF) {
+			r.current++
+			continue
+		}
+		if err != nil {
+			return 0, err
+		}
+	}
+	return 0, io.EOF
+}
+
+// Close releases all underlying readers, returning the first error encountered.
+func (r *multiArchivedReader) Close() error {
+	var firstErr error
+	for _, reader := range r.readers {
+		if err := reader.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }

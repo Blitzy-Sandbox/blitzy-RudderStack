@@ -15,19 +15,6 @@ import (
 
 const moduleName = "warehouse"
 
-// Health monitoring metric names (E-033). These metric names are the canonical
-// Prometheus metric identifiers emitted by the health monitoring subsystem for
-// per-upload sync tracking. The actual metric emission is handled by the
-// healthmonitor package (healthmonitor/metrics.go), while this file records
-// the health data via the syncHealthRecorder interface.
-const (
-	metricSyncDurationSeconds = "warehouse_sync_duration_seconds"
-	metricSyncRowsTotal       = "warehouse_sync_rows_total"
-	metricSyncErrorsTotal     = "warehouse_sync_errors_total"
-	metricSyncStatus          = "warehouse_sync_status"
-	metricSchemaChangesTotal  = "warehouse_schema_changes_total"
-)
-
 func warehouseTagName(destID, sourceName, destName, sourceID string) string {
 	return misc.GetTagName(destID, sourceName, destName, misc.TailTruncateStr(sourceID, 6))
 }
