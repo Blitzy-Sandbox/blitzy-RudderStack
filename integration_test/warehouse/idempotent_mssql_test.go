@@ -235,8 +235,12 @@ func testCopyInStagingDedup(
 	require.NoError(t, err, "failed to prepare CopyIn statement")
 
 	// Insert all 24 events (including duplicates) into staging.
+	// CRITICAL: Pass time.Time values to CopyIn instead of ISO 8601 strings.
+	// The MSSQL bulk CopyIn driver's internal string parser expects the Go
+	// layout "2006-01-02 15:04:05.999999999Z07:00" (space separator), not
+	// ISO 8601's "T" separator. Passing time.Time bypasses string parsing.
 	for _, e := range cfg.Events {
-		_, err = stmt.ExecContext(ctx, e.ID, e.UserID, e.Event, e.ReceivedAt)
+		_, err = stmt.ExecContext(ctx, e.ID, e.UserID, e.Event, mssqlParseDateTimeForCopyIn(t, e.ReceivedAt))
 		require.NoError(t, err, "CopyIn exec failed for event %s", e.ID)
 	}
 	_, err = stmt.ExecContext(ctx)
@@ -345,8 +349,10 @@ func testReplayProducesSameRowCount(
 		stmt, err := txn.PrepareContext(ctx, copyInStmt)
 		require.NoError(t, err, "replay %d: failed to prepare CopyIn statement", replay)
 
+		// CRITICAL: Pass time.Time values to CopyIn instead of ISO 8601 strings.
+		// See mssqlParseDateTimeForCopyIn for details on the format incompatibility.
 		for _, e := range cfg.Events {
-			_, err = stmt.ExecContext(ctx, e.ID, e.UserID, e.Event, e.ReceivedAt)
+			_, err = stmt.ExecContext(ctx, e.ID, e.UserID, e.Event, mssqlParseDateTimeForCopyIn(t, e.ReceivedAt))
 			require.NoError(t, err, "replay %d: CopyIn exec failed for event %s", replay, e.ID)
 		}
 		_, err = stmt.ExecContext(ctx)
@@ -550,6 +556,35 @@ func testStagingTableCleanup(
 ) {
 	t.Helper()
 
+	// Defensive pre-cleanup: drop any leftover staging tables from previously
+	// failed tests to prevent cascading assertion failures. Earlier subtests
+	// (copyin_staging_dedup, replay_produces_same_row_count) share the same
+	// schema namespace; if they fail mid-execution their staging tables persist
+	// in INFORMATION_SCHEMA and cause this test's final assertion to fail.
+	preCleanPrefix := whutils.StagingTablePrefix(whutils.MSSQL)
+	preCleanRows, preCleanErr := db.QueryContext(ctx, `
+		SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+		WHERE TABLE_SCHEMA = @p1 AND TABLE_NAME LIKE @p2`,
+		ns, preCleanPrefix+"%",
+	)
+	if preCleanErr == nil {
+		var leftoverTables []string
+		for preCleanRows.Next() {
+			var tName string
+			if preCleanRows.Scan(&tName) == nil {
+				leftoverTables = append(leftoverTables, tName)
+			}
+		}
+		if rowsErr := preCleanRows.Err(); rowsErr != nil {
+			t.Logf("staging_table_cleanup: warning iterating leftover staging tables: %v", rowsErr)
+		}
+		preCleanRows.Close()
+		for _, tName := range leftoverTables {
+			_, _ = db.ExecContext(ctx, fmt.Sprintf(`DROP TABLE [%s].[%s]`, ns, tName))
+			t.Logf("staging_table_cleanup: pre-cleaned leftover staging table %s.%s", ns, tName)
+		}
+	}
+
 	tableName := "tracks_cleanup"
 	createTableSQL := fmt.Sprintf(
 		`CREATE TABLE [%s].[%s] ("id" nvarchar(512), "user_id" nvarchar(512), "received_at" datetimeoffset)`,
@@ -694,8 +729,11 @@ func testPersistentStagingTables(
 	stmt, err := txn.PrepareContext(ctx, copyInStmt)
 	require.NoError(t, err, "failed to prepare CopyIn for persistent staging table")
 
-	// Insert a single test row.
-	_, err = stmt.ExecContext(ctx, "persistent-001", "user-001", time.Now().Format(time.RFC3339))
+	// Insert a single test row. Pass time.Now() directly as time.Time rather
+	// than formatting as time.RFC3339 string, because the MSSQL bulk CopyIn
+	// driver's string parser expects space-separated datetime layout, not
+	// ISO 8601's "T" separator produced by time.RFC3339.
+	_, err = stmt.ExecContext(ctx, "persistent-001", "user-001", time.Now())
 	require.NoError(t, err, "CopyIn exec failed for persistent staging test")
 	_, err = stmt.ExecContext(ctx)
 	require.NoError(t, err, "CopyIn final exec failed for persistent staging test")
@@ -775,6 +813,30 @@ func verifyMSSQLRowCount(
 // mssqlContainerTimeout defines the maximum time to wait for the MSSQL
 // Docker container to become ready. Expressed as a time.Duration value.
 var mssqlContainerTimeout time.Duration = 3 * time.Minute
+
+// mssqlParseDateTimeForCopyIn converts an ISO 8601 datetime string (as stored
+// in test fixture JSON files) into a time.Time value for use with the MSSQL
+// bulk CopyIn driver. The driver's internal string-to-datetime parser expects
+// the Go-standard time layout "2006-01-02 15:04:05.999999999Z07:00" (space
+// separator between date and time) rather than ISO 8601's "T" separator.
+// Passing a native time.Time value instead of a string bypasses the driver's
+// string parser entirely and avoids the format incompatibility.
+func mssqlParseDateTimeForCopyIn(t *testing.T, dateStr string) time.Time {
+	t.Helper()
+
+	parsed, err := time.Parse(time.RFC3339Nano, dateStr)
+	if err == nil {
+		return parsed
+	}
+
+	parsed, err = time.Parse(time.RFC3339, dateStr)
+	if err == nil {
+		return parsed
+	}
+
+	t.Fatalf("mssqlParseDateTimeForCopyIn: unable to parse datetime %q", dateStr)
+	return time.Time{} // unreachable, t.Fatalf terminates the test
+}
 
 // Type assertions ensuring the testhelper types are accessible from the
 // integration test package. whth.RenderIdempotentStagingFiles is the function
