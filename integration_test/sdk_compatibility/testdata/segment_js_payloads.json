@@ -1,0 +1,1286 @@
+{
+  "identify": {
+    "type": "identify",
+    "userId": "user-js-sdk-test-001",
+    "anonymousId": "anon-js-sdk-test-001",
+    "messageId": "msg-js-sdk-identify-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "_metadata": {
+      "bundled": [
+        "Segment.io"
+      ],
+      "unbundled": [],
+      "bundledIds": []
+    },
+    "context": {
+      "library": {
+        "name": "analytics.js",
+        "version": "2.10.0"
+      },
+      "page": {
+        "path": "/products/widget-pro",
+        "referrer": "https://example.com/",
+        "search": "?utm_source=google",
+        "title": "Widget Pro - TestApp",
+        "url": "https://example.com/products/widget-pro?utm_source=google"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          {
+            "brand": "Chromium",
+            "version": "120"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8"
+          }
+        ],
+        "mobile": false,
+        "platform": "macOS",
+        "bitness": "64",
+        "model": "",
+        "platformVersion": "15.0.0",
+        "uaFullVersion": "120.0.0.0",
+        "fullVersionList": [
+          {
+            "brand": "Chromium",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8.0.0.0"
+          }
+        ],
+        "wow64": false
+      },
+      "locale": "en-US",
+      "timezone": "America/Los_Angeles",
+      "campaign": {
+        "name": "sdk-test",
+        "source": "google",
+        "medium": "cpc",
+        "term": "analytics",
+        "content": "banner-1"
+      },
+      "ip": "198.51.100.10",
+      "channel": "client"
+    },
+    "traits": {
+      "email": "js.user@example.com",
+      "firstName": "Jane",
+      "lastName": "WebSDK",
+      "phone": "+1-555-100-0001",
+      "age": 28,
+      "company": {
+        "id": "comp-js-001",
+        "name": "TestCorp Inc."
+      },
+      "createdAt": "2024-06-01T12:00:00.000Z"
+    }
+  },
+  "track": {
+    "type": "track",
+    "userId": "user-js-sdk-test-001",
+    "anonymousId": "anon-js-sdk-test-001",
+    "messageId": "msg-js-sdk-track-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "_metadata": {
+      "bundled": [
+        "Segment.io"
+      ],
+      "unbundled": [],
+      "bundledIds": []
+    },
+    "context": {
+      "library": {
+        "name": "analytics.js",
+        "version": "2.10.0"
+      },
+      "page": {
+        "path": "/products/widget-pro",
+        "referrer": "https://example.com/",
+        "search": "?utm_source=google",
+        "title": "Widget Pro - TestApp",
+        "url": "https://example.com/products/widget-pro?utm_source=google"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          {
+            "brand": "Chromium",
+            "version": "120"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8"
+          }
+        ],
+        "mobile": false,
+        "platform": "macOS",
+        "bitness": "64",
+        "model": "",
+        "platformVersion": "15.0.0",
+        "uaFullVersion": "120.0.0.0",
+        "fullVersionList": [
+          {
+            "brand": "Chromium",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8.0.0.0"
+          }
+        ],
+        "wow64": false
+      },
+      "locale": "en-US",
+      "timezone": "America/Los_Angeles",
+      "campaign": {
+        "name": "sdk-test",
+        "source": "google",
+        "medium": "cpc",
+        "term": "analytics",
+        "content": "banner-1"
+      },
+      "ip": "198.51.100.10",
+      "channel": "client"
+    },
+    "event": "Product Viewed",
+    "properties": {
+      "product_id": "prod-js-001",
+      "sku": "SKU-JS-WIDGET-PRO",
+      "category": "Electronics",
+      "name": "Widget Pro",
+      "price": 99.99,
+      "quantity": 1,
+      "currency": "USD",
+      "url": "https://example.com/products/widget-pro",
+      "image_url": "https://example.com/images/widget-pro.png"
+    }
+  },
+  "page": {
+    "type": "page",
+    "userId": "user-js-sdk-test-001",
+    "anonymousId": "anon-js-sdk-test-001",
+    "messageId": "msg-js-sdk-page-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "_metadata": {
+      "bundled": [
+        "Segment.io"
+      ],
+      "unbundled": [],
+      "bundledIds": []
+    },
+    "context": {
+      "library": {
+        "name": "analytics.js",
+        "version": "2.10.0"
+      },
+      "page": {
+        "path": "/products/widget-pro",
+        "referrer": "https://example.com/",
+        "search": "?utm_source=google",
+        "title": "Widget Pro - TestApp",
+        "url": "https://example.com/products/widget-pro?utm_source=google"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          {
+            "brand": "Chromium",
+            "version": "120"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8"
+          }
+        ],
+        "mobile": false,
+        "platform": "macOS",
+        "bitness": "64",
+        "model": "",
+        "platformVersion": "15.0.0",
+        "uaFullVersion": "120.0.0.0",
+        "fullVersionList": [
+          {
+            "brand": "Chromium",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8.0.0.0"
+          }
+        ],
+        "wow64": false
+      },
+      "locale": "en-US",
+      "timezone": "America/Los_Angeles",
+      "campaign": {
+        "name": "sdk-test",
+        "source": "google",
+        "medium": "cpc",
+        "term": "analytics",
+        "content": "banner-1"
+      },
+      "ip": "198.51.100.10",
+      "channel": "client"
+    },
+    "name": "Home",
+    "category": "Landing",
+    "properties": {
+      "title": "Home - TestApp",
+      "url": "https://example.com/",
+      "path": "/",
+      "referrer": "https://www.google.com/",
+      "search": "",
+      "keywords": [
+        "analytics",
+        "data",
+        "segment"
+      ]
+    }
+  },
+  "screen": {
+    "type": "screen",
+    "userId": "user-js-sdk-test-001",
+    "anonymousId": "anon-js-sdk-test-001",
+    "messageId": "msg-js-sdk-screen-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "_metadata": {
+      "bundled": [
+        "Segment.io"
+      ],
+      "unbundled": [],
+      "bundledIds": []
+    },
+    "context": {
+      "library": {
+        "name": "analytics.js",
+        "version": "2.10.0"
+      },
+      "page": {
+        "path": "/products/widget-pro",
+        "referrer": "https://example.com/",
+        "search": "?utm_source=google",
+        "title": "Widget Pro - TestApp",
+        "url": "https://example.com/products/widget-pro?utm_source=google"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          {
+            "brand": "Chromium",
+            "version": "120"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8"
+          }
+        ],
+        "mobile": false,
+        "platform": "macOS",
+        "bitness": "64",
+        "model": "",
+        "platformVersion": "15.0.0",
+        "uaFullVersion": "120.0.0.0",
+        "fullVersionList": [
+          {
+            "brand": "Chromium",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8.0.0.0"
+          }
+        ],
+        "wow64": false
+      },
+      "locale": "en-US",
+      "timezone": "America/Los_Angeles",
+      "campaign": {
+        "name": "sdk-test",
+        "source": "google",
+        "medium": "cpc",
+        "term": "analytics",
+        "content": "banner-1"
+      },
+      "ip": "198.51.100.10",
+      "channel": "client"
+    },
+    "name": "Dashboard",
+    "properties": {
+      "variation": "control"
+    }
+  },
+  "group": {
+    "type": "group",
+    "userId": "user-js-sdk-test-001",
+    "anonymousId": "anon-js-sdk-test-001",
+    "messageId": "msg-js-sdk-group-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "_metadata": {
+      "bundled": [
+        "Segment.io"
+      ],
+      "unbundled": [],
+      "bundledIds": []
+    },
+    "context": {
+      "library": {
+        "name": "analytics.js",
+        "version": "2.10.0"
+      },
+      "page": {
+        "path": "/products/widget-pro",
+        "referrer": "https://example.com/",
+        "search": "?utm_source=google",
+        "title": "Widget Pro - TestApp",
+        "url": "https://example.com/products/widget-pro?utm_source=google"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          {
+            "brand": "Chromium",
+            "version": "120"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8"
+          }
+        ],
+        "mobile": false,
+        "platform": "macOS",
+        "bitness": "64",
+        "model": "",
+        "platformVersion": "15.0.0",
+        "uaFullVersion": "120.0.0.0",
+        "fullVersionList": [
+          {
+            "brand": "Chromium",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8.0.0.0"
+          }
+        ],
+        "wow64": false
+      },
+      "locale": "en-US",
+      "timezone": "America/Los_Angeles",
+      "campaign": {
+        "name": "sdk-test",
+        "source": "google",
+        "medium": "cpc",
+        "term": "analytics",
+        "content": "banner-1"
+      },
+      "ip": "198.51.100.10",
+      "channel": "client"
+    },
+    "groupId": "grp-js-sdk-001",
+    "traits": {
+      "name": "TestCorp Inc.",
+      "industry": "Technology",
+      "employees": 500,
+      "plan": "enterprise",
+      "website": "https://example.com"
+    }
+  },
+  "alias": {
+    "type": "alias",
+    "userId": "user-js-sdk-test-001",
+    "anonymousId": "anon-js-sdk-test-001",
+    "messageId": "msg-js-sdk-alias-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "_metadata": {
+      "bundled": [
+        "Segment.io"
+      ],
+      "unbundled": [],
+      "bundledIds": []
+    },
+    "context": {
+      "library": {
+        "name": "analytics.js",
+        "version": "2.10.0"
+      },
+      "page": {
+        "path": "/products/widget-pro",
+        "referrer": "https://example.com/",
+        "search": "?utm_source=google",
+        "title": "Widget Pro - TestApp",
+        "url": "https://example.com/products/widget-pro?utm_source=google"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "userAgentData": {
+        "brands": [
+          {
+            "brand": "Chromium",
+            "version": "120"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8"
+          }
+        ],
+        "mobile": false,
+        "platform": "macOS",
+        "bitness": "64",
+        "model": "",
+        "platformVersion": "15.0.0",
+        "uaFullVersion": "120.0.0.0",
+        "fullVersionList": [
+          {
+            "brand": "Chromium",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Google Chrome",
+            "version": "120.0.0.0"
+          },
+          {
+            "brand": "Not_A Brand",
+            "version": "8.0.0.0"
+          }
+        ],
+        "wow64": false
+      },
+      "locale": "en-US",
+      "timezone": "America/Los_Angeles",
+      "campaign": {
+        "name": "sdk-test",
+        "source": "google",
+        "medium": "cpc",
+        "term": "analytics",
+        "content": "banner-1"
+      },
+      "ip": "198.51.100.10",
+      "channel": "client"
+    },
+    "previousId": "anon-js-sdk-test-001"
+  },
+  "batch": {
+    "batch": [
+      {
+        "type": "identify",
+        "userId": "user-js-sdk-test-001",
+        "anonymousId": "anon-js-sdk-test-001",
+        "messageId": "msg-js-sdk-batch-identify-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "originalTimestamp": "2025-01-15T10:30:00.000Z",
+        "integrations": {
+          "All": true
+        },
+        "_metadata": {
+          "bundled": [
+            "Segment.io"
+          ],
+          "unbundled": [],
+          "bundledIds": []
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.10.0"
+          },
+          "page": {
+            "path": "/products/widget-pro",
+            "referrer": "https://example.com/",
+            "search": "?utm_source=google",
+            "title": "Widget Pro - TestApp",
+            "url": "https://example.com/products/widget-pro?utm_source=google"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "userAgentData": {
+            "brands": [
+              {
+                "brand": "Chromium",
+                "version": "120"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8"
+              }
+            ],
+            "mobile": false,
+            "platform": "macOS",
+            "bitness": "64",
+            "model": "",
+            "platformVersion": "15.0.0",
+            "uaFullVersion": "120.0.0.0",
+            "fullVersionList": [
+              {
+                "brand": "Chromium",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8.0.0.0"
+              }
+            ],
+            "wow64": false
+          },
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles",
+          "campaign": {
+            "name": "sdk-test",
+            "source": "google",
+            "medium": "cpc",
+            "term": "analytics",
+            "content": "banner-1"
+          },
+          "ip": "198.51.100.10",
+          "channel": "client"
+        },
+        "traits": {
+          "email": "js.user@example.com",
+          "firstName": "Jane",
+          "lastName": "WebSDK",
+          "phone": "+1-555-100-0001",
+          "age": 28,
+          "company": {
+            "id": "comp-js-001",
+            "name": "TestCorp Inc."
+          },
+          "createdAt": "2024-06-01T12:00:00.000Z"
+        }
+      },
+      {
+        "type": "track",
+        "userId": "user-js-sdk-test-001",
+        "anonymousId": "anon-js-sdk-test-001",
+        "messageId": "msg-js-sdk-batch-track-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "originalTimestamp": "2025-01-15T10:30:00.000Z",
+        "integrations": {
+          "All": true
+        },
+        "_metadata": {
+          "bundled": [
+            "Segment.io"
+          ],
+          "unbundled": [],
+          "bundledIds": []
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.10.0"
+          },
+          "page": {
+            "path": "/products/widget-pro",
+            "referrer": "https://example.com/",
+            "search": "?utm_source=google",
+            "title": "Widget Pro - TestApp",
+            "url": "https://example.com/products/widget-pro?utm_source=google"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "userAgentData": {
+            "brands": [
+              {
+                "brand": "Chromium",
+                "version": "120"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8"
+              }
+            ],
+            "mobile": false,
+            "platform": "macOS",
+            "bitness": "64",
+            "model": "",
+            "platformVersion": "15.0.0",
+            "uaFullVersion": "120.0.0.0",
+            "fullVersionList": [
+              {
+                "brand": "Chromium",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8.0.0.0"
+              }
+            ],
+            "wow64": false
+          },
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles",
+          "campaign": {
+            "name": "sdk-test",
+            "source": "google",
+            "medium": "cpc",
+            "term": "analytics",
+            "content": "banner-1"
+          },
+          "ip": "198.51.100.10",
+          "channel": "client"
+        },
+        "event": "Product Viewed",
+        "properties": {
+          "product_id": "prod-js-001",
+          "sku": "SKU-JS-WIDGET-PRO",
+          "category": "Electronics",
+          "name": "Widget Pro",
+          "price": 99.99,
+          "quantity": 1,
+          "currency": "USD",
+          "url": "https://example.com/products/widget-pro",
+          "image_url": "https://example.com/images/widget-pro.png"
+        }
+      },
+      {
+        "type": "page",
+        "userId": "user-js-sdk-test-001",
+        "anonymousId": "anon-js-sdk-test-001",
+        "messageId": "msg-js-sdk-batch-page-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "originalTimestamp": "2025-01-15T10:30:00.000Z",
+        "integrations": {
+          "All": true
+        },
+        "_metadata": {
+          "bundled": [
+            "Segment.io"
+          ],
+          "unbundled": [],
+          "bundledIds": []
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.10.0"
+          },
+          "page": {
+            "path": "/products/widget-pro",
+            "referrer": "https://example.com/",
+            "search": "?utm_source=google",
+            "title": "Widget Pro - TestApp",
+            "url": "https://example.com/products/widget-pro?utm_source=google"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "userAgentData": {
+            "brands": [
+              {
+                "brand": "Chromium",
+                "version": "120"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8"
+              }
+            ],
+            "mobile": false,
+            "platform": "macOS",
+            "bitness": "64",
+            "model": "",
+            "platformVersion": "15.0.0",
+            "uaFullVersion": "120.0.0.0",
+            "fullVersionList": [
+              {
+                "brand": "Chromium",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8.0.0.0"
+              }
+            ],
+            "wow64": false
+          },
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles",
+          "campaign": {
+            "name": "sdk-test",
+            "source": "google",
+            "medium": "cpc",
+            "term": "analytics",
+            "content": "banner-1"
+          },
+          "ip": "198.51.100.10",
+          "channel": "client"
+        },
+        "name": "Home",
+        "category": "Landing",
+        "properties": {
+          "title": "Home - TestApp",
+          "url": "https://example.com/",
+          "path": "/",
+          "referrer": "https://www.google.com/",
+          "search": "",
+          "keywords": [
+            "analytics",
+            "data",
+            "segment"
+          ]
+        }
+      },
+      {
+        "type": "screen",
+        "userId": "user-js-sdk-test-001",
+        "anonymousId": "anon-js-sdk-test-001",
+        "messageId": "msg-js-sdk-batch-screen-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "originalTimestamp": "2025-01-15T10:30:00.000Z",
+        "integrations": {
+          "All": true
+        },
+        "_metadata": {
+          "bundled": [
+            "Segment.io"
+          ],
+          "unbundled": [],
+          "bundledIds": []
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.10.0"
+          },
+          "page": {
+            "path": "/products/widget-pro",
+            "referrer": "https://example.com/",
+            "search": "?utm_source=google",
+            "title": "Widget Pro - TestApp",
+            "url": "https://example.com/products/widget-pro?utm_source=google"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "userAgentData": {
+            "brands": [
+              {
+                "brand": "Chromium",
+                "version": "120"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8"
+              }
+            ],
+            "mobile": false,
+            "platform": "macOS",
+            "bitness": "64",
+            "model": "",
+            "platformVersion": "15.0.0",
+            "uaFullVersion": "120.0.0.0",
+            "fullVersionList": [
+              {
+                "brand": "Chromium",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8.0.0.0"
+              }
+            ],
+            "wow64": false
+          },
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles",
+          "campaign": {
+            "name": "sdk-test",
+            "source": "google",
+            "medium": "cpc",
+            "term": "analytics",
+            "content": "banner-1"
+          },
+          "ip": "198.51.100.10",
+          "channel": "client"
+        },
+        "name": "Dashboard",
+        "properties": {
+          "variation": "control"
+        }
+      },
+      {
+        "type": "group",
+        "userId": "user-js-sdk-test-001",
+        "anonymousId": "anon-js-sdk-test-001",
+        "messageId": "msg-js-sdk-batch-group-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "originalTimestamp": "2025-01-15T10:30:00.000Z",
+        "integrations": {
+          "All": true
+        },
+        "_metadata": {
+          "bundled": [
+            "Segment.io"
+          ],
+          "unbundled": [],
+          "bundledIds": []
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.10.0"
+          },
+          "page": {
+            "path": "/products/widget-pro",
+            "referrer": "https://example.com/",
+            "search": "?utm_source=google",
+            "title": "Widget Pro - TestApp",
+            "url": "https://example.com/products/widget-pro?utm_source=google"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "userAgentData": {
+            "brands": [
+              {
+                "brand": "Chromium",
+                "version": "120"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8"
+              }
+            ],
+            "mobile": false,
+            "platform": "macOS",
+            "bitness": "64",
+            "model": "",
+            "platformVersion": "15.0.0",
+            "uaFullVersion": "120.0.0.0",
+            "fullVersionList": [
+              {
+                "brand": "Chromium",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8.0.0.0"
+              }
+            ],
+            "wow64": false
+          },
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles",
+          "campaign": {
+            "name": "sdk-test",
+            "source": "google",
+            "medium": "cpc",
+            "term": "analytics",
+            "content": "banner-1"
+          },
+          "ip": "198.51.100.10",
+          "channel": "client"
+        },
+        "groupId": "grp-js-sdk-001",
+        "traits": {
+          "name": "TestCorp Inc.",
+          "industry": "Technology",
+          "employees": 500,
+          "plan": "enterprise",
+          "website": "https://example.com"
+        }
+      },
+      {
+        "type": "alias",
+        "userId": "user-js-sdk-test-001",
+        "anonymousId": "anon-js-sdk-test-001",
+        "messageId": "msg-js-sdk-batch-alias-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "originalTimestamp": "2025-01-15T10:30:00.000Z",
+        "integrations": {
+          "All": true
+        },
+        "_metadata": {
+          "bundled": [
+            "Segment.io"
+          ],
+          "unbundled": [],
+          "bundledIds": []
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.10.0"
+          },
+          "page": {
+            "path": "/products/widget-pro",
+            "referrer": "https://example.com/",
+            "search": "?utm_source=google",
+            "title": "Widget Pro - TestApp",
+            "url": "https://example.com/products/widget-pro?utm_source=google"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "userAgentData": {
+            "brands": [
+              {
+                "brand": "Chromium",
+                "version": "120"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8"
+              }
+            ],
+            "mobile": false,
+            "platform": "macOS",
+            "bitness": "64",
+            "model": "",
+            "platformVersion": "15.0.0",
+            "uaFullVersion": "120.0.0.0",
+            "fullVersionList": [
+              {
+                "brand": "Chromium",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8.0.0.0"
+              }
+            ],
+            "wow64": false
+          },
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles",
+          "campaign": {
+            "name": "sdk-test",
+            "source": "google",
+            "medium": "cpc",
+            "term": "analytics",
+            "content": "banner-1"
+          },
+          "ip": "198.51.100.10",
+          "channel": "client"
+        },
+        "previousId": "anon-js-sdk-test-001"
+      }
+    ],
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "context": {
+      "library": {
+        "name": "analytics.js",
+        "version": "2.10.0"
+      }
+    }
+  },
+  "beacon_batch": {
+    "batch": [
+      {
+        "type": "track",
+        "userId": "user-js-sdk-test-001",
+        "anonymousId": "anon-js-sdk-test-001",
+        "messageId": "msg-js-sdk-beacon-track-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "originalTimestamp": "2025-01-15T10:30:00.000Z",
+        "integrations": {
+          "All": true
+        },
+        "_metadata": {
+          "bundled": [
+            "Segment.io"
+          ],
+          "unbundled": [],
+          "bundledIds": []
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.10.0"
+          },
+          "page": {
+            "path": "/products/widget-pro",
+            "referrer": "https://example.com/",
+            "search": "?utm_source=google",
+            "title": "Widget Pro - TestApp",
+            "url": "https://example.com/products/widget-pro?utm_source=google"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "userAgentData": {
+            "brands": [
+              {
+                "brand": "Chromium",
+                "version": "120"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8"
+              }
+            ],
+            "mobile": false,
+            "platform": "macOS",
+            "bitness": "64",
+            "model": "",
+            "platformVersion": "15.0.0",
+            "uaFullVersion": "120.0.0.0",
+            "fullVersionList": [
+              {
+                "brand": "Chromium",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8.0.0.0"
+              }
+            ],
+            "wow64": false
+          },
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles",
+          "campaign": {
+            "name": "sdk-test",
+            "source": "google",
+            "medium": "cpc",
+            "term": "analytics",
+            "content": "banner-1"
+          },
+          "ip": "198.51.100.10",
+          "channel": "client"
+        },
+        "event": "Product Viewed",
+        "properties": {
+          "product_id": "prod-js-001",
+          "sku": "SKU-JS-WIDGET-PRO",
+          "category": "Electronics",
+          "name": "Widget Pro",
+          "price": 99.99,
+          "quantity": 1,
+          "currency": "USD",
+          "url": "https://example.com/products/widget-pro",
+          "image_url": "https://example.com/images/widget-pro.png"
+        }
+      },
+      {
+        "type": "page",
+        "userId": "user-js-sdk-test-001",
+        "anonymousId": "anon-js-sdk-test-001",
+        "messageId": "msg-js-sdk-beacon-page-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "originalTimestamp": "2025-01-15T10:30:00.000Z",
+        "integrations": {
+          "All": true
+        },
+        "_metadata": {
+          "bundled": [
+            "Segment.io"
+          ],
+          "unbundled": [],
+          "bundledIds": []
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.10.0"
+          },
+          "page": {
+            "path": "/products/widget-pro",
+            "referrer": "https://example.com/",
+            "search": "?utm_source=google",
+            "title": "Widget Pro - TestApp",
+            "url": "https://example.com/products/widget-pro?utm_source=google"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "userAgentData": {
+            "brands": [
+              {
+                "brand": "Chromium",
+                "version": "120"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8"
+              }
+            ],
+            "mobile": false,
+            "platform": "macOS",
+            "bitness": "64",
+            "model": "",
+            "platformVersion": "15.0.0",
+            "uaFullVersion": "120.0.0.0",
+            "fullVersionList": [
+              {
+                "brand": "Chromium",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Google Chrome",
+                "version": "120.0.0.0"
+              },
+              {
+                "brand": "Not_A Brand",
+                "version": "8.0.0.0"
+              }
+            ],
+            "wow64": false
+          },
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles",
+          "campaign": {
+            "name": "sdk-test",
+            "source": "google",
+            "medium": "cpc",
+            "term": "analytics",
+            "content": "banner-1"
+          },
+          "ip": "198.51.100.10",
+          "channel": "client"
+        },
+        "name": "Home",
+        "category": "Landing",
+        "properties": {
+          "title": "Home - TestApp",
+          "url": "https://example.com/",
+          "path": "/",
+          "referrer": "https://www.google.com/",
+          "search": "",
+          "keywords": [
+            "analytics",
+            "data",
+            "segment"
+          ]
+        }
+      }
+    ],
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "context": {
+      "library": {
+        "name": "analytics.js",
+        "version": "2.10.0"
+      }
+    }
+  }
+}

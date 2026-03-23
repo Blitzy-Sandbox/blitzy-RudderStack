@@ -1,0 +1,439 @@
+{
+  "identify": {
+    "type": "identify",
+    "userId": "user-ios-sdk-test-001",
+    "anonymousId": "anon-ios-sdk-test-001",
+    "messageId": "msg-ios-sdk-identify-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-ios",
+        "version": "4.1.6"
+      },
+      "app": {
+        "name": "TestApp iOS",
+        "version": "2.1.0",
+        "build": "210",
+        "namespace": "com.testcorp.testapp.ios"
+      },
+      "device": {
+        "id": "ios-device-test-001",
+        "manufacturer": "Apple",
+        "model": "iPhone16,2",
+        "name": "Test iPhone",
+        "type": "ios",
+        "advertisingId": "ios-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "iOS",
+        "version": "17.2"
+      },
+      "network": {
+        "bluetooth": false,
+        "carrier": "Verizon",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 2796,
+        "width": 1290
+      },
+      "ip": "198.51.100.20",
+      "locale": "en-US",
+      "timezone": "America/New_York",
+      "traits": {
+        "email": "ios.user@example.com",
+        "name": "iOS User"
+      },
+      "channel": "mobile"
+    },
+    "traits": {
+      "email": "ios.user@example.com",
+      "firstName": "Alice",
+      "lastName": "iOSTest",
+      "phone": "+1-555-200-0001",
+      "age": 30,
+      "company": {
+        "id": "comp-ios-001",
+        "name": "MobileCorp"
+      },
+      "createdAt": "2024-03-15T08:00:00.000Z"
+    }
+  },
+  "track": {
+    "type": "track",
+    "event": "Item Purchased",
+    "userId": "user-ios-sdk-test-001",
+    "anonymousId": "anon-ios-sdk-test-001",
+    "messageId": "msg-ios-sdk-track-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-ios",
+        "version": "4.1.6"
+      },
+      "app": {
+        "name": "TestApp iOS",
+        "version": "2.1.0",
+        "build": "210",
+        "namespace": "com.testcorp.testapp.ios"
+      },
+      "device": {
+        "id": "ios-device-test-001",
+        "manufacturer": "Apple",
+        "model": "iPhone16,2",
+        "name": "Test iPhone",
+        "type": "ios",
+        "advertisingId": "ios-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "iOS",
+        "version": "17.2"
+      },
+      "network": {
+        "bluetooth": false,
+        "carrier": "Verizon",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 2796,
+        "width": 1290
+      },
+      "ip": "198.51.100.20",
+      "locale": "en-US",
+      "timezone": "America/New_York",
+      "traits": {
+        "email": "ios.user@example.com",
+        "name": "iOS User"
+      },
+      "channel": "mobile"
+    },
+    "properties": {
+      "product_id": "prod-ios-001",
+      "sku": "SKU-IOS-2024-001",
+      "name": "Wireless Charger",
+      "price": 49.99,
+      "quantity": 1,
+      "currency": "USD"
+    }
+  },
+  "screen": {
+    "type": "screen",
+    "name": "Product Detail",
+    "category": "Shopping",
+    "userId": "user-ios-sdk-test-001",
+    "anonymousId": "anon-ios-sdk-test-001",
+    "messageId": "msg-ios-sdk-screen-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-ios",
+        "version": "4.1.6"
+      },
+      "app": {
+        "name": "TestApp iOS",
+        "version": "2.1.0",
+        "build": "210",
+        "namespace": "com.testcorp.testapp.ios"
+      },
+      "device": {
+        "id": "ios-device-test-001",
+        "manufacturer": "Apple",
+        "model": "iPhone16,2",
+        "name": "Test iPhone",
+        "type": "ios",
+        "advertisingId": "ios-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "iOS",
+        "version": "17.2"
+      },
+      "network": {
+        "bluetooth": false,
+        "carrier": "Verizon",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 2796,
+        "width": 1290
+      },
+      "ip": "198.51.100.20",
+      "locale": "en-US",
+      "timezone": "America/New_York",
+      "traits": {
+        "email": "ios.user@example.com",
+        "name": "iOS User"
+      },
+      "channel": "mobile"
+    },
+    "properties": {
+      "name": "Product Detail",
+      "variation": "blue_variant"
+    }
+  },
+  "group": {
+    "type": "group",
+    "groupId": "grp-ios-sdk-001",
+    "userId": "user-ios-sdk-test-001",
+    "anonymousId": "anon-ios-sdk-test-001",
+    "messageId": "msg-ios-sdk-group-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-ios",
+        "version": "4.1.6"
+      },
+      "app": {
+        "name": "TestApp iOS",
+        "version": "2.1.0",
+        "build": "210",
+        "namespace": "com.testcorp.testapp.ios"
+      },
+      "device": {
+        "id": "ios-device-test-001",
+        "manufacturer": "Apple",
+        "model": "iPhone16,2",
+        "name": "Test iPhone",
+        "type": "ios",
+        "advertisingId": "ios-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "iOS",
+        "version": "17.2"
+      },
+      "network": {
+        "bluetooth": false,
+        "carrier": "Verizon",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 2796,
+        "width": 1290
+      },
+      "ip": "198.51.100.20",
+      "locale": "en-US",
+      "timezone": "America/New_York",
+      "traits": {
+        "email": "ios.user@example.com",
+        "name": "iOS User"
+      },
+      "channel": "mobile"
+    },
+    "traits": {
+      "name": "MobileCorp",
+      "industry": "Technology",
+      "employees": 250,
+      "plan": "enterprise"
+    }
+  },
+  "alias": {
+    "type": "alias",
+    "userId": "user-ios-sdk-test-001",
+    "previousId": "anon-ios-sdk-test-001",
+    "anonymousId": "anon-ios-sdk-test-001",
+    "messageId": "msg-ios-sdk-alias-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-ios",
+        "version": "4.1.6"
+      },
+      "app": {
+        "name": "TestApp iOS",
+        "version": "2.1.0",
+        "build": "210",
+        "namespace": "com.testcorp.testapp.ios"
+      },
+      "device": {
+        "id": "ios-device-test-001",
+        "manufacturer": "Apple",
+        "model": "iPhone16,2",
+        "name": "Test iPhone",
+        "type": "ios",
+        "advertisingId": "ios-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "iOS",
+        "version": "17.2"
+      },
+      "network": {
+        "bluetooth": false,
+        "carrier": "Verizon",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 2796,
+        "width": 1290
+      },
+      "ip": "198.51.100.20",
+      "locale": "en-US",
+      "timezone": "America/New_York",
+      "traits": {
+        "email": "ios.user@example.com",
+        "name": "iOS User"
+      },
+      "channel": "mobile"
+    }
+  },
+  "lifecycle_app_opened": {
+    "type": "track",
+    "event": "Application Opened",
+    "userId": "user-ios-sdk-test-001",
+    "anonymousId": "anon-ios-sdk-test-001",
+    "messageId": "msg-ios-sdk-app-opened-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-ios",
+        "version": "4.1.6"
+      },
+      "app": {
+        "name": "TestApp iOS",
+        "version": "2.1.0",
+        "build": "210",
+        "namespace": "com.testcorp.testapp.ios"
+      },
+      "device": {
+        "id": "ios-device-test-001",
+        "manufacturer": "Apple",
+        "model": "iPhone16,2",
+        "name": "Test iPhone",
+        "type": "ios",
+        "advertisingId": "ios-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "iOS",
+        "version": "17.2"
+      },
+      "network": {
+        "bluetooth": false,
+        "carrier": "Verizon",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 2796,
+        "width": 1290
+      },
+      "ip": "198.51.100.20",
+      "locale": "en-US",
+      "timezone": "America/New_York",
+      "traits": {
+        "email": "ios.user@example.com",
+        "name": "iOS User"
+      },
+      "channel": "mobile"
+    },
+    "properties": {
+      "from_background": false,
+      "referring_application": "com.apple.mobilesafari",
+      "url": "testapp://open?source=push",
+      "version": "2.1.0",
+      "build": "210"
+    }
+  },
+  "lifecycle_app_backgrounded": {
+    "type": "track",
+    "event": "Application Backgrounded",
+    "userId": "user-ios-sdk-test-001",
+    "anonymousId": "anon-ios-sdk-test-001",
+    "messageId": "msg-ios-sdk-app-backgrounded-001",
+    "timestamp": "2025-01-15T10:30:00.000Z",
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "originalTimestamp": "2025-01-15T10:30:00.000Z",
+    "integrations": {
+      "All": true
+    },
+    "context": {
+      "library": {
+        "name": "analytics-ios",
+        "version": "4.1.6"
+      },
+      "app": {
+        "name": "TestApp iOS",
+        "version": "2.1.0",
+        "build": "210",
+        "namespace": "com.testcorp.testapp.ios"
+      },
+      "device": {
+        "id": "ios-device-test-001",
+        "manufacturer": "Apple",
+        "model": "iPhone16,2",
+        "name": "Test iPhone",
+        "type": "ios",
+        "advertisingId": "ios-adid-test-001",
+        "adTrackingEnabled": true
+      },
+      "os": {
+        "name": "iOS",
+        "version": "17.2"
+      },
+      "network": {
+        "bluetooth": false,
+        "carrier": "Verizon",
+        "cellular": true,
+        "wifi": true
+      },
+      "screen": {
+        "density": 3.0,
+        "height": 2796,
+        "width": 1290
+      },
+      "ip": "198.51.100.20",
+      "locale": "en-US",
+      "timezone": "America/New_York",
+      "traits": {
+        "email": "ios.user@example.com",
+        "name": "iOS User"
+      },
+      "channel": "mobile"
+    },
+    "properties": {}
+  }
+}

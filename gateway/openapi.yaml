@@ -433,6 +433,352 @@ paths:
               example: "Too many requests"
       security:
         - writeKeyAuth: []
+  /v1/import:
+    post:
+      tags:
+        - HTTP API
+      summary: Import
+      description: >-
+        The import call lets you send historical data to RudderStack. It accepts
+        the same event types as the standard endpoints but is optimized for
+        high-volume historical data import with server-side timestamps.
+      operationId: Import
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchPayload'
+        required: true
+      responses:
+        '200':
+          description: StatusOK
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "OK"
+        '400':
+          description: StatusBadRequest
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid request"
+        '401':
+          description: StatusUnauthorized
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid Authorization Header"
+        '404':
+          description: StatusNotFound
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Source does not accept webhook events"
+        '413':
+          description: StatusRequestEntityTooLarge
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Request size too large"
+        '429':
+          description: StatusTooManyRequests
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Too many requests"
+      security:
+        - writeKeyAuth: []
+  /v1/webhook:
+    post:
+      tags:
+        - HTTP API
+      summary: Webhook
+      description: >-
+        The webhook endpoint accepts inbound webhook events from third-party
+        sources. The writeKey can be passed in the Authorization header
+        (Basic Auth) or as a query parameter. The source must have a webhook
+        source category.
+      operationId: WebhookPost
+      parameters:
+        - name: writeKey
+          in: query
+          description: >-
+            Write Key for authentication. Alternative to passing the writeKey
+            in the Authorization header via Basic Auth.
+          required: false
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Arbitrary webhook payload from the third-party source.
+        required: true
+      responses:
+        '200':
+          description: StatusOK
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "OK"
+        '400':
+          description: StatusBadRequest
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid request"
+        '401':
+          description: StatusUnauthorized
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid Authorization Header"
+        '404':
+          description: StatusNotFound
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Source does not accept webhook events"
+        '413':
+          description: StatusRequestEntityTooLarge
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Request size too large"
+        '429':
+          description: StatusTooManyRequests
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Too many requests"
+      security:
+        - writeKeyAuth: []
+    get:
+      tags:
+        - HTTP API
+      summary: Webhook (GET)
+      description: >-
+        The webhook GET endpoint accepts inbound webhook verification requests
+        from third-party sources that require GET-based handshake validation.
+        The writeKey can be passed in the Authorization header (Basic Auth)
+        or as a query parameter. The source must have a webhook source category.
+      operationId: WebhookGet
+      parameters:
+        - name: writeKey
+          in: query
+          description: >-
+            Write Key for authentication. Alternative to passing the writeKey
+            in the Authorization header via Basic Auth.
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: StatusOK
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "OK"
+        '400':
+          description: StatusBadRequest
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid request"
+        '401':
+          description: StatusUnauthorized
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid Authorization Header"
+        '404':
+          description: StatusNotFound
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Source does not accept webhook events"
+      security:
+        - writeKeyAuth: []
+  /beacon/v1/batch:
+    post:
+      tags:
+        - HTTP API
+      summary: Beacon Batch
+      description: >-
+        The beacon batch endpoint accepts batch event payloads sent via the
+        browser navigator.sendBeacon() API used by the JavaScript SDK. The
+        writeKey must be passed as a query parameter. Supports text/plain,
+        application/x-www-form-urlencoded, and application/json content types
+        as produced by sendBeacon().
+      operationId: BeaconBatch
+      parameters:
+        - name: writeKey
+          in: query
+          description: Write Key for authentication (required).
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchPayload'
+          text/plain:
+            schema:
+              $ref: '#/components/schemas/BatchPayload'
+        required: true
+      responses:
+        '200':
+          description: StatusOK
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "OK"
+        '400':
+          description: StatusBadRequest
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid request"
+        '401':
+          description: StatusUnauthorized
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid Authorization Header"
+        '404':
+          description: StatusNotFound
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Source does not accept webhook events"
+        '413':
+          description: StatusRequestEntityTooLarge
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Request size too large"
+        '429':
+          description: StatusTooManyRequests
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Too many requests"
+  /pixel/v1/track:
+    get:
+      tags:
+        - HTTP API
+      summary: Pixel Track
+      description: >-
+        The pixel track endpoint accepts track events via GET requests with
+        query parameters. Used for web SDK image tag tracking scenarios such
+        as email open tracking. Always returns a 1x1 transparent GIF image
+        regardless of processing result. The writeKey and event properties
+        are passed as query parameters.
+      operationId: PixelTrack
+      parameters:
+        - name: writeKey
+          in: query
+          description: Write Key for authentication (required).
+          required: true
+          schema:
+            type: string
+        - name: event
+          in: query
+          description: Name of the event being tracked (required for track calls).
+          required: true
+          schema:
+            type: string
+        - name: anonymousId
+          in: query
+          description: Anonymous identifier for the user.
+          required: false
+          schema:
+            type: string
+        - name: userId
+          in: query
+          description: Unique identifier for the user.
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Returns a 1x1 transparent GIF image.
+          content:
+            image/gif:
+              schema:
+                type: string
+                format: binary
+      security: []
+  /pixel/v1/page:
+    get:
+      tags:
+        - HTTP API
+      summary: Pixel Page
+      description: >-
+        The pixel page endpoint accepts page events via GET requests with
+        query parameters. Used for web SDK image tag tracking scenarios such
+        as page view tracking via image tags. Always returns a 1x1 transparent
+        GIF image regardless of processing result. The writeKey and page
+        properties are passed as query parameters.
+      operationId: PixelPage
+      parameters:
+        - name: writeKey
+          in: query
+          description: Write Key for authentication (required).
+          required: true
+          schema:
+            type: string
+        - name: name
+          in: query
+          description: Name of the page being viewed.
+          required: false
+          schema:
+            type: string
+        - name: anonymousId
+          in: query
+          description: Anonymous identifier for the user.
+          required: false
+          schema:
+            type: string
+        - name: userId
+          in: query
+          description: Unique identifier for the user.
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Returns a 1x1 transparent GIF image.
+          content:
+            image/gif:
+              schema:
+                type: string
+                format: binary
+      security: []
   /internal/v1/extract:
     post:
       tags:

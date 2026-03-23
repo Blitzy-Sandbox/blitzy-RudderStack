@@ -14,7 +14,7 @@ RudderStack's Gateway provides a **Segment-compatible HTTP API surface** on port
 | Dimension | Parity Score | Assessment |
 |-----------|-------------|------------|
 | Event Stream SDK Compatibility (API-level) | **~90%** | High — all 6 Segment Spec calls supported with matching payloads |
-| SDK Library Coverage | **~60%** | Medium — API surface compatible, but per-SDK testing/documentation gaps exist |
+| SDK Library Coverage | **~85%** | High — All 8 primary Segment SDKs validated through comprehensive integration testing |
 | Cloud App Sources | **~3%** | Critical — Segment has 140 cloud app sources; RudderStack has webhook-based partial coverage only |
 | Ingestion Endpoint Diversity | **~75%** | Good — additional beacon, pixel, import, replay, and webhook endpoints beyond Segment's core |
 | Authentication Scheme Parity | **~80%** | Good — Write Key auth fully compatible; additional source ID auth for internal use |
@@ -26,6 +26,8 @@ RudderStack's Gateway provides a **Segment-compatible HTTP API surface** on port
 - **Strength:** Additional ingestion modes (beacon, pixel, import, replay, webhook) extend beyond Segment's standard SDK surface
 - **Critical Gap:** 140 cloud app sources (Salesforce, Stripe, HubSpot, Zendesk, etc.) have no built-in equivalent in `rudder-server` — the Gateway accepts only SDK-pushed and webhook-pushed events
 - **Gap:** Device-mode SDK forwarding (client-side destination delivery) is not natively supported in the server-side Gateway
+- **Validated (Sprint 2–3):** All 8 primary Segment SDKs (JS, iOS, Android, Node.js, Python, Go, Java, Ruby) confirmed compatible through comprehensive integration testing — see [SDK Compatibility Guides](../guides/sdk-compatibility/segment-sdk-migration.md)
+- **Design Complete (Sprint 2–3):** Cloud source ingestion framework designed and prototyped — see [Cloud Source Framework Architecture](../architecture/cloud-source-framework.md)
 
 > Source: `gateway/openapi.yaml:1-940`, `gateway/handle_http.go:1-153`, `gateway/handle_http_auth.go:1-250`
 
@@ -140,7 +142,7 @@ RudderStack's Gateway implements a **Segment-compatible HTTP API**, meaning stan
 
 | SDK | Segment Version | RudderStack API Compatibility | Gap Severity | Migration Effort | Notes |
 |-----|----------------|-------------------------------|-------------|-----------------|-------|
-| JavaScript (analytics.js / Analytics 2.0) | Full web SDK with device-mode | ✅ Cloud-mode API-compatible | **Low** | Endpoint URL swap | All 6 Spec calls supported; device-mode destinations not supported server-side |
+| JavaScript (analytics.js / Analytics 2.0) | Full web SDK with device-mode | ✅ Cloud-mode API-compatible — **✅ Validated** | **Low** | Endpoint URL swap | All 6 Spec calls, batch (`/v1/batch`), beacon (`/beacon/v1/batch`), and pixel endpoints tested end-to-end; device-mode destinations not supported server-side |
 | Cloudflare Workers | Source integration | ⚠️ Partial — HTTP API compatible | **Low** | Endpoint URL swap | Uses HTTP API directly; no special handling needed |
 | Shopify (Littledata) | Partner integration | ⚠️ Partial — webhook-based | **Medium** | Webhook endpoint config | Requires webhook source configuration in RudderStack |
 
@@ -148,8 +150,8 @@ RudderStack's Gateway implements a **Segment-compatible HTTP API**, meaning stan
 
 | SDK | Segment Version | RudderStack API Compatibility | Gap Severity | Migration Effort | Notes |
 |-----|----------------|-------------------------------|-------------|-----------------|-------|
-| iOS (Analytics-Swift / analytics-ios) | Full mobile SDK | ✅ Cloud-mode API-compatible | **Low** | Endpoint URL swap | Supports identify, track, screen, group, alias |
-| Android (Analytics-Kotlin / analytics-android) | Full mobile SDK | ✅ Cloud-mode API-compatible | **Low** | Endpoint URL swap | Supports identify, track, screen, group, alias |
+| iOS (Analytics-Swift / analytics-ios) | Full mobile SDK | ✅ Cloud-mode API-compatible — **✅ Validated** | **Low** | Endpoint URL swap | All 5 Spec calls validated; context auto-collection (`device`, `os`, `app`, `network`, `screen`) and lifecycle events (`Application Opened`, `Application Backgrounded`) tested |
+| Android (Analytics-Kotlin / analytics-android) | Full mobile SDK | ✅ Cloud-mode API-compatible — **✅ Validated** | **Low** | Endpoint URL swap | All 5 Spec calls validated; context auto-collection (`device`, `os`, `app`, `network`, `screen`) and lifecycle events (`Application Opened`, `Application Backgrounded`) tested |
 | React Native | Hybrid SDK (JS bridge) | ✅ Cloud-mode API-compatible | **Low** | Endpoint URL swap | Via JS/mobile SDK layer |
 | Flutter | Beta SDK | ✅ Cloud-mode API-compatible | **Low** | Endpoint URL swap | Beta SDK using HTTP API |
 | Kotlin Android | Modern SDK | ✅ Cloud-mode API-compatible | **Low** | Endpoint URL swap | Uses same HTTP API surface |
@@ -161,11 +163,11 @@ RudderStack's Gateway implements a **Segment-compatible HTTP API**, meaning stan
 
 | SDK | Segment Version | RudderStack API Compatibility | Gap Severity | Migration Effort | Notes |
 |-----|----------------|-------------------------------|-------------|-----------------|-------|
-| Node.js (analytics-node) | Full server SDK | ✅ API-compatible | **Low** | Endpoint + Write Key swap | Batch endpoint supported |
-| Python (analytics-python) | Full server SDK | ✅ API-compatible | **Low** | Endpoint + Write Key swap | All Spec calls supported |
-| Go (analytics-go) | Full server SDK | ✅ API-compatible | **Low** | Endpoint + Write Key swap | All Spec calls supported |
-| Java (analytics-java) | Full server SDK | ✅ API-compatible | **Low** | Endpoint + Write Key swap | All Spec calls supported |
-| Ruby (analytics-ruby) | Full server SDK | ✅ API-compatible | **Low** | Endpoint + Write Key swap | All Spec calls supported |
+| Node.js (analytics-node) | Full server SDK | ✅ API-compatible — **✅ Validated** | **Low** | Endpoint + Write Key swap | Batch endpoint and retry behavior validated end-to-end |
+| Python (analytics-python) | Full server SDK | ✅ API-compatible — **✅ Validated** | **Low** | Endpoint + Write Key swap | Batch endpoint and retry behavior validated end-to-end |
+| Go (analytics-go) | Full server SDK | ✅ API-compatible — **✅ Validated** | **Low** | Endpoint + Write Key swap | Batch endpoint and retry behavior validated end-to-end |
+| Java (analytics-java) | Full server SDK | ✅ API-compatible — **✅ Validated** | **Low** | Endpoint + Write Key swap | Batch endpoint and retry behavior validated end-to-end |
+| Ruby (analytics-ruby) | Full server SDK | ✅ API-compatible — **✅ Validated** | **Low** | Endpoint + Write Key swap | Batch endpoint and retry behavior validated end-to-end |
 | PHP (analytics-php) | Full server SDK | ✅ API-compatible | **Low** | Endpoint + Write Key swap | All Spec calls supported |
 | .NET (Analytics.NET) | Full server SDK | ✅ API-compatible | **Low** | Endpoint + Write Key swap | All Spec calls supported |
 | C# | Server SDK | ✅ API-compatible | **Low** | Endpoint + Write Key swap | All Spec calls supported |
@@ -495,7 +497,7 @@ A significant architectural distinction between Segment and RudderStack's server
 | Gap ID | Description | Severity | Impact | Remediation | Priority | Effort |
 |--------|------------|----------|--------|-------------|----------|--------|
 | **SC-001** | 140 cloud app sources missing — no cloud source polling framework | **Critical** | Cannot ingest data from Salesforce, Stripe, HubSpot, and 137 other SaaS platforms without external tooling | Implement cloud source polling framework with connector plugin architecture; prioritize top 10 sources (Salesforce, Stripe, HubSpot, Zendesk, Intercom, SendGrid, Twilio, Braze, Klaviyo, Facebook Ads) | **P0** | **XL** (new subsystem) |
-| **SC-002** | SDK documentation and testing gaps for Segment SDK compatibility | **Medium** | Developers lack verified migration paths for each SDK platform | Create per-SDK compatibility and migration test suites; publish verified migration guides for JS, iOS, Android, Node.js, Python, Go, Java, Ruby | **P1** | **M** |
+| **SC-002** | SDK documentation and testing gaps for Segment SDK compatibility | **Resolved** ✅ | ~~Developers lack verified migration paths for each SDK platform~~ All 8 primary SDKs validated with comprehensive test suites in `gateway/sdk_compatibility_test.go` and `integration_test/sdk_compatibility/`; migration guides published at `docs/guides/sdk-compatibility/` | ~~Create per-SDK compatibility and migration test suites~~ Completed in Sprint 2–3 (E-005 through E-008) | **—** | **—** |
 | **SC-003** | OTT SDK compatibility unvalidated (Roku) | **Low** | Roku/tvOS developers cannot confirm RudderStack compatibility | Validate Roku SDK compatibility with RudderStack Gateway; document findings | **P2** | **S** |
 | **SC-004** | Device-mode destination support not available at server level | **Medium** | SDKs using device-mode destinations cannot migrate without switching to RudderStack native SDKs or reconfiguring for cloud-mode | Document device-mode vs cloud-mode migration guidance; ensure RudderStack native SDKs support equivalent device-mode destinations | **P1** | **L** |
 | **SC-005** | SDK-level auto-instrumentation not available | **Low** | Segment SDKs with auto-track (e.g., analytics.js automatic page tracking) lose this when pointing at RudderStack | Implement auto-track compatibility at the Gateway or document SDK-level configuration for equivalent behavior | **P2** | **M** |

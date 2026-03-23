@@ -2836,6 +2836,724 @@ func TestLeakyUploader(t *testing.T) {
 	})
 }
 
+// sdkTestCase defines a table-driven test scenario for Segment SDK payload compatibility.
+type sdkTestCase struct {
+	name        string            // descriptive test name
+	handlerType string            // handler key: "identify", "track", "page", "screen", "group", "alias", "batch"
+	payload     string            // JSON request body
+	wantFields  map[string]string // gjson paths (relative to "batch.0.") → expected string values
+	extraAssert func(t *testing.T, jobs []*jobsdb.JobT) // optional additional assertions on stored jobs
+}
+
+// setupTestGatewayForSDKTests creates a test Gateway with all necessary mocks for SDK
+// compatibility testing. It captures all jobs stored to the mock JobsDB and returns
+// the Gateway handle, a pointer to the captured jobs slice, and a cleanup function.
+func setupTestGatewayForSDKTests(t *testing.T) (*Handle, *[]*jobsdb.JobT, func()) {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	mJobsDB := mocksJobsDB.NewMockJobsDB(ctrl)
+	mBC := mocksBackendConfig.NewMockBackendConfig(ctrl)
+	mApp := mocksApp.NewMockApp(ctrl)
+	mWebhook := mockGateway.NewMockWebhookRequestHandler(ctrl)
+	mWebhook.EXPECT().Shutdown().AnyTimes()
+	mBC.EXPECT().Subscribe(gomock.Any(), backendconfig.TopicProcessConfig).
+		DoAndReturn(func(ctx context.Context, topic backendconfig.Topic) pubsub.DataChannel {
+			ch := make(chan pubsub.DataEvent, 1)
+			ch <- pubsub.DataEvent{
+				Data:  map[string]backendconfig.ConfigT{WorkspaceID: sampleBackendConfig},
+				Topic: string(topic),
+			}
+			go func() {
+				<-ctx.Done()
+				close(ch)
+			}()
+			return ch
+		})
+	mApp.EXPECT().Features().Return(&app.Features{}).AnyTimes()
+
+	var capturedJobs []*jobsdb.JobT
+	mJobsDB.EXPECT().WithStoreSafeTx(gomock.Any(), gomock.Any()).AnyTimes().
+		Do(func(ctx context.Context, f func(jobsdb.StoreSafeTx) error) {
+			_ = f(jobsdb.EmptyStoreSafeTx())
+		}).Return(nil)
+	mJobsDB.EXPECT().StoreEachBatchRetryInTx(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(ctx context.Context, tx jobsdb.StoreSafeTx, jobBatches [][]*jobsdb.JobT) (map[uuid.UUID]string, error) {
+			for _, batch := range jobBatches {
+				capturedJobs = append(capturedJobs, batch...)
+			}
+			return jobsToEmptyErrors(ctx, tx, jobBatches)
+		})
+
+	gw := &Handle{}
+	c := config.New()
+	versionHandler := func(w http.ResponseWriter, r *http.Request) {}
+	err := gw.Setup(
+		context.Background(), c, logger.NOP, stats.NOP,
+		mApp, mBC, mJobsDB, nil, versionHandler,
+		rsources.NewNoOpService(), transformer.NewNoOpService(),
+		sourcedebugger.NewNoOpService(), nil,
+	)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		select {
+		case <-gw.backendConfigInitialisedChan:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Second)
+
+	return gw, &capturedJobs, func() {
+		_ = gw.Shutdown()
+		ctrl.Finish()
+	}
+}
+
+// runSDKTestCases is a table-driven runner for SDK compatibility tests. For each test case
+// it sends the payload to the appropriate Gateway handler, asserts HTTP 200 OK, verifies
+// that jobs were stored, and checks field-level preservation using gjson.
+func runSDKTestCases(t *testing.T, gw *Handle, capturedJobs *[]*jobsdb.JobT, cases []sdkTestCase) {
+	t.Helper()
+	handlers := allHandlers(gw)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			startIdx := len(*capturedJobs)
+
+			handler, ok := handlers[tc.handlerType]
+			require.True(t, ok, "handler %q not found in allHandlers map", tc.handlerType)
+
+			rr := httptest.NewRecorder()
+			req := authorizedRequest(WriteKeyEnabled, bytes.NewBufferString(tc.payload))
+			handler.ServeHTTP(rr, req)
+
+			require.Equal(t, http.StatusOK, rr.Code, "expected HTTP 200 for %s", tc.name)
+			require.Equal(t, "ok", rr.Body.String(), "expected 'ok' body for %s", tc.name)
+
+			newJobs := (*capturedJobs)[startIdx:]
+			require.NotEmpty(t, newJobs, "expected at least one stored job for %s", tc.name)
+
+			if len(tc.wantFields) > 0 {
+				jobPayload := string(newJobs[0].EventPayload)
+				for path, expected := range tc.wantFields {
+					fullPath := "batch.0." + path
+					result := gjson.Get(jobPayload, fullPath)
+					require.True(t, result.Exists(), "field %q should exist in stored job payload", fullPath)
+					require.Equal(t, expected, result.String(), "field %q value mismatch", fullPath)
+				}
+			}
+
+			if tc.extraAssert != nil {
+				tc.extraAssert(t, newJobs)
+			}
+		})
+	}
+}
+
+// TestSegmentJSSDKPayloads validates that the Gateway correctly accepts and preserves
+// payloads in the exact format produced by Segment's analytics.js and Analytics 2.0 SDKs.
+// This covers all 6 Spec call types, batch with mixed types, the _metadata Analytics 2.0
+// extension field, and context.page auto-collected fields. (E-006)
+func TestSegmentJSSDKPayloads(t *testing.T) {
+	gw, capturedJobs, cleanup := setupTestGatewayForSDKTests(t)
+	defer cleanup()
+
+	tests := []sdkTestCase{
+		{
+			name:        "analytics.js identify",
+			handlerType: "identify",
+			payload: `{
+				"userId": "user-js-123",
+				"anonymousId": "anon-js-456",
+				"traits": {"name": "Jane Doe", "email": "jane@example.com"},
+				"context": {
+					"library": {"name": "analytics.js", "version": "1.68.0"},
+					"page": {"url": "https://example.com/home", "path": "/home", "referrer": "https://google.com", "title": "Home Page", "search": "?q=test"},
+					"userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+					"channel": "client"
+				},
+				"timestamp": "2024-01-15T10:30:00.000Z",
+				"sentAt": "2024-01-15T10:30:00.500Z",
+				"messageId": "ajs-msg-001"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name":    "analytics.js",
+				"context.library.version": "1.68.0",
+				"context.channel":         "client",
+				"userId":                  "user-js-123",
+				"anonymousId":             "anon-js-456",
+				"type":                    "identify",
+				"traits.name":             "Jane Doe",
+				"traits.email":            "jane@example.com",
+				"messageId":               "ajs-msg-001",
+				"timestamp":               "2024-01-15T10:30:00.000Z",
+				"sentAt":                  "2024-01-15T10:30:00.500Z",
+			},
+		},
+		{
+			name:        "analytics.js track",
+			handlerType: "track",
+			payload: `{
+				"userId": "user-js-123",
+				"anonymousId": "anon-js-456",
+				"event": "Button Clicked",
+				"properties": {"label": "Sign Up", "category": "CTA"},
+				"context": {
+					"library": {"name": "analytics.js", "version": "1.68.0"},
+					"userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+					"channel": "client"
+				},
+				"timestamp": "2024-01-15T10:30:01.000Z",
+				"messageId": "ajs-msg-002"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name":    "analytics.js",
+				"context.library.version": "1.68.0",
+				"context.channel":         "client",
+				"type":                    "track",
+				"event":                   "Button Clicked",
+				"properties.label":        "Sign Up",
+				"properties.category":     "CTA",
+			},
+		},
+		{
+			name:        "analytics.js page",
+			handlerType: "page",
+			payload: `{
+				"userId": "user-js-123",
+				"name": "Home",
+				"properties": {"url": "https://example.com/home", "path": "/home", "title": "Home Page", "referrer": "https://google.com", "search": "?q=test"},
+				"context": {
+					"library": {"name": "analytics.js", "version": "1.68.0"},
+					"channel": "client"
+				},
+				"messageId": "ajs-msg-003"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name": "analytics.js",
+				"type":                 "page",
+				"name":                 "Home",
+				"properties.url":       "https://example.com/home",
+				"properties.path":      "/home",
+				"properties.title":     "Home Page",
+				"properties.referrer":  "https://google.com",
+			},
+		},
+		{
+			name:        "analytics.js screen",
+			handlerType: "screen",
+			payload: `{
+				"userId": "user-js-123",
+				"name": "Dashboard",
+				"context": {
+					"library": {"name": "analytics.js", "version": "1.68.0"},
+					"channel": "client"
+				},
+				"messageId": "ajs-msg-004"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name": "analytics.js",
+				"type":                 "screen",
+				"name":                 "Dashboard",
+			},
+		},
+		{
+			name:        "analytics.js group",
+			handlerType: "group",
+			payload: `{
+				"userId": "user-js-123",
+				"groupId": "group-123",
+				"traits": {"name": "Acme Corp", "plan": "enterprise"},
+				"context": {
+					"library": {"name": "analytics.js", "version": "1.68.0"},
+					"channel": "client"
+				},
+				"messageId": "ajs-msg-005"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name": "analytics.js",
+				"type":                 "group",
+				"groupId":              "group-123",
+				"traits.name":          "Acme Corp",
+				"traits.plan":          "enterprise",
+			},
+		},
+		{
+			name:        "analytics.js alias",
+			handlerType: "alias",
+			payload: `{
+				"previousId": "old-id",
+				"userId": "new-id",
+				"context": {
+					"library": {"name": "analytics.js", "version": "1.68.0"},
+					"channel": "client"
+				},
+				"messageId": "ajs-msg-006"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name": "analytics.js",
+				"type":                 "alias",
+				"previousId":           "old-id",
+				"userId":               "new-id",
+			},
+		},
+		{
+			name:        "Analytics 2.0 with _metadata field",
+			handlerType: "track",
+			payload: `{
+				"userId": "user-a2-123",
+				"event": "Product Viewed",
+				"properties": {"name": "Widget", "price": 9.99},
+				"context": {
+					"library": {"name": "analytics.js", "version": "2.1.0"},
+					"channel": "client"
+				},
+				"_metadata": {"bundled": ["Amplitude"], "unbundled": ["Mixpanel"]},
+				"messageId": "a2-msg-001"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name":    "analytics.js",
+				"context.library.version": "2.1.0",
+				"type":                    "track",
+				"event":                   "Product Viewed",
+			},
+			extraAssert: func(t *testing.T, jobs []*jobsdb.JobT) {
+				// Verify the Analytics 2.0 _metadata field is preserved through the pipeline
+				jobPayload := string(jobs[0].EventPayload)
+				metadata := gjson.Get(jobPayload, "batch.0._metadata")
+				require.True(t, metadata.Exists(), "_metadata field should be preserved")
+				bundled := gjson.Get(jobPayload, "batch.0._metadata.bundled")
+				require.True(t, bundled.IsArray(), "_metadata.bundled should be an array")
+				require.Equal(t, "Amplitude", gjson.Get(jobPayload, "batch.0._metadata.bundled.0").String())
+				unbundled := gjson.Get(jobPayload, "batch.0._metadata.unbundled")
+				require.True(t, unbundled.IsArray(), "_metadata.unbundled should be an array")
+				require.Equal(t, "Mixpanel", gjson.Get(jobPayload, "batch.0._metadata.unbundled.0").String())
+			},
+		},
+		{
+			name:        "batch endpoint with mixed call types",
+			handlerType: "batch",
+			payload: `{
+				"batch": [
+					{
+						"type": "identify",
+						"userId": "user-js-batch",
+						"traits": {"name": "Batch User"},
+						"context": {"library": {"name": "analytics.js", "version": "1.68.0"}},
+						"messageId": "batch-msg-001"
+					},
+					{
+						"type": "track",
+						"userId": "user-js-batch",
+						"event": "Item Added",
+						"properties": {"item": "widget"},
+						"context": {"library": {"name": "analytics.js", "version": "1.68.0"}},
+						"messageId": "batch-msg-002"
+					},
+					{
+						"type": "page",
+						"userId": "user-js-batch",
+						"name": "Checkout",
+						"context": {"library": {"name": "analytics.js", "version": "1.68.0"}},
+						"messageId": "batch-msg-003"
+					}
+				]
+			}`,
+			wantFields: map[string]string{
+				"context.library.name": "analytics.js",
+			},
+			extraAssert: func(t *testing.T, jobs []*jobsdb.JobT) {
+				// Verify all three events were stored and all event types are present.
+				// Events with the same userId are grouped into a single job with multiple batch entries.
+				var allTypes []string
+				for _, job := range jobs {
+					p := string(job.EventPayload)
+					batchArr := gjson.Get(p, "batch").Array()
+					for _, ev := range batchArr {
+						allTypes = append(allTypes, ev.Get("type").String())
+					}
+				}
+				require.Contains(t, allTypes, "identify", "batch should contain identify event")
+				require.Contains(t, allTypes, "track", "batch should contain track event")
+				require.Contains(t, allTypes, "page", "batch should contain page event")
+				require.Len(t, allTypes, 3, "batch should contain exactly 3 events")
+			},
+		},
+		{
+			name:        "context.page auto-collected fields",
+			handlerType: "page",
+			payload: `{
+				"userId": "user-js-page",
+				"name": "Product",
+				"properties": {"sku": "ABC-123"},
+				"context": {
+					"library": {"name": "analytics.js", "version": "1.68.0"},
+					"page": {
+						"url": "https://example.com/products/abc",
+						"path": "/products/abc",
+						"referrer": "https://google.com/search",
+						"title": "Product ABC",
+						"search": "?color=blue"
+					},
+					"channel": "client"
+				},
+				"messageId": "ajs-msg-page-auto"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name": "analytics.js",
+				"context.page.url":      "https://example.com/products/abc",
+				"context.page.path":     "/products/abc",
+				"context.page.referrer": "https://google.com/search",
+				"context.page.title":    "Product ABC",
+				"context.page.search":   "?color=blue",
+				"type":                  "page",
+			},
+		},
+	}
+
+	runSDKTestCases(t, gw, capturedJobs, tests)
+}
+
+// TestSegmentServerSDKPayloads validates that the Gateway correctly accepts and preserves
+// payloads in the exact formats produced by Segment's server-side SDKs: analytics-node,
+// analytics-python, analytics-go, analytics-java, and analytics-ruby. This includes
+// per-platform context.library metadata, server channel values, batch with mixed event
+// types, and auto-generated messageId handling. (E-008)
+func TestSegmentServerSDKPayloads(t *testing.T) {
+	gw, capturedJobs, cleanup := setupTestGatewayForSDKTests(t)
+	defer cleanup()
+
+	tests := []sdkTestCase{
+		{
+			name:        "Node.js analytics-node track",
+			handlerType: "track",
+			payload: `{
+				"userId": "user-node-123",
+				"event": "Order Completed",
+				"properties": {"orderId": "ORD-001", "revenue": 99.99},
+				"context": {
+					"library": {"name": "analytics-node", "version": "6.2.0"},
+					"channel": "server"
+				},
+				"timestamp": "2024-01-15T10:30:00.000Z",
+				"messageId": "node-msg-001"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name":    "analytics-node",
+				"context.library.version": "6.2.0",
+				"context.channel":         "server",
+				"type":                    "track",
+				"event":                   "Order Completed",
+				"properties.orderId":      "ORD-001",
+				"userId":                  "user-node-123",
+				"timestamp":               "2024-01-15T10:30:00.000Z",
+			},
+		},
+		{
+			name:        "Python analytics-python identify",
+			handlerType: "identify",
+			payload: `{
+				"userId": "user-py-123",
+				"traits": {"email": "py-user@example.com", "role": "admin"},
+				"context": {
+					"library": {"name": "analytics-python", "version": "2.2.3"},
+					"channel": "server"
+				},
+				"sentAt": "2024-01-15T10:30:00.000Z",
+				"messageId": "py-msg-001"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name":    "analytics-python",
+				"context.library.version": "2.2.3",
+				"context.channel":         "server",
+				"type":                    "identify",
+				"traits.email":            "py-user@example.com",
+				"sentAt":                  "2024-01-15T10:30:00.000Z",
+			},
+		},
+		{
+			name:        "Go analytics-go track",
+			handlerType: "track",
+			payload: `{
+				"userId": "user-go-123",
+				"event": "Subscription Renewed",
+				"properties": {"plan": "pro", "amount": 49.99},
+				"context": {
+					"library": {"name": "analytics-go", "version": "3.3.0"},
+					"channel": "server"
+				},
+				"messageId": "go-msg-001"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name":    "analytics-go",
+				"context.library.version": "3.3.0",
+				"context.channel":         "server",
+				"type":                    "track",
+				"event":                   "Subscription Renewed",
+			},
+		},
+		{
+			name:        "Java analytics-java identify",
+			handlerType: "identify",
+			payload: `{
+				"userId": "user-java-123",
+				"traits": {"company": "Acme Inc", "department": "Engineering"},
+				"context": {
+					"library": {"name": "analytics-java", "version": "3.5.0"},
+					"channel": "server"
+				},
+				"messageId": "java-msg-001"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name":    "analytics-java",
+				"context.library.version": "3.5.0",
+				"context.channel":         "server",
+				"type":                    "identify",
+				"traits.company":          "Acme Inc",
+			},
+		},
+		{
+			name:        "Ruby analytics-ruby track",
+			handlerType: "track",
+			payload: `{
+				"userId": "user-ruby-123",
+				"event": "Report Generated",
+				"properties": {"format": "PDF", "pages": 42},
+				"context": {
+					"library": {"name": "analytics-ruby", "version": "2.4.0"},
+					"channel": "server"
+				},
+				"messageId": "ruby-msg-001"
+			}`,
+			wantFields: map[string]string{
+				"context.library.name":    "analytics-ruby",
+				"context.library.version": "2.4.0",
+				"context.channel":         "server",
+				"type":                    "track",
+				"event":                   "Report Generated",
+			},
+		},
+		{
+			name:        "Server SDK batch with mixed event types",
+			handlerType: "batch",
+			payload: `{
+				"batch": [
+					{
+						"type": "identify", "userId": "user-server-batch",
+						"traits": {"name": "Server User"},
+						"context": {"library": {"name": "analytics-node", "version": "6.2.0"}, "channel": "server"},
+						"messageId": "srv-batch-001"
+					},
+					{
+						"type": "track", "userId": "user-server-batch",
+						"event": "Login",
+						"context": {"library": {"name": "analytics-node", "version": "6.2.0"}, "channel": "server"},
+						"messageId": "srv-batch-002"
+					},
+					{
+						"type": "page", "userId": "user-server-batch",
+						"name": "Dashboard",
+						"context": {"library": {"name": "analytics-node", "version": "6.2.0"}, "channel": "server"},
+						"messageId": "srv-batch-003"
+					},
+					{
+						"type": "screen", "userId": "user-server-batch",
+						"name": "Home",
+						"context": {"library": {"name": "analytics-node", "version": "6.2.0"}, "channel": "server"},
+						"messageId": "srv-batch-004"
+					},
+					{
+						"type": "group", "userId": "user-server-batch",
+						"groupId": "grp-001",
+						"context": {"library": {"name": "analytics-node", "version": "6.2.0"}, "channel": "server"},
+						"messageId": "srv-batch-005"
+					},
+					{
+						"type": "alias", "userId": "user-server-batch",
+						"previousId": "old-server-user",
+						"context": {"library": {"name": "analytics-node", "version": "6.2.0"}, "channel": "server"},
+						"messageId": "srv-batch-006"
+					}
+				]
+			}`,
+			wantFields: map[string]string{
+				"context.library.name": "analytics-node",
+				"context.channel":      "server",
+			},
+			extraAssert: func(t *testing.T, jobs []*jobsdb.JobT) {
+				// Verify all 6 Spec call types are present in the stored jobs
+				var allTypes []string
+				for _, job := range jobs {
+					p := string(job.EventPayload)
+					batchArr := gjson.Get(p, "batch").Array()
+					for _, ev := range batchArr {
+						allTypes = append(allTypes, ev.Get("type").String())
+					}
+				}
+				require.Contains(t, allTypes, "identify", "batch should include identify")
+				require.Contains(t, allTypes, "track", "batch should include track")
+				require.Contains(t, allTypes, "page", "batch should include page")
+				require.Contains(t, allTypes, "screen", "batch should include screen")
+				require.Contains(t, allTypes, "group", "batch should include group")
+				require.Contains(t, allTypes, "alias", "batch should include alias")
+				require.Len(t, allTypes, 6, "batch should contain all 6 event types")
+			},
+		},
+		{
+			name:        "Server SDK batch with auto-generated messageId",
+			handlerType: "batch",
+			payload: `{
+				"batch": [
+					{
+						"type": "track", "userId": "user-auto-msgid",
+						"event": "Auto Message ID",
+						"context": {"library": {"name": "analytics-node", "version": "6.2.0"}, "channel": "server"}
+					},
+					{
+						"type": "identify", "userId": "user-auto-msgid",
+						"traits": {"name": "No MsgId User"},
+						"context": {"library": {"name": "analytics-node", "version": "6.2.0"}, "channel": "server"}
+					}
+				]
+			}`,
+			wantFields: map[string]string{
+				"context.library.name": "analytics-node",
+			},
+			extraAssert: func(t *testing.T, jobs []*jobsdb.JobT) {
+				// When events lack messageId, the Gateway auto-generates UUIDs.
+				for _, job := range jobs {
+					p := string(job.EventPayload)
+					batchArr := gjson.Get(p, "batch").Array()
+					for _, ev := range batchArr {
+						msgID := ev.Get("messageId").String()
+						require.NotEmpty(t, msgID, "auto-generated messageId should not be empty")
+						// Gateway generates UUID v4 format messageIds
+						require.Len(t, msgID, 36, "auto-generated messageId should be UUID format (36 chars)")
+					}
+				}
+			},
+		},
+	}
+
+	runSDKTestCases(t, gw, capturedJobs, tests)
+}
+
+// TestSegmentSDKBatchPayloads validates batch endpoint behavior across all SDK platforms.
+// It tests per-SDK context.library metadata preservation and context.channel values
+// for both client-side and server-side SDKs. (E-005)
+func TestSegmentSDKBatchPayloads(t *testing.T) {
+	gw, capturedJobs, cleanup := setupTestGatewayForSDKTests(t)
+	defer cleanup()
+
+	t.Run("batch with context.library metadata per SDK", func(t *testing.T) {
+		// Validate that the Gateway preserves context.library metadata for each SDK platform
+		sdkPlatforms := []struct {
+			sdkName    string
+			sdkVersion string
+		}{
+			{"analytics.js", "1.68.0"},
+			{"analytics-ios", "4.1.8"},
+			{"analytics-android", "4.11.3"},
+			{"analytics-node", "6.2.0"},
+			{"analytics-python", "2.2.3"},
+			{"analytics-go", "3.3.0"},
+			{"analytics-java", "3.5.0"},
+			{"analytics-ruby", "2.4.0"},
+		}
+
+		handlers := allHandlers(gw)
+		batchHandler := handlers["batch"]
+		require.NotNil(t, batchHandler)
+
+		for _, sdk := range sdkPlatforms {
+			t.Run(sdk.sdkName, func(t *testing.T) {
+				startIdx := len(*capturedJobs)
+
+				payload := fmt.Sprintf(`{
+					"batch": [
+						{
+							"type": "track",
+							"userId": "user-sdk-compat",
+							"event": "SDK Compat Test",
+							"properties": {"sdk": %q},
+							"context": {
+								"library": {"name": %q, "version": %q}
+							},
+							"messageId": "sdk-batch-%s-001"
+						}
+					]
+				}`, sdk.sdkName, sdk.sdkName, sdk.sdkVersion, sdk.sdkName)
+
+				rr := httptest.NewRecorder()
+				req := authorizedRequest(WriteKeyEnabled, bytes.NewBufferString(payload))
+				batchHandler.ServeHTTP(rr, req)
+
+				require.Equal(t, http.StatusOK, rr.Code, "expected HTTP 200 for SDK %s", sdk.sdkName)
+				require.Equal(t, "ok", rr.Body.String())
+
+				newJobs := (*capturedJobs)[startIdx:]
+				require.NotEmpty(t, newJobs, "expected stored jobs for SDK %s", sdk.sdkName)
+
+				jobPayload := string(newJobs[0].EventPayload)
+				libName := gjson.Get(jobPayload, "batch.0.context.library.name").String()
+				libVersion := gjson.Get(jobPayload, "batch.0.context.library.version").String()
+				require.Equal(t, sdk.sdkName, libName, "context.library.name should be preserved for %s", sdk.sdkName)
+				require.Equal(t, sdk.sdkVersion, libVersion, "context.library.version should be preserved for %s", sdk.sdkName)
+			})
+		}
+	})
+
+	t.Run("batch with context.channel values", func(t *testing.T) {
+		// Validate that both client and server channel values are accepted and preserved
+		channelTests := []struct {
+			name    string
+			channel string
+			sdkName string
+		}{
+			{"client channel from web SDK", "client", "analytics.js"},
+			{"server channel from Node.js SDK", "server", "analytics-node"},
+		}
+
+		handlers := allHandlers(gw)
+		batchHandler := handlers["batch"]
+		require.NotNil(t, batchHandler)
+
+		for _, ct := range channelTests {
+			t.Run(ct.name, func(t *testing.T) {
+				startIdx := len(*capturedJobs)
+
+				payload := fmt.Sprintf(`{
+					"batch": [
+						{
+							"type": "track",
+							"userId": "user-channel-test",
+							"event": "Channel Test",
+							"context": {
+								"library": {"name": %q, "version": "1.0.0"},
+								"channel": %q
+							},
+							"messageId": "channel-test-001"
+						}
+					]
+				}`, ct.sdkName, ct.channel)
+
+				rr := httptest.NewRecorder()
+				req := authorizedRequest(WriteKeyEnabled, bytes.NewBufferString(payload))
+				batchHandler.ServeHTTP(rr, req)
+
+				require.Equal(t, http.StatusOK, rr.Code, "expected HTTP 200 for channel %q", ct.channel)
+				require.Equal(t, "ok", rr.Body.String())
+
+				newJobs := (*capturedJobs)[startIdx:]
+				require.NotEmpty(t, newJobs, "expected stored jobs for channel %q", ct.channel)
+
+				jobPayload := string(newJobs[0].EventPayload)
+				actualChannel := gjson.Get(jobPayload, "batch.0.context.channel").String()
+				require.Equal(t, ct.channel, actualChannel, "context.channel should be preserved as %q", ct.channel)
+			})
+		}
+	})
+}
+
 // Helper function to create test gateway with leaky uploader
 func createTestGatewayWithLeakyUploader(t *testing.T, endpoint, accessKeyID, secretKey string) (gw *Handle, cleanup func()) {
 	mockCtrl := gomock.NewController(t)
