@@ -66,6 +66,7 @@ const (
 			AVG(duration_ms) as avg_duration_ms,
 			MIN(duration_ms) as min_duration_ms,
 			MAX(duration_ms) as max_duration_ms,
+			PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) as p95_duration_ms,
 			SUM(rows_synced) as total_rows_synced,
 			SUM(rows_failed) as total_rows_failed,
 			MAX(created_at) as last_sync,
@@ -122,6 +123,7 @@ const (
 			AVG(duration_ms) as avg_duration_ms,
 			MIN(duration_ms) as min_duration_ms,
 			MAX(duration_ms) as max_duration_ms,
+			PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) as p95_duration_ms,
 			SUM(rows_synced) as total_rows_synced,
 			SUM(rows_failed) as total_rows_failed,
 			MAX(created_at) as last_sync,
@@ -283,6 +285,7 @@ func (r *HealthRepo) GetHealthSummary(ctx context.Context) (*HealthSummaryRespon
 			sourceName, destName                                string
 			totalSyncs, successfulSyncs                         int64
 			avgDurationMs, minDurationMs, maxDurationMs         sql.NullFloat64
+			p95DurationMs                                       sql.NullFloat64
 			totalRowsSynced, totalRowsFailed                    sql.NullInt64
 			lastSync                                            sql.NullTime
 			topErrorCategory                                    string
@@ -294,6 +297,7 @@ func (r *HealthRepo) GetHealthSummary(ctx context.Context) (*HealthSummaryRespon
 			&sourceName, &destName,
 			&totalSyncs, &successfulSyncs,
 			&avgDurationMs, &minDurationMs, &maxDurationMs,
+			&p95DurationMs,
 			&totalRowsSynced, &totalRowsFailed,
 			&lastSync,
 			&topErrorCategory,
@@ -316,6 +320,7 @@ func (r *HealthRepo) GetHealthSummary(ctx context.Context) (*HealthSummaryRespon
 				Min: int64(minDurationMs.Float64),
 				Max: int64(maxDurationMs.Float64),
 				Avg: int64(avgDurationMs.Float64),
+				P95: int64(p95DurationMs.Float64),
 			},
 			RowsSynced:    totalRowsSynced.Int64,
 			ErrorRate:     errorRate,
@@ -422,6 +427,7 @@ func (r *HealthRepo) GetHealthBySourceDest(ctx context.Context, sourceID, destID
 			sourceName, destName                            string
 			totalSyncs, successfulSyncs                     int64
 			avgDurationMs, minDurationMs, maxDurationMs     sql.NullFloat64
+			p95DurationMs                                   sql.NullFloat64
 			totalRowsSynced, totalRowsFailed                sql.NullInt64
 			lastSync                                        sql.NullTime
 			topErrorCategory                                string
@@ -433,6 +439,7 @@ func (r *HealthRepo) GetHealthBySourceDest(ctx context.Context, sourceID, destID
 			&sourceName, &destName,
 			&totalSyncs, &successfulSyncs,
 			&avgDurationMs, &minDurationMs, &maxDurationMs,
+			&p95DurationMs,
 			&totalRowsSynced, &totalRowsFailed,
 			&lastSync,
 			&topErrorCategory,
@@ -455,6 +462,7 @@ func (r *HealthRepo) GetHealthBySourceDest(ctx context.Context, sourceID, destID
 				Min: int64(minDurationMs.Float64),
 				Max: int64(maxDurationMs.Float64),
 				Avg: int64(avgDurationMs.Float64),
+				P95: int64(p95DurationMs.Float64),
 			},
 			RowsSynced:    totalRowsSynced.Int64,
 			ErrorRate:     errorRate,

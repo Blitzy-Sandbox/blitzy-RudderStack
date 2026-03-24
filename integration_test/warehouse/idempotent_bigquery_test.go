@@ -1,20 +1,30 @@
 package warehouse_test
 
 import (
+	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/bigquery"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 
 	"github.com/rudderlabs/rudder-go-kit/config"
+	"github.com/rudderlabs/rudder-go-kit/filemanager"
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	"github.com/rudderlabs/rudder-go-kit/stats"
 
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
+	bqconnector "github.com/rudderlabs/rudder-server/warehouse/integrations/bigquery"
+	bqhelper "github.com/rudderlabs/rudder-server/warehouse/integrations/bigquery/testhelper"
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
 
@@ -143,6 +153,7 @@ func testIdempotentBigQuery(t *testing.T) {
 	t.Run("staging_payload_json_roundtrip", testBigQueryStagingPayloadJSONRoundtrip)
 	t.Run("warehouse_fixture_construction", testBigQueryWarehouseFixtureConstruction)
 	t.Run("append_load_tracking", testBigQueryAppendLoadTracking)
+	t.Run("production_load_table", testBigQueryProductionLoadTable)
 }
 
 // --------------------------------------------------------------------------
@@ -925,4 +936,283 @@ func buildBigQueryTestWarehouse(t *testing.T) whutils.ModelWarehouse {
 		Namespace: uniqueIdempotentNamespace(),
 		Type:      whutils.BQ,
 	}
+}
+
+// ---------------------------------------------------------------------------
+// bqTestUploader — minimal Uploader for BigQuery production LoadTable() tests
+// ---------------------------------------------------------------------------
+
+// bqTestUploader implements the whutils.Uploader interface for BigQuery
+// production tests. It wraps whutils.NewNoOpUploader() and overrides only
+// the methods required by the BigQuery connector's loadTable() flow.
+type bqTestUploader struct {
+	whutils.Uploader
+
+	// loadFiles maps tableName → list of load files with GCS locations
+	loadFiles map[string][]whutils.LoadFile
+
+	// schema maps tableName → table schema (used by GetTableSchemaInUpload/InWarehouse)
+	schema map[string]whutils.ModelTableSchema
+}
+
+func (u *bqTestUploader) GetLoadFilesMetadata(_ context.Context, opts whutils.GetLoadFilesOptions) ([]whutils.LoadFile, error) {
+	if files, ok := u.loadFiles[opts.Table]; ok {
+		return files, nil
+	}
+	return nil, nil
+}
+
+func (u *bqTestUploader) GetSampleLoadFileLocation(_ context.Context, tableName string) (string, error) {
+	if files, ok := u.loadFiles[tableName]; ok && len(files) > 0 {
+		return files[0].Location, nil
+	}
+	return "", fmt.Errorf("no load file for table %s", tableName)
+}
+
+func (u *bqTestUploader) GetSingleLoadFile(_ context.Context, tableName string) (whutils.LoadFile, error) {
+	if files, ok := u.loadFiles[tableName]; ok && len(files) > 0 {
+		return files[0], nil
+	}
+	return whutils.LoadFile{}, fmt.Errorf("no load file for table %s", tableName)
+}
+
+func (u *bqTestUploader) GetTableSchemaInUpload(tableName string) whutils.ModelTableSchema {
+	if s, ok := u.schema[tableName]; ok {
+		return s
+	}
+	return nil
+}
+
+func (u *bqTestUploader) GetTableSchemaInWarehouse(tableName string) whutils.ModelTableSchema {
+	return u.GetTableSchemaInUpload(tableName)
+}
+
+func (u *bqTestUploader) UseRudderStorage() bool  { return false }
+func (u *bqTestUploader) GetLoadFileType() string { return "json" }
+func (u *bqTestUploader) CanAppend() bool          { return true }
+
+// ---------------------------------------------------------------------------
+// createBigQueryTestLoadFile — creates a gzipped NDJSON load file for BigQuery
+// ---------------------------------------------------------------------------
+
+// createBigQueryTestLoadFile writes a gzipped newline-delimited JSON file
+// suitable for BigQuery bulk loading. The file contains one JSON object per
+// line with the column names matching the BigQuery table schema.
+func createBigQueryTestLoadFile(t *testing.T, events []IdempotentEvent) string {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp("", "bq_load_*.json.gz")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Remove(tmpFile.Name()) })
+
+	gzWriter := gzip.NewWriter(tmpFile)
+
+	for _, ev := range events {
+		// Build a JSON object matching BQ table columns: event, id, received_at, user_id
+		row := map[string]string{
+			"event":       ev.Event,
+			"id":          ev.ID,
+			"received_at": ev.ReceivedAt,
+			"user_id":     ev.UserID,
+		}
+		data, err := jsonrs.Marshal(row)
+		require.NoError(t, err)
+		_, err = gzWriter.Write(data)
+		require.NoError(t, err)
+		_, err = gzWriter.Write([]byte("\n"))
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, gzWriter.Close())
+	require.NoError(t, tmpFile.Close())
+
+	return tmpFile.Name()
+}
+
+// ---------------------------------------------------------------------------
+// testBigQueryProductionLoadTable — exercises the production BigQuery connector
+// ---------------------------------------------------------------------------
+
+// testBigQueryProductionLoadTable calls the production BigQuery connector's
+// LoadTable() method against a real BigQuery instance. It:
+//
+//  1. Skips if BIGQUERY_INTEGRATION_TEST_CREDENTIALS is not set.
+//  2. Uploads a gzipped NDJSON load file to GCS.
+//  3. Creates a BigQuery dataset and table via the production connector.
+//  4. Calls LoadTable() twice with the same data.
+//  5. Verifies that both loads succeed and append rows (BigQuery is append-only).
+//  6. Cleans up the dataset after the test.
+//
+//nolint:unused // called from testIdempotentBigQuery via t.Run
+func testBigQueryProductionLoadTable(t *testing.T) {
+	t.Helper()
+
+	credJSON, ok := os.LookupEnv(bqhelper.TestKey)
+	if !ok {
+		t.Skipf("skipping production BigQuery load test: %s not set", bqhelper.TestKey)
+	}
+
+	var creds bqhelper.TestCredentials
+	require.NoError(t, jsonrs.Unmarshal([]byte(credJSON), &creds))
+
+	ctx := context.Background()
+	namespace := fmt.Sprintf("idempotent_bq_prod_%s", strings.ReplaceAll(uuid.New().String(), "-", "_"))
+	tableName := "tracks"
+
+	conf := config.New()
+
+	// Build warehouse with real BigQuery destination config
+	warehouse := whutils.ModelWarehouse{
+		WorkspaceID: idempotentWorkspaceID,
+		Source: backendconfig.SourceT{
+			ID:      idempotentSourceID,
+			Name:    "test-source",
+			Enabled: true,
+			SourceDefinition: backendconfig.SourceDefinitionT{
+				Name: "test-source-def",
+			},
+		},
+		Destination: backendconfig.DestinationT{
+			ID:      idempotentDestinationID,
+			Name:    "test-bigquery-production",
+			Enabled: true,
+			DestinationDefinition: backendconfig.DestinationDefinitionT{
+				Name: "BigQuery",
+			},
+			Config: map[string]any{
+				"project":     creds.ProjectID,
+				"location":    creds.Location,
+				"bucketName":  creds.BucketName,
+				"credentials": creds.Credentials,
+			},
+		},
+		Namespace: namespace,
+		Type:      whutils.BQ,
+	}
+
+	tableSchema := whutils.ModelTableSchema{
+		"event":       bigQueryStringDataType,
+		"id":          bigQueryStringDataType,
+		"received_at": bigQueryDateTimeDataType,
+		"user_id":     bigQueryStringDataType,
+	}
+
+	// Load canonical events from fixtures — use tracks events only
+	events := loadIdempotentEvents(t)
+	var trackEvents []IdempotentEvent
+	for _, ev := range events {
+		if ev.Table == "tracks" {
+			trackEvents = append(trackEvents, ev)
+		}
+	}
+	require.NotEmpty(t, trackEvents, "must have track events in fixture")
+
+	// Create a gzipped NDJSON load file for BigQuery
+	loadFilePath := createBigQueryTestLoadFile(t, trackEvents)
+
+	// Create GCS file manager and upload the load file
+	fm, err := filemanager.New(&filemanager.Settings{
+		Provider: whutils.GCS,
+		Config: map[string]any{
+			"project":     creds.ProjectID,
+			"location":    creds.Location,
+			"bucketName":  creds.BucketName,
+			"credentials": creds.Credentials,
+		},
+		Conf: conf,
+	})
+	require.NoError(t, err, "failed to create GCS file manager")
+
+	f, err := os.Open(loadFilePath)
+	require.NoError(t, err)
+	defer func() { _ = f.Close() }()
+
+	uploadOutput, err := fm.Upload(
+		ctx, f,
+		"rudder-warehouse-load-objects",
+		tableName,
+		idempotentSourceID,
+		uuid.New().String()+"-"+tableName,
+	)
+	require.NoError(t, err, "failed to upload load file to GCS")
+	t.Logf("Uploaded load file to GCS: %s", uploadOutput.Location)
+
+	// Create a direct BigQuery client for verification and cleanup
+	bqClient, err := bigquery.NewClient(
+		ctx,
+		creds.ProjectID,
+		option.WithCredentialsJSON([]byte(creds.Credentials)), //nolint:staticcheck
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = bqClient.Close() })
+	t.Cleanup(func() {
+		// Delete the test dataset with all contents
+		t.Logf("Cleaning up BigQuery dataset: %s", namespace)
+		_ = bqClient.Dataset(namespace).DeleteWithContents(context.Background())
+	})
+
+	// Build test uploader with the GCS load file location
+	uploader := &bqTestUploader{
+		Uploader: whutils.NewNoOpUploader(),
+		loadFiles: map[string][]whutils.LoadFile{
+			tableName: {{Location: uploadOutput.Location}},
+		},
+		schema: map[string]whutils.ModelTableSchema{
+			tableName: tableSchema,
+		},
+	}
+
+	// Create the production BigQuery connector
+	bq := bqconnector.New(conf, logger.NOP)
+	err = bq.Setup(ctx, warehouse, uploader)
+	require.NoError(t, err, "BigQuery Setup() failed")
+
+	// Create the dataset (schema) and table
+	err = bq.CreateSchema(ctx)
+	require.NoError(t, err, "BigQuery CreateSchema() failed")
+
+	err = bq.CreateTable(ctx, tableName, tableSchema)
+	require.NoError(t, err, "BigQuery CreateTable() failed")
+
+	// --- First LoadTable() call ---
+	stats1, err := bq.LoadTable(ctx, tableName)
+	require.NoError(t, err, "first LoadTable() call failed")
+	require.NotNil(t, stats1, "first LoadTable() returned nil stats")
+	t.Logf("First LoadTable() stats: RowsInserted=%d", stats1.RowsInserted)
+
+	// Verify rows were actually inserted
+	require.Greater(t, stats1.RowsInserted, int64(0),
+		"first LoadTable() must insert rows — got 0, expected %d", len(trackEvents))
+
+	// --- Second LoadTable() call (replay/idempotency test) ---
+	stats2, err := bq.LoadTable(ctx, tableName)
+	require.NoError(t, err, "second LoadTable() call failed — production connector not idempotent-safe")
+	require.NotNil(t, stats2, "second LoadTable() returned nil stats")
+	t.Logf("Second LoadTable() stats: RowsInserted=%d", stats2.RowsInserted)
+
+	// BigQuery is append-only: second load appends the same rows again.
+	// After 2 loads, the base table contains 2× the original event count.
+	require.Equal(t, stats1.RowsInserted, stats2.RowsInserted,
+		"second LoadTable() should insert same number of rows as first (append-only)")
+
+	// Verify total row count in BigQuery table via direct query
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM `%s.%s.%s`",
+		creds.ProjectID, namespace, tableName)
+	it, err := bqClient.Query(countQuery).Read(ctx)
+	require.NoError(t, err, "count query failed")
+
+	var row []bigquery.Value
+	err = it.Next(&row)
+	require.NoError(t, err, "reading count query result failed")
+	require.False(t, errors.Is(err, iterator.Done))
+
+	totalRows, ok := row[0].(int64)
+	require.True(t, ok, "count query returned non-int64 value: %T", row[0])
+
+	expectedTotal := int64(len(trackEvents)) * 2
+	require.Equal(t, expectedTotal, totalRows,
+		"after 2 appends of %d events, table should have %d rows, got %d",
+		len(trackEvents), expectedTotal, totalRows)
+
+	t.Logf("BigQuery production LoadTable() verified: %d events × 2 loads = %d total rows (append-only confirmed)", len(trackEvents), totalRows)
 }

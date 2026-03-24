@@ -86,6 +86,14 @@ type App struct {
 
 	appName string
 
+	// dstRoutersMu protects dstToWhRouter for concurrent access from
+	// monitorDestRouters (writer) and the backfill upload adapter (reader).
+	dstRoutersMu sync.RWMutex
+	// dstToWhRouter maps destination type names to their Router instances.
+	// Populated dynamically by onConfigDataEvent and used by the backfill
+	// upload adapter to delegate CreateBackfillUpload to the correct router.
+	dstToWhRouter map[string]*router.Router
+
 	config struct {
 		host     string
 		user     string
@@ -178,6 +186,7 @@ func (a *replayArchiverAdapter) QueryArchivedEvents(
 	for i, b := range batches {
 		result[i] = replay.ArchivedEventBatch{
 			SourceID:   b.SourceID,
+			Location:   b.Location,
 			Data:       b.Data,
 			StartTime:  b.StartTime,
 			EndTime:    b.EndTime,
@@ -185,6 +194,28 @@ func (a *replayArchiverAdapter) QueryArchivedEvents(
 		}
 	}
 	return result, nil
+}
+
+// backfillUploadAdapter satisfies backfill.BackfillUploadCreator by iterating
+// through the App's per-destination-type routers to find the warehouse matching
+// the given sourceID/destID pair, then delegating to Router.CreateBackfillUpload.
+type backfillUploadAdapter struct {
+	app *App
+}
+
+func (a *backfillUploadAdapter) CreateBackfillUpload(ctx context.Context, sourceID, destID string, backfillJobID int64) error {
+	a.app.dstRoutersMu.RLock()
+	defer a.app.dstRoutersMu.RUnlock()
+
+	for _, r := range a.app.dstToWhRouter {
+		warehouses := r.CopyWarehouses()
+		for _, wh := range warehouses {
+			if wh.Source.ID == sourceID && wh.Destination.ID == destID {
+				return r.CreateBackfillUpload(ctx, wh, backfillJobID)
+			}
+		}
+	}
+	return fmt.Errorf("no warehouse found for sourceID=%s destID=%s", sourceID, destID)
 }
 
 func New(
@@ -332,11 +363,17 @@ func (a *App) Setup(ctx context.Context) error {
 	// event retrieval and Gateway injection with X-Warehouse-Replay header.
 	// The replayArchiverAdapter converts archive.ArchivedEventBatch to
 	// replay.ArchivedEventBatch for the retriever interface.
+	replayDownloader := replay.NewStagingFileDownloader(
+		a.conf,
+		a.logger,
+		a.fileManagerFactory,
+	)
 	replayRetriever := replay.NewArchivedEventRetriever(
 		a.conf,
 		a.logger,
 		a.statsFactory,
 		&replayArchiverAdapter{archiver: whArchiver},
+		replayDownloader,
 	)
 	a.replayHandler = replay.NewReplayHandler(
 		ctx,
@@ -646,12 +683,36 @@ func (a *App) Run(ctx context.Context) error {
 			return a.healthMonitor.Run(gCtx)
 		}))
 
+		// E-032: Wire the BackfillUploadCreator into the backfill service.
+		// The adapter wraps the App's per-destination-type router map and
+		// resolves the correct Router at call time by matching sourceID+destID.
+		// This deferred injection is required because routers are created
+		// dynamically by monitorDestRouters as backend-config arrives.
+		a.backfillService.SetUploadCreator(&backfillUploadAdapter{app: a})
+
 		// E-032: Start the backfill service background monitor loop.
 		// The service checks its own enabled flag internally and skips
 		// processing when disabled, maintaining backward compatibility.
 		g.Go(crash.NotifyWarehouse(func() error {
 			return a.backfillService.Run(gCtx)
 		}))
+
+		// E-035: Wire the HTTPGatewayClient into the replay handler.
+		// The Gateway's webPort is resolved from config at runtime. The replay
+		// handler was constructed with a nil GatewayClient in Setup() because
+		// the Gateway port isn't known until config is loaded. Now that
+		// WaitForConfig has completed, we resolve the port and inject the
+		// concrete client before starting the replay goroutine.
+		{
+			gwPort := a.conf.GetIntVar(8080, 1, "Gateway.webPort")
+			gwURL := fmt.Sprintf("http://localhost:%d/v1/replay", gwPort)
+			a.replayHandler.SetGatewayClient(
+				replay.NewHTTPGatewayClient(gwURL, a.logger),
+			)
+			a.logger.Infon("[WH]: Replay handler gateway client configured",
+				logger.NewStringField("gatewayURL", gwURL),
+			)
+		}
 
 		// E-035: Start the replay handler background pruning loop.
 		// Periodically removes terminal (Completed/Failed) replay jobs from
@@ -676,7 +737,13 @@ func (a *App) Run(ctx context.Context) error {
 
 // Gets the config from config backend and extracts enabled write keys
 func (a *App) monitorDestRouters(ctx context.Context) error {
-	dstToWhRouter := make(map[string]*router.Router)
+	a.dstRoutersMu.Lock()
+	if a.dstToWhRouter == nil {
+		a.dstToWhRouter = make(map[string]*router.Router)
+	}
+	a.dstRoutersMu.Unlock()
+
+	dstToWhRouter := a.dstToWhRouter
 	g, ctx := errgroup.WithContext(ctx)
 	ch := a.tenantManager.WatchConfig(ctx)
 	for configData := range ch {

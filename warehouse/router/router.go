@@ -785,6 +785,14 @@ func (r *Router) copyWarehouses() []model.Warehouse {
 	return warehouses
 }
 
+// CopyWarehouses returns a snapshot of the current warehouse list for this router.
+// This exported variant enables cross-package access by the backfill upload adapter
+// in warehouse/app.go, which needs to look up a Warehouse by sourceID + destID
+// to delegate backfill upload creation to the correct per-destination-type router.
+func (r *Router) CopyWarehouses() []model.Warehouse {
+	return r.copyWarehouses()
+}
+
 // CreateBackfillUpload creates an upload specifically for a backfill job (E-032).
 // Backfill uploads bypass the normal scheduling guards enforced by canCreateUpload()
 // (sync frequency, exclude windows, manual-sync mode) because they are explicitly

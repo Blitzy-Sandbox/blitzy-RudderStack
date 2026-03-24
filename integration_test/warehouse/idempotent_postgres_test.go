@@ -1,9 +1,11 @@
 package warehouse_test
 
 import (
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -16,6 +18,10 @@ import (
 	"github.com/rudderlabs/rudder-go-kit/stats"
 	"github.com/rudderlabs/rudder-go-kit/testhelper/docker/resource/postgres"
 
+	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
+	"github.com/rudderlabs/rudder-server/utils/misc"
+	pgconnector "github.com/rudderlabs/rudder-server/warehouse/integrations/postgres"
+	sqlmiddleware "github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
 
@@ -185,6 +191,10 @@ func testIdempotentPostgres(t *testing.T) {
 
 	t.Run("staging_table_lifecycle", func(t *testing.T) {
 		testPostgresStagingTableLifecycle(t, ctx, db, ns)
+	})
+
+	t.Run("production_load_table", func(t *testing.T) {
+		testPostgresProductionLoadTable(t, ctx, db, ns, cfg, testConf)
 	})
 }
 
@@ -1114,4 +1124,238 @@ func countStagingTables(
 	`, ns, stagingPrefix+"%").Scan(&count)
 	require.NoError(t, err, "failed to count staging tables in schema %s", ns)
 	return count
+}
+
+// ---------------------------------------------------------------------------
+// Production LoadTable Sub-test — PostgreSQL
+// ---------------------------------------------------------------------------
+
+// pgTestDownloader implements downloader.Downloader for test purposes.
+// It returns pre-created CSV file paths without downloading from object storage.
+//
+//nolint:unused // used by testPostgresProductionLoadTable
+type pgTestDownloader struct {
+	files map[string][]string
+}
+
+//nolint:unused // implements downloader.Downloader
+func (d *pgTestDownloader) Download(_ context.Context, tableName string) ([]string, error) {
+	return d.files[tableName], nil
+}
+
+// pgTestUploader implements warehouseutils.Uploader for production LoadTable
+// tests. It embeds the noop uploader and overrides only the methods that the
+// PostgreSQL connector actually calls during LoadTable.
+//
+//nolint:unused // used by testPostgresProductionLoadTable
+type pgTestUploader struct {
+	whutils.Uploader
+	schemaInUpload    map[string]whutils.ModelTableSchema
+	schemaInWarehouse map[string]whutils.ModelTableSchema
+	canAppend         bool
+}
+
+//nolint:unused // implements Uploader
+func (u *pgTestUploader) GetTableSchemaInUpload(tableName string) whutils.ModelTableSchema {
+	return u.schemaInUpload[tableName]
+}
+
+//nolint:unused // implements Uploader
+func (u *pgTestUploader) GetTableSchemaInWarehouse(tableName string) whutils.ModelTableSchema {
+	return u.schemaInWarehouse[tableName]
+}
+
+//nolint:unused // implements Uploader
+func (u *pgTestUploader) UseRudderStorage() bool { return false }
+
+//nolint:unused // implements Uploader
+func (u *pgTestUploader) CanAppend() bool { return u.canAppend }
+
+//nolint:unused // implements Uploader
+func (u *pgTestUploader) GetLoadFileType() string { return whutils.LoadFileTypeCsv }
+
+//nolint:unused // implements Uploader
+func (u *pgTestUploader) ShouldOnDedupUseNewRecord() bool { return false }
+
+//nolint:unused // implements Uploader
+func (u *pgTestUploader) IsWarehouseSchemaEmpty() bool { return false }
+
+//nolint:unused // implements Uploader
+func (u *pgTestUploader) GetLoadFilesMetadata(_ context.Context, _ whutils.GetLoadFilesOptions) ([]whutils.LoadFile, error) {
+	return nil, nil
+}
+
+//nolint:unused // implements Uploader
+func (u *pgTestUploader) GetSampleLoadFileLocation(_ context.Context, _ string) (string, error) {
+	return "", nil
+}
+
+//nolint:unused // implements Uploader
+func (u *pgTestUploader) GetSingleLoadFile(_ context.Context, _ string) (whutils.LoadFile, error) {
+	return whutils.LoadFile{}, nil
+}
+
+// createPgTestLoadFile creates a gzipped CSV file containing the given events.
+// Columns are sorted alphabetically (event, id, received_at, user_id) to match
+// the warehouseutils.SortColumnKeysFromColumnMap ordering used by the production
+// PostgreSQL connector's CopyIn loader.
+//
+//nolint:unused // used by testPostgresProductionLoadTable
+func createPgTestLoadFile(t *testing.T, events []IdempotentEvent) string {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp("", "pg_load_*.csv.gz")
+	require.NoError(t, err, "failed to create temp load file")
+	t.Cleanup(func() { _ = os.Remove(tmpFile.Name()) })
+
+	gw := gzip.NewWriter(tmpFile)
+	for _, evt := range events {
+		// Column order: event, id, received_at, user_id (alphabetical)
+		line := fmt.Sprintf("%s,%s,%s,%s\n",
+			evt.Event, evt.ID, evt.ReceivedAt, evt.UserID)
+		_, writeErr := gw.Write([]byte(line))
+		require.NoError(t, writeErr)
+	}
+	require.NoError(t, gw.Close())
+	require.NoError(t, tmpFile.Close())
+
+	return tmpFile.Name()
+}
+
+// testPostgresProductionLoadTable validates that the production PostgreSQL
+// connector's LoadTable() method works correctly for idempotent merge.
+// This test exercises the REAL production code path in
+// warehouse/integrations/postgres/load.go — staging table creation, CopyIn,
+// DELETE+INSERT with ROW_NUMBER() dedup — rather than a test-local simulation.
+//
+//nolint:unused // called from testIdempotentPostgres via t.Run
+func testPostgresProductionLoadTable(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	ns string,
+	cfg IdempotentTestConfig,
+	testConf *config.Config,
+) {
+	t.Helper()
+
+	// Initialize misc package to ensure pkgLogger is non-nil — production
+	// loadTable defers misc.RemoveFilePaths which needs the logger.
+	misc.Init()
+
+	// Use the identifies table which contains a deliberate duplicate (ID 001).
+	tableName := whutils.IdentifiesTable
+	identifyEvents := filterEventsByTable(cfg.Events, tableName)
+	require.NotEmpty(t, identifyEvents, "must have identify events for production LoadTable test")
+
+	// Verify the fixture contains duplicates — otherwise the dedup assertion is meaningless.
+	uniqueMap := make(map[string]struct{})
+	for _, e := range identifyEvents {
+		uniqueMap[e.ID] = struct{}{}
+	}
+	uniqueCount := len(uniqueMap)
+	require.Greater(t, len(identifyEvents), uniqueCount,
+		"fixture must contain duplicate identifies (total=%d unique=%d)", len(identifyEvents), uniqueCount)
+
+	// Ensure the target table is clean for this subtest. The table was already
+	// created by createPostgresTestSchema; truncate it.
+	_, err := db.ExecContext(ctx, fmt.Sprintf(`TRUNCATE TABLE %q.%s`, ns, tableName))
+	require.NoError(t, err, "failed to truncate %s.%s", ns, tableName)
+
+	// Build the table schema matching the target table columns.
+	identifiesSchema := whutils.ModelTableSchema{
+		"id":          "string",
+		"user_id":     "string",
+		"event":       "string",
+		"received_at": "datetime",
+	}
+
+	// Create the mock uploader that provides schema information.
+	mockUploader := &pgTestUploader{
+		Uploader: whutils.NewNoOpUploader(),
+		schemaInUpload: map[string]whutils.ModelTableSchema{
+			tableName: identifiesSchema,
+		},
+		schemaInWarehouse: map[string]whutils.ModelTableSchema{
+			tableName: identifiesSchema,
+		},
+		canAppend: false, // merge mode: shouldMerge returns true
+	}
+
+	// Create a gzipped CSV load file from the test events.
+	loadFilePath := createPgTestLoadFile(t, identifyEvents)
+
+	// Create a mock downloader that returns our test load file.
+	mockDownloader := &pgTestDownloader{
+		files: map[string][]string{
+			tableName: {loadFilePath},
+		},
+	}
+
+	// Ensure allowMerge is enabled in the test config.
+	testConf.Set("Warehouse.postgres.allowMerge", true)
+
+	// Create the production PostgreSQL connector via its real constructor.
+	pg := pgconnector.New(testConf, logger.NOP, stats.NOP)
+
+	// Inject test dependencies into the connector's public fields.
+	pg.DB = sqlmiddleware.New(db)
+	pg.Namespace = ns
+	pg.Uploader = mockUploader
+	pg.LoadFileDownloader = mockDownloader
+	pg.Warehouse = whutils.ModelWarehouse{
+		WorkspaceID: "test_workspace_pg_prod",
+		Source: backendconfig.SourceT{
+			ID:               "source_pg_prod_test",
+			SourceDefinition: backendconfig.SourceDefinitionT{Name: "test_source"},
+		},
+		Destination: backendconfig.DestinationT{
+			ID:                    "dest_pg_prod_test",
+			Config:                map[string]interface{}{},
+			DestinationDefinition: backendconfig.DestinationDefinitionT{Name: "POSTGRES"},
+		},
+		Namespace: ns,
+		Type:      whutils.POSTGRES,
+	}
+
+	// -----------------------------------------------------------------------
+	// First load: call the production LoadTable to insert events via CopyIn +
+	// merge. With 6 identifies and 1 duplicate ID, expect 5 unique rows.
+	// -----------------------------------------------------------------------
+	loadStats, loadErr := pg.LoadTable(ctx, tableName)
+	require.NoError(t, loadErr, "production LoadTable must succeed for first load")
+	require.NotNil(t, loadStats, "LoadTable stats must not be nil")
+
+	t.Logf("production_load_table: first load — RowsInserted=%d RowsUpdated=%d",
+		loadStats.RowsInserted, loadStats.RowsUpdated)
+
+	firstLoadCount := getPostgresRowCount(t, ctx, db, ns, tableName)
+	require.Equal(t, uniqueCount, firstLoadCount,
+		"first production LoadTable must produce exactly %d unique rows from %d events",
+		uniqueCount, len(identifyEvents))
+
+	// -----------------------------------------------------------------------
+	// Replay: call LoadTable again with the same events — must be idempotent.
+	// Row count must remain unchanged after merge dedup.
+	// -----------------------------------------------------------------------
+	replayFilePath := createPgTestLoadFile(t, identifyEvents)
+	mockDownloader.files[tableName] = []string{replayFilePath}
+
+	replayStats, replayErr := pg.LoadTable(ctx, tableName)
+	require.NoError(t, replayErr, "production LoadTable replay must succeed")
+	require.NotNil(t, replayStats, "replay LoadTable stats must not be nil")
+
+	t.Logf("production_load_table: replay — RowsInserted=%d RowsUpdated=%d",
+		replayStats.RowsInserted, replayStats.RowsUpdated)
+
+	replayCount := getPostgresRowCount(t, ctx, db, ns, tableName)
+	require.Equal(t, uniqueCount, replayCount,
+		"after replay, production LoadTable with merge must maintain %d unique rows", uniqueCount)
+
+	// Verify that the replay reported updates (merge dedup touched existing rows).
+	require.Greater(t, replayStats.RowsUpdated, int64(0),
+		"replay with merge must report RowsUpdated > 0 (dedup deleted+re-inserted existing rows)")
+
+	t.Logf("production_load_table: PASSED — %d unique rows after replay "+
+		"(from %d events with merge dedup via production LoadTable)", replayCount, len(identifyEvents))
 }

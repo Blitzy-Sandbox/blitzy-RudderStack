@@ -31,8 +31,17 @@ import (
 var (
 	_ replay.GatewayClient   = (*mockGatewayClient)(nil)
 	_ replay.ArchiverQuerier = (*replayMockArchiverQuerier)(nil)
+	_ replay.FileDownloader  = (*noopFileDownloader)(nil)
 	_ *replay.Handler        // compile-time reference to replay.Handler HTTP wrapper type
 )
+
+// noopFileDownloader is a no-op FileDownloader for tests where batches have
+// pre-populated Data — the downloader should never be called.
+type noopFileDownloader struct{}
+
+func (n *noopFileDownloader) Download(_ context.Context, location string) ([]byte, error) {
+	panic("noopFileDownloader.Download called unexpectedly for location: " + location)
+}
 
 // replayTestHTTPTimeout is the default per-request timeout for replay integration tests.
 const replayTestHTTPTimeout time.Duration = 15 * time.Second
@@ -147,12 +156,15 @@ func setupReplayTestServer(
 	gatewayMock := &mockGatewayClient{}
 	archiverMock := &replayMockArchiverQuerier{}
 
-	// Create the ArchivedEventRetriever using the mock archiver
+	// Create the ArchivedEventRetriever using the mock archiver.
+	// A noopFileDownloader is used because the mock archiver returns batches with
+	// pre-populated Data fields — no cloud storage download is needed.
 	retriever := replay.NewArchivedEventRetriever(
 		conf,
 		logger.NOP,
 		stats.NOP,
 		archiverMock,
+		&noopFileDownloader{},
 	)
 
 	// Create the ReplayHandler — the core replay orchestrator

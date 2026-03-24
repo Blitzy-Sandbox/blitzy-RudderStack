@@ -71,6 +71,7 @@ func healthSummaryColumns() []string {
 		"workspace_id", "source_name", "dest_name",
 		"total_syncs", "successful_syncs",
 		"avg_duration_ms", "min_duration_ms", "max_duration_ms",
+		"p95_duration_ms",
 		"total_rows_synced", "total_rows_failed",
 		"last_sync",
 		"error_category", "schema_changes_count",
@@ -110,6 +111,7 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 			float64(5000),     // avg_duration_ms
 			float64(1000),     // min_duration_ms
 			float64(10000),    // max_duration_ms
+			float64(9500),     // p95_duration_ms
 			int64(50000),      // total_rows_synced
 			int64(100),        // total_rows_failed
 			fixedNow,          // last_sync
@@ -248,6 +250,7 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 			float64(3000),     // avg_duration_ms
 			float64(500),      // min_duration_ms
 			float64(8000),     // max_duration_ms
+			float64(7500),     // p95_duration_ms
 			int64(30000),      // total_rows_synced
 			int64(200),        // total_rows_failed
 			fixedNow,          // last_sync
@@ -467,6 +470,7 @@ func TestHealthMonitor_Run_PeriodicCollection(t *testing.T) {
 				float64(2000),     // avg_duration_ms
 				float64(1000),     // min_duration_ms
 				float64(3000),     // max_duration_ms
+				float64(2900),     // p95_duration_ms
 				int64(5000),       // total_rows_synced
 				int64(0),          // total_rows_failed
 				fixedNow,          // last_sync

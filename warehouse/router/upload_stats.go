@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/stats"
 	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
 
@@ -197,6 +198,20 @@ func (job *UploadJob) recordSyncHealth(status string, rowsSynced, rowsFailed int
 		}
 	}
 
+	// Serialize schema changes detected during this upload lifecycle (E-033).
+	// Schema changes are tracked by trackSchemaChange() during the export data
+	// phase whenever TableSchemaDiff reports a diff (new tables, added columns,
+	// altered columns). When present, this JSONB blob enables the health monitor's
+	// schema drift alerting pipeline.
+	var schemaChangesJSON []byte
+	if len(job.schemaChangesDetected) > 0 {
+		var err error
+		schemaChangesJSON, err = jsonrs.Marshal(job.schemaChangesDetected)
+		if err != nil {
+			job.logger.Warnn("failed to marshal schema changes for health monitoring", obskit.Error(err))
+		}
+	}
+
 	health := &healthmonitor.SyncHealth{
 		UploadID:      job.upload.ID,
 		SourceID:      job.warehouse.Source.ID,
@@ -211,6 +226,7 @@ func (job *UploadJob) recordSyncHealth(status string, rowsSynced, rowsFailed int
 		RowsSynced:    rowsSynced,
 		RowsFailed:    rowsFailed,
 		ErrorCategory: errorCategory,
+		SchemaChanges: schemaChangesJSON,
 	}
 
 	if err := job.healthMonitor.RecordSyncHealth(job.ctx, health); err != nil {

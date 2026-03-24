@@ -1,7 +1,11 @@
 package warehouse_test
 
 import (
+	"compress/gzip"
+	"context"
+	"encoding/csv"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -10,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rudderlabs/rudder-go-kit/config"
+	"github.com/rudderlabs/rudder-go-kit/filemanager"
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	"github.com/rudderlabs/rudder-go-kit/stats"
@@ -135,6 +140,13 @@ func testIdempotentSnowflake(t *testing.T) {
 	t.Run("idempotent_across_multiple_replays", func(t *testing.T) {
 		testSnowflakeIdempotentMultipleReplays(t, events)
 	})
+
+	// ----------------------------------------------------------------
+	// Test Case 5: production_load_table
+	// ----------------------------------------------------------------
+	t.Run("production_load_table", func(t *testing.T) {
+		testSnowflakeProductionLoadTable(t, events)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -179,8 +191,12 @@ func testSnowflakeMergeWithDedup(t *testing.T, events []IdempotentEvent) {
 		t.Logf("merge_with_dedup: replay %d/%d — verifying merge dedup convergence", replay, replayCount)
 	}
 	finalExpectedRows := len(uniqueIDs)
-	require.Equal(t, finalExpectedRows, len(uniqueIDs),
-		"after %d replays with merge, expected %d unique rows", replayCount, len(uniqueIDs))
+	// Verify merge dedup produces fewer rows than total replayed events
+	require.Less(t, finalExpectedRows, len(events)*replayCount,
+		"merge dedup must produce fewer rows (%d) than total replayed events (%d)", finalExpectedRows, len(events)*replayCount)
+	// Verify merge dedup produces fewer rows than a single batch (fixture contains duplicates)
+	require.Less(t, finalExpectedRows, len(events),
+		"merge dedup must produce fewer rows (%d) than single-batch events (%d)", finalExpectedRows, len(events))
 
 	// Build and verify the MERGE SQL statement structure.
 	tracksSchema := whutils.ModelTableSchema{
@@ -273,8 +289,14 @@ func testSnowflakeMergeDisabledAppends(t *testing.T, events []IdempotentEvent) {
 	require.True(t, strings.Contains(copySQL, "csv"),
 		"append path COPY INTO must specify CSV file format")
 
-	require.Equal(t, expectedRowsAfterReplay, totalEvents*replayCount,
-		"without merge, row count must equal totalEvents*replays")
+	// Verify fixture precondition: events contain duplicates that would be
+	// merged in merge-enabled mode, confirming the append path is meaningful.
+	uniqueIDs := sfExtractUniqueEventIDs(t, events)
+	require.Greater(t, totalEvents, len(uniqueIDs),
+		"test fixture must contain duplicates: total=%d unique=%d", totalEvents, len(uniqueIDs))
+	// Without merge, each replay appends ALL rows — total exceeds unique IDs.
+	require.Greater(t, expectedRowsAfterReplay, len(uniqueIDs),
+		"without merge, row count (%d) must exceed unique IDs (%d)", expectedRowsAfterReplay, len(uniqueIDs))
 
 	// Verify that COPY SQL is deterministic.
 	copySQL2 := sfBuildExpectedCopyStatement(idempotentNamespace, "TRACKS")
@@ -406,9 +428,14 @@ func testSnowflakeIdempotentMultipleReplays(t *testing.T, events []IdempotentEve
 			"replay %d checksum must match replay 1 checksum", i+1)
 	}
 
-	// After N replays with MERGE dedup, the expected row count equals uniqueIDs.
-	require.Equal(t, expectedFinalRows, len(uniqueIDs),
-		"after %d replays, expected %d unique rows", replayCount, expectedFinalRows)
+	// After N replays with MERGE dedup, the expected row count equals uniqueIDs —
+	// verify this is strictly fewer than total replayed events (proving dedup works).
+	totalReplayed := len(events) * replayCount
+	require.Less(t, expectedFinalRows, totalReplayed,
+		"after %d replays, MERGE must produce fewer rows (%d) than total replayed (%d)", replayCount, expectedFinalRows, totalReplayed)
+	// Verify fixture has duplicates — precondition for meaningful dedup validation.
+	require.Less(t, expectedFinalRows, len(events),
+		"unique IDs (%d) must be fewer than total events (%d) — fixture must contain duplicates", expectedFinalRows, len(events))
 
 	// Verify the complete MERGE statement includes all required dedup clauses.
 	tracksSchema := whutils.ModelTableSchema{
@@ -745,3 +772,253 @@ var _ = jsonrs.Marshal
 
 // Compile-time verification that stats.NOP is accessible.
 var _ = stats.NOP
+
+// ---------------------------------------------------------------------------
+// sfTestCredentials holds parsed Snowflake credentials from the
+// SNOWFLAKE_INTEGRATION_TEST_CREDENTIALS environment variable.
+// ---------------------------------------------------------------------------
+
+type sfTestCredentials struct {
+	Account   string `json:"account"`
+	User      string `json:"user"`
+	Role      string `json:"role"`
+	Password  string `json:"password"`
+	Database  string `json:"database"`
+	Warehouse string `json:"warehouse"`
+	BucketName string `json:"bucketName"`
+	AccessKeyID string `json:"accessKeyID"`
+	AccessKey   string `json:"accessKey"`
+}
+
+// sfTestUploader implements whutils.Uploader for Snowflake production LoadTable tests.
+type sfTestUploader struct {
+	whutils.Uploader
+	schema    whutils.ModelTableSchema
+	loadFiles []whutils.LoadFile
+}
+
+func (u *sfTestUploader) GetTableSchemaInUpload(_ string) whutils.ModelTableSchema {
+	return u.schema
+}
+
+func (u *sfTestUploader) GetTableSchemaInWarehouse(_ string) whutils.ModelTableSchema {
+	return u.schema
+}
+
+func (u *sfTestUploader) UseRudderStorage() bool { return false }
+
+func (u *sfTestUploader) CanAppend() bool { return false }
+
+func (u *sfTestUploader) GetLoadFileType() string { return whutils.LoadFileTypeCsv }
+
+func (u *sfTestUploader) ShouldOnDedupUseNewRecord() bool { return false }
+
+func (u *sfTestUploader) IsWarehouseSchemaEmpty() bool { return false }
+
+func (u *sfTestUploader) GetLoadFilesMetadata(_ context.Context, _ whutils.GetLoadFilesOptions) ([]whutils.LoadFile, error) {
+	return u.loadFiles, nil
+}
+
+func (u *sfTestUploader) GetSampleLoadFileLocation(_ context.Context, _ string) (string, error) {
+	if len(u.loadFiles) > 0 {
+		return u.loadFiles[0].Location, nil
+	}
+	return "", nil
+}
+
+func (u *sfTestUploader) GetSingleLoadFile(_ context.Context, _ string) (whutils.LoadFile, error) {
+	if len(u.loadFiles) > 0 {
+		return u.loadFiles[0], nil
+	}
+	return whutils.LoadFile{}, nil
+}
+
+// createSnowflakeLoadFileAndUpload creates a gzipped CSV and uploads to S3.
+func createSnowflakeLoadFileAndUpload(
+	t *testing.T,
+	ctx context.Context,
+	fm filemanager.FileManager,
+	events []IdempotentEvent,
+	prefix string,
+) string {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp("", "sf_load_*.csv.gz")
+	require.NoError(t, err)
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	gzWriter := gzip.NewWriter(tmpFile)
+	csvWriter := csv.NewWriter(gzWriter)
+
+	for _, e := range events {
+		record := []string{e.Event, e.ID, e.ReceivedAt, e.UserID}
+		require.NoError(t, csvWriter.Write(record))
+	}
+
+	csvWriter.Flush()
+	require.NoError(t, csvWriter.Error())
+	require.NoError(t, gzWriter.Close())
+	require.NoError(t, tmpFile.Close())
+
+	uploadFile, err := os.Open(tmpFile.Name())
+	require.NoError(t, err)
+	defer func() { _ = uploadFile.Close() }()
+
+	uploadOutput, err := fm.Upload(ctx, uploadFile, prefix)
+	require.NoError(t, err, "failed to upload load file to S3")
+
+	return uploadOutput.Location
+}
+
+// testSnowflakeProductionLoadTable exercises the production Snowflake
+// connector's LoadTable() method with real Snowflake infrastructure.
+// Requires SNOWFLAKE_INTEGRATION_TEST_CREDENTIALS to be set.
+//
+// When credentials are not available (local development), the test is skipped.
+// In CI where credentials are configured, this exercises the full production
+// code path: S3 stage → COPY INTO → MERGE with ROW_NUMBER dedup.
+func testSnowflakeProductionLoadTable(t *testing.T, events []IdempotentEvent) {
+	t.Helper()
+
+	credEnv := "SNOWFLAKE_INTEGRATION_TEST_CREDENTIALS"
+	credJSON, exists := os.LookupEnv(credEnv)
+	if !exists {
+		t.Skipf("skipping Snowflake production_load_table: %s not set (requires real Snowflake account + S3)", credEnv)
+		return
+	}
+
+	var creds sfTestCredentials
+	require.NoError(t, jsonrs.Unmarshal([]byte(credJSON), &creds),
+		"failed to parse Snowflake test credentials")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	tableName := "identifies"
+	ns := strings.ToUpper(uniqueIdempotentNamespace())
+
+	tableSchema := whutils.ModelTableSchema{
+		"event":       "string",
+		"id":          "string",
+		"received_at": "datetime",
+		"user_id":     "string",
+	}
+
+	var identifiesEvents []IdempotentEvent
+	for _, e := range events {
+		if e.Table == tableName {
+			identifiesEvents = append(identifiesEvents, e)
+		}
+	}
+	require.NotEmpty(t, identifiesEvents)
+
+	uniqueIDs := make(map[string]struct{})
+	for _, e := range identifiesEvents {
+		uniqueIDs[e.ID] = struct{}{}
+	}
+	expectedUniqueRows := len(uniqueIDs)
+	require.Less(t, expectedUniqueRows, len(identifiesEvents),
+		"identifies events must contain duplicates")
+
+	// Set up S3 filemanager
+	fm, err := filemanager.New(&filemanager.Settings{
+		Provider: "S3",
+		Config: map[string]any{
+			"bucketName":  creds.BucketName,
+			"accessKeyID": creds.AccessKeyID,
+			"accessKey":   creds.AccessKey,
+		},
+	})
+	require.NoError(t, err, "failed to create S3 filemanager")
+
+	s3Prefix := fmt.Sprintf("rudder-test/idempotent-sf/%s/%s", ns, tableName)
+	s3Location := createSnowflakeLoadFileAndUpload(t, ctx, fm, identifiesEvents, s3Prefix)
+	require.NotEmpty(t, s3Location)
+
+	warehouse := whutils.ModelWarehouse{
+		Source: backendconfig.SourceT{
+			ID: "test-source-sf-prod",
+			SourceDefinition: backendconfig.SourceDefinitionT{
+				Name: "test-source-def",
+			},
+		},
+		Destination: backendconfig.DestinationT{
+			ID: "test-dest-sf-prod",
+			DestinationDefinition: backendconfig.DestinationDefinitionT{
+				Name: whutils.SNOWFLAKE,
+			},
+			Config: map[string]interface{}{
+				"account":     creds.Account,
+				"user":        creds.User,
+				"role":        creds.Role,
+				"password":    creds.Password,
+				"database":    creds.Database,
+				"warehouse":   creds.Warehouse,
+				"bucketName":  creds.BucketName,
+				"accessKeyID": creds.AccessKeyID,
+				"accessKey":   creds.AccessKey,
+			},
+		},
+		WorkspaceID: "test-workspace",
+		Namespace:   ns,
+		Type:        whutils.SNOWFLAKE,
+	}
+
+	mockUploader := &sfTestUploader{
+		Uploader: whutils.NewNoOpUploader(),
+		schema:   tableSchema,
+		loadFiles: []whutils.LoadFile{
+			{Location: s3Location},
+		},
+	}
+
+	conf := config.New()
+	sf := sfloader.New(conf, logger.NOP, stats.NOP)
+
+	require.NoError(t, sf.Setup(ctx, warehouse, mockUploader),
+		"Snowflake Setup() should succeed with valid credentials")
+	defer sf.Cleanup(ctx)
+
+	// Create schema and target table
+	_, err = sf.DB.ExecContext(ctx, fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %q`, ns))
+	require.NoError(t, err, "failed to create Snowflake schema")
+	defer func() {
+		_, _ = sf.DB.ExecContext(ctx, fmt.Sprintf(`DROP SCHEMA %q CASCADE`, ns))
+	}()
+
+	createTableSQL := fmt.Sprintf(
+		`CREATE TABLE %q.%q ("EVENT" VARCHAR(16777216), "ID" VARCHAR(16777216), "RECEIVED_AT" TIMESTAMP_TZ, "USER_ID" VARCHAR(16777216))`,
+		ns, strings.ToUpper(tableName),
+	)
+	_, err = sf.DB.ExecContext(ctx, createTableSQL)
+	require.NoError(t, err, "failed to create Snowflake target table")
+
+	// First load
+	loadStats, err := sf.LoadTable(ctx, tableName)
+	require.NoError(t, err, "first LoadTable() should succeed")
+	require.NotNil(t, loadStats)
+
+	var rowCount int
+	err = sf.DB.QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT COUNT(*) FROM %q.%q`, ns, strings.ToUpper(tableName)),
+	).Scan(&rowCount)
+	require.NoError(t, err)
+	require.Equal(t, expectedUniqueRows, rowCount,
+		"after first load, row count should equal unique events")
+
+	// Replay
+	loadStats2, err := sf.LoadTable(ctx, tableName)
+	require.NoError(t, err, "replay LoadTable() should succeed")
+	require.NotNil(t, loadStats2)
+
+	var rowCountAfterReplay int
+	err = sf.DB.QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT COUNT(*) FROM %q.%q`, ns, strings.ToUpper(tableName)),
+	).Scan(&rowCountAfterReplay)
+	require.NoError(t, err)
+	require.Equal(t, expectedUniqueRows, rowCountAfterReplay,
+		"after replay, row count must remain %d (idempotent)", expectedUniqueRows)
+
+	t.Logf("production_load_table (Snowflake): first load %d rows, replay preserved %d — idempotent",
+		rowCount, rowCountAfterReplay)
+}

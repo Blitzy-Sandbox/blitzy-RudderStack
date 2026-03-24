@@ -39,6 +39,7 @@ type mockBackfillRepo struct {
 	listBySourceFn        func(ctx context.Context, sourceID string) ([]backfill.BackfillJob, error)
 	getActiveCountFn      func(ctx context.Context) (int64, error)
 	createIfUnderLimitFn  func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error)
+	listActiveJobsFn      func(ctx context.Context) ([]backfill.BackfillJob, error)
 }
 
 func (m *mockBackfillRepo) Create(ctx context.Context, job backfill.BackfillJob) (int64, error) {
@@ -81,6 +82,14 @@ func (m *mockBackfillRepo) CreateIfUnderLimit(ctx context.Context, job backfill.
 		return m.createIfUnderLimitFn(ctx, job, maxConcurrent)
 	}
 	return 0, errors.New("mockBackfillRepo.CreateIfUnderLimit not configured")
+}
+
+func (m *mockBackfillRepo) ListActiveJobs(ctx context.Context) ([]backfill.BackfillJob, error) {
+	if m.listActiveJobsFn != nil {
+		return m.listActiveJobsFn(ctx)
+	}
+	// Default: return empty list (no active jobs to recover on startup)
+	return nil, nil
 }
 
 // mockArchiverQuerier is a configurable test double for the

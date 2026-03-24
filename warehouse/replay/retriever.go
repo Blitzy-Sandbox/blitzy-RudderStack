@@ -44,6 +44,21 @@ type ArchiverQuerier interface {
 	) ([]ArchivedEventBatch, error)
 }
 
+// FileDownloader provides the ability to download archived event data from a
+// cloud storage location. The archiver's QueryArchivedEvents returns batches
+// with an empty Data field and a Location field containing the cloud storage
+// path to the archived gzip JSONL file. The retriever uses this interface to
+// download the actual content before deserialization.
+//
+// Implementations must handle the storage provider (S3, GCS, Azure Blob, etc.)
+// and authentication transparently.
+type FileDownloader interface {
+	// Download retrieves the file content from the specified cloud storage location
+	// and returns the raw bytes. The location is the full cloud storage path as
+	// stored in the wh_staging_files table's location column.
+	Download(ctx context.Context, location string) ([]byte, error)
+}
+
 // maxTokenSize is the maximum size of a single JSONL line in bytes (10 MB).
 // This accommodates very large gateway event payloads while preventing
 // unbounded memory allocation from malformed data.
@@ -58,9 +73,10 @@ const initialBufSize = 64 * 1024
 //
 // It operates in the following stages:
 //  1. Query ArchiverQuerier for archived event batches matching the source and date range
-//  2. For each batch, decompress gzip-compressed JSONL data
-//  3. Parse each JSONL line into an ArchivedEvent
-//  4. Return all events as a flat slice for downstream batching by the ReplayHandler
+//  2. For each batch, download content from cloud storage via Location if Data is empty
+//  3. Decompress gzip-compressed JSONL data
+//  4. Parse each JSONL line into an ArchivedEvent
+//  5. Return all events as a flat slice for downstream batching by the ReplayHandler
 //
 // The retriever emits Prometheus counters for events retrieved and retrieval errors,
 // following the stats pattern established in warehouse/router/upload_stats.go.
@@ -69,6 +85,7 @@ type ArchivedEventRetriever struct {
 	log          logger.Logger
 	statsFactory stats.Stats
 	archiver     ArchiverQuerier
+	downloader   FileDownloader
 
 	config struct {
 		batchSize config.ValueLoader[int]
@@ -83,6 +100,11 @@ type ArchivedEventRetriever struct {
 // dependencies. The archiver parameter provides access to archived events via the
 // ArchiverQuerier interface (defined in handler.go).
 //
+// The downloader parameter provides cloud storage download capability. The archiver's
+// QueryArchivedEvents returns batches with a Location field (cloud storage path) and
+// an empty Data field. The downloader is used to fetch the actual archived content
+// before deserialization.
+//
 // Configuration is loaded using the reloadable config pattern from
 // warehouse/archive/archiver.go (lines 92-98), enabling runtime reconfiguration
 // without process restart.
@@ -92,17 +114,20 @@ type ArchivedEventRetriever struct {
 //   - log: Structured logger for diagnostic output
 //   - statsFactory: Prometheus-compatible stats factory for metric emission
 //   - archiver: Interface for querying archived gateway events
+//   - downloader: Interface for downloading archived event data from cloud storage
 func NewArchivedEventRetriever(
 	conf *config.Config,
 	log logger.Logger,
 	statsFactory stats.Stats,
 	archiver ArchiverQuerier,
+	downloader FileDownloader,
 ) *ArchivedEventRetriever {
 	r := &ArchivedEventRetriever{
 		conf:         conf,
 		log:          log.Child("replay.retriever"),
 		statsFactory: statsFactory,
 		archiver:     archiver,
+		downloader:   downloader,
 	}
 
 	// Load reloadable configuration — follows warehouse/archive/archiver.go pattern (lines 92-98).
@@ -192,7 +217,7 @@ func (r *ArchivedEventRetriever) Retrieve(
 		default:
 		}
 
-		events, err := r.deserializeBatch(batch)
+		events, err := r.deserializeBatch(ctx, batch)
 		if err != nil {
 			r.retrievalErrors.Increment()
 			return nil, fmt.Errorf("deserializing batch %d/%d: %w", i+1, len(batches), err)
@@ -210,14 +235,43 @@ func (r *ArchivedEventRetriever) Retrieve(
 	return allEvents, nil
 }
 
-// deserializeBatch decompresses a gzipped JSONL batch and parses each line into
-// an ArchivedEvent. This delegates to the exported DeserializeGzipJSONL utility
-// function which implements the full decompression and parsing pipeline.
+// deserializeBatch resolves the archived event data for a batch and then
+// decompresses and parses the gzipped JSONL content into ArchivedEvent slices.
 //
-// Empty lines are silently skipped. If any line fails to deserialize, the function
-// returns an error for debugging.
-func (r *ArchivedEventRetriever) deserializeBatch(batch ArchivedEventBatch) ([]ArchivedEvent, error) {
-	return DeserializeGzipJSONL(batch.Data)
+// The archiver's QueryArchivedEvents returns batches where:
+//   - Location contains the cloud storage path to the archived gzip JSONL file
+//   - Data is intentionally left empty (the caller must download from Location)
+//
+// This method first checks if batch.Data is already populated (e.g., in tests).
+// If Data is empty and Location is non-empty, it downloads the content from
+// cloud storage via the FileDownloader interface. If both are empty, it returns
+// nil (no events).
+//
+// After resolving the data, it delegates to DeserializeGzipJSONL for gzip
+// decompression and JSONL parsing.
+func (r *ArchivedEventRetriever) deserializeBatch(ctx context.Context, batch ArchivedEventBatch) ([]ArchivedEvent, error) {
+	data := batch.Data
+
+	// Download from cloud storage if Data is empty but Location is available.
+	// This is the normal production path — QueryArchivedEvents always leaves
+	// Data empty and populates Location from the wh_staging_files.location column.
+	if len(data) == 0 && batch.Location != "" {
+		r.log.Debugn("downloading archived batch from cloud storage",
+			logger.NewStringField("location", batch.Location),
+			logger.NewStringField("sourceID", batch.SourceID),
+		)
+		downloaded, err := r.downloader.Download(ctx, batch.Location)
+		if err != nil {
+			return nil, fmt.Errorf("downloading archived batch from %q: %w", batch.Location, err)
+		}
+		data = downloaded
+	}
+
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	return DeserializeGzipJSONL(data)
 }
 
 // DeserializeGzipJSONL decompresses gzipped JSONL data and returns individual event

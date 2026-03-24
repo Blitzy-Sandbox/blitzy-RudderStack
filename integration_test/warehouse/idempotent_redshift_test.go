@@ -1,9 +1,12 @@
 package warehouse_test
 
 import (
+	"compress/gzip"
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -14,11 +17,14 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/rudderlabs/rudder-go-kit/config"
+	"github.com/rudderlabs/rudder-go-kit/filemanager"
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	"github.com/rudderlabs/rudder-go-kit/stats"
 	"github.com/rudderlabs/rudder-go-kit/testhelper/docker/resource/postgres"
 
+	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
+	rsconnector "github.com/rudderlabs/rudder-server/warehouse/integrations/redshift"
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
 
@@ -366,6 +372,13 @@ func testIdempotentRedshift(t *testing.T) {
 
 	t.Run("concurrent_replays_transactional_safety", func(t *testing.T) {
 		testRedshiftConcurrentReplaysTransactionalSafety(t, ctx, db, ns, cfg)
+	})
+
+	// ----------------------------------------------------------------
+	// Test Case 6: production_load_table
+	// ----------------------------------------------------------------
+	t.Run("production_load_table", func(t *testing.T) {
+		testRedshiftProductionLoadTable(t, events)
 	})
 }
 
@@ -1260,4 +1273,270 @@ func countRedshiftStagingTables(
 	require.NoError(t, err, "failed to count staging tables with prefix %s in schema %s", prefix, ns)
 
 	return count
+}
+
+// ---------------------------------------------------------------------------
+// rsTestCredentials holds parsed Redshift test credentials from the
+// REDSHIFT_INTEGRATION_TEST_CREDENTIALS environment variable.
+// ---------------------------------------------------------------------------
+
+type rsTestCredentials struct {
+	Host          string `json:"host"`
+	Port          string `json:"port"`
+	UserName      string `json:"userName"`
+	Password      string `json:"password"`
+	Database      string `json:"dbName"`
+	BucketName    string `json:"bucketName"`
+	AccessKeyID   string `json:"accessKeyID"`
+	AccessKey     string `json:"accessKey"`
+	IAMRoleARN    string `json:"iamRoleARN"`
+	ClusterID     string `json:"clusterID"`
+	ClusterRegion string `json:"clusterRegion"`
+}
+
+// rsTestUploader implements whutils.Uploader for Redshift production LoadTable tests.
+type rsTestUploader struct {
+	whutils.Uploader // embed NoOp for unneeded methods
+	schema           whutils.ModelTableSchema
+	loadFiles        []whutils.LoadFile
+}
+
+func (u *rsTestUploader) GetTableSchemaInUpload(_ string) whutils.ModelTableSchema {
+	return u.schema
+}
+
+func (u *rsTestUploader) GetTableSchemaInWarehouse(_ string) whutils.ModelTableSchema {
+	return u.schema
+}
+
+func (u *rsTestUploader) UseRudderStorage() bool { return false }
+
+func (u *rsTestUploader) CanAppend() bool { return false }
+
+func (u *rsTestUploader) GetLoadFileType() string { return whutils.LoadFileTypeCsv }
+
+func (u *rsTestUploader) ShouldOnDedupUseNewRecord() bool { return false }
+
+func (u *rsTestUploader) IsWarehouseSchemaEmpty() bool { return false }
+
+func (u *rsTestUploader) GetLoadFilesMetadata(_ context.Context, _ whutils.GetLoadFilesOptions) ([]whutils.LoadFile, error) {
+	return u.loadFiles, nil
+}
+
+func (u *rsTestUploader) GetSampleLoadFileLocation(_ context.Context, _ string) (string, error) {
+	if len(u.loadFiles) > 0 {
+		return u.loadFiles[0].Location, nil
+	}
+	return "", nil
+}
+
+func (u *rsTestUploader) GetSingleLoadFile(_ context.Context, _ string) (whutils.LoadFile, error) {
+	if len(u.loadFiles) > 0 {
+		return u.loadFiles[0], nil
+	}
+	return whutils.LoadFile{}, nil
+}
+
+// createRedshiftLoadFileAndUpload creates a gzipped CSV load file and uploads
+// it to S3 using the provided filemanager. Returns the S3 location URL.
+func createRedshiftLoadFileAndUpload(
+	t *testing.T,
+	ctx context.Context,
+	fm filemanager.FileManager,
+	events []IdempotentEvent,
+	prefix string,
+) string {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp("", "rs_load_*.csv.gz")
+	require.NoError(t, err)
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	gzWriter := gzip.NewWriter(tmpFile)
+	csvWriter := csv.NewWriter(gzWriter)
+
+	for _, e := range events {
+		// Alphabetical order: event, id, received_at, user_id
+		record := []string{e.Event, e.ID, e.ReceivedAt, e.UserID}
+		require.NoError(t, csvWriter.Write(record))
+	}
+
+	csvWriter.Flush()
+	require.NoError(t, csvWriter.Error())
+	require.NoError(t, gzWriter.Close())
+	require.NoError(t, tmpFile.Close())
+
+	// Reopen for upload
+	uploadFile, err := os.Open(tmpFile.Name())
+	require.NoError(t, err)
+	defer func() { _ = uploadFile.Close() }()
+
+	uploadOutput, err := fm.Upload(ctx, uploadFile, prefix)
+	require.NoError(t, err, "failed to upload load file to S3")
+
+	return uploadOutput.Location
+}
+
+// testRedshiftProductionLoadTable exercises the production Redshift connector's
+// LoadTable() method with real AWS Redshift infrastructure. This test requires
+// REDSHIFT_INTEGRATION_TEST_CREDENTIALS to be set with valid JSON credentials.
+//
+// When credentials are not available (local development), the test is skipped.
+// In CI where credentials are available, this exercises the full production code
+// path: S3 COPY → staging table → DELETE+INSERT dedup → verify idempotency.
+func testRedshiftProductionLoadTable(t *testing.T, events []IdempotentEvent) {
+	t.Helper()
+
+	credEnv := "REDSHIFT_INTEGRATION_TEST_CREDENTIALS"
+	credJSON, exists := os.LookupEnv(credEnv)
+	if !exists {
+		t.Skipf("skipping Redshift production_load_table: %s not set (requires real Redshift cluster + S3)", credEnv)
+		return
+	}
+
+	var creds rsTestCredentials
+	require.NoError(t, jsonrs.Unmarshal([]byte(credJSON), &creds),
+		"failed to parse Redshift test credentials")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	tableName := "identifies"
+	ns := uniqueIdempotentNamespace()
+
+	// Schema for identifies events: alphabetical column order
+	tableSchema := whutils.ModelTableSchema{
+		"event":       "string",
+		"id":          "string",
+		"received_at": "datetime",
+		"user_id":     "string",
+	}
+
+	// Filter identifies events
+	var identifiesEvents []IdempotentEvent
+	for _, e := range events {
+		if e.Table == tableName {
+			identifiesEvents = append(identifiesEvents, e)
+		}
+	}
+	require.NotEmpty(t, identifiesEvents)
+
+	uniqueIDs := make(map[string]struct{})
+	for _, e := range identifiesEvents {
+		uniqueIDs[e.ID] = struct{}{}
+	}
+	expectedUniqueRows := len(uniqueIDs)
+	require.Less(t, expectedUniqueRows, len(identifiesEvents),
+		"identifies events must contain duplicates")
+
+	// Set up S3 filemanager for uploading test load files
+	fm, err := filemanager.New(&filemanager.Settings{
+		Provider: "S3",
+		Config: map[string]any{
+			"bucketName":  creds.BucketName,
+			"accessKeyID": creds.AccessKeyID,
+			"accessKey":   creds.AccessKey,
+			"region":      creds.ClusterRegion,
+		},
+	})
+	require.NoError(t, err, "failed to create S3 filemanager")
+
+	// Upload load file to S3
+	s3Prefix := fmt.Sprintf("rudder-test/idempotent/%s/%s", ns, tableName)
+	s3Location := createRedshiftLoadFileAndUpload(t, ctx, fm, identifiesEvents, s3Prefix)
+	require.NotEmpty(t, s3Location)
+
+	// Build warehouse config
+	warehouse := whutils.ModelWarehouse{
+		Source: backendconfig.SourceT{
+			ID: "test-source-rs-prod",
+			SourceDefinition: backendconfig.SourceDefinitionT{
+				Name: "test-source-def",
+			},
+		},
+		Destination: backendconfig.DestinationT{
+			ID: "test-dest-rs-prod",
+			DestinationDefinition: backendconfig.DestinationDefinitionT{
+				Name: whutils.RS,
+			},
+			Config: map[string]interface{}{
+				"host":          creds.Host,
+				"port":          creds.Port,
+				"database":      creds.Database,
+				"user":          creds.UserName,
+				"password":      creds.Password,
+				"bucketName":    creds.BucketName,
+				"accessKeyID":   creds.AccessKeyID,
+				"accessKey":     creds.AccessKey,
+				"iamRoleARN":    creds.IAMRoleARN,
+				"clusterID":     creds.ClusterID,
+				"clusterRegion": creds.ClusterRegion,
+			},
+		},
+		WorkspaceID: "test-workspace",
+		Namespace:   ns,
+		Type:        whutils.RS,
+	}
+
+	mockUploader := &rsTestUploader{
+		Uploader: whutils.NewNoOpUploader(),
+		schema:   tableSchema,
+		loadFiles: []whutils.LoadFile{
+			{Location: s3Location},
+		},
+	}
+
+	// Create the production Redshift connector
+	conf := config.New()
+	rs := rsconnector.New(conf, logger.NOP, stats.NOP)
+
+	// Call Setup to connect and initialize
+	require.NoError(t, rs.Setup(ctx, warehouse, mockUploader),
+		"Redshift Setup() should succeed with valid credentials")
+	defer rs.Cleanup(ctx)
+
+	// Create schema and target table
+	_, err = rs.DB.ExecContext(ctx, fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %q`, ns))
+	require.NoError(t, err, "failed to create Redshift schema")
+	defer func() {
+		_, _ = rs.DB.ExecContext(ctx, fmt.Sprintf(`DROP SCHEMA %q CASCADE`, ns))
+	}()
+
+	createTableSQL := fmt.Sprintf(
+		`CREATE TABLE %q.%q ("event" VARCHAR(512), "id" VARCHAR(512), "received_at" TIMESTAMPTZ, "user_id" VARCHAR(512))`,
+		ns, tableName,
+	)
+	_, err = rs.DB.ExecContext(ctx, createTableSQL)
+	require.NoError(t, err, "failed to create target table on Redshift")
+
+	// First load: call production LoadTable()
+	loadStats, err := rs.LoadTable(ctx, tableName)
+	require.NoError(t, err, "first LoadTable() should succeed")
+	require.NotNil(t, loadStats)
+
+	// Verify row count
+	var rowCount int
+	err = rs.DB.QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT COUNT(*) FROM %q.%q`, ns, tableName),
+	).Scan(&rowCount)
+	require.NoError(t, err)
+	require.Equal(t, expectedUniqueRows, rowCount,
+		"after first load, row count should equal unique events")
+
+	// Replay: call LoadTable() again with same data
+	loadStats2, err := rs.LoadTable(ctx, tableName)
+	require.NoError(t, err, "replay LoadTable() should succeed")
+	require.NotNil(t, loadStats2)
+
+	// Verify idempotency
+	var rowCountAfterReplay int
+	err = rs.DB.QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT COUNT(*) FROM %q.%q`, ns, tableName),
+	).Scan(&rowCountAfterReplay)
+	require.NoError(t, err)
+	require.Equal(t, expectedUniqueRows, rowCountAfterReplay,
+		"after replay, row count must remain %d (idempotent)", expectedUniqueRows)
+
+	t.Logf("production_load_table (Redshift): first load %d rows, replay preserved %d — idempotent",
+		rowCount, rowCountAfterReplay)
 }

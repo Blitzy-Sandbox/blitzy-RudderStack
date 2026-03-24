@@ -312,6 +312,9 @@ func (job *UploadJob) updateSchema(tName string) error {
 		return fmt.Errorf("table schema diff: %w", err)
 	}
 	if tableSchemaDiff.Exists {
+		// Track schema change for health monitoring (E-033).
+		job.trackSchemaChange(tName, tableSchemaDiff)
+
 		err = job.UpdateTableSchema(tName, tableSchemaDiff)
 		if err != nil {
 			return err
@@ -323,6 +326,21 @@ func (job *UploadJob) updateSchema(tName string) error {
 		}
 	}
 	return nil
+}
+
+// trackSchemaChange records a schema diff for the given table into the job's
+// schemaChangesDetected slice. This data is serialized to JSON and persisted in
+// wh_sync_health.schema_changes when recordSyncHealth is called at the end of
+// the upload lifecycle, enabling the health monitoring alerting pipeline to detect
+// schema drift (E-033).
+func (job *UploadJob) trackSchemaChange(tName string, diff whutils.TableSchemaDiff) {
+	entry := schemaChangeEntry{
+		Table:          tName,
+		TableCreated:   diff.TableToBeCreated,
+		ColumnsAdded:   len(diff.ColumnMap),
+		ColumnsAltered: len(diff.AlteredColumnMap),
+	}
+	job.schemaChangesDetected = append(job.schemaChangesDetected, entry)
 }
 
 func (job *UploadJob) UpdateTableSchema(tName string, tableSchemaDiff whutils.TableSchemaDiff) (err error) {
@@ -547,6 +565,9 @@ func (job *UploadJob) loadIdentityTables(populateHistoricIdentities bool) (loadE
 			return nil, fmt.Errorf("table schema diff: %w", err)
 		}
 		if tableSchemaDiff.Exists {
+			// Track schema change for health monitoring (E-033).
+			job.trackSchemaChange(tableName, tableSchemaDiff)
+
 			err := job.UpdateTableSchema(tableName, tableSchemaDiff)
 			if err != nil {
 				status := model.TableUploadUpdatingSchemaFailed

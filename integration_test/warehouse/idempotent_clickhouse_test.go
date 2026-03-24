@@ -1,9 +1,11 @@
 package warehouse_test
 
 import (
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -15,6 +17,12 @@ import (
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	"github.com/rudderlabs/rudder-go-kit/stats"
+
+	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
+	"github.com/rudderlabs/rudder-server/utils/misc"
+	chconnector "github.com/rudderlabs/rudder-server/warehouse/integrations/clickhouse"
+	sqlmw "github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
+	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
 
 // clickhouseTestEvent represents a canonical test event for ClickHouse idempotent sync
@@ -323,6 +331,10 @@ func testIdempotentClickHouse(t *testing.T) {
 	// This test confirms the behavioral difference between staging (MergeTree)
 	// and final (ReplacingMergeTree) table engines.
 	// ──────────────────────────────────────────────────────────────────────────
+	t.Run("production_load_table", func(t *testing.T) {
+		testClickHouseProductionLoadTable(t, ctx, db, namespace)
+	})
+
 	t.Run("staging_table_non_dedup", func(t *testing.T) {
 		tableName := "rudder_staging_tracks_test"
 
@@ -482,4 +494,228 @@ func createClickHouseTestSchema(t *testing.T, db *sql.DB, namespace string) {
 		ORDER BY (id)
 	`, namespace))
 	require.NoError(t, err, "failed to create staging table with MergeTree")
+}
+
+// ---------------------------------------------------------------------------
+// Production LoadTable Sub-test — ClickHouse
+// ---------------------------------------------------------------------------
+
+// chTestDownloader implements the Downloader interface for ClickHouse production
+// LoadTable tests, returning pre-created CSV file paths.
+//
+//nolint:unused // used by testClickHouseProductionLoadTable
+type chTestDownloader struct {
+	files map[string][]string
+}
+
+//nolint:unused // implements Downloader
+func (d *chTestDownloader) Download(_ context.Context, tableName string) ([]string, error) {
+	return d.files[tableName], nil
+}
+
+// chTestUploader implements whutils.Uploader for ClickHouse production LoadTable tests.
+//
+//nolint:unused // used by testClickHouseProductionLoadTable
+type chTestUploader struct {
+	whutils.Uploader
+	schemaInUpload    map[string]whutils.ModelTableSchema
+	schemaInWarehouse map[string]whutils.ModelTableSchema
+}
+
+//nolint:unused
+func (u *chTestUploader) GetTableSchemaInUpload(tableName string) whutils.ModelTableSchema {
+	return u.schemaInUpload[tableName]
+}
+
+//nolint:unused
+func (u *chTestUploader) GetTableSchemaInWarehouse(tableName string) whutils.ModelTableSchema {
+	return u.schemaInWarehouse[tableName]
+}
+
+//nolint:unused
+func (u *chTestUploader) UseRudderStorage() bool { return false }
+
+//nolint:unused
+func (u *chTestUploader) CanAppend() bool { return false }
+
+//nolint:unused
+func (u *chTestUploader) GetLoadFileType() string { return whutils.LoadFileTypeCsv }
+
+//nolint:unused
+func (u *chTestUploader) ShouldOnDedupUseNewRecord() bool { return false }
+
+//nolint:unused
+func (u *chTestUploader) IsWarehouseSchemaEmpty() bool { return false }
+
+//nolint:unused
+func (u *chTestUploader) GetLoadFilesMetadata(_ context.Context, _ whutils.GetLoadFilesOptions) ([]whutils.LoadFile, error) {
+	return nil, nil
+}
+
+//nolint:unused
+func (u *chTestUploader) GetSampleLoadFileLocation(_ context.Context, _ string) (string, error) {
+	return "", nil
+}
+
+//nolint:unused
+func (u *chTestUploader) GetSingleLoadFile(_ context.Context, _ string) (whutils.LoadFile, error) {
+	return whutils.LoadFile{}, nil
+}
+
+// createChTestLoadFile creates a gzipped CSV file from clickhouseTestEvent entries.
+// Column order is alphabetical (event, id, received_at, user_id) to match the
+// warehouseutils.SortColumnKeysFromColumnMap ordering.
+//
+//nolint:unused // used by testClickHouseProductionLoadTable
+func createChTestLoadFile(t *testing.T, events []clickhouseTestEvent) string {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp("", "ch_load_*.csv.gz")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Remove(tmpFile.Name()) })
+
+	gw := gzip.NewWriter(tmpFile)
+	for _, evt := range events {
+		// Column order: event, id, received_at, user_id (alphabetical)
+		// ClickHouse typecastDataFromType expects time.RFC3339 format for datetime columns.
+		line := fmt.Sprintf("%s,%s,%s,%s\n",
+			evt.Event, evt.ID, evt.ReceivedAt.Format(time.RFC3339), evt.UserID)
+		_, writeErr := gw.Write([]byte(line))
+		require.NoError(t, writeErr)
+	}
+	require.NoError(t, gw.Close())
+	require.NoError(t, tmpFile.Close())
+	return tmpFile.Name()
+}
+
+// testClickHouseProductionLoadTable validates the production ClickHouse connector's
+// LoadTable() method by exercising the REAL code path in
+// warehouse/integrations/clickhouse/clickhouse.go — CSV download, transaction,
+// INSERT with type casting — rather than test-local DDL helpers.
+//
+//nolint:unused // called from testIdempotentClickHouse via t.Run
+func testClickHouseProductionLoadTable(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	namespace string,
+) {
+	t.Helper()
+
+	// Initialize misc package to ensure pkgLogger is non-nil — production
+	// loadTable defers misc.RemoveFilePaths which needs the logger.
+	misc.Init()
+
+	tableName := "tracks_prod_load"
+
+	// Create a ReplacingMergeTree table for the production LoadTable test.
+	_, err := db.ExecContext(ctx, fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s.%s (
+			id String,
+			user_id String,
+			event String,
+			received_at DateTime
+		) ENGINE = ReplacingMergeTree()
+		ORDER BY (received_at, id)
+		PARTITION BY toDate(received_at)
+	`, namespace, tableName))
+	require.NoError(t, err, "failed to create production load table")
+
+	// Define test events — include duplicates for dedup validation.
+	events := []clickhouseTestEvent{
+		{ID: "prod-001", UserID: "user-1", Event: "page_view", ReceivedAt: time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)},
+		{ID: "prod-002", UserID: "user-2", Event: "button_click", ReceivedAt: time.Date(2024, 1, 15, 11, 0, 0, 0, time.UTC)},
+		{ID: "prod-003", UserID: "user-1", Event: "form_submit", ReceivedAt: time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC)},
+		{ID: "prod-001", UserID: "user-1", Event: "page_view", ReceivedAt: time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)}, // duplicate of prod-001
+	}
+	uniqueCount := 3
+
+	// Build the table schema matching the ClickHouse column types.
+	tracksSchema := whutils.ModelTableSchema{
+		"id":          "string",
+		"user_id":     "string",
+		"event":       "string",
+		"received_at": "datetime",
+	}
+
+	mockUploader := &chTestUploader{
+		Uploader: whutils.NewNoOpUploader(),
+		schemaInUpload: map[string]whutils.ModelTableSchema{
+			tableName: tracksSchema,
+		},
+		schemaInWarehouse: map[string]whutils.ModelTableSchema{
+			tableName: tracksSchema,
+		},
+	}
+
+	loadFilePath := createChTestLoadFile(t, events)
+	mockDownloader := &chTestDownloader{
+		files: map[string][]string{
+			tableName: {loadFilePath},
+		},
+	}
+
+	// Create the production ClickHouse connector.
+	testConf := config.New()
+	ch := chconnector.New(testConf, logger.NOP, stats.NOP)
+
+	// Inject test dependencies.
+	ch.DB = sqlmw.New(db)
+	ch.Namespace = namespace
+	ch.Uploader = mockUploader
+	ch.LoadFileDownloader = mockDownloader
+	ch.Warehouse = whutils.ModelWarehouse{
+		WorkspaceID: "test_workspace_ch",
+		Source: backendconfig.SourceT{
+			ID:               "source_ch_prod_test",
+			SourceDefinition: backendconfig.SourceDefinitionT{Name: "test_source"},
+		},
+		Destination: backendconfig.DestinationT{
+			ID:                    "dest_ch_prod_test",
+			Config:                map[string]interface{}{},
+			DestinationDefinition: backendconfig.DestinationDefinitionT{Name: "CLICKHOUSE"},
+		},
+		Namespace: namespace,
+		Type:      whutils.CLICKHOUSE,
+	}
+
+	// First load: production LoadTable inserts events via transaction + INSERT.
+	loadStats, loadErr := ch.LoadTable(ctx, tableName)
+	require.NoError(t, loadErr, "production LoadTable must succeed for first load")
+	require.NotNil(t, loadStats, "LoadTable stats must not be nil")
+
+	t.Logf("ch production_load_table: first load — RowsInserted=%d", loadStats.RowsInserted)
+
+	// Force merge to collapse duplicates (ReplacingMergeTree dedup is lazy).
+	_, err = db.ExecContext(ctx, fmt.Sprintf("OPTIMIZE TABLE %s.%s FINAL", namespace, tableName))
+	require.NoError(t, err, "failed to optimize table after first load")
+
+	var firstLoadCount int
+	err = db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s.%s", namespace, tableName)).Scan(&firstLoadCount)
+	require.NoError(t, err)
+	require.Equal(t, uniqueCount, firstLoadCount,
+		"after first load + OPTIMIZE, ReplacingMergeTree must produce %d unique rows from %d events",
+		uniqueCount, len(events))
+
+	// Replay: production LoadTable again with the same events.
+	replayPath := createChTestLoadFile(t, events)
+	mockDownloader.files[tableName] = []string{replayPath}
+
+	replayStats, replayErr := ch.LoadTable(ctx, tableName)
+	require.NoError(t, replayErr, "production LoadTable replay must succeed")
+	require.NotNil(t, replayStats)
+
+	t.Logf("ch production_load_table: replay — RowsInserted=%d", replayStats.RowsInserted)
+
+	// Force merge again after replay.
+	_, err = db.ExecContext(ctx, fmt.Sprintf("OPTIMIZE TABLE %s.%s FINAL", namespace, tableName))
+	require.NoError(t, err, "failed to optimize table after replay")
+
+	var replayRowCount int
+	err = db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s.%s", namespace, tableName)).Scan(&replayRowCount)
+	require.NoError(t, err)
+	require.Equal(t, uniqueCount, replayRowCount,
+		"after replay + OPTIMIZE, ReplacingMergeTree must maintain %d unique rows", uniqueCount)
+
+	t.Logf("ch production_load_table: PASSED — %d rows after replay (idempotent via ReplacingMergeTree)", replayRowCount)
 }

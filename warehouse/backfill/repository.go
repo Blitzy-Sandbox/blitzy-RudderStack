@@ -242,6 +242,48 @@ func (r *Repository) ListBySource(ctx context.Context, sourceID string) ([]Backf
 	return jobs, nil
 }
 
+// ListActiveJobs returns all backfill jobs in non-terminal states (StatusPending
+// or StatusInProgress). This is called by the backfill service on startup to
+// recover tracked jobs that were in-flight when the process last stopped (E-032
+// Issue 6 fix). Without recovery, pending/in-progress jobs would be permanently
+// abandoned after a restart since the in-memory trackedJobs map is lost.
+func (r *Repository) ListActiveJobs(ctx context.Context) ([]BackfillJob, error) {
+	defer r.timerStat("list_active_jobs", nil)()
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+backfillJobColumns+`
+		FROM `+backfillJobsTableName+`
+		WHERE status IN ($1, $2)
+		ORDER BY created_at ASC`,
+		StatusPending, StatusInProgress,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing active backfill jobs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	jobs := make([]BackfillJob, 0)
+	for rows.Next() {
+		var job BackfillJob
+		var metadata sql.NullString
+		if err := rows.Scan(
+			&job.ID, &job.SourceID, &job.DestinationID, &job.WorkspaceID,
+			&job.StartDate, &job.EndDate, &job.Status, &metadata,
+			&job.CreatedAt, &job.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scanning active backfill job row: %w", err)
+		}
+		if metadata.Valid {
+			job.Metadata = []byte(metadata.String)
+		}
+		jobs = append(jobs, job)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating active backfill job rows: %w", err)
+	}
+	return jobs, nil
+}
+
 // GetActiveCount returns the number of backfill jobs that are currently in an
 // active state (StatusPending or StatusInProgress). This is used by the backfill
 // service to enforce concurrency limits on concurrent backfill operations.

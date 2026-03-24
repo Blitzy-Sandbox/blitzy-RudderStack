@@ -1,8 +1,11 @@
 package warehouse_test
 
 import (
+	"compress/gzip"
 	"context"
+	"encoding/csv"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +19,9 @@ import (
 	"github.com/rudderlabs/rudder-go-kit/stats"
 
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
+	"github.com/rudderlabs/rudder-server/utils/misc"
+	azuresynapse "github.com/rudderlabs/rudder-server/warehouse/integrations/azure-synapse"
+	sqlmw "github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
 
@@ -920,6 +926,13 @@ func testIdempotentSynapse(t *testing.T) {
 			len(extraCols), len(pageRows))
 	})
 
+	// ----------------------------------------------------------------
+	// Test Case 6: production_load_table
+	// ----------------------------------------------------------------
+	t.Run("production_load_table", func(t *testing.T) {
+		testSynapseProductionLoadTable(t, events)
+	})
+
 	// Generate staging payload for overall validation
 	payload := generateIdempotentStagingPayload(t, events)
 	require.NotEmpty(t, payload, "staging payload must not be empty")
@@ -929,7 +942,247 @@ func testIdempotentSynapse(t *testing.T) {
 	require.NoError(t, err, "warehouse config must serialize via jsonrs")
 	require.NotEmpty(t, warehouseJSON, "serialized warehouse must not be empty")
 
-	t.Logf("testIdempotentSynapse: all 5 test cases completed for connector=%s, "+
+	t.Logf("testIdempotentSynapse: all 6 test cases completed for connector=%s, "+
 		"merge_strategy=BULK_COPYIN, events=%d, warehouse=%s",
 		whutils.AzureSynapse, len(events), warehouse.Type)
+}
+
+// ---------------------------------------------------------------------------
+// synapseTestDownloader implements the Downloader interface for the Azure
+// Synapse production LoadTable test. It maps table names to pre-created
+// gzipped CSV load file paths.
+// ---------------------------------------------------------------------------
+
+type synapseTestDownloader struct {
+	files map[string]string
+}
+
+func (d *synapseTestDownloader) Download(_ context.Context, tableName string) ([]string, error) {
+	return []string{d.files[tableName]}, nil
+}
+
+// ---------------------------------------------------------------------------
+// synapseTestUploader implements whutils.Uploader for the Azure Synapse
+// production LoadTable test. It provides schema metadata needed by the
+// connector's loadTable method.
+// ---------------------------------------------------------------------------
+
+type synapseTestUploader struct {
+	whutils.Uploader // embed NoOp for unneeded methods
+	schema           whutils.ModelTableSchema
+}
+
+func (u *synapseTestUploader) GetTableSchemaInUpload(_ string) whutils.ModelTableSchema {
+	return u.schema
+}
+
+func (u *synapseTestUploader) GetTableSchemaInWarehouse(_ string) whutils.ModelTableSchema {
+	return u.schema
+}
+
+func (u *synapseTestUploader) UseRudderStorage() bool { return false }
+
+func (u *synapseTestUploader) CanAppend() bool { return false }
+
+func (u *synapseTestUploader) GetLoadFileType() string { return whutils.LoadFileTypeCsv }
+
+func (u *synapseTestUploader) ShouldOnDedupUseNewRecord() bool { return false }
+
+func (u *synapseTestUploader) IsWarehouseSchemaEmpty() bool { return false }
+
+func (u *synapseTestUploader) GetLoadFilesMetadata(_ context.Context, _ whutils.GetLoadFilesOptions) ([]whutils.LoadFile, error) {
+	return nil, nil
+}
+
+func (u *synapseTestUploader) GetSampleLoadFileLocation(_ context.Context, _ string) (string, error) {
+	return "", nil
+}
+
+func (u *synapseTestUploader) GetSingleLoadFile(_ context.Context, _ string) (whutils.LoadFile, error) {
+	return whutils.LoadFile{}, nil
+}
+
+// createSynapseTestLoadFile creates a gzipped CSV load file from IdempotentEvent
+// entries. Column order is alphabetical (event, id, received_at, user_id) to match
+// warehouseutils.SortColumnKeysFromColumnMap ordering.
+// Timestamps use RFC3339 format as expected by Azure Synapse's ProcessColumnValue.
+func createSynapseTestLoadFile(t *testing.T, events []IdempotentEvent) string {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp("", "synapse_load_*.csv.gz")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Remove(tmpFile.Name()) })
+
+	gzWriter := gzip.NewWriter(tmpFile)
+	csvWriter := csv.NewWriter(gzWriter)
+
+	for _, e := range events {
+		// Alphabetical order: event, id, received_at, user_id
+		record := []string{e.Event, e.ID, e.ReceivedAt, e.UserID}
+		require.NoError(t, csvWriter.Write(record))
+	}
+
+	csvWriter.Flush()
+	require.NoError(t, csvWriter.Error())
+	require.NoError(t, gzWriter.Close())
+	require.NoError(t, tmpFile.Close())
+
+	return tmpFile.Name()
+}
+
+// testSynapseProductionLoadTable exercises the real AzureSynapse.LoadTable()
+// production code path by:
+//  1. Spinning up an MSSQL Docker container (Azure Synapse uses same SQL Server protocol)
+//  2. Creating target table with appropriate schema
+//  3. Creating a gzipped CSV load file with duplicated events
+//  4. Injecting the DB connection and mock dependencies into the AzureSynapse struct
+//  5. Calling the production LoadTable() method
+//  6. Verifying that after dedup, only unique rows remain
+func testSynapseProductionLoadTable(t *testing.T, events []IdempotentEvent) {
+	t.Helper()
+
+	// Initialize misc package to ensure pkgLogger is non-nil — production
+	// loadTable defers misc.RemoveFilePaths which needs the logger.
+	misc.Init()
+
+	// Use the shared MSSQL Docker container setup (Azure Synapse uses sqlserver protocol)
+	db, cleanup := setupMSSQLContainer(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	ns := uniqueIdempotentNamespace()
+
+	// Create schema in the MSSQL container
+	_, err := db.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA [%s]", ns))
+	require.NoError(t, err, "failed to create test schema %s", ns)
+
+	tableName := "identifies"
+
+	// Create the target table with Azure Synapse-compatible data types.
+	// Azure Synapse maps: string→varchar(512), datetime→datetimeoffset
+	createTableSQL := fmt.Sprintf(
+		`CREATE TABLE [%s].[%s] (
+			[event] VARCHAR(512),
+			[id] VARCHAR(512),
+			[received_at] DATETIMEOFFSET,
+			[user_id] VARCHAR(512)
+		)`,
+		ns, tableName,
+	)
+	_, err = db.ExecContext(ctx, createTableSQL)
+	require.NoError(t, err, "failed to create target table")
+
+	// Filter identifies events (contains duplicates: ID a1b2c3d4-1111-4000-8000-000000000001)
+	var identifiesEvents []IdempotentEvent
+	for _, e := range events {
+		if e.Table == tableName {
+			identifiesEvents = append(identifiesEvents, e)
+		}
+	}
+	require.NotEmpty(t, identifiesEvents, "must have identifies events")
+
+	// Count unique IDs to determine expected dedup result
+	uniqueIDs := make(map[string]struct{})
+	for _, e := range identifiesEvents {
+		uniqueIDs[e.ID] = struct{}{}
+	}
+	expectedUniqueRows := len(uniqueIDs)
+	require.Less(t, expectedUniqueRows, len(identifiesEvents),
+		"identifies events must contain duplicates for meaningful dedup test")
+
+	// Create load file from identifies events
+	loadFilePath := createSynapseTestLoadFile(t, identifiesEvents)
+
+	// Schema matches alphabetical column order
+	tableSchema := whutils.ModelTableSchema{
+		"event":       "string",
+		"id":          "string",
+		"received_at": "datetime",
+		"user_id":     "string",
+	}
+
+	// Build warehouse model for the connector
+	warehouse := whutils.ModelWarehouse{
+		Source: backendconfig.SourceT{
+			ID: "test-source-synapse",
+			SourceDefinition: backendconfig.SourceDefinitionT{
+				Name: "test-source-def",
+			},
+		},
+		Destination: backendconfig.DestinationT{
+			ID: "test-dest-synapse",
+			DestinationDefinition: backendconfig.DestinationDefinitionT{
+				Name: whutils.AzureSynapse,
+			},
+			Config: map[string]interface{}{
+				"host":     "localhost",
+				"database": "master",
+				"user":     "sa",
+				"password": "Test@12345",
+				"port":     "1433",
+				"sslMode":  "disable",
+			},
+		},
+		WorkspaceID: "test-workspace",
+		Namespace:   ns,
+		Type:        whutils.AzureSynapse,
+	}
+
+	mockUploader := &synapseTestUploader{
+		Uploader: whutils.NewNoOpUploader(),
+		schema:   tableSchema,
+	}
+	mockDownloader := &synapseTestDownloader{
+		files: map[string]string{tableName: loadFilePath},
+	}
+
+	// Create the production AzureSynapse connector using New()
+	conf := config.New()
+	as := azuresynapse.New(conf, logger.NOP, stats.NOP)
+
+	// Wrap the raw *sql.DB in the sqlmw middleware wrapper that the connector expects
+	sqlmwDB := sqlmw.New(db)
+
+	// Inject private fields using reflect+unsafe (same pattern as MSSQL test)
+	setUnexportedField(as, "db", sqlmwDB)
+	setUnexportedField(as, "namespace", ns)
+	setUnexportedField(as, "warehouse", warehouse)
+	setUnexportedField(as, "uploader", whutils.Uploader(mockUploader))
+	setUnexportedField(as, "loadFileDownLoader", mockDownloader)
+
+	// First load: call production LoadTable()
+	loadStats, err := as.LoadTable(ctx, tableName)
+	require.NoError(t, err, "first LoadTable() call should succeed")
+	require.NotNil(t, loadStats, "load stats must not be nil")
+
+	// Verify row count after first load: should equal unique identifies events
+	var rowCount int
+	err = db.QueryRowContext(ctx, fmt.Sprintf(
+		"SELECT COUNT(*) FROM [%s].[%s]", ns, tableName,
+	)).Scan(&rowCount)
+	require.NoError(t, err, "counting rows after first load")
+	require.Equal(t, expectedUniqueRows, rowCount,
+		"after first load, row count should equal unique events (dedup via ROW_NUMBER)")
+
+	// Replay: create a fresh load file (the first was deleted by
+	// the production deferred misc.RemoveFilePaths), then call LoadTable again.
+	replayPath := createSynapseTestLoadFile(t, identifiesEvents)
+	mockDownloader.files[tableName] = replayPath
+
+	loadStats2, err := as.LoadTable(ctx, tableName)
+	require.NoError(t, err, "replay LoadTable() call should succeed")
+	require.NotNil(t, loadStats2, "replay load stats must not be nil")
+
+	// Verify idempotency: row count should remain the same after replay
+	var rowCountAfterReplay int
+	err = db.QueryRowContext(ctx, fmt.Sprintf(
+		"SELECT COUNT(*) FROM [%s].[%s]", ns, tableName,
+	)).Scan(&rowCountAfterReplay)
+	require.NoError(t, err, "counting rows after replay")
+	require.Equal(t, expectedUniqueRows, rowCountAfterReplay,
+		"after replay, row count must remain %d (idempotent dedup)", expectedUniqueRows)
+
+	t.Logf("production_load_table (AzureSynapse): first load %d rows (dedup from %d), "+
+		"replay preserved %d rows — idempotent dedup verified via production LoadTable()",
+		rowCount, len(identifiesEvents), rowCountAfterReplay)
 }

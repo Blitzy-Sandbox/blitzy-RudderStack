@@ -263,6 +263,18 @@ func NewReplayHandler(
 	return h
 }
 
+// SetGatewayClient sets the GatewayClient on the ReplayHandler after construction.
+// This is necessary because the Gateway is not available during warehouse Setup()
+// and only becomes available at Run() time. Without this setter, the gateway field
+// would remain nil and every replay request would return ErrGatewayNotConfigured (503).
+//
+// This method is safe to call from a single goroutine before the handler starts
+// processing requests. It is called from warehouse/app.go Run() after the gateway
+// URL is known from the reloadable configuration.
+func (h *ReplayHandler) SetGatewayClient(client GatewayClient) {
+	h.gateway = client
+}
+
 // ---------------------------------------------------------------------------
 // ReplayHandler — Business Logic Methods
 // ---------------------------------------------------------------------------

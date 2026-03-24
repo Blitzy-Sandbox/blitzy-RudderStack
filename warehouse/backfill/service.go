@@ -72,6 +72,11 @@ type BackfillRepository interface {
 	// the TOCTOU race condition inherent in separate GetActiveCount + Create calls.
 	// Returns (0, ErrConcurrentLimitReached) if the limit is already met.
 	CreateIfUnderLimit(ctx context.Context, job BackfillJob, maxConcurrent int) (int64, error)
+
+	// ListActiveJobs returns all backfill jobs in non-terminal states
+	// (StatusPending or StatusInProgress). Called on startup to recover
+	// tracked jobs that were in-flight when the process last stopped.
+	ListActiveJobs(ctx context.Context) ([]BackfillJob, error)
 }
 
 // ArchiverQuerier defines the interface for querying archived staging files
@@ -96,6 +101,20 @@ type StagingFileQuerier interface {
 	// source-destination pair within the specified date range.
 	// Returns an empty slice (not nil) if no staging files exist for the range.
 	GetByDateRange(ctx context.Context, sourceID, destID string, startDate, endDate time.Time) ([]int64, error)
+}
+
+// BackfillUploadCreator is the interface for creating warehouse uploads from
+// backfill jobs (E-032). The concrete implementation wraps
+// Router.CreateBackfillUpload in warehouse/router/router.go. This interface
+// decouples the backfill service from the router, enabling testability and
+// preventing import cycles.
+//
+// CreateBackfillUpload creates one or more wh_uploads rows with the
+// BackfillJobID foreign key set, causing them to enter the BackfillPending
+// state in the 7-state upload state machine. The sourceID and destID
+// identify the warehouse to target.
+type BackfillUploadCreator interface {
+	CreateBackfillUpload(ctx context.Context, sourceID, destID string, backfillJobID int64) error
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +188,14 @@ type BackfillService struct {
 	// removed by handleTerminalJob() when they reach a terminal state
 	// (StatusCompleted or StatusFailed). Using a map for O(1) add/remove.
 	trackedJobs map[int64]struct{}
+
+	// uploadCreator creates warehouse uploads from resolved backfill jobs.
+	// Set via SetUploadCreator after the router is initialized, because the
+	// router depends on backend-config which may not be available at service
+	// construction time. When nil, processPendingJob logs a warning and
+	// skips upload creation — the job remains in_progress and is retried on
+	// the next monitor cycle.
+	uploadCreator BackfillUploadCreator
 }
 
 // ---------------------------------------------------------------------------
@@ -218,6 +245,17 @@ func NewBackfillService(
 	s.backfillCompleted = statsFactory.NewStat("warehouse.backfill.completed", stats.CountType)
 
 	return s
+}
+
+// SetUploadCreator injects the BackfillUploadCreator dependency after construction.
+// This deferred-injection pattern is required because the Router (which implements
+// the underlying CreateBackfillUpload) depends on backend-config, which may not be
+// available when the BackfillService is first constructed in warehouse/app.go Setup().
+// The wiring in app.go Run() calls this method once the router is available.
+func (s *BackfillService) SetUploadCreator(creator BackfillUploadCreator) {
+	s.mu.Lock()
+	s.uploadCreator = creator
+	s.mu.Unlock()
 }
 
 // ---------------------------------------------------------------------------
@@ -330,6 +368,24 @@ func (s *BackfillService) GetStatus(ctx context.Context, jobID int64) (*Backfill
 //	go backfillService.Run(ctx)
 func (s *BackfillService) Run(ctx context.Context) error {
 	s.log.Infon("starting backfill background monitor")
+
+	// Recover tracked jobs from the database on startup (E-032 Issue 6 fix).
+	// Without this recovery, any pending or in-progress backfill jobs that
+	// existed before the restart would be permanently abandoned because the
+	// in-memory trackedJobs map is lost when the process stops.
+	activeJobs, err := s.repo.ListActiveJobs(ctx)
+	if err != nil {
+		s.log.Errorn("failed to recover active backfill jobs on startup — will rely on new triggers only",
+			obskit.Error(err),
+		)
+	} else if len(activeJobs) > 0 {
+		for _, job := range activeJobs {
+			s.trackJob(job.ID)
+		}
+		s.log.Infon("recovered active backfill jobs on startup",
+			logger.NewIntField("recoveredCount", int64(len(activeJobs))),
+		)
+	}
 
 	for {
 		select {
@@ -505,8 +561,6 @@ func (s *BackfillService) processPendingJob(ctx context.Context, job BackfillJob
 	}
 
 	// Staging files resolved successfully — transition job to in_progress.
-	// The upload pipeline will pick up the in-progress job and create
-	// warehouse uploads with the backfill_job_id foreign key set.
 	if err := s.repo.UpdateStatus(ctx, job.ID, StatusInProgress); err != nil {
 		s.log.Errorn("failed to transition backfill job to in_progress",
 			obskit.Error(err),
@@ -518,6 +572,33 @@ func (s *BackfillService) processPendingJob(ctx context.Context, job BackfillJob
 	s.log.Infon("backfill job transitioned to in_progress",
 		logger.NewIntField("jobID", job.ID),
 		logger.NewIntField("stagingFileCount", int64(len(fileIDs))),
+		obskit.SourceID(job.SourceID),
+		obskit.DestinationID(job.DestinationID),
+	)
+
+	// Create the warehouse upload via the router (E-032 Issue 5 fix).
+	// This enters the resolved staging files into the 7-state upload state
+	// machine with BackfillJobID set, causing the upload to start at
+	// BackfillPending and proceed through the normal upload lifecycle.
+	if s.uploadCreator == nil {
+		s.log.Warnn("upload creator not configured, cannot create backfill upload — will retry on next monitor cycle",
+			logger.NewIntField("jobID", job.ID),
+		)
+		return
+	}
+	if err := s.uploadCreator.CreateBackfillUpload(ctx, job.SourceID, job.DestinationID, job.ID); err != nil {
+		s.log.Errorn("failed to create backfill upload via router",
+			obskit.Error(err),
+			logger.NewIntField("jobID", job.ID),
+			obskit.SourceID(job.SourceID),
+			obskit.DestinationID(job.DestinationID),
+		)
+		s.failJob(ctx, job.ID, fmt.Sprintf("upload creation failed: %v", err))
+		return
+	}
+
+	s.log.Infon("backfill upload created successfully via router",
+		logger.NewIntField("jobID", job.ID),
 		obskit.SourceID(job.SourceID),
 		obskit.DestinationID(job.DestinationID),
 	)

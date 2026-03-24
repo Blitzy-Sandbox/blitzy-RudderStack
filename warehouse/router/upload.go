@@ -55,6 +55,16 @@ const (
 
 type tableNameT string
 
+// schemaChangeEntry records a single table-level schema modification detected during
+// the upload's export phase. Collected entries are serialized to JSON and persisted in
+// wh_sync_health.schema_changes for health monitoring and schema drift alerting (E-033).
+type schemaChangeEntry struct {
+	Table          string `json:"table"`
+	TableCreated   bool   `json:"tableCreated,omitempty"`
+	ColumnsAdded   int    `json:"columnsAdded,omitempty"`
+	ColumnsAltered int    `json:"columnsAltered,omitempty"`
+}
+
 // selectiveSyncChecker provides table/column exclusion predicates for selective sync (E-034).
 // Implemented by selectivesync.SelectiveSyncService — defined locally to avoid import cycles.
 type selectiveSyncChecker interface {
@@ -128,6 +138,12 @@ type UploadJob struct {
 
 	// Health monitoring (E-033) — sync health recording
 	healthMonitor syncHealthRecorder
+
+	// schemaChangesDetected tracks schema modifications that occurred during this
+	// upload lifecycle. Each entry records a table-level schema change (new table,
+	// columns added, columns altered). This data feeds the SchemaChanges field in
+	// SyncHealth records (E-033) and enables schema drift alerting.
+	schemaChangesDetected []schemaChangeEntry
 
 	pendingTableUploads      []model.PendingTableUpload
 	pendingTableUploadsRepo  pendingTableUploadsRepo

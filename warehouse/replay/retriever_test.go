@@ -23,8 +23,23 @@ import (
 	"github.com/rudderlabs/rudder-server/warehouse/replay"
 )
 
-// Compile-time assertion: mockArchiverQuerier implements replay.ArchiverQuerier.
+// Compile-time assertions.
 var _ replay.ArchiverQuerier = (*mockArchiverQuerier)(nil)
+var _ replay.FileDownloader = (*noopFileDownloader)(nil)
+
+// ---------------------------------------------------------------------------
+// noopFileDownloader — used in tests where batches already have Data populated
+// ---------------------------------------------------------------------------
+
+// noopFileDownloader is a no-op FileDownloader that panics if called.
+// It is used in tests where batch.Data is pre-populated, so the downloader
+// should never be invoked. If it IS called, the panic provides a clear signal
+// that the test setup is incorrect.
+type noopFileDownloader struct{}
+
+func (n *noopFileDownloader) Download(_ context.Context, location string) ([]byte, error) {
+	panic("noopFileDownloader.Download called unexpectedly for location: " + location)
+}
 
 // ---------------------------------------------------------------------------
 // Mock ArchiverQuerier
@@ -458,6 +473,7 @@ func TestArchivedEventRetriever_Retrieve(t *testing.T) {
 				logger.NOP,
 				newTestStats(t),
 				tc.archiver,
+				&noopFileDownloader{},
 			)
 
 			events, err := retriever.Retrieve(ctx, tc.sourceID, startTime, endTime)
@@ -592,6 +608,7 @@ func TestArchivedEventRetriever_MultipleEventsAcrossBatches(t *testing.T) {
 		logger.NOP,
 		newTestStats(t),
 		archiver,
+		&noopFileDownloader{},
 	)
 
 	result, err := retriever.Retrieve(context.Background(), "src1", start, end)
@@ -630,6 +647,7 @@ func TestArchivedEventRetriever_EmptyBatches(t *testing.T) {
 		logger.NOP,
 		newTestStats(t),
 		archiver,
+		&noopFileDownloader{},
 	)
 
 	result, err := retriever.Retrieve(
@@ -672,6 +690,7 @@ func TestArchivedEventRetriever_DeserializationError(t *testing.T) {
 		logger.NOP,
 		newTestStats(t),
 		archiver,
+		&noopFileDownloader{},
 	)
 
 	result, err := retriever.Retrieve(context.Background(), "src1", start, end)

@@ -212,7 +212,16 @@ type ArchivedEventBatch struct {
 	// SourceID is the source that generated these events.
 	SourceID string `json:"source_id"`
 
-	// Data contains the gzip-compressed JSONL event data.
+	// Location is the cloud storage path to the archived gzip JSONL data.
+	// The archiver's QueryArchivedEvents populates this field with the object
+	// storage key (e.g., s3://bucket/path/events.json.gz) that the retriever
+	// must download to obtain the actual event data. This mirrors the
+	// archive.ArchivedEventBatch.Location field.
+	Location string `json:"location"`
+
+	// Data contains the gzip-compressed JSONL event data. This field is
+	// intentionally left empty by QueryArchivedEvents — the caller (retriever)
+	// must download the content from the cloud storage path specified in Location.
 	Data []byte `json:"data"`
 
 	// StartTime is the earliest event timestamp in this batch.

@@ -1,12 +1,16 @@
 package warehouse_test
 
 import (
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	mssql "github.com/microsoft/go-mssqldb"
 	"github.com/ory/dockertest/v3"
@@ -17,6 +21,10 @@ import (
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	"github.com/rudderlabs/rudder-go-kit/stats"
 
+	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
+	"github.com/rudderlabs/rudder-server/utils/misc"
+	msconnector "github.com/rudderlabs/rudder-server/warehouse/integrations/mssql"
+	sqlmw "github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
 	whth "github.com/rudderlabs/rudder-server/warehouse/integrations/testhelper"
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
@@ -117,6 +125,10 @@ func testIdempotentMSSQL(t *testing.T) {
 
 	t.Run("persistent_staging_tables", func(t *testing.T) {
 		testPersistentStagingTables(t, ctx, db, ns)
+	})
+
+	t.Run("production_load_table", func(t *testing.T) {
+		testMSSQLProductionLoadTable(t, ctx, db, ns)
 	})
 }
 
@@ -847,3 +859,230 @@ var (
 	_ = whth.IdempotentStagingResult{}
 	_ = whth.RenderIdempotentStagingFiles
 )
+
+// ---------------------------------------------------------------------------
+// Production LoadTable Sub-test — MSSQL
+// ---------------------------------------------------------------------------
+
+// mssqlTestDownloader implements the Downloader interface for MSSQL production
+// LoadTable tests, returning pre-created CSV file paths.
+//
+//nolint:unused // used by testMSSQLProductionLoadTable
+type mssqlTestDownloader struct {
+	files map[string][]string
+}
+
+//nolint:unused
+func (d *mssqlTestDownloader) Download(_ context.Context, tableName string) ([]string, error) {
+	return d.files[tableName], nil
+}
+
+// mssqlTestUploader implements whutils.Uploader for MSSQL production LoadTable tests.
+//
+//nolint:unused
+type mssqlTestUploader struct {
+	whutils.Uploader
+	schemaInUpload    map[string]whutils.ModelTableSchema
+	schemaInWarehouse map[string]whutils.ModelTableSchema
+}
+
+//nolint:unused
+func (u *mssqlTestUploader) GetTableSchemaInUpload(tableName string) whutils.ModelTableSchema {
+	return u.schemaInUpload[tableName]
+}
+
+//nolint:unused
+func (u *mssqlTestUploader) GetTableSchemaInWarehouse(tableName string) whutils.ModelTableSchema {
+	return u.schemaInWarehouse[tableName]
+}
+
+//nolint:unused
+func (u *mssqlTestUploader) UseRudderStorage() bool { return false }
+
+//nolint:unused
+func (u *mssqlTestUploader) CanAppend() bool { return false }
+
+//nolint:unused
+func (u *mssqlTestUploader) GetLoadFileType() string { return whutils.LoadFileTypeCsv }
+
+//nolint:unused
+func (u *mssqlTestUploader) ShouldOnDedupUseNewRecord() bool { return false }
+
+//nolint:unused
+func (u *mssqlTestUploader) IsWarehouseSchemaEmpty() bool { return false }
+
+//nolint:unused
+func (u *mssqlTestUploader) GetLoadFilesMetadata(_ context.Context, _ whutils.GetLoadFilesOptions) ([]whutils.LoadFile, error) {
+	return nil, nil
+}
+
+//nolint:unused
+func (u *mssqlTestUploader) GetSampleLoadFileLocation(_ context.Context, _ string) (string, error) {
+	return "", nil
+}
+
+//nolint:unused
+func (u *mssqlTestUploader) GetSingleLoadFile(_ context.Context, _ string) (whutils.LoadFile, error) {
+	return whutils.LoadFile{}, nil
+}
+
+// setUnexportedField uses reflect + unsafe to set a private field on a struct.
+// This is a standard Go testing pattern for injecting test dependencies into
+// production structs that use unexported fields.
+//
+//nolint:unused
+func setUnexportedField(obj interface{}, fieldName string, value interface{}) {
+	rv := reflect.ValueOf(obj).Elem()
+	field := rv.FieldByName(fieldName)
+	// Use unsafe to bypass the unexported field restriction.
+	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Set(reflect.ValueOf(value))
+}
+
+// createMSSQLTestLoadFile creates a gzipped CSV file from IdempotentEvent entries.
+// Column order is alphabetical (event, id, received_at, user_id) to match the
+// warehouseutils.SortColumnKeysFromColumnMap ordering used by the MSSQL connector.
+//
+//nolint:unused
+func createMSSQLTestLoadFile(t *testing.T, events []IdempotentEvent) string {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp("", "mssql_load_*.csv.gz")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Remove(tmpFile.Name()) })
+
+	gw := gzip.NewWriter(tmpFile)
+	for _, evt := range events {
+		// Column order: event, id, received_at, user_id (alphabetical)
+		line := fmt.Sprintf("%s,%s,%s,%s\n",
+			evt.Event, evt.ID, evt.ReceivedAt, evt.UserID)
+		_, writeErr := gw.Write([]byte(line))
+		require.NoError(t, writeErr)
+	}
+	require.NoError(t, gw.Close())
+	require.NoError(t, tmpFile.Close())
+	return tmpFile.Name()
+}
+
+// testMSSQLProductionLoadTable validates the production MSSQL connector's
+// LoadTable() method by exercising the REAL code path in
+// warehouse/integrations/mssql/mssql.go — staging table creation, mssql.CopyIn,
+// DELETE+INSERT with ROW_NUMBER() dedup — rather than test-local simulation.
+//
+//nolint:unused
+func testMSSQLProductionLoadTable(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	ns string,
+) {
+	t.Helper()
+
+	// Initialize misc package to ensure pkgLogger is non-nil — production
+	// loadTable defers misc.RemoveFilePaths which needs the logger.
+	misc.Init()
+
+	tableName := "tracks_prod_load"
+
+	// Create target table in the Docker MSSQL database.
+	createTableSQL := fmt.Sprintf(
+		`CREATE TABLE [%s].[%s] ("id" nvarchar(512), "user_id" nvarchar(512), "event" nvarchar(512), "received_at" datetimeoffset)`,
+		ns, tableName,
+	)
+	_, err := db.ExecContext(ctx, createTableSQL)
+	require.NoError(t, err, "failed to create MSSQL target table %s.%s", ns, tableName)
+
+	// Use identifies events which contain a deliberate duplicate (ID 001).
+	events := loadIdempotentEvents(t)
+	identifyEvents := filterEventsByTable(events, whutils.IdentifiesTable)
+	require.NotEmpty(t, identifyEvents)
+
+	uniqueMap := make(map[string]struct{})
+	for _, e := range identifyEvents {
+		uniqueMap[e.ID] = struct{}{}
+	}
+	uniqueCount := len(uniqueMap)
+	require.Greater(t, len(identifyEvents), uniqueCount,
+		"fixture must contain duplicate identifies")
+
+	tracksSchema := whutils.ModelTableSchema{
+		"id":          "string",
+		"user_id":     "string",
+		"event":       "string",
+		"received_at": "datetime",
+	}
+
+	mockUploader := &mssqlTestUploader{
+		Uploader: whutils.NewNoOpUploader(),
+		schemaInUpload: map[string]whutils.ModelTableSchema{
+			tableName: tracksSchema,
+		},
+		schemaInWarehouse: map[string]whutils.ModelTableSchema{
+			tableName: tracksSchema,
+		},
+	}
+
+	loadFilePath := createMSSQLTestLoadFile(t, identifyEvents)
+	mockDownloader := &mssqlTestDownloader{
+		files: map[string][]string{
+			tableName: {loadFilePath},
+		},
+	}
+
+	// Create the production MSSQL connector and inject test dependencies
+	// using reflect to access unexported fields.
+	testConf := config.New()
+	ms := msconnector.New(testConf, logger.NOP, stats.NOP)
+
+	// Inject dependencies into unexported fields via reflect + unsafe.
+	setUnexportedField(ms, "db", sqlmw.New(db))
+	setUnexportedField(ms, "namespace", ns)
+	setUnexportedField(ms, "uploader", whutils.Uploader(mockUploader))
+	setUnexportedField(ms, "loadFileDownLoader", mockDownloader)
+
+	wh := whutils.ModelWarehouse{
+		WorkspaceID: "test_workspace_mssql",
+		Source: backendconfig.SourceT{
+			ID:               "source_mssql_prod_test",
+			SourceDefinition: backendconfig.SourceDefinitionT{Name: "test_source"},
+		},
+		Destination: backendconfig.DestinationT{
+			ID:                    "dest_mssql_prod_test",
+			Config:                map[string]interface{}{},
+			DestinationDefinition: backendconfig.DestinationDefinitionT{Name: "MSSQL"},
+		},
+		Namespace: ns,
+		Type:      whutils.MSSQL,
+	}
+	setUnexportedField(ms, "warehouse", wh)
+
+	// First load: production LoadTable inserts events via CopyIn + merge.
+	loadStats, loadErr := ms.LoadTable(ctx, tableName)
+	require.NoError(t, loadErr, "production LoadTable must succeed for first load")
+	require.NotNil(t, loadStats)
+
+	t.Logf("mssql production_load_table: first load — RowsInserted=%d RowsUpdated=%d",
+		loadStats.RowsInserted, loadStats.RowsUpdated)
+
+	var firstCount int
+	err = db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM [%s].[%s]", ns, tableName)).Scan(&firstCount)
+	require.NoError(t, err)
+	require.Equal(t, uniqueCount, firstCount,
+		"first production LoadTable must produce %d unique rows from %d events",
+		uniqueCount, len(identifyEvents))
+
+	// Replay: production LoadTable again with the same events — must be idempotent.
+	replayPath := createMSSQLTestLoadFile(t, identifyEvents)
+	mockDownloader.files[tableName] = []string{replayPath}
+
+	replayStats, replayErr := ms.LoadTable(ctx, tableName)
+	require.NoError(t, replayErr, "production LoadTable replay must succeed")
+	require.NotNil(t, replayStats)
+
+	var replayCount int
+	err = db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM [%s].[%s]", ns, tableName)).Scan(&replayCount)
+	require.NoError(t, err)
+	require.Equal(t, uniqueCount, replayCount,
+		"after replay, production LoadTable must maintain %d unique rows", uniqueCount)
+
+	t.Logf("mssql production_load_table: PASSED — %d rows after replay (idempotent via CopyIn + dedup)", replayCount)
+}
