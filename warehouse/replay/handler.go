@@ -48,12 +48,15 @@ type ReplayTrigger interface {
 }
 
 // GatewayClient sends replay event batches to the Gateway replay endpoint.
-// The implementation must set the X-Warehouse-Replay: true header on all
-// requests to tag events for warehouse-only routing in the Processor.
+// The implementation must set the X-Warehouse-Replay: true header and the
+// X-Rudder-Source-Id header on all requests. The source ID is required by the
+// Gateway's replaySourceIDAuth middleware (gateway/handle_http_auth.go), which
+// wraps sourceIDAuth and rejects requests missing the X-Rudder-Source-Id header.
 type GatewayClient interface {
 	// SendReplayBatch sends a batch of events to the Gateway with the
-	// X-Warehouse-Replay: true header for warehouse-only routing.
-	SendReplayBatch(ctx context.Context, batch []byte) error
+	// X-Warehouse-Replay: true and X-Rudder-Source-Id headers.
+	// The sourceID parameter is required for Gateway authentication.
+	SendReplayBatch(ctx context.Context, sourceID string, batch []byte) error
 }
 
 // NOTE: ArchiverQuerier interface is defined in retriever.go (same package).
@@ -466,7 +469,7 @@ func (h *ReplayHandler) executeReplay(ctx context.Context, jobID int64, req Repl
 		}
 
 		// Send the marshaled batch to the Gateway replay endpoint.
-		if sendErr := h.gateway.SendReplayBatch(ctx, batchPayload); sendErr != nil {
+		if sendErr := h.gateway.SendReplayBatch(ctx, req.SourceID, batchPayload); sendErr != nil {
 			h.log.Errorn("failed to send replay batch to gateway",
 				obskit.Error(sendErr),
 				logger.NewIntField("jobID", jobID),

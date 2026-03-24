@@ -311,6 +311,35 @@ func (sf *StagingFiles) GetByID(ctx context.Context, ID int64) (model.StagingFil
 	return *entries[0], err
 }
 
+// GetByIDs returns staging files for the given list of IDs, ordered by ID ascending.
+// This method is used by the backfill feature (E-032) to retrieve the specific
+// staging files resolved from a backfill date range, ensuring backfill uploads
+// process exactly the intended historical data rather than relying on Pending().
+func (sf *StagingFiles) GetByIDs(ctx context.Context, ids []int64) ([]*model.StagingFile, error) {
+	if len(ids) == 0 {
+		return []*model.StagingFile{}, nil
+	}
+	defer sf.TimerStat("get_by_ids", nil)()
+
+	query := `SELECT ` + stagingTableColumns + ` FROM ` + stagingTableName + `
+	WHERE id = ANY($1)
+	ORDER BY id ASC`
+
+	rows, err := sf.db.QueryContext(ctx, query, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("querying staging files by IDs: %w", err)
+	}
+
+	entries, err := parseStagingFiles(rows)
+	if err != nil {
+		return nil, fmt.Errorf("parsing staging files by IDs: %w", err)
+	}
+	if entries == nil {
+		entries = []*model.StagingFile{}
+	}
+	return entries, nil
+}
+
 // GetSchemasByIDs returns staging file schemas for the given IDs.
 func (sf *StagingFiles) GetSchemasByIDs(ctx context.Context, ids []int64) ([]model.Schema, error) {
 	defer sf.TimerStat("get_schemas_by_ids", nil)()

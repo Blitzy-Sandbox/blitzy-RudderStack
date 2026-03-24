@@ -803,10 +803,16 @@ func (r *Router) CopyWarehouses() []model.Warehouse {
 // After backfill resolution completes, the upload re-enters the normal state chain at
 // GeneratedUploadSchema and proceeds through to ExportedData.
 //
+// The stagingFileIDs parameter contains the specific file IDs resolved from the
+// backfill date range by processPendingJob in the backfill service. These are the
+// exact files that must be processed — NOT whatever happens to be in the "pending"
+// queue at creation time. Historical staging files that the backfill targets have
+// already been through the pipeline and would not appear in a Pending() query.
+//
 // The method is safe to call concurrently; it serialises writes through the upload
 // repository and does not touch the in-progress map (the upload will be picked up by
 // the normal runUploadJobAllocator loop).
-func (r *Router) CreateBackfillUpload(ctx context.Context, warehouse model.Warehouse, backfillJobID int64) error {
+func (r *Router) CreateBackfillUpload(ctx context.Context, warehouse model.Warehouse, backfillJobID int64, stagingFileIDs []int64) error {
 	// Validate that backfill uploads are permitted for this warehouse.
 	// canCreateBackfillUpload checks feature-level and concurrency constraints.
 	if !r.canCreateBackfillUpload(ctx, warehouse) {
@@ -818,6 +824,7 @@ func (r *Router) CreateBackfillUpload(ctx context.Context, warehouse model.Wareh
 		logger.NewIntField("backfillJobID", backfillJobID),
 		logger.NewStringField("sourceID", warehouse.Source.ID),
 		logger.NewStringField("destID", warehouse.Destination.ID),
+		logger.NewIntField("stagingFileCount", int64(len(stagingFileIDs))),
 	)
 
 	upload := model.Upload{
@@ -839,17 +846,28 @@ func (r *Router) CreateBackfillUpload(ctx context.Context, warehouse model.Wareh
 		return fmt.Errorf("internal error: backfill upload missing BackfillJobID for job %d", backfillJobID)
 	}
 
-	// Fetch pending staging files for the warehouse — backfill uploads still
-	// require staging files to process, but they bypass frequency guards.
-	stagingFilesList, err := r.stagingRepo.Pending(ctx, warehouse.Source.ID, warehouse.Destination.ID)
-	if err != nil {
-		return fmt.Errorf("fetching pending staging files for backfill: %w", err)
-	}
-	if len(stagingFilesList) == 0 {
-		r.logger.Infon("no pending staging files for backfill upload, skipping creation",
+	// Retrieve the specific staging files resolved from the backfill date range.
+	// Unlike normal uploads which use Pending(), backfill uploads target historical
+	// staging files that have already been processed. These files are identified by
+	// the backfill service's date-range resolution (archiver or staging repository)
+	// and their IDs are passed here directly.
+	if len(stagingFileIDs) == 0 {
+		r.logger.Infon("no staging file IDs provided for backfill upload, skipping creation",
 			logger.NewIntField("backfillJobID", backfillJobID),
 		)
 		return nil
+	}
+
+	stagingFilesList, err := r.stagingRepo.GetByIDs(ctx, stagingFileIDs)
+	if err != nil {
+		return fmt.Errorf("fetching staging files by IDs for backfill: %w", err)
+	}
+	if len(stagingFilesList) == 0 {
+		r.logger.Warnn("staging files resolved by backfill service not found in repository",
+			logger.NewIntField("backfillJobID", backfillJobID),
+			logger.NewIntField("requestedIDs", int64(len(stagingFileIDs))),
+		)
+		return fmt.Errorf("no staging files found for the provided IDs (backfill job %d)", backfillJobID)
 	}
 
 	batches := service.StageFileBatching(stagingFilesList, r.config.stagingFilesBatchSize.Load())
@@ -862,6 +880,7 @@ func (r *Router) CreateBackfillUpload(ctx context.Context, warehouse model.Wareh
 	r.logger.Infon("backfill upload(s) created successfully",
 		logger.NewIntField("backfillJobID", backfillJobID),
 		logger.NewIntField("batchCount", int64(len(batches))),
+		logger.NewIntField("totalStagingFiles", int64(len(stagingFilesList))),
 	)
 	return nil
 }

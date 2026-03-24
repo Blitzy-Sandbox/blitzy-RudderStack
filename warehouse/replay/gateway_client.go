@@ -55,10 +55,12 @@ func NewHTTPGatewayClient(gatewayURL string, log logger.Logger) *HTTPGatewayClie
 // SendReplayBatch sends a batch of replay events to the Gateway's replay endpoint.
 // The request includes the X-Warehouse-Replay: true header to trigger warehouse-only
 // routing in the Processor pipeline (gateway/handle_http_replay.go detects this header
-// via withWarehouseReplayTag middleware).
+// via withWarehouseReplayTag middleware), and the X-Rudder-Source-Id header required
+// by the Gateway's replaySourceIDAuth middleware (gateway/handle_http_auth.go) which
+// authenticates the source before allowing the replay request through.
 //
 // Returns an error if the HTTP request fails or the Gateway returns a non-2xx response.
-func (c *HTTPGatewayClient) SendReplayBatch(ctx context.Context, batch []byte) error {
+func (c *HTTPGatewayClient) SendReplayBatch(ctx context.Context, sourceID string, batch []byte) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.gatewayURL, bytes.NewReader(batch))
 	if err != nil {
 		return fmt.Errorf("creating replay request: %w", err)
@@ -66,6 +68,7 @@ func (c *HTTPGatewayClient) SendReplayBatch(ctx context.Context, batch []byte) e
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(WarehouseReplayHeader, WarehouseReplayHeaderValue)
+	req.Header.Set("X-Rudder-Source-Id", sourceID)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

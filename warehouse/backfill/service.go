@@ -112,9 +112,13 @@ type StagingFileQuerier interface {
 // CreateBackfillUpload creates one or more wh_uploads rows with the
 // BackfillJobID foreign key set, causing them to enter the BackfillPending
 // state in the 7-state upload state machine. The sourceID and destID
-// identify the warehouse to target.
+// identify the warehouse to target. The stagingFileIDs parameter contains
+// the specific file IDs resolved from the backfill date range — these are
+// the exact files that must be processed, NOT whatever happens to be in the
+// "pending" queue at creation time. This ensures backfill uploads process
+// the correct historical data.
 type BackfillUploadCreator interface {
-	CreateBackfillUpload(ctx context.Context, sourceID, destID string, backfillJobID int64) error
+	CreateBackfillUpload(ctx context.Context, sourceID, destID string, backfillJobID int64, stagingFileIDs []int64) error
 }
 
 // ---------------------------------------------------------------------------
@@ -586,7 +590,7 @@ func (s *BackfillService) processPendingJob(ctx context.Context, job BackfillJob
 		)
 		return
 	}
-	if err := s.uploadCreator.CreateBackfillUpload(ctx, job.SourceID, job.DestinationID, job.ID); err != nil {
+	if err := s.uploadCreator.CreateBackfillUpload(ctx, job.SourceID, job.DestinationID, job.ID, fileIDs); err != nil {
 		s.log.Errorn("failed to create backfill upload via router",
 			obskit.Error(err),
 			logger.NewIntField("jobID", job.ID),

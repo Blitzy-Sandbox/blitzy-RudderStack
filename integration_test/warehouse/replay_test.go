@@ -79,7 +79,7 @@ type mockGatewayClient struct {
 	blockCh chan struct{} // when set, SendReplayBatch blocks until closed
 }
 
-func (m *mockGatewayClient) SendReplayBatch(ctx context.Context, batch []byte) error {
+func (m *mockGatewayClient) SendReplayBatch(ctx context.Context, _ string, batch []byte) error {
 	m.batches = append(m.batches, batch)
 	if m.blockCh != nil {
 		select {

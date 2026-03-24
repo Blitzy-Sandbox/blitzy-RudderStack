@@ -203,7 +203,7 @@ type backfillUploadAdapter struct {
 	app *App
 }
 
-func (a *backfillUploadAdapter) CreateBackfillUpload(ctx context.Context, sourceID, destID string, backfillJobID int64) error {
+func (a *backfillUploadAdapter) CreateBackfillUpload(ctx context.Context, sourceID, destID string, backfillJobID int64, stagingFileIDs []int64) error {
 	a.app.dstRoutersMu.RLock()
 	defer a.app.dstRoutersMu.RUnlock()
 
@@ -211,7 +211,7 @@ func (a *backfillUploadAdapter) CreateBackfillUpload(ctx context.Context, source
 		warehouses := r.CopyWarehouses()
 		for _, wh := range warehouses {
 			if wh.Source.ID == sourceID && wh.Destination.ID == destID {
-				return r.CreateBackfillUpload(ctx, wh, backfillJobID)
+				return r.CreateBackfillUpload(ctx, wh, backfillJobID, stagingFileIDs)
 			}
 		}
 	}
@@ -705,7 +705,7 @@ func (a *App) Run(ctx context.Context) error {
 		// concrete client before starting the replay goroutine.
 		{
 			gwPort := a.conf.GetIntVar(8080, 1, "Gateway.webPort")
-			gwURL := fmt.Sprintf("http://localhost:%d/v1/replay", gwPort)
+			gwURL := fmt.Sprintf("http://localhost:%d/internal/v1/replay", gwPort)
 			a.replayHandler.SetGatewayClient(
 				replay.NewHTTPGatewayClient(gwURL, a.logger),
 			)
