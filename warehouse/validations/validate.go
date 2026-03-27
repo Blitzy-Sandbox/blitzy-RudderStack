@@ -371,7 +371,7 @@ func CreateTempLoadFile(dest *backendconfig.DestinationT) (string, error) {
 		return "", fmt.Errorf("creating writer for file: %s with error: %w", filePath, err)
 	}
 
-	eventLoader := ef.NewEventLoader(writer, loadFileType, destinationType)
+	eventLoader := ef.NewEventLoader(writer, loadFileType, destinationType, nil)
 	for _, column := range []string{"id", "val"} {
 		eventLoader.AddColumn(column, tableSchemaMap[column], payloadMap[column])
 	}

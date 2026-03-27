@@ -6,268 +6,307 @@
 
 ### 0.1.1 Core Feature Objective
 
-Based on the prompt, the Blitzy platform understands that the new feature requirement is to **complete Sprint 2–3: Source SDK Compatibility** as defined in the project's sprint roadmap (`docs/gap-report/sprint-roadmap.md`) and informed by the source catalog parity analysis (`docs/gap-report/source-catalog-parity.md`). This sprint encompasses **five epics (E-005 through E-009)** that collectively raise the Source Catalog parity score from ~60% to ~85%.
+Based on the prompt, the Blitzy platform understands that the new feature requirement is to **complete Sprint 7–9: Warehouse Feature Enhancement** for the RudderStack `rudder-server` (v1.68.1) codebase, closing the remaining ~20% warehouse sync parity gap from ~80% to ~95% against Twilio Segment's warehouse offering. This sprint encompasses five discrete epics (E-031 through E-035) that collectively deliver idempotent sync validation, configurable backfill, enhanced health monitoring, selective sync, and warehouse replay capabilities.
 
-The specific requirements are:
+The specific feature requirements are:
 
-- **E-005 — Validate Gateway Segment-compatible API surface:** Perform comprehensive integration testing of all `/v1/{type}` endpoints on port 8080 with Segment SDK client libraries. Validate that the Write Key Basic Auth scheme (`Authorization: Basic base64(writeKey:)`) matches Segment's authentication exactly, enabling standard Segment SDKs to connect with endpoint URL substitution only.
+- **E-031 — Validate Idempotent Sync Across All 9 Connectors:** Implement comprehensive integration tests that verify replay/retry scenarios produce identical warehouse state for all nine warehouse connectors (Snowflake, BigQuery, Redshift, ClickHouse, Delta Lake, PostgreSQL, MSSQL, Azure Synapse, Datalake). Each connector's merge strategy must be tested: SQL MERGE (Snowflake, Delta Lake, PostgreSQL), DELETE+INSERT (Redshift), dedup views (BigQuery), engine-level dedup (ClickHouse), bulk CopyIn (MSSQL, Azure Synapse), and append-only (Datalake).
 
-- **E-006 — JavaScript web SDK compatibility testing:** Execute end-to-end testing with Segment's `analytics.js` / Analytics 2.0 against the RudderStack Gateway. Validate all 6 Spec calls (`identify`, `track`, `page`, `screen`, `group`, `alias`), the batch endpoint (`/v1/batch`), and beacon tracking (`/beacon/v1/batch`). Document device-mode limitations.
+- **E-032 — Implement Backfill with Configurable Date Ranges:** Build a warehouse-level backfill API endpoint that triggers historical data sync for a specified date range, source, and warehouse destination. Support backfill from the archiver (within its retention window) and from staging files in object storage. Implement a backfill state that integrates with the existing 7-state upload state machine.
 
-- **E-007 — iOS and Android mobile SDK compatibility testing:** Perform integration testing with `analytics-ios` (Swift) and `analytics-android` (Kotlin) against the Gateway. Validate `identify`, `track`, `screen`, `group`, `alias` calls, context auto-collection fields, and lifecycle events.
+- **E-033 — Enhance Warehouse Health Monitoring:** Build a warehouse sync health monitoring system with per-upload metrics including sync status, duration, row counts, error classification, and schema changes. Expose metrics as Prometheus counters/gauges/histograms and via a dedicated HTTP API for dashboard integration. Add alerting thresholds for sync failures, latency spikes, and row count anomalies.
 
-- **E-008 — Server-side SDK compatibility testing:** Integration testing with Node.js (`analytics-node`), Python (`analytics-python`), Go (`analytics-go`), Java (`analytics-java`), and Ruby (`analytics-ruby`) SDKs. Validate batch endpoint usage and retry behavior.
+- **E-034 — Add Warehouse Selective Sync:** Implement per-table and per-column sync filtering, allowing users to include or exclude specific tables and columns from warehouse sync. Configuration is delivered via backend-config with runtime filtering applied at the load file generation stage.
 
-- **E-009 — Cloud source ingestion framework design:** Design and prototype the cloud source ingestion framework to address the 140 cloud app source gap (Salesforce, Stripe, HubSpot, Zendesk, etc.). Define the polling/webhook architecture, credential management, and schema mapping layer. Priority: top-20 cloud sources by adoption. **This epic is explicitly design-and-prototype only — no production-grade service code.**
+- **E-035 — Implement Warehouse Replay from Archived Events:** Build an end-to-end replay pipeline (archiver → replay handler → Gateway → Processor → warehouse) that enables warehouse-targeted replay, re-processing archived events through the warehouse pipeline only while bypassing real-time destination routing.
 
-**Implicit requirements surfaced:**
+Implicit requirements surfaced from the documentation and codebase analysis:
 
-- All testing must exercise the live Gateway HTTP API, requiring Docker-based integration test infrastructure (PostgreSQL, Transformer service, webhook recorder)
-- Test fixtures must use actual Segment SDK client library payloads, not hand-crafted HTTP requests, to validate real-world SDK compatibility
-- The existing Sprint 1–2 Event Spec Parity work (E-001 through E-004, marked ✅ COMPLETE) is a prerequisite — all 6 event types are already validated at the field level
-- The cloud source framework design (E-009) must produce both a design document and a minimal proof-of-concept, but not a production service implementation
-- All CI failures resolvable through code changes must be fixed; failures from missing AWS ECR credentials may be skipped
+- The backfill API (E-032) must integrate with the archiver's 10-day retention window (`JobsDB.archivalTimeInDays: 10`) and support an alternative path via staging files for data beyond that window
+- Selective sync (E-034) requires backend-config schema additions coordinated with the Control Plane service, as configuration is distributed via the `TopicBackendConfig` pub/sub mechanism
+- Warehouse replay (E-035) requires a routing flag in event metadata to bypass Router/BatchRouter real-time delivery while still flowing through the Processor's 6-stage pipeline into the warehouse path
+- The 7-state upload state machine (`warehouse/router/state.go`) must be extended with a backfill-specific state for E-032, introducing new state constants in `warehouse/internal/model/upload.go`
+- All new Prometheus metrics (E-033) must follow the existing `stats.Tags` pattern established in `warehouse/router/upload_stats.go`, including `module`, `workspaceId`, `destID`, `destType`, `sourceID`, and `sourceType` tags
 
 ### 0.1.2 Special Instructions and Constraints
 
-- **Implement ALL items in scope:** For every epic, implement ALL items listed — do not skip any variant, endpoint, or sub-case mentioned in the epic description
-- **Design-only epics:** E-009 (marked "Design and prototype") must deliver a design document and a minimal proof-of-concept only — no production-grade service code
-- **Docker requirement:** If any step requires Docker, start it first
-- **Test execution:** Run all tests after implementation
-- **CI fix policy:** Fix all CI failures resolvable through code changes; skip failures caused by missing repository secrets (AWS ECR credentials)
-- **Backward compatibility:** All changes must maintain backward compatibility with the existing HTTP API surface — no breaking changes to `/v1/*` endpoints
-- **jsonrs over encoding/json:** Per the repository's `depguard` linting rule in `.golangci.yml`, all JSON serialization/deserialization must use `jsonrs` from `github.com/rudderlabs/rudder-go-kit`, not `encoding/json`
-- **Table-driven test patterns:** All new tests must follow the codebase's established pattern with `t.Run()` subtests using `testify/require` for assertions; integration tests must use `dockertest/v3` for container orchestration
+- **Implement ALL items listed in scope:** For every epic, all variants, endpoints, and sub-cases mentioned in the epic description must be implemented without skipping any
+- **Design-only epics:** Epics marked "Design and prototype" require a design document and a minimal proof-of-concept only — no production-grade service code. None of the Sprint 7-9 epics carry this marker, so all five require full production implementation
+- **Full pipeline tracing for routing changes:** For E-035 (warehouse replay), the full pipeline must be traced and all components involved must be modified — not just the component that initiates the routing change
+- **Docker prerequisite:** If any step requires Docker, start it first — relevant for E-031 (integration testing with Dockerized warehouse connectors)
+- **Run all tests after implementation:** All existing and new tests must pass after implementation
+- **Fix all CI failures:** Fix all CI failures resolvable through code changes; skip failures caused by missing repository secrets (AWS ECR credentials)
+- **Follow `jsonrs` convention:** Per `.golangci.yml` depguard rule, all JSON serialization must use `github.com/rudderlabs/rudder-go-kit/jsonrs` — never `encoding/json` directly
+- **Table-driven test patterns:** All new tests must follow Ginkgo BDD (`Describe`/`Context`/`It`) or `t.Run()` subtests with `testify/require` assertions
+- **Backward compatibility:** All modifications must maintain backward compatibility with existing warehouse configurations and API contracts
 
 ### 0.1.3 Technical Interpretation
 
 These feature requirements translate to the following technical implementation strategy:
 
-- To **validate the Gateway Segment-compatible API surface (E-005)**, we will create a comprehensive integration test suite that programmatically sends requests to all `/v1/{type}` endpoints using Segment SDK-compatible payloads with Write Key Basic Auth, asserting 200 OK responses and field-level preservation through to webhook destinations
-- To **test JavaScript web SDK compatibility (E-006)**, we will create test fixtures that replicate the exact payload formats produced by `analytics.js` / Analytics 2.0, including batch, beacon, and pixel endpoints, and validate end-to-end delivery through the Gateway pipeline
-- To **test iOS and Android mobile SDK compatibility (E-007)**, we will create test fixtures replicating `analytics-ios` (Swift) and `analytics-android` (Kotlin) payload formats, including mobile-specific context fields (`context.device`, `context.os`, `context.app`, `context.network`, `context.screen`) and lifecycle events (`Application Opened`, `Application Backgrounded`)
-- To **test server-side SDK compatibility (E-008)**, we will create test fixtures for Node.js, Python, Go, Java, and Ruby SDK payload formats, focusing on batch endpoint usage, retry semantics, and library metadata in `context.library`
-- To **design the cloud source ingestion framework (E-009)**, we will create a design document at `docs/architecture/cloud-source-framework.md` defining the polling/webhook architecture for the top-20 cloud sources, and implement a minimal proof-of-concept package at `services/cloud-sources/` with interface definitions and a sample connector skeleton
+- To **validate idempotent sync** (E-031), we will create a comprehensive integration test suite in `integration_test/warehouse/idempotent_sync/` that exercises each connector's merge/dedup strategy by sending duplicate staging files and verifying warehouse state convergence. Tests will leverage `dockertest/v3` for PostgreSQL, ClickHouse, and MSSQL containers, plus mock interfaces for cloud warehouses (Snowflake, BigQuery, Redshift, Delta Lake, Azure Synapse, Datalake).
+
+- To **implement configurable backfill** (E-032), we will extend the warehouse HTTP API (`warehouse/api/http.go`) with a `POST /v1/warehouse/backfill` endpoint, create a backfill orchestrator in `warehouse/router/` that integrates with the existing 7-state upload state machine, and implement backfill source resolution from both the archiver and staging file storage.
+
+- To **enhance health monitoring** (E-033), we will create a `warehouse/healthmonitor/` package that aggregates per-upload metrics from the existing state machine, expose new Prometheus metrics via `stats.Stats` (using the established `statsFactory.NewTaggedStat` pattern), and add a dedicated HTTP health API endpoint at `GET /v1/warehouse/health` with JSON responses for dashboard consumption.
+
+- To **add selective sync** (E-034), we will extend the backend-config schema in `warehouse/bcm/backend_config.go` to parse selective sync settings from destination configuration, implement table/column filtering logic in the load file generation stage (`warehouse/internal/loadfiles/loadfiles.go`), and apply filters during the `GeneratedLoadFiles` state of the upload state machine.
+
+- To **implement warehouse replay** (E-035), we will extend the archiver output to feed a replay handler, add a warehouse-targeted routing flag to event metadata processed in `processor/processor.go`, and configure the Batch Router to route replay events exclusively to warehouse destinations, bypassing real-time Router delivery.
 
 ## 0.2 Repository Scope Discovery
 
 ### 0.2.1 Comprehensive File Analysis
 
-The Sprint 2–3 Source SDK Compatibility scope affects files across the Gateway layer (HTTP ingestion and authentication), the integration test infrastructure, documentation, and a new cloud source service package. The following analysis identifies every existing file requiring modification and every new file requiring creation.
+The following sections enumerate every existing file and folder that requires modification, inspection, or serves as an integration point for the Sprint 7–9 Warehouse Feature Enhancement epics.
 
-**Existing Gateway Files Requiring Modification or Verification:**
+**Warehouse Core — Router and State Machine (`warehouse/router/`)**
 
-| File Path | Purpose | Sprint Impact |
-|-----------|---------|---------------|
-| `gateway/handle_http.go` | HTTP handler wiring for all event types — defines `webIdentifyHandler`, `webTrackHandler`, `webPageHandler`, `webScreenHandler`, `webGroupHandler`, `webAliasHandler`, `webBatchHandler` | E-005: Verify all handlers are correctly wired for Segment SDK payload formats |
-| `gateway/handle_http_auth.go` | Write Key Basic Auth middleware (`writeKeyAuth`), webhook auth (`webhookAuth`), source ID auth (`sourceIDAuth`) | E-005: Validate Write Key Basic Auth is 100% compatible with Segment's scheme |
-| `gateway/handle_http_beacon.go` | Beacon batch handler (`beaconBatchHandler`) with writeKey query param interception | E-006: Validate beacon endpoint accepts Analytics 2.0 `sendBeacon()` payloads |
-| `gateway/handle_http_pixel.go` | Pixel track and page handlers with GIF response — `pixelTrackHandler`, `pixelPageHandler`, `pixelInterceptor` | E-006: Validate pixel endpoints accept web SDK image tag requests |
-| `gateway/handle_http_import.go` | Historical data import handler (`webImportHandler`) | E-005: Verify import endpoint compatibility |
-| `gateway/handle.go` | Core request handler — event processing, userAgent extraction, bot detection, payload batching | E-005, E-007: Verify mobile context fields and lifecycle events pass through |
-| `gateway/handle_lifecycle.go` | Route registration via Chi router — all `/v1/*`, `/beacon/v1/*`, `/pixel/v1/*` routes | E-005: Audit complete route registration for SDK endpoint coverage |
-| `gateway/handle_webhook.go` | Webhook handler — `webhookHandler()` supporting both v1 and v2 auth chains | E-009: Understand existing webhook source pattern for cloud source design |
-| `gateway/openapi.yaml` | OpenAPI 3.0.3 specification for all Gateway endpoints | E-005: Verify specification covers all SDK-required endpoints |
-| `gateway/gateway.go` | Constants and sentinel errors | E-005: Verify error responses match Segment API behavior |
-| `gateway/types.go` | Request types — `webRequestT`, `RequestHandler` interface | E-005: Verify request types accommodate all SDK payload shapes |
-| `gateway/validator/validator.go` | Validator mediator chain — `msgProperties`, `messageId`, `reqType`, `receivedAt`, `requestIP`, `rudderID` | E-005: Verify validators accept all valid Segment SDK payloads |
-| `gateway/internal/bot/bot.go` | Bot user-agent detection — `IsBotUserAgent` | E-006, E-007: Verify SDK user-agents are not falsely classified as bots |
-| `gateway/response/response.go` | Canonical response strings — `Ok`, `InvalidWriteKey`, `SourceDisabled`, etc. | E-005: Verify response codes and messages match Segment API behavior |
-| `gateway/webhook/setup.go` | Webhook pipeline setup | E-009: Reference for cloud source webhook integration |
-| `gateway/webhook/webhook.go` | Core webhook request handling | E-009: Reference for inbound webhook processing |
-| `gateway/webhook/webhookTransformer.go` | Webhook payload transformation | E-009: Reference for cloud source payload normalization |
-| `gateway/types/types.go` | `AuthRequestContext` struct with `SourceCategory`, `WriteKey`, `SourceEnabled` | E-005: Verify auth context supports all SDK authentication patterns |
+| File | Relevance | Epics |
+|------|-----------|-------|
+| `warehouse/router/state.go` | 7-state upload state machine; must be extended with backfill state for E-032 | E-031, E-032 |
+| `warehouse/router/upload.go` | `UploadJobFactory` and `UploadJob` lifecycle; core orchestration for all upload operations | E-031, E-032, E-033, E-034 |
+| `warehouse/router/upload_stats.go` | `buildTags()`, `timerStat()`, `counterStat()`, `gaugeStat()`, `histogramStat()` helpers; extend for health monitoring | E-033 |
+| `warehouse/router/router.go` | Router struct with backend-config subscription, worker queues, scheduler loops; routing changes for backfill and replay | E-032, E-034, E-035 |
+| `warehouse/router/scheduling.go` | Upload-creation guards, sync frequency, exclude windows; extend for backfill scheduling | E-032 |
+| `warehouse/router/tracker.go` | Background cron monitoring, `warehouse_track_upload_missing` gauge; extend for health alerting | E-033 |
+| `warehouse/router/errors.go` | Error-to-`JobErrorType` regex mapping; extend error classification for health monitoring | E-033 |
+| `warehouse/router/identities.go` | Historic identity loading; verify compatibility with backfill workflow | E-032 |
+| `warehouse/router/state_generate_load_files.go` | Load file generation orchestration; selective sync filtering applied here | E-034 |
+| `warehouse/router/state_export_data.go` | Export pipeline across user, identity, and regular tables; selective sync must respect table exclusions | E-034 |
+| `warehouse/router/state_create_table_uploads.go` | Table upload list creation; selective sync must filter excluded tables | E-034 |
+| `warehouse/router/state_create_schema.go` | Schema creation; selective sync may skip schema for excluded tables | E-034 |
+| `warehouse/router/state_generate_upload_schema.go` | Upload schema merge from staging files; selective sync schema filtering | E-034 |
+| `warehouse/router/state_update_table_uploads.go` | Table upload count propagation; include selective sync awareness | E-034 |
 
-**Existing Gateway Test Files Requiring Extension:**
+**Warehouse Core — Internal Model and Repository (`warehouse/internal/`)**
 
-| File Path | Purpose | Sprint Impact |
-|-----------|---------|---------------|
-| `gateway/gateway_test.go` | Comprehensive Gateway unit test suite (96KB) | E-005: Extend with Segment SDK-format payloads |
-| `gateway/handle_test.go` | Handle pipeline tests (49KB) | E-005: Add SDK-specific payload preservation tests |
-| `gateway/handle_http_auth_test.go` | Auth middleware tests | E-005: Add Segment SDK Basic Auth format tests |
-| `gateway/handle_http_beacon_test.go` | Beacon handler tests | E-006: Add Analytics 2.0 beacon payload tests |
-| `gateway/handle_http_pixel_test.go` | Pixel handler tests | E-006: Add web SDK pixel tracking tests |
-| `gateway/gateway_integration_test.go` | Gateway integration tests | E-005: Extend with multi-SDK integration scenarios |
-| `gateway/integration_test.go` | Additional integration tests | E-005: Extend with SDK compatibility scenarios |
-| `gateway/validator/validator_test.go` | Validator chain tests | E-005: Verify SDK payloads pass validation |
-| `gateway/internal/bot/bot_test.go` | Bot detection tests | E-006, E-007: Verify SDK user-agents not flagged |
-| `gateway/webhook/webhook_test.go` | Webhook handler tests | E-009: Reference for cloud source tests |
+| File | Relevance | Epics |
+|------|-----------|-------|
+| `warehouse/internal/model/upload.go` | Upload status constants (`Waiting`, `GeneratedUploadSchema`, etc.), `Upload` struct; add backfill-related status constants | E-032, E-033 |
+| `warehouse/internal/model/staging.go` | `StagingFile` model; used by backfill source resolution | E-032, E-035 |
+| `warehouse/internal/model/load.go` | `LoadFile` model; selective sync filtering applies at this level | E-034 |
+| `warehouse/internal/model/schema.go` | Schema model; selective sync schema projection | E-034 |
+| `warehouse/internal/model/syncs.go` | Sync latency model; health monitoring metrics source | E-033 |
+| `warehouse/internal/repo/upload.go` | Upload repository CRUD; add backfill-specific queries, health monitoring aggregations | E-032, E-033 |
+| `warehouse/internal/repo/staging.go` | Staging file repository; backfill date-range queries | E-032, E-035 |
+| `warehouse/internal/repo/load.go` | Load file repository; selective sync filtered queries | E-034 |
+| `warehouse/internal/repo/table_upload.go` | Table upload repository; per-table health status queries | E-033, E-034 |
+| `warehouse/internal/repo/schema.go` | Schema repository; schema-level selective sync filtering | E-034 |
+| `warehouse/internal/loadfiles/loadfiles.go` | Load file generation pipeline; primary insertion point for selective sync table/column filtering | E-034 |
+| `warehouse/internal/api/api.go` | `POST /v1/process` handler; verify compatibility with backfill-generated staging files | E-032 |
 
-**Existing Integration Test Files Requiring Modification:**
+**Warehouse Core — API Layer (`warehouse/api/`)**
 
-| File Path | Purpose | Sprint Impact |
-|-----------|---------|---------------|
-| `integration_test/docker_test/docker_test.go` | Full-stack Docker regression suite | E-005: Extend with multi-SDK payload scenarios |
-| `integration_test/docker_test/testdata/workspaceConfigTemplate.json` | Workspace config for Docker tests | E-005: Verify template supports all SDK source types |
-| `integration_test/event_spec_parity/event_spec_parity_test.go` | Event Spec Parity integration test from Sprint 1–2 | E-005: Extend with SDK-specific payload variations |
+| File | Relevance | Epics |
+|------|-----------|-------|
+| `warehouse/api/http.go` | Chi router with `/v1/warehouse/*` endpoints; add backfill endpoint, health monitoring API, selective sync config endpoint | E-032, E-033, E-034 |
+| `warehouse/api/grpc.go` | gRPC server with upload/trigger/retry RPCs; add backfill and health monitoring RPCs | E-032, E-033 |
+| `warehouse/api/http_test.go` | Integration tests for HTTP endpoints; extend for new endpoints | E-032, E-033, E-034 |
+| `warehouse/api/grpc_test.go` | Integration tests for gRPC endpoints; extend for new RPCs | E-032, E-033 |
 
-**Backend Configuration Files (Read/Verify):**
+**Warehouse Connectors (`warehouse/integrations/`)**
 
-| File Path | Purpose | Sprint Impact |
-|-----------|---------|---------------|
-| `backend-config/types.go` | `SourceT` struct with `WriteKey`, `SourceCategory`, `Enabled`, `SourceDefinition` | E-005: Verify source config supports SDK auth; E-009: Understand cloud source config model |
-| `backend-config/backend-config.go` | Backend config fetch and cache | E-009: Reference for cloud source configuration management |
-| `config/config.yaml` | Gateway port 8080, 64 workers, 4MB request size | E-005: Document config constraints for SDK compatibility |
+| Directory | Merge Strategy | Epic |
+|-----------|---------------|------|
+| `warehouse/integrations/snowflake/snowflake.go` | SQL MERGE with staging table, `ROW_NUMBER()` window function | E-031 |
+| `warehouse/integrations/bigquery/bigquery.go` | Append with dedup views via `CREATE OR REPLACE VIEW` | E-031 |
+| `warehouse/integrations/redshift/redshift.go` | Transactional DELETE+INSERT with dedup window | E-031 |
+| `warehouse/integrations/clickhouse/clickhouse.go` | `AggregatingMergeTree`/`ReplacingMergeTree` engine-level dedup | E-031 |
+| `warehouse/integrations/deltalake/deltalake.go` | SQL MERGE with partition pruning, `ShouldMerge()` | E-031 |
+| `warehouse/integrations/postgres/postgres.go` | SQL MERGE with partition key dedup | E-031 |
+| `warehouse/integrations/mssql/mssql.go` | Bulk CopyIn via `mssql.CopyIn` with staging | E-031 |
+| `warehouse/integrations/azure-synapse/azure-synapse.go` | Bulk CopyIn with staging, delete-for-dedup | E-031 |
+| `warehouse/integrations/datalake/datalake.go` | Append-only, no merge (Glue/local metadata) | E-031 |
+| `warehouse/integrations/manager/manager.go` | `Manager`/`WarehouseOperations` interfaces; verify no changes needed for selective sync | E-034 |
+| `warehouse/integrations/testhelper/` | Reusable test scaffolding: staging file renderers, event maps, service bootstrapper | E-031 |
+| `warehouse/integrations/testdata/` | Docker Compose fixtures, templated JSON payloads for integration tests | E-031 |
 
-**Testhelper Files (Used but Not Modified):**
+**Warehouse Supporting Packages**
 
-| File Path | Purpose |
-|-----------|---------|
-| `testhelper/webhook/recorder.go` | Webhook request recorder for asserting event delivery |
-| `testhelper/health/checker.go` | Health check polling utility for integration tests |
-| `testhelper/workspaceConfig/` | Workspace configuration test fixtures |
+| File | Relevance | Epics |
+|------|-----------|-------|
+| `warehouse/schema/schema.go` | `Handler` interface: `ConsolidateStagingFilesSchema()`, `TableSchemaDiff()`; selective sync schema filtering | E-034 |
+| `warehouse/encoding/encoding.go` | Encoding factory (Parquet/JSON/CSV); selective sync column filtering during load file encoding | E-034 |
+| `warehouse/app.go` | Warehouse App orchestrator (`Setup`, `Run`); wire new health monitoring, backfill, and replay subsystems | E-032, E-033, E-035 |
+| `warehouse/bcm/backend_config.go` | BackendConfigManager; parse selective sync configuration from destination config | E-034 |
+| `warehouse/archive/archiver.go` | Warehouse staging/load file archival; integration point for replay pipeline | E-035 |
+| `warehouse/archive/cron.go` | `CronArchiver` goroutine; replay trigger integration | E-035 |
+| `warehouse/identity/identity.go` | Identity resolution (`Resolve`, `ResolveHistoricIdentities`); verify compatibility with backfill | E-032 |
+| `warehouse/multitenant/` | Multi-tenant manager; all new features must be tenant-aware | E-032, E-033, E-034, E-035 |
+| `warehouse/utils/` | Shared utilities, destination/object-storage helpers; extend for selective sync config helpers | E-034 |
+| `warehouse/validations/` | Destination validation; add selective sync configuration validation | E-034 |
 
-**Segment Reference Corpus (Read-Only Baseline):**
+**Event Archival (`archiver/`)**
 
-| File Path | Purpose |
-|-----------|---------|
-| `refs/segment-docs/src/connections/sources/catalog/libraries/website/javascript/` | JavaScript SDK reference |
-| `refs/segment-docs/src/connections/sources/catalog/libraries/mobile/ios/` | iOS SDK reference |
-| `refs/segment-docs/src/connections/sources/catalog/libraries/mobile/android/` | Android SDK reference |
-| `refs/segment-docs/src/connections/sources/catalog/libraries/server/node-js/` | Node.js SDK reference |
-| `refs/segment-docs/src/connections/sources/catalog/libraries/server/python/` | Python SDK reference |
-| `refs/segment-docs/src/connections/sources/catalog/libraries/server/go/` | Go SDK reference |
-| `refs/segment-docs/src/connections/sources/catalog/libraries/server/java/` | Java SDK reference |
-| `refs/segment-docs/src/connections/sources/catalog/libraries/server/ruby/` | Ruby SDK reference |
-| `refs/segment-docs/src/connections/sources/catalog/cloud-apps/` | 140 cloud app source definitions |
+| File | Relevance | Epics |
+|------|-----------|-------|
+| `archiver/archiver.go` | Core archiver orchestrator; replay pipeline reads from archiver output | E-035 |
+| `archiver/worker.go` | Per-source archival worker; provides gzipped JSONL files for replay | E-035 |
+| `archiver/options.go` | `WithArchiveFrom`, `WithArchiveTrigger`; potential customization for replay-oriented archival | E-035 |
 
-**Integration Point Discovery:**
+**Gateway and Pipeline (`gateway/`, `processor/`, `backend-config/`)**
 
-- **API endpoints connected to this feature:** All `/v1/{type}` endpoints (identify, track, page, screen, group, alias, batch), `/v1/import`, `/beacon/v1/batch`, `/pixel/v1/track`, `/pixel/v1/page`, `/v1/webhook`
-- **Authentication middleware:** `writeKeyAuth` (gateway/handle_http_auth.go:24-58), `webhookAuth` (gateway/handle_http_auth.go:64-96), `beaconInterceptor` (gateway/handle_http_beacon.go:22-47)
-- **Database models affected:** None directly — the Gateway persists events to JobsDB transparently
-- **Service classes requiring verification:** `gateway.Handle` (core request handler), `webhook.WebhookAuth` (webhook auth chain), `validator.Mediator` (payload validation)
-- **Middleware/interceptors impacted:** `beaconInterceptor` (writeKey from query params → Basic Auth header), `pixelInterceptor` (query params → JSON payload), `callType` middleware (request type injection), `UncompressMiddleware` (gzip decompression)
+| File | Relevance | Epics |
+|------|-----------|-------|
+| `gateway/handle_http_replay.go` | `webReplayHandler()` — existing replay endpoint; extend for warehouse-targeted replay | E-035 |
+| `gateway/handle.go` | Core request handler; replay routing metadata injection point | E-035 |
+| `backend-config/replay_types.go` | `EventReplayConfig`, `ApplyReplaySources()`; extend for warehouse-targeted replay configuration | E-035 |
+| `processor/processor.go` | 6-stage pipeline; add warehouse-only routing flag detection for replay events | E-035 |
+| `processor/pipeline_worker.go` | Pipeline channel orchestration; replay routing awareness | E-035 |
 
-### 0.2.2 New File Requirements
+**Database Migrations (`sql/migrations/warehouse/`)**
 
-**New Source Files to Create:**
+| File | Relevance | Epics |
+|------|-----------|-------|
+| `sql/migrations/warehouse/000001_create_tables.up.sql` through `000041_*.sql` | Existing 41 migrations; new migrations needed for backfill tracking, selective sync config, and health monitoring tables | E-032, E-033, E-034 |
 
-| File Path | Purpose | Epic |
-|-----------|---------|------|
-| `services/cloud-sources/cloud_source.go` | Cloud source framework interface definitions — `CloudSource`, `Poller`, `WebhookReceiver`, `SchemaMapper` interfaces | E-009 |
-| `services/cloud-sources/registry.go` | Cloud source connector registry — registration, lookup, and lifecycle management | E-009 |
-| `services/cloud-sources/config.go` | Cloud source configuration types — credential storage, polling intervals, webhook URLs | E-009 |
-| `services/cloud-sources/poller.go` | Base polling implementation — rate-limited API polling with cursor-based pagination | E-009 |
-| `services/cloud-sources/webhook_receiver.go` | Base webhook receiver — inbound webhook validation, payload normalization | E-009 |
-| `services/cloud-sources/schema_mapper.go` | Schema mapping layer — transforms third-party API responses to Segment Spec events | E-009 |
-| `services/cloud-sources/connectors/stripe/stripe.go` | Stripe connector proof-of-concept — webhook-based event ingestion | E-009 |
+**Configuration**
 
-**New Test Files to Create:**
+| File | Relevance | Epics |
+|------|-----------|-------|
+| `config/config.yaml` | Master runtime configuration; add new config keys for backfill, health monitoring thresholds, selective sync defaults | E-032, E-033, E-034, E-035 |
+| `build/docker.env` | Docker environment variables; document new warehouse config parameters | E-032, E-033 |
+| `docker-compose.yml` | Docker Compose stack; verify warehouse integration test infrastructure | E-031 |
 
-| File Path | Purpose | Epic |
-|-----------|---------|------|
-| `integration_test/sdk_compatibility/sdk_compatibility_test.go` | Full-stack SDK compatibility integration test — validates all SDK payload formats through Gateway → Processor → Router → webhook | E-005, E-006, E-007, E-008 |
-| `integration_test/sdk_compatibility/testdata/workspaceConfigTemplate.json` | Workspace configuration template for SDK compatibility tests | E-005 |
-| `integration_test/sdk_compatibility/testdata/segment_js_payloads.json` | Canonical `analytics.js` payload fixtures for all call types including batch and beacon | E-006 |
-| `integration_test/sdk_compatibility/testdata/segment_ios_payloads.json` | Canonical `analytics-ios` payload fixtures with mobile context fields and lifecycle events | E-007 |
-| `integration_test/sdk_compatibility/testdata/segment_android_payloads.json` | Canonical `analytics-android` payload fixtures with mobile context fields and lifecycle events | E-007 |
-| `integration_test/sdk_compatibility/testdata/segment_server_payloads.json` | Canonical server-side SDK payload fixtures for Node.js, Python, Go, Java, Ruby | E-008 |
-| `gateway/sdk_compatibility_test.go` | Gateway-level SDK payload format validation unit tests | E-005, E-006, E-007, E-008 |
-| `gateway/sdk_auth_compat_test.go` | Dedicated Write Key Basic Auth compatibility test suite — validates all Segment SDK auth patterns | E-005 |
-| `services/cloud-sources/cloud_source_test.go` | Cloud source framework unit tests — interface compliance, registry, config | E-009 |
-| `services/cloud-sources/connectors/stripe/stripe_test.go` | Stripe connector proof-of-concept tests | E-009 |
+**Proto/gRPC**
 
-**New Documentation Files to Create:**
+| File | Relevance | Epics |
+|------|-----------|-------|
+| `proto/warehouse/warehouse.pb.go` | Generated protobuf Go code; regenerate after adding backfill and health RPCs | E-032, E-033 |
+| `proto/warehouse/warehouse_grpc.pb.go` | Generated gRPC service code; regenerate after adding new RPCs | E-032, E-033 |
 
-| File Path | Purpose | Epic |
-|-----------|---------|------|
-| `docs/architecture/cloud-source-framework.md` | Cloud source ingestion framework design document — polling/webhook architecture, credential management, schema mapping, top-20 source analysis | E-009 |
-| `docs/guides/sdk-compatibility/segment-sdk-migration.md` | Segment SDK migration guide — per-SDK endpoint swap and Write Key substitution instructions | E-005, E-006, E-007, E-008 |
-| `docs/guides/sdk-compatibility/web-sdk-guide.md` | JavaScript/Analytics 2.0 compatibility guide with device-mode limitations | E-006 |
-| `docs/guides/sdk-compatibility/mobile-sdk-guide.md` | iOS and Android SDK compatibility guide with lifecycle event support | E-007 |
-| `docs/guides/sdk-compatibility/server-sdk-guide.md` | Server-side SDK (Node.js, Python, Go, Java, Ruby) compatibility guide | E-008 |
+**Integration Tests**
 
-**New Configuration Files to Create:**
+| File | Relevance | Epics |
+|------|-----------|-------|
+| `integration_test/warehouse/warehouse_test.go` | Existing warehouse integration test; extend with idempotent sync and backfill scenarios | E-031, E-032 |
 
-| File Path | Purpose | Epic |
-|-----------|---------|------|
-| `integration_test/sdk_compatibility/testdata/workspaceConfigTemplate.json` | Workspace configuration for SDK compatibility integration tests | E-005 |
+### 0.2.2 Web Search Research Conducted
 
-### 0.2.3 Web Search Research Conducted
+No external web search was required for this sprint scope. All technical decisions are grounded in:
+- The warehouse parity analysis (`docs/gap-report/warehouse-parity.md`) which comprehensively documents all gap areas, merge strategies, and remediation paths
+- The sprint roadmap (`docs/gap-report/sprint-roadmap.md`) which provides epic-level requirements with source citations
+- The existing codebase patterns observed through repository inspection (state machine, encoding factory, stats patterns, integration test scaffolding)
 
-The following research topics inform the implementation approach:
+### 0.2.3 New File Requirements
 
-- Best practices for Segment SDK compatibility testing — validated through the Segment SDK documentation corpus embedded in `refs/segment-docs/src/connections/sources/catalog/libraries/`
-- Cloud source ingestion patterns — polling vs. webhook architectures for SaaS API integration (Salesforce, Stripe, HubSpot)
-- Segment SDK payload formats — exact JSON structures produced by each SDK platform for all 6 event types
-- Security considerations for webhook-based cloud source ingestion — HMAC signature validation, rate limiting, replay protection
+**New source files to create:**
+
+- `warehouse/backfill/backfill.go` — Backfill orchestrator: date-range resolution, source selection (archiver vs. staging files), backfill upload creation
+- `warehouse/backfill/handler.go` — HTTP/gRPC handler for backfill API requests, input validation, backfill job submission
+- `warehouse/backfill/options.go` — Backfill configuration options: date range, source ID, destination ID, concurrency limits
+- `warehouse/healthmonitor/monitor.go` — Health monitoring aggregator: per-upload metrics collection, Prometheus metric emission, alerting threshold evaluation
+- `warehouse/healthmonitor/api.go` — HTTP handler for `GET /v1/warehouse/health` endpoint, JSON response builder for dashboard consumption
+- `warehouse/healthmonitor/alerts.go` — Alerting logic: sync failure thresholds, latency spike detection, row count anomaly detection
+- `warehouse/selectivesync/config.go` — Selective sync configuration parser: per-table and per-column inclusion/exclusion rules from backend-config
+- `warehouse/selectivesync/filter.go` — Runtime table/column filter: applied during load file generation and schema consolidation stages
+- `warehouse/replay/handler.go` — Warehouse replay orchestrator: archiver-to-Gateway pipeline, warehouse-targeted routing flag injection
+- `warehouse/replay/router.go` — Replay routing logic: bypass real-time Router delivery, target warehouse-only processing
+
+**New test files:**
+
+- `warehouse/backfill/backfill_test.go` — Unit tests for backfill orchestration, date-range validation, source resolution logic
+- `warehouse/healthmonitor/monitor_test.go` — Unit tests for metric aggregation, alerting threshold evaluation
+- `warehouse/healthmonitor/api_test.go` — Integration tests for health HTTP API endpoint
+- `warehouse/selectivesync/config_test.go` — Unit tests for selective sync configuration parsing, edge cases
+- `warehouse/selectivesync/filter_test.go` — Unit tests for table/column filtering logic
+- `warehouse/replay/handler_test.go` — Unit tests for replay pipeline orchestration
+- `warehouse/replay/router_test.go` — Unit tests for warehouse-targeted routing
+- `integration_test/warehouse/idempotent_sync_test.go` — Comprehensive integration test suite for all 9 connectors' idempotent sync validation
+- `integration_test/warehouse/backfill_test.go` — Integration tests for backfill API endpoint
+- `integration_test/warehouse/selective_sync_test.go` — Integration tests for selective sync filtering
+- `integration_test/warehouse/replay_test.go` — Integration tests for warehouse replay pipeline
+
+**New configuration:**
+
+- `sql/migrations/warehouse/000042_add_backfill_tracking.up.sql` — Migration: add backfill metadata columns to `wh_uploads`, add `wh_backfill_jobs` table
+- `sql/migrations/warehouse/000042_add_backfill_tracking.down.sql` — Rollback migration
+- `sql/migrations/warehouse/000043_add_selective_sync_config.up.sql` — Migration: add selective sync config columns to `wh_schemas` or create `wh_selective_sync` table
+- `sql/migrations/warehouse/000043_add_selective_sync_config.down.sql` — Rollback migration
+- `sql/migrations/warehouse/000044_add_health_monitoring_tables.up.sql` — Migration: add `wh_sync_health` table for historical health metrics
+- `sql/migrations/warehouse/000044_add_health_monitoring_tables.down.sql` — Rollback migration
+
+**New documentation:**
+
+- `docs/warehouse/backfill.md` — Backfill API documentation, usage guide, retention constraints
+- `docs/warehouse/health-monitoring.md` — Health monitoring feature documentation, Prometheus metrics reference, alerting configuration
+- `docs/warehouse/selective-sync.md` — Selective sync configuration guide, per-table and per-column examples
+- `docs/warehouse/replay.md` — Warehouse replay documentation, pipeline architecture, usage guide
 
 ## 0.3 Dependency Inventory
 
 ### 0.3.1 Private and Public Packages
 
-The following table lists all key packages relevant to the Sprint 2–3 Source SDK Compatibility feature addition, with exact versions drawn from `go.mod`:
+The following table lists all key packages relevant to the Sprint 7–9 Warehouse Feature Enhancement, with exact versions drawn from `go.mod`:
 
 | Registry | Package | Version | Purpose |
 |----------|---------|---------|---------|
-| Go stdlib | `go` | 1.26.0 | Runtime version from `go.mod` line 3 |
-| GitHub | `github.com/rudderlabs/rudder-go-kit` | v0.72.3 | Core toolkit — config, logger, stats, httputil, jsonrs, test docker resources |
-| GitHub | `github.com/rudderlabs/rudder-observability-kit` | v0.0.6 | Observability instrumentation (obskit labels) |
-| GitHub | `github.com/rudderlabs/rudder-schemas` | v0.9.1 | Shared schema definitions (stream.MessageProperties) |
-| GitHub | `github.com/rudderlabs/rudder-transformer/go` | v1.122.0 | Transformer Go client library |
-| GitHub | `github.com/rudderlabs/analytics-go` | v3.3.3+incompatible | RudderStack analytics Go client |
-| GitHub | `github.com/go-chi/chi/v5` | v5.2.5 | HTTP router for Gateway endpoints — all SDK-facing routes |
-| GitHub | `github.com/rs/cors` | v1.11.1 | CORS middleware for browser-based SDK (analytics.js) access |
-| GitHub | `github.com/tidwall/gjson` | v1.18.0 | Fast JSON path querying for payload field extraction in tests |
-| GitHub | `github.com/tidwall/sjson` | v1.2.5 | Fast JSON mutation for test payload construction |
-| GitHub | `github.com/grafana/jsonparser` | v0.0.0-20250908162026-5c2524e07b4c | High-performance JSON parser |
-| GitHub | `github.com/stretchr/testify` | v1.11.1 | Test assertion library (assert, require) |
+| Go stdlib | `go` | 1.26.0 | Runtime version from `go.mod` |
+| GitHub | `github.com/rudderlabs/rudder-go-kit` | v0.72.3 | Core toolkit: config, logger, stats (Prometheus), httputil, jsonrs, filemanager |
+| GitHub | `github.com/rudderlabs/rudder-observability-kit` | v0.0.6 | Observability instrumentation: obskit labels, structured logging |
+| GitHub | `github.com/rudderlabs/rudder-schemas` | v0.9.1 | Shared schema definitions |
+| GitHub | `github.com/go-chi/chi/v5` | v5.2.5 | HTTP router for warehouse API endpoints |
+| GitHub | `github.com/lib/pq` | v1.11.2 | PostgreSQL driver: `pq.CopyIn`, `pq.Array` used in warehouse connectors |
+| GitHub | `github.com/tidwall/gjson` | v1.18.0 | Fast JSON value extraction for metadata parsing |
+| GitHub | `github.com/tidwall/sjson` | v1.2.5 | Fast JSON value mutation for metadata injection |
+| GitHub | `github.com/samber/lo` | v1.52.0 | Go generics utility library (map, filter, chunk) |
+| GitHub | `github.com/google/uuid` | v1.6.0 | UUID generation for backfill job IDs and upload tracking |
+| GitHub | `github.com/cenkalti/backoff/v5` | v5 | Exponential backoff for retry logic in backfill operations |
+| GitHub | `github.com/stretchr/testify` | v1.11.1 | Test assertion library (require, assert) |
 | GitHub | `github.com/onsi/ginkgo/v2` | v2.24.0 | BDD test framework |
 | GitHub | `github.com/onsi/gomega` | v1.38.0 | BDD matcher library |
-| GitHub | `github.com/ory/dockertest/v3` | v3.12.0 | Docker container orchestration for integration tests |
-| GitHub | `go.uber.org/mock` | v0.6.0 | Interface mock generation |
-| GitHub | `github.com/google/go-cmp` | v0.7.0 | Deep structural comparison for test assertions |
-| GitHub | `github.com/google/uuid` | v1.6.0 | UUID generation (messageId, anonymousId) |
-| GitHub | `github.com/samber/lo` | v1.52.0 | Go generics utility library (map, filter, chunk) |
-| GitHub | `github.com/lib/pq` | v1.11.2 | PostgreSQL driver for JobsDB integration tests |
-| GitHub | `github.com/golang-migrate/migrate/v4` | v4.18.3 | Database migration framework |
-| GitHub | `github.com/phayes/freeport` | v0.0.0-20220201140144-74d24b5ae9f5 | Dynamic port allocation for test isolation |
-| GitHub | `github.com/klauspost/compress` | v1.18.4 | Gzip compression/decompression for Gateway middleware |
-| GitHub | `github.com/joho/godotenv` | v1.5.1 | Environment variable loading for test configuration |
-| GitHub | `github.com/evanphx/json-patch/v5` | v5.9.11 | JSON patch operations for config diffs |
+| GitHub | `github.com/ory/dockertest/v3` | v3.12.0 | Docker container orchestration for idempotent sync integration tests |
+| GitHub | `go.uber.org/mock` | v0.6.0 | Mock generation for interface testing |
+| GitHub | `golang.org/x/sync` | (from go.mod) | `errgroup` for concurrent operations in backfill and health monitoring |
+| GitHub | `github.com/golang-migrate/migrate/v4` | v4.18.3 | Database migration framework for new warehouse migrations |
+| GitHub | `github.com/klauspost/compress` | v1.18.4 | Gzip compression for archived event handling in replay |
+| GitHub | `github.com/grafana/jsonparser` | v0.0.0-20250908162026 | High-performance JSON parser for selective sync config parsing |
+| GitHub | `github.com/jackc/pgx` | (indirect via pq) | PostgreSQL extensions used in identity resolution |
+| GitHub | `cloud.google.com/go/bigquery` | v1.72.0 | BigQuery client for idempotent sync validation |
+| GitHub | `github.com/ClickHouse/clickhouse-go` | v1.5.4 | ClickHouse driver for idempotent sync testing |
+| GitHub | `github.com/allisson/go-pglock/v3` | v3.0.0 | Advisory locks for concurrent backfill operations |
+| GitHub | `github.com/rudderlabs/rudder-go-kit/testhelper/docker/resource/postgres` | v0.72.3 | Docker PostgreSQL resource for integration tests |
+| GitHub | `github.com/rudderlabs/rudder-go-kit/testhelper/docker/resource/minio` | v0.72.3 | Docker MinIO resource for staging file tests |
 
 ### 0.3.2 Dependency Updates
 
-**No new external dependencies are required** for Sprint 2–3. All SDK compatibility testing, integration testing, and the cloud source framework proof-of-concept leverage the existing dependency set. The work focuses on:
+**No new external dependencies are required** for the Sprint 7–9 scope. All five epics leverage the existing dependency set. The warehouse service's existing integration with `rudder-go-kit/stats` provides the Prometheus metric emission infrastructure needed for E-033. The `dockertest/v3` library and existing warehouse integration test helpers already support the integration testing required for E-031.
 
-- Creating test fixtures that replicate Segment SDK payload formats using existing JSON libraries (`gjson`, `sjson`)
-- Building integration tests using the established `dockertest/v3` + `testhelper/webhook` + `testhelper/health` pattern
-- Designing the cloud source framework using Go standard library interfaces and the existing `gateway/webhook/` package as a reference
+**Import Updates (files requiring new internal import additions):**
 
-**Import Updates (If applicable):**
+- `warehouse/api/http.go` — Add imports for new backfill, health monitoring, and selective sync handler packages:
+  - `github.com/rudderlabs/rudder-server/warehouse/backfill`
+  - `github.com/rudderlabs/rudder-server/warehouse/healthmonitor`
+  - `github.com/rudderlabs/rudder-server/warehouse/selectivesync`
 
-Files requiring import additions for new test utilities and source files:
+- `warehouse/router/upload.go` — Add imports for selective sync filter:
+  - `github.com/rudderlabs/rudder-server/warehouse/selectivesync`
 
-- `integration_test/sdk_compatibility/sdk_compatibility_test.go` — New file requiring imports from:
-  - `github.com/ory/dockertest/v3`
-  - `github.com/rudderlabs/rudder-go-kit/testhelper/docker/resource/postgres`
-  - `github.com/rudderlabs/rudder-go-kit/testhelper/docker/resource/transformer`
-  - `github.com/rudderlabs/rudder-server/testhelper/health`
-  - `github.com/rudderlabs/rudder-server/testhelper/webhook`
-  - `github.com/tidwall/gjson`
-  - `github.com/stretchr/testify/require`
+- `warehouse/router/state_generate_load_files.go` — Add imports for selective sync:
+  - `github.com/rudderlabs/rudder-server/warehouse/selectivesync`
 
-- `gateway/sdk_compatibility_test.go` — New file requiring imports from:
-  - `github.com/stretchr/testify/require`
-  - `github.com/tidwall/gjson`
-  - `net/http`, `net/http/httptest`, `encoding/base64`
+- `warehouse/internal/loadfiles/loadfiles.go` — Add imports for selective sync column filtering:
+  - `github.com/rudderlabs/rudder-server/warehouse/selectivesync`
 
-- `services/cloud-sources/cloud_source.go` — New file requiring imports from:
-  - `context`, `net/http`, `time`
-  - `github.com/rudderlabs/rudder-go-kit/config`
-  - `github.com/rudderlabs/rudder-go-kit/logger`
+- `warehouse/app.go` — Add imports for all new subsystems:
+  - `github.com/rudderlabs/rudder-server/warehouse/backfill`
+  - `github.com/rudderlabs/rudder-server/warehouse/healthmonitor`
+  - `github.com/rudderlabs/rudder-server/warehouse/replay`
+
+- `processor/processor.go` — Add import for warehouse replay routing flag:
+  - `github.com/rudderlabs/rudder-server/warehouse/replay`
 
 **External Reference Updates:**
 
 | File | Update Type | Description |
-|------|-------------|-------------|
-| `docs/gap-report/source-catalog-parity.md` | Documentation | Update SDK Compatibility status from gaps to validated |
-| `docs/gap-report/sprint-roadmap.md` | Documentation | Mark E-005 through E-009 epics with progress |
-| `docs/gap-report/index.md` | Documentation | Update Source Catalog parity from ~60% to ~85% |
-| `README.md` | Documentation | Add SDK compatibility section and cloud source framework reference |
-| `gateway/openapi.yaml` | Schema | Verify all SDK-required endpoints are fully specified |
-| `.github/workflows/tests.yaml` | CI/CD | Add SDK compatibility integration test to CI matrix |
+|------|------------|-------------|
+| `config/config.yaml` | Configuration | Add `Warehouse.backfill.*`, `Warehouse.healthMonitor.*`, `Warehouse.selectiveSync.*`, `Warehouse.replay.*` parameter sections |
+| `docs/gap-report/warehouse-parity.md` | Documentation | Update gap status: WH-001, WH-002 (selective sync) resolved; WH-003 (backfill) resolved; WH-004 (health monitoring) resolved; WH-007 (replay) resolved |
+| `docs/gap-report/sprint-roadmap.md` | Documentation | Mark E-031 through E-035 as completed in Sprint 7–9 section |
+| `docs/gap-report/index.md` | Documentation | Update warehouse parity from ~80% to ~95% |
+| `README.md` | Documentation | Update warehouse sync capabilities section |
+| `proto/warehouse/*.proto` | Protobuf | Add backfill and health monitoring RPC definitions (if proto source files exist) |
 
 ## 0.4 Integration Analysis
 
@@ -275,500 +314,518 @@ Files requiring import additions for new test utilities and source files:
 
 **Direct Modifications Required:**
 
-- **`gateway/handle_http_auth.go`** (lines 24–58): The `writeKeyAuth` middleware is the central authentication touchpoint for all Segment SDK requests. It extracts the writeKey via `r.BasicAuth()`, validates against the source map via `authRequestContextForWriteKey`, checks `SourceEnabled`, and populates `AuthRequestContext`. Verification needed that the exact `Authorization: Basic base64(writeKey:)` format (username=writeKey, password=empty string) is processed identically to Segment's authentication scheme across all SDK platforms.
+- **`warehouse/router/state.go`** (lines 19–82): The 7-state upload state machine defines `stateTransitions` as a linked list from `Waiting` through `ExportedData`. For E-032 (backfill), a new `BackfillPending` state must be inserted, or the existing `Waiting` state must accept a `backfill` metadata flag. The `init()` function (lines 20–82) must be extended to register the new state, and `inProgressState()`/`nextState()` must handle the new transition.
 
-- **`gateway/handle_http.go`** (lines 37–82): The handler wiring layer defines all event type handlers — `webIdentifyHandler`, `webTrackHandler`, `webPageHandler`, `webScreenHandler`, `webGroupHandler`, `webAliasHandler`, `webBatchHandler`. Each wraps the `writeKeyAuth` middleware around `webHandler()`. Modification needed to verify each handler processes SDK-specific payload shapes (e.g., batch payloads with mixed event types, beacon payloads without JSON content-type headers).
+- **`warehouse/internal/model/upload.go`** (lines 13–25): Upload status constants (`Waiting`, `GeneratedUploadSchema`, `CreatedTableUploads`, etc.) must be extended with backfill-specific constants (e.g., `BackfillPending`, `BackfillInProgress`). The `Upload` struct must include a `BackfillConfig` field for date-range and source parameters.
 
-- **`gateway/handle_lifecycle.go`** (lines 561–650): The `StartWebHandler` function registers all routes on the Chi router. The route map includes `/v1/identify`, `/v1/track`, `/v1/page`, `/v1/screen`, `/v1/group`, `/v1/alias`, `/v1/batch`, `/v1/import`, `/v1/webhook`, `/beacon/v1/batch`, `/pixel/v1/track`, `/pixel/v1/page`. Verification needed that no SDK-required endpoints are missing from registration.
+- **`warehouse/api/http.go`** (lines 140–200): The `addMasterEndpoints()` method registers chi routes under `/v1/warehouse/*`. Three new endpoints must be added:
+  - `POST /v1/warehouse/backfill` — Trigger backfill with date range, source ID, destination ID (E-032)
+  - `GET /v1/warehouse/health` — Retrieve per-upload health metrics (E-033)
+  - `PUT /v1/warehouse/selective-sync` — Update selective sync configuration (E-034)
 
-- **`gateway/handle_http_beacon.go`** (lines 13–47): The `beaconInterceptor` reads `writeKey` from query params, sets a Basic Auth header, and delegates to `webBatchHandler`. E-006 requires validation that `navigator.sendBeacon()` payloads from the JavaScript SDK are correctly intercepted, including Content-Type handling for `application/x-www-form-urlencoded` and `text/plain` content types that `sendBeacon` may produce.
+- **`warehouse/app.go`** (lines 60–150): The `App` struct and `Setup()`/`Run()` methods wire all warehouse subsystems. New fields must be added for the health monitor, backfill service, and replay handler. The `Run()` method must start the health monitor's periodic collection goroutine and register the replay handler.
 
-- **`gateway/handle_http_pixel.go`** (lines 24–131): The `pixelInterceptor` converts GET requests with query parameters into POST request bodies, always returning a 1x1 transparent GIF. E-006 requires validation that pixel tracking from web SDK image tags correctly maps query params to event fields.
+- **`warehouse/router/upload_stats.go`** (lines 1–100): The `buildTags()`, `timerStat()`, `counterStat()`, `gaugeStat()`, and `histogramStat()` helpers provide the instrumentation foundation. For E-033, new metric names must be defined: `warehouse_sync_duration` (histogram), `warehouse_sync_row_count` (gauge), `warehouse_sync_errors` (counter), `warehouse_sync_status` (gauge), and `warehouse_schema_changes` (counter).
 
-- **`gateway/handle.go`** (lines 85–153): The `webRequestHandler` processes incoming requests — reads body, validates size (4MB limit from config), extracts IP, and dispatches to the appropriate `RequestHandler`. E-007 requires verification that mobile SDK context auto-collection fields (`context.device`, `context.os`, `context.app`, `context.network`, `context.screen`) and lifecycle events pass through without modification.
+- **`warehouse/router/state_generate_load_files.go`**: The load file generation orchestration must integrate selective sync filtering (E-034). Before generating load files, the table list must be filtered against the selective sync configuration, and column-level filters must be applied during encoding.
 
-- **`gateway/gateway_test.go`**: Extend with test cases that use exact payload formats from each Segment SDK platform (JS, iOS, Android, Node.js, Python, Go, Java, Ruby) to validate end-to-end processing.
+- **`warehouse/router/state_export_data.go`**: The export pipeline iterating over user, identity, and regular tables must respect selective sync exclusions. Tables marked as excluded in the selective sync config must be skipped during the export phase.
 
-- **`gateway/handle_test.go`**: Extend with tests for mobile-specific context fields (device info, OS version, app metadata) and server-side SDK library metadata in `context.library`.
+- **`warehouse/router/state_create_table_uploads.go`**: When creating per-table upload records, excluded tables must not generate `wh_table_uploads` rows.
 
-- **`gateway/handle_http_auth_test.go`**: Extend with tests validating Write Key Basic Auth for all SDK authentication patterns — header-based auth (SDKs), query param auth (beacon/pixel), and empty password verification.
+- **`warehouse/internal/loadfiles/loadfiles.go`**: The `GroupStagingFiles` function and load file generation pipeline must support column-level filtering. When selective sync excludes specific columns, the encoding step must omit those columns from the generated load files.
 
-**Processor Touchpoints (Verification Only):**
+- **`warehouse/schema/schema.go`** (lines 51–69): The `Handler` interface method `ConsolidateStagingFilesSchema()` must support schema projection — when selective sync excludes tables or columns, the consolidated schema must reflect only the included elements.
 
-- **`processor/processor.go`**: The 6-stage pipeline must preserve all SDK-specific context fields (mobile device info, app metadata, library info) without stripping or modifying them. Verification needed but no modification expected.
+- **`warehouse/bcm/backend_config.go`**: The `BackendConfigManager` processes backend-config updates. Selective sync configuration is delivered as part of the destination configuration object. A new parser must extract `selectiveSync.tables` and `selectiveSync.columns` from the destination config map.
 
-- **`processor/integrations/integrations.go`**: The `FilterClientIntegrations` function must correctly handle the `integrations` object from all SDK platforms. Verification only.
+- **`warehouse/encoding/encoding.go`** (lines 21–92): The encoding `Factory` and its `NewEventLoader()` method must support column exclusion. When selective sync excludes columns, the event loader must skip those columns during serialization to Parquet/JSON/CSV format.
 
-**Router Touchpoints (Verification Only):**
+**Dependency Injections:**
 
-- **`router/network.go`**: The `SendPost` method handles payload serialization for destination delivery. Must be verified to correctly serialize all SDK-specific nested context objects.
+- **`warehouse/app.go` Setup()**: Register health monitor, backfill service, and replay handler as new dependencies injected into the warehouse app lifecycle
+- **`warehouse/api/http.go` NewApi()**: Inject health monitor, backfill service, and selective sync config into the API layer for endpoint handler wiring
+- **`warehouse/router/router.go` Router struct**: Inject selective sync filter as a dependency used during upload job creation and scheduling
 
-- **`router/worker.go`**: Job batching and delivery must preserve all SDK context fields through to destination.
+**Database/Schema Updates:**
 
-**Backend Config Touchpoints (Reference for Cloud Source Design):**
+- **`sql/migrations/warehouse/000042_add_backfill_tracking.up.sql`**: New migration adding `wh_backfill_jobs` table (`id BIGSERIAL PK`, `source_id VARCHAR(64)`, `destination_id VARCHAR(64)`, `workspace_id VARCHAR(64)`, `start_date TIMESTAMPTZ`, `end_date TIMESTAMPTZ`, `status VARCHAR(64)`, `metadata JSONB`, `created_at TIMESTAMPTZ DEFAULT NOW()`, `updated_at TIMESTAMPTZ`) and column `backfill_job_id BIGINT REFERENCES wh_backfill_jobs(id)` on `wh_uploads`
 
-- **`backend-config/types.go`** (lines 107–124): The `SourceT` struct defines source configuration including `WriteKey`, `SourceDefinition`, `Enabled`, and `Config`. E-009 must design the cloud source configuration model as an extension of this existing pattern.
+- **`sql/migrations/warehouse/000043_add_selective_sync_config.up.sql`**: New migration adding `wh_selective_sync` table (`id BIGSERIAL PK`, `source_id VARCHAR(64)`, `destination_id VARCHAR(64)`, `workspace_id VARCHAR(64)`, `excluded_tables JSONB`, `excluded_columns JSONB`, `created_at TIMESTAMPTZ DEFAULT NOW()`, `updated_at TIMESTAMPTZ`) with unique constraint on `(source_id, destination_id)`
 
-- **`backend-config/backend-config.go`**: The config fetch and cache system. E-009 must integrate cloud source configuration into the existing backend-config subscription model.
+- **`sql/migrations/warehouse/000044_add_health_monitoring_tables.up.sql`**: New migration adding `wh_sync_health` table (`id BIGSERIAL PK`, `upload_id BIGINT REFERENCES wh_uploads(id)`, `source_id VARCHAR(64)`, `destination_id VARCHAR(64)`, `status VARCHAR(64)`, `duration_ms BIGINT`, `rows_synced BIGINT`, `rows_failed BIGINT`, `error_category VARCHAR(64)`, `schema_changes JSONB`, `created_at TIMESTAMPTZ DEFAULT NOW()`) with indexes on `(source_id, destination_id, created_at)` and `(upload_id)`
 
-### 0.4.2 Dependency Injections
+### 0.4.2 Integration Architecture
 
-- **`gateway/handle_lifecycle.go`** (line 141–142): The `irh` (Import Request Handler) and `rrh` (Regular Request Handler) are initialized during Gateway setup. E-009 may require a new request handler type for cloud source ingestion if the proof-of-concept routes through the Gateway.
-
-- **`gateway/handle_lifecycle.go`** (line 150): The `suppressUserHandler` is injected via the application features interface. E-009 cloud source framework may need similar feature-gated initialization.
-
-### 0.4.3 Database/Schema Updates
-
-- **No direct database schema changes** are required for Sprint 2–3. The Gateway persists events to JobsDB transparently, and the JobsDB schema accommodates all event payload shapes without modification.
-
-- **E-009 (Cloud Source Framework)**: The design document must address persistent storage requirements for cloud source credentials, polling cursors, and sync state. The proof-of-concept may leverage existing config storage or require a new schema — this is a design decision documented in the architecture document.
-
-### 0.4.4 Integration Architecture
+The following diagram illustrates how the five Sprint 7–9 epics integrate with the existing warehouse core:
 
 ```mermaid
 flowchart TD
-    subgraph SDKs["Segment SDK Clients"]
-        JS["JavaScript SDK<br/>(analytics.js / Analytics 2.0)"]
-        IOS["iOS SDK<br/>(analytics-ios / Swift)"]
-        AND["Android SDK<br/>(analytics-android / Kotlin)"]
-        NODE["Node.js SDK<br/>(analytics-node)"]
-        PY["Python SDK<br/>(analytics-python)"]
-        GOSK["Go SDK<br/>(analytics-go)"]
-        JAVA["Java SDK<br/>(analytics-java)"]
-        RUBY["Ruby SDK<br/>(analytics-ruby)"]
+    subgraph NewFeatures["Sprint 7-9 New Features"]
+        BF["E-032: Backfill Service<br/>warehouse/backfill/"]
+        HM["E-033: Health Monitor<br/>warehouse/healthmonitor/"]
+        SS["E-034: Selective Sync<br/>warehouse/selectivesync/"]
+        WR["E-035: Replay Handler<br/>warehouse/replay/"]
+        IS["E-031: Idempotent Tests<br/>integration_test/warehouse/"]
     end
 
-    subgraph Gateway["RudderStack Gateway (Port 8080)"]
-        AUTH["writeKeyAuth<br/>Basic Auth: base64(writeKey:)"]
-        SPEC["/v1/identify | track | page<br/>screen | group | alias"]
-        BATCH["/v1/batch"]
-        BEACON["/beacon/v1/batch"]
-        PIXEL["/pixel/v1/track | page"]
-        IMPORT["/v1/import"]
-        WEBHOOK["/v1/webhook"]
+    subgraph ExistingCore["Existing Warehouse Core"]
+        SM["State Machine<br/>warehouse/router/state.go"]
+        UJ["Upload Job<br/>warehouse/router/upload.go"]
+        LF["Load File Gen<br/>warehouse/internal/loadfiles/"]
+        SCH["Schema Handler<br/>warehouse/schema/"]
+        ENC["Encoding Factory<br/>warehouse/encoding/"]
     end
 
-    subgraph Pipeline["Processing Pipeline"]
-        JOBSDB["JobsDB<br/>(PostgreSQL)"]
-        PROC["Processor<br/>6-stage pipeline"]
-        ROUTER["Router<br/>Destination delivery"]
+    subgraph ExistingAPI["Existing API Layer"]
+        HTTP["HTTP API<br/>warehouse/api/http.go"]
+        GRPC["gRPC Server<br/>warehouse/api/grpc.go"]
+        BCM["Backend Config<br/>warehouse/bcm/"]
     end
 
-    subgraph CloudSources["Cloud Source Framework (E-009 Design)"]
-        POLLER["API Poller<br/>(Salesforce, HubSpot...)"]
-        WHRECV["Webhook Receiver<br/>(Stripe, SendGrid...)"]
-        MAPPER["Schema Mapper<br/>→ Segment Spec events"]
+    subgraph ExistingInfra["Existing Infrastructure"]
+        ARCH["Archiver<br/>archiver/"]
+        GW["Gateway Replay<br/>gateway/handle_http_replay.go"]
+        PROC["Processor<br/>processor/processor.go"]
+        CONN["9 Connectors<br/>warehouse/integrations/"]
     end
 
-    JS --> AUTH
-    IOS --> AUTH
-    AND --> AUTH
-    NODE --> AUTH
-    PY --> AUTH
-    GOSK --> AUTH
-    JAVA --> AUTH
-    RUBY --> AUTH
-
-    AUTH --> SPEC
-    AUTH --> BATCH
-    JS --> BEACON
-    JS --> PIXEL
-    AUTH --> IMPORT
-
-    POLLER --> MAPPER
-    WHRECV --> MAPPER
-    MAPPER --> WEBHOOK
-
-    SPEC --> JOBSDB
-    BATCH --> JOBSDB
-    BEACON --> JOBSDB
-    PIXEL --> JOBSDB
-    IMPORT --> JOBSDB
-    WEBHOOK --> JOBSDB
-
-    JOBSDB --> PROC --> ROUTER
+    BF --> SM
+    BF --> HTTP
+    BF --> ARCH
+    HM --> UJ
+    HM --> HTTP
+    HM --> GRPC
+    SS --> LF
+    SS --> SCH
+    SS --> ENC
+    SS --> BCM
+    WR --> ARCH
+    WR --> GW
+    WR --> PROC
+    IS --> CONN
+    IS --> SM
 ```
+
+### 0.4.3 Cross-Epic Dependencies
+
+| Dependency | From Epic | To Epic | Nature |
+|-----------|-----------|---------|--------|
+| Idempotent sync validation informs backfill reliability | E-031 | E-032 | E-031 must confirm that replaying events produces identical state before backfill can be trusted |
+| Backfill state machine extension enables replay | E-032 | E-035 | Replay leverages the backfill infrastructure for warehouse-targeted re-processing |
+| Health monitoring observes all upload operations | E-033 | E-031, E-032 | Health metrics capture backfill and replay upload operations alongside regular syncs |
+| Selective sync must not interfere with backfill | E-034 | E-032 | Backfill must respect selective sync exclusions, filtering the same tables/columns |
+| Replay routing bypasses real-time Router | E-035 | — | Requires Processor-level routing flag, not dependent on other Sprint 7-9 epics |
 
 ## 0.5 Technical Implementation
 
 ### 0.5.1 File-by-File Execution Plan
 
-**Group 1 — Gateway API Surface Validation (E-005)**
+**Group 1 — E-031: Idempotent Sync Validation (Integration Tests)**
 
-- **CREATE: `gateway/sdk_compatibility_test.go`** — Comprehensive table-driven test suite that sends all 6 event types to the Gateway using exact Segment SDK payload formats. Each test case validates: (a) correct HTTP 200 response, (b) Write Key Basic Auth acceptance with `Authorization: Basic base64(writeKey:)`, (c) field-level preservation through the Gateway pipeline including `anonymousId`, `userId`, `messageId`, `timestamp`, `sentAt`, `context`, `integrations`, `type`. Tests must cover payload formats from JS, iOS, Android, Node.js, Python, Go, Java, and Ruby SDKs.
+This epic produces integration tests that exercise every connector's merge strategy under replay scenarios. No production code is created — only test artifacts that validate deterministic sync behavior.
 
-- **CREATE: `gateway/sdk_auth_compat_test.go`** — Dedicated test file for Write Key Basic Auth compatibility. Tests must validate: (a) standard Basic Auth header with empty password (all SDKs), (b) writeKey in query params (beacon/pixel), (c) rejection of invalid writeKeys with correct 401 response, (d) rejection of disabled sources with 404 response, (e) case sensitivity handling, (f) special character handling in writeKeys.
+| Action | File Path | Purpose |
+|--------|-----------|---------|
+| CREATE | `integration_test/warehouse/idempotent_sync_test.go` | Master test suite orchestrating idempotent validation across all 9 connectors |
+| CREATE | `integration_test/warehouse/idempotent_snowflake_test.go` | Snowflake SQL MERGE idempotency — replay identical staging files, assert row counts and checksums |
+| CREATE | `integration_test/warehouse/idempotent_bigquery_test.go` | BigQuery dedup view idempotency — verify `ROW_NUMBER()` dedup produces stable results on replay |
+| CREATE | `integration_test/warehouse/idempotent_redshift_test.go` | Redshift DELETE+INSERT idempotency — validate transactional dedup window (720h default) |
+| CREATE | `integration_test/warehouse/idempotent_clickhouse_test.go` | ClickHouse engine-level dedup — test `ReplacingMergeTree` and `AggregatingMergeTree` produce identical state |
+| CREATE | `integration_test/warehouse/idempotent_postgres_test.go` | PostgreSQL SQL MERGE idempotency — configurable `allowMerge` flag combinations |
+| CREATE | `integration_test/warehouse/idempotent_mssql_test.go` | MSSQL bulk `CopyIn` idempotency — validate staging table cleanup and re-insert |
+| CREATE | `integration_test/warehouse/idempotent_synapse_test.go` | Azure Synapse bulk `CopyIn` idempotency — same pattern as MSSQL with Synapse-specific query dialect |
+| CREATE | `integration_test/warehouse/idempotent_deltalake_test.go` | Delta Lake MERGE idempotency — test Databricks SQL MERGE with `ShouldMerge()` flag |
+| CREATE | `integration_test/warehouse/idempotent_datalake_test.go` | Datalake append-only verification — confirm append semantics produce expected duplicates, not silent drops |
+| CREATE | `integration_test/warehouse/testdata/idempotent_events.json` | Canonical event fixtures with known checksums for deterministic replay |
+| MODIFY | `warehouse/integrations/testhelper/staging.go` | Add `RenderIdempotentStagingFiles()` helper that generates staging files with configurable duplicate ratios |
 
-- **MODIFY: `gateway/gateway_test.go`** — Extend existing test suite with Segment SDK-specific payload variations. Add test cases for: batch payloads with mixed event types (as produced by server-side SDKs), payloads with `context.library` metadata matching each SDK platform, payloads with SDK-specific `context.channel` values (`client` for web/mobile, `server` for server-side).
+**Group 2 — E-032: Backfill with Configurable Date Ranges**
 
-- **MODIFY: `gateway/handle_test.go`** — Add test cases for SDK payload processing through the Handle pipeline, focusing on: mobile SDK context auto-collection fields (`context.device`, `context.os`, `context.app`, `context.network`, `context.screen`), server-side SDK batch semantics, and library version metadata preservation.
+This epic creates the backfill subsystem: a new `backfill/` package, API endpoints, archiver integration, and state machine extension.
 
-- **MODIFY: `gateway/handle_http_auth_test.go`** — Extend with comprehensive Write Key Basic Auth format tests covering all Segment SDK authentication patterns. Add tests for: empty password in Basic Auth header, query param writeKey for beacon endpoints, and Combined auth verification across all SDK variants.
+| Action | File Path | Purpose |
+|--------|-----------|---------|
+| CREATE | `warehouse/backfill/service.go` | `BackfillService` orchestrator: validate request, create `wh_backfill_jobs` record, resolve archived staging files from archiver, inject into upload pipeline |
+| CREATE | `warehouse/backfill/config.go` | Backfill configuration: `Warehouse.backfill.maxDateRangeDays` (default 90), `Warehouse.backfill.maxConcurrentJobs` (default 3), `Warehouse.backfill.enabled` (default false) |
+| CREATE | `warehouse/backfill/handler.go` | HTTP handler for `POST /v1/warehouse/backfill` — parse `BackfillRequest` (sourceID, destinationID, startDate, endDate), delegate to `BackfillService.Trigger()` |
+| CREATE | `warehouse/backfill/model.go` | `BackfillJob` struct, `BackfillRequest` / `BackfillResponse` DTOs, `BackfillStatus` constants (`Pending`, `InProgress`, `Completed`, `Failed`) |
+| CREATE | `warehouse/backfill/repository.go` | CRUD repository for `wh_backfill_jobs` table: `Create()`, `Get()`, `UpdateStatus()`, `ListBySource()`, `GetActiveCount()` |
+| CREATE | `sql/migrations/warehouse/000042_add_backfill_tracking.up.sql` | Create `wh_backfill_jobs` table, add `backfill_job_id` FK column to `wh_uploads` |
+| CREATE | `sql/migrations/warehouse/000042_add_backfill_tracking.down.sql` | Drop `backfill_job_id` column from `wh_uploads`, drop `wh_backfill_jobs` table |
+| MODIFY | `warehouse/internal/model/upload.go` | Add `BackfillJobID *int64` field to `Upload` struct, add `BackfillPending` and `BackfillInProgress` status constants |
+| MODIFY | `warehouse/router/state.go` | Insert `backfillState` after `waitingState` — when `Upload.BackfillJobID` is set, the state machine enters the backfill resolution path before schema generation |
+| MODIFY | `warehouse/api/http.go` | Register `POST /v1/warehouse/backfill` and `GET /v1/warehouse/backfill/{jobID}` endpoints in `addMasterEndpoints()` |
+| MODIFY | `warehouse/app.go` | Instantiate `BackfillService` in `Setup()`, inject into API layer and router, start background backfill monitor in `Run()` |
+| MODIFY | `warehouse/archive/archiver.go` | Add `ListArchivedStagingFiles(sourceID, destID, startDate, endDate)` method that queries archived staging file metadata for backfill retrieval |
 
-- **MODIFY: `gateway/validator/validator_test.go`** — Add test cases confirming that all SDK payload formats pass the validator chain without rejection, including payloads with mobile-specific context fields, server-side batch payloads, and beacon payloads.
+**Group 3 — E-033: Warehouse Health Monitoring Enhancement**
 
-- **MODIFY: `gateway/internal/bot/bot_test.go`** — Add test cases verifying that user-agent strings from all Segment SDKs (JavaScript, iOS, Android, Node.js, Python, Go, Java, Ruby) are not falsely flagged as bot traffic.
+This epic introduces per-upload health metrics, a Prometheus-compatible HTTP endpoint, and alerting thresholds.
 
-**Group 2 — JavaScript Web SDK Compatibility (E-006)**
+| Action | File Path | Purpose |
+|--------|-----------|---------|
+| CREATE | `warehouse/healthmonitor/monitor.go` | `HealthMonitor` struct running periodic collection loop: query recent `wh_uploads` for completion rates, duration percentiles, error categorization |
+| CREATE | `warehouse/healthmonitor/config.go` | Health monitoring configuration: `Warehouse.healthMonitor.enabled` (default true), `Warehouse.healthMonitor.collectionIntervalSeconds` (default 60), `Warehouse.healthMonitor.retentionDays` (default 30) |
+| CREATE | `warehouse/healthmonitor/handler.go` | HTTP handler for `GET /v1/warehouse/health` returning per-source/destination health summary JSON |
+| CREATE | `warehouse/healthmonitor/model.go` | `SyncHealth` struct (upload ID, source, destination, status, duration, rows synced/failed, error category, schema changes) and `HealthSummary` aggregate |
+| CREATE | `warehouse/healthmonitor/repository.go` | Repository for `wh_sync_health` table: `RecordSyncHealth()`, `GetHealthSummary()`, `GetHealthByUpload()`, `PurgeOldRecords()` |
+| CREATE | `warehouse/healthmonitor/metrics.go` | Prometheus metric definitions: `warehouse_sync_duration_seconds` (histogram), `warehouse_sync_rows_total` (counter), `warehouse_sync_errors_total` (counter with `error_category` label), `warehouse_sync_status` (gauge), `warehouse_schema_changes_total` (counter) |
+| CREATE | `warehouse/healthmonitor/alerting.go` | Alerting evaluator: configurable thresholds for failure rate, duration spikes, schema drift detection — emits tagged stats for external alerting integration |
+| CREATE | `sql/migrations/warehouse/000044_add_health_monitoring_tables.up.sql` | Create `wh_sync_health` table with indexes on `(source_id, destination_id, created_at)` and `(upload_id)` |
+| CREATE | `sql/migrations/warehouse/000044_add_health_monitoring_tables.down.sql` | Drop `wh_sync_health` table |
+| MODIFY | `warehouse/router/upload_stats.go` | Add `recordSyncHealth()` call at end of `generateUploadSuccessMetrics()` and in error paths, writing to `wh_sync_health` via the health monitor repository |
+| MODIFY | `warehouse/api/http.go` | Register `GET /v1/warehouse/health` and `GET /v1/warehouse/health/{sourceID}/{destID}` endpoints |
+| MODIFY | `warehouse/api/grpc.go` | Add `GetSyncHealth` and `GetHealthSummary` RPCs to the gRPC service definition |
+| MODIFY | `warehouse/app.go` | Instantiate `HealthMonitor` in `Setup()`, inject into API, start collection loop in `Run()` |
 
-- **MODIFY: `gateway/handle_http_beacon_test.go`** — Extend with Analytics 2.0 `sendBeacon()` payload tests. Validate: (a) `application/x-www-form-urlencoded` content type handling, (b) `text/plain` content type from `sendBeacon`, (c) writeKey extraction from query params, (d) batch payload with mixed event types via beacon, (e) correct delegation to `webBatchHandler`.
+**Group 4 — E-034: Warehouse Selective Sync**
 
-- **MODIFY: `gateway/handle_http_pixel_test.go`** — Extend with web SDK pixel tracking tests. Validate: (a) `track` pixel with event name in query param, (b) `page` pixel with optional name param, (c) GIF response regardless of processing result, (d) query param to JSON payload conversion including nested `properties.*` params.
+This epic delivers per-table and per-column filtering, configured via backend-config and persisted in a dedicated table.
 
-- **MODIFY: `gateway/gateway_test.go`** — Add JavaScript SDK-specific test scenarios: (a) standard `analytics.js` identify/track/page/screen/group/alias payloads with `context.library.name: "analytics.js"` and `context.library.version`, (b) Analytics 2.0 payload format with `_metadata` field, (c) batch endpoint with mixed call types, (d) payloads with `context.page` auto-collected fields (URL, path, referrer, title, search).
+| Action | File Path | Purpose |
+|--------|-----------|---------|
+| CREATE | `warehouse/selectivesync/service.go` | `SelectiveSyncService` — evaluates table/column inclusion against the sync configuration, provides `IsTableExcluded(table)` and `IsColumnExcluded(table, column)` predicates |
+| CREATE | `warehouse/selectivesync/config.go` | Selective sync configuration: `Warehouse.selectiveSync.enabled` (default false), `Warehouse.selectiveSync.cacheRefreshMinutes` (default 5) |
+| CREATE | `warehouse/selectivesync/handler.go` | HTTP handlers for `PUT /v1/warehouse/selective-sync` (update config) and `GET /v1/warehouse/selective-sync/{sourceID}/{destID}` (retrieve config) |
+| CREATE | `warehouse/selectivesync/model.go` | `SelectiveSyncConfig` struct (excluded tables list, excluded columns map keyed by table), `SelectiveSyncRequest` / `SelectiveSyncResponse` DTOs |
+| CREATE | `warehouse/selectivesync/repository.go` | CRUD repository for `wh_selective_sync` table: `Upsert()`, `Get()`, `Delete()`, `ListByWorkspace()` |
+| CREATE | `sql/migrations/warehouse/000043_add_selective_sync_config.up.sql` | Create `wh_selective_sync` table with unique constraint on `(source_id, destination_id)` |
+| CREATE | `sql/migrations/warehouse/000043_add_selective_sync_config.down.sql` | Drop `wh_selective_sync` table |
+| MODIFY | `warehouse/bcm/backend_config.go` | Parse `selectiveSync` block from destination config payload, populate `SelectiveSyncConfig` and distribute to subscribers |
+| MODIFY | `warehouse/schema/schema.go` | Modify `ConsolidateStagingFilesSchema()` to accept a `SelectiveSyncConfig`, removing excluded tables from the consolidated schema map and excluded columns from table schemas |
+| MODIFY | `warehouse/encoding/encoding.go` | Modify `NewEventLoader()` to accept an exclusion list, skipping excluded columns during event serialization |
+| MODIFY | `warehouse/internal/loadfiles/loadfiles.go` | Modify `GroupStagingFiles()` to apply table-level exclusions, skipping staging files for excluded tables |
+| MODIFY | `warehouse/router/state_generate_load_files.go` | Retrieve selective sync config before load file generation, pass exclusion predicates to loadfiles pipeline |
+| MODIFY | `warehouse/router/state_export_data.go` | Filter table iteration to skip excluded tables during data export |
+| MODIFY | `warehouse/router/state_create_table_uploads.go` | Skip creation of `wh_table_uploads` records for excluded tables |
+| MODIFY | `warehouse/api/http.go` | Register selective sync endpoints in `addMasterEndpoints()` |
+| MODIFY | `warehouse/app.go` | Instantiate `SelectiveSyncService`, inject into router, API, and bcm |
 
-**Group 3 — Mobile SDK Compatibility (E-007)**
+**Group 5 — E-035: Warehouse Replay from Archived Events**
 
-- **MODIFY: `gateway/handle_test.go`** — Add iOS and Android SDK-specific test scenarios: (a) `analytics-ios` payloads with `context.library.name: "analytics-ios"` and Swift-specific context fields, (b) `analytics-android` payloads with `context.library.name: "analytics-android"` and Kotlin-specific context fields, (c) mobile context auto-collection: `context.device` (id, manufacturer, model, name, type), `context.os` (name, version), `context.app` (name, version, build, namespace), `context.network` (bluetooth, carrier, cellular, wifi), `context.screen` (density, height, width), (d) lifecycle events: `Application Opened`, `Application Backgrounded`, `Application Updated`, `Application Installed`, (e) `screen` call type with category and name properties.
+This epic builds the replay pipeline: archiver-to-replay retrieval, Gateway routing, Processor warehouse-only flag, and upload tracking.
 
-**Group 4 — Server-Side SDK Compatibility (E-008)**
+| Action | File Path | Purpose |
+|--------|-----------|---------|
+| CREATE | `warehouse/replay/handler.go` | `ReplayHandler` — coordinates the full pipeline: query archived events, construct replay payload, inject into Gateway replay endpoint, track replay upload jobs |
+| CREATE | `warehouse/replay/config.go` | Replay configuration: `Warehouse.replay.enabled` (default false), `Warehouse.replay.maxConcurrentReplays` (default 2), `Warehouse.replay.batchSize` (default 1000), `Warehouse.replay.timeoutMinutes` (default 60) |
+| CREATE | `warehouse/replay/model.go` | `ReplayRequest` (sourceID, destinationID, startTime, endTime, replayType), `ReplayJob` (job tracking with status), `ReplayStatus` constants |
+| CREATE | `warehouse/replay/retriever.go` | `ArchivedEventRetriever` — queries the archiver for gateway events within the date range, deserializes from archived format, batches for replay injection |
+| MODIFY | `gateway/handle_http_replay.go` | Extend `webReplayHandler()` to accept a `X-Warehouse-Replay: true` header that tags events for warehouse-only routing |
+| MODIFY | `backend-config/replay_types.go` | Extend `EventReplayConfig` with `WarehouseOnly bool` field, modify `ApplyReplaySources()` to propagate the warehouse-only flag |
+| MODIFY | `processor/processor.go` | In the main processing loop, detect `WarehouseOnly` flag on replay events and route exclusively to warehouse destination, bypassing Router-stage destinations |
+| MODIFY | `warehouse/archive/archiver.go` | Add `QueryArchivedEvents(sourceID, startTime, endTime)` method returning an iterator over archived gateway event payloads |
+| MODIFY | `warehouse/api/http.go` | Register `POST /v1/warehouse/replay` and `GET /v1/warehouse/replay/{jobID}` endpoints |
+| MODIFY | `warehouse/app.go` | Instantiate `ReplayHandler`, wire archiver query interface, register in API layer |
 
-- **MODIFY: `gateway/gateway_test.go`** — Add server-side SDK-specific test scenarios for each platform:
-  - Node.js: `context.library.name: "analytics-node"`, batch endpoint with `messageId` auto-generation, `timestamp` ISO 8601 formatting
-  - Python: `context.library.name: "analytics-python"`, batch flushing behavior, `sentAt` field
-  - Go: `context.library.name: "analytics-go"`, `Enqueue()` method payload format
-  - Java: `context.library.name: "analytics-java"`, builder pattern payload format
-  - Ruby: `context.library.name: "analytics-ruby"`, batch endpoint with retry logic
+**Group 6 — Cross-Cutting Modifications (Tests, Documentation, Configuration)**
 
-- **MODIFY: `gateway/handle_test.go`** — Add server-side SDK batch payload tests: (a) mixed event type batches with all 6 call types, (b) batch payload size limits (verify 4MB config limit), (c) batch with large number of events, (d) server-side SDK retry behavior simulation (duplicate `messageId` handling).
-
-**Group 5 — Full-Stack Integration Testing (E-005, E-006, E-007, E-008)**
-
-- **CREATE: `integration_test/sdk_compatibility/sdk_compatibility_test.go`** — Full-stack integration test using `dockertest/v3` to provision PostgreSQL, Transformer, and webhook services. Test flow: send SDK-specific payloads for all platforms → verify webhook delivery preserves all fields → assert `context.library` metadata is correct per platform. Test scenarios:
-  - Gateway API surface validation with all `/v1/{type}` endpoints
-  - Write Key Basic Auth from all SDK platforms
-  - JavaScript SDK: standard calls, batch, beacon, pixel
-  - iOS SDK: identify, track, screen with mobile context
-  - Android SDK: identify, track, screen with mobile context
-  - Server-side SDKs: batch endpoint with mixed events per platform
-  - Lifecycle events: Application Opened, Application Backgrounded
-  - Context field preservation: all 18 standard context fields through full pipeline
-
-- **CREATE: `integration_test/sdk_compatibility/testdata/workspaceConfigTemplate.json`** — Workspace configuration template with webhook destination accepting all 6 event types, configured with `supportedMessageTypes: ["identify", "track", "page", "screen", "group", "alias"]`.
-
-- **CREATE: `integration_test/sdk_compatibility/testdata/segment_js_payloads.json`** — Canonical `analytics.js` / Analytics 2.0 payload fixtures for all 6 call types plus batch and beacon formats. Include `context.page`, `context.userAgent`, and `context.library` metadata.
-
-- **CREATE: `integration_test/sdk_compatibility/testdata/segment_ios_payloads.json`** — Canonical iOS SDK payload fixtures with mobile context auto-collection fields, lifecycle events, and `context.library.name: "analytics-ios"`.
-
-- **CREATE: `integration_test/sdk_compatibility/testdata/segment_android_payloads.json`** — Canonical Android SDK payload fixtures with mobile context auto-collection fields, lifecycle events, and `context.library.name: "analytics-android"`.
-
-- **CREATE: `integration_test/sdk_compatibility/testdata/segment_server_payloads.json`** — Canonical server-side SDK payload fixtures for Node.js, Python, Go, Java, and Ruby with platform-specific `context.library` metadata and batch formats.
-
-- **MODIFY: `integration_test/docker_test/docker_test.go`** — Extend the `sendEventsToGateway` function with SDK-specific payload formats to verify backwards compatibility with existing regression tests.
-
-**Group 6 — Cloud Source Framework Design and Proof-of-Concept (E-009)**
-
-- **CREATE: `docs/architecture/cloud-source-framework.md`** — Comprehensive design document defining:
-  - Cloud source ingestion architecture (polling + webhook dual-mode)
-  - Connector interface definitions (`CloudSource`, `Poller`, `WebhookReceiver`, `SchemaMapper`)
-  - Credential management model (encrypted storage, runtime injection)
-  - Schema mapping layer (third-party API responses → Segment Spec events)
-  - Top-20 cloud source prioritization with architecture recommendations per source
-  - Polling cadence and rate limit management
-  - Error handling and retry semantics
-  - Integration with existing Gateway webhook endpoint
-
-- **CREATE: `services/cloud-sources/cloud_source.go`** — Interface definitions for the cloud source framework:
-  - `CloudSource` — top-level interface with `Start`, `Stop`, `Status` methods
-  - `Poller` — API polling interface with `Poll`, `SetCursor`, `GetCursor` methods
-  - `WebhookReceiver` — webhook ingestion interface with `Validate`, `Transform` methods
-  - `SchemaMapper` — event mapping interface with `MapToSegmentSpec` method
-
-- **CREATE: `services/cloud-sources/registry.go`** — Connector registry with `Register`, `Get`, `List` methods for managing cloud source connector plugins.
-
-- **CREATE: `services/cloud-sources/config.go`** — Configuration types for cloud source connectors: `CloudSourceConfig`, `CredentialConfig`, `PollingConfig`, `WebhookConfig`.
-
-- **CREATE: `services/cloud-sources/poller.go`** — Base polling implementation with rate-limited API polling, cursor-based pagination, and configurable polling intervals.
-
-- **CREATE: `services/cloud-sources/webhook_receiver.go`** — Base webhook receiver implementation with HMAC signature validation, payload normalization, and Segment Spec event generation.
-
-- **CREATE: `services/cloud-sources/schema_mapper.go`** — Schema mapping layer that transforms third-party API responses into Segment Spec events (`identify`, `track`, `group`).
-
-- **CREATE: `services/cloud-sources/connectors/stripe/stripe.go`** — Stripe connector proof-of-concept implementing the `WebhookReceiver` interface. Handles Stripe webhook events (e.g., `charge.succeeded`, `customer.created`) and maps them to Segment Spec `track` and `identify` events.
-
-- **CREATE: `services/cloud-sources/cloud_source_test.go`** — Unit tests for framework interfaces, registry, and configuration.
-
-- **CREATE: `services/cloud-sources/connectors/stripe/stripe_test.go`** — Unit tests for the Stripe connector proof-of-concept.
-
-**Group 7 — Documentation and Gap Report Updates (All Epics)**
-
-- **CREATE: `docs/guides/sdk-compatibility/segment-sdk-migration.md`** — Master migration guide with per-SDK instructions for endpoint URL swap and Write Key substitution.
-
-- **CREATE: `docs/guides/sdk-compatibility/web-sdk-guide.md`** — JavaScript/Analytics 2.0 compatibility guide documenting device-mode limitations, beacon and pixel endpoint support, and CORS configuration.
-
-- **CREATE: `docs/guides/sdk-compatibility/mobile-sdk-guide.md`** — iOS and Android SDK compatibility guide documenting lifecycle event support, context auto-collection, and mobile-specific considerations.
-
-- **CREATE: `docs/guides/sdk-compatibility/server-sdk-guide.md`** — Server-side SDK compatibility guide for Node.js, Python, Go, Java, Ruby with batch endpoint usage and retry behavior.
-
-- **MODIFY: `docs/gap-report/source-catalog-parity.md`** — Update SDK Compatibility Matrix to reflect validated compatibility for all tested platforms.
-
-- **MODIFY: `docs/gap-report/sprint-roadmap.md`** — Update Sprint 2–3 section to reflect epic progress and completion status.
-
-- **MODIFY: `docs/gap-report/index.md`** — Update Source Catalog parity from ~60% to ~85%.
-
-- **MODIFY: `README.md`** — Add SDK compatibility section with verified migration paths.
+| Action | File Path | Purpose |
+|--------|-----------|---------|
+| CREATE | `warehouse/backfill/service_test.go` | Unit tests for backfill service: valid/invalid date ranges, concurrent job limits, archiver integration |
+| CREATE | `warehouse/backfill/handler_test.go` | HTTP handler tests: request parsing, validation errors, authorization |
+| CREATE | `warehouse/backfill/repository_test.go` | Repository tests with test database: CRUD operations, status transitions |
+| CREATE | `warehouse/healthmonitor/monitor_test.go` | Unit tests for health collection: metric aggregation, purge logic |
+| CREATE | `warehouse/healthmonitor/handler_test.go` | HTTP handler tests: health summary response, per-source filtering |
+| CREATE | `warehouse/healthmonitor/alerting_test.go` | Alerting evaluator tests: threshold crossing, cooldown, alert suppression |
+| CREATE | `warehouse/selectivesync/service_test.go` | Unit tests: table/column exclusion predicates, config inheritance |
+| CREATE | `warehouse/selectivesync/handler_test.go` | HTTP handler tests: config creation/update, validation |
+| CREATE | `warehouse/selectivesync/repository_test.go` | Repository tests: upsert semantics, constraint enforcement |
+| CREATE | `warehouse/replay/handler_test.go` | Unit tests: replay orchestration, error paths, timeout handling |
+| CREATE | `warehouse/replay/retriever_test.go` | Unit tests: archived event deserialization, batching, date filtering |
+| MODIFY | `warehouse/router/state_test.go` | Add test cases for backfill state transition and selective sync state filtering |
+| MODIFY | `warehouse/api/http_test.go` | Add test cases for all new endpoints (backfill, health, selective sync, replay) |
+| MODIFY | `warehouse/encoding/encoding_test.go` | Add test cases for column exclusion during event encoding |
+| MODIFY | `warehouse/schema/schema_test.go` | Add test cases for schema consolidation with selective sync exclusions |
 
 ### 0.5.2 Implementation Approach per File
 
-- **Establish SDK compatibility test foundation** by creating comprehensive test suites (`gateway/sdk_compatibility_test.go`, `gateway/sdk_auth_compat_test.go`) that validate each Segment SDK's exact payload format and authentication pattern against the Gateway
-- **Validate web SDK endpoints** by extending beacon and pixel handler tests to cover `analytics.js` / Analytics 2.0 specific payload formats, including `sendBeacon()` content type handling
-- **Verify mobile SDK context preservation** by testing iOS and Android payload formats through the full pipeline, ensuring mobile-specific context fields (`device`, `os`, `app`, `network`, `screen`) and lifecycle events are preserved
-- **Confirm server-side SDK batch compatibility** by testing batch endpoint with each server SDK's specific payload format and library metadata
-- **Integrate end-to-end validation** by creating a Docker-based integration test suite that exercises all SDK payload formats through Gateway → Processor → Router → webhook delivery
-- **Design the cloud source framework** by producing a design document and minimal proof-of-concept with interface definitions and a Stripe webhook connector example
-- **Close documentation gaps** by creating per-SDK migration guides and updating gap reports to reflect validated compatibility
+**Establish Feature Foundations (E-031 + E-032 first)**
+
+- Begin with E-031 idempotent sync tests to validate existing merge strategies, building test infrastructure that confirms the current system produces deterministic output
+- Create the `warehouse/backfill/` package with `model.go` and `config.go` to define the data structures before implementing business logic
+- Add SQL migration `000042` for `wh_backfill_jobs` to establish the persistence layer
+- Implement `repository.go` with standard CRUD operations using the existing `sqlquerywrapper` pattern (consistent with `warehouse/internal/repo/`)
+- Build `service.go` as the orchestrator, delegating to the repository for persistence and the archiver for data retrieval
+- Wire `handler.go` into the existing Chi router pattern via `warehouse/api/http.go`
+- Extend the state machine in `warehouse/router/state.go` to accommodate backfill uploads
+
+**Integrate Health Monitoring (E-033 parallel track)**
+
+- Create `warehouse/healthmonitor/` package with the monitor loop pattern matching `warehouse/archive/cron.go` (context-cancellable ticker loop)
+- Define Prometheus metrics using `statsFactory.NewTaggedStat()` consistent with `warehouse/router/upload_stats.go`
+- Instrument the upload pipeline by adding `recordSyncHealth()` hooks at success and failure points in the existing stat emission code
+- Expose health data via HTTP API and gRPC extensions
+
+**Layer Selective Sync Filtering (E-034)**
+
+- Create `warehouse/selectivesync/` package as a pure predicate service — stateless after configuration load
+- Integrate with `warehouse/bcm/backend_config.go` to receive config updates via the existing subscription model
+- Thread exclusion predicates through the load file generation pipeline: `state_generate_load_files.go` → `loadfiles.go` → `encoding.go`
+- Apply table-level exclusion at `state_export_data.go` and `state_create_table_uploads.go`
+
+**Construct Replay Pipeline (E-035 depends on E-032)**
+
+- Create `warehouse/replay/` package with the retriever querying archived events through `warehouse/archive/archiver.go`
+- Modify `gateway/handle_http_replay.go` to detect warehouse-only headers and tag events accordingly
+- Modify `processor/processor.go` to detect the warehouse-only flag and skip Router-stage routing
+- Wire the replay handler into the API layer with job tracking
 
 ### 0.5.3 User Interface Design
 
-Not applicable. The `rudder-server` repository is a backend data plane with no frontend components. All system interactions occur through programmatic APIs (HTTP REST, gRPC, UNIX socket RPC). The Sprint 2–3 Source SDK Compatibility feature targets the HTTP REST API surface at the Gateway level (port 8080) — validating that Segment SDK clients can connect without code modification beyond endpoint URL and Write Key substitution.
+This sprint scope is entirely backend and API-driven. No frontend UI components are required. All interactions occur through:
+
+- **REST API** (`/v1/warehouse/*` endpoints on port 8082) — consumed by control plane, CLI tools, and Grafana-based dashboards
+- **gRPC API** (port 8082) — consumed by internal services and programmatic integrations
+- **Prometheus metrics** (`/metrics` endpoint) — consumed by Prometheus scraper and Grafana dashboards
+- **Backend-config** (selective sync configuration pushed from control plane) — consumed by the warehouse backend-config manager
+
+Key API response contracts:
+
+- `POST /v1/warehouse/backfill` → `{ "jobID": int64, "status": "Pending" }`
+- `GET /v1/warehouse/health` → `{ "sources": [{ "sourceID": "...", "destinations": [{ "destID": "...", "syncDuration": {...}, "rowsSynced": int64, "errorRate": float64, "lastSync": "..." }] }] }`
+- `PUT /v1/warehouse/selective-sync` → `{ "status": "updated", "sourceID": "...", "destID": "..." }`
+- `POST /v1/warehouse/replay` → `{ "jobID": int64, "status": "Pending" }`
 
 ## 0.6 Scope Boundaries
 
 ### 0.6.1 Exhaustively In Scope
 
-**Gateway Source Files (Modify/Verify):**
-- `gateway/handle_http.go` — Handler wiring verification for all SDK endpoints
-- `gateway/handle_http_auth.go` — Write Key Basic Auth compatibility validation
-- `gateway/handle_http_beacon.go` — Beacon endpoint for JavaScript SDK `sendBeacon()` payloads
-- `gateway/handle_http_pixel.go` — Pixel endpoints for web SDK image tag tracking
-- `gateway/handle_http_import.go` — Import endpoint compatibility verification
-- `gateway/handle.go` — Core request handler — SDK payload processing and context field preservation
-- `gateway/handle_lifecycle.go` — Route registration audit for complete SDK endpoint coverage
-- `gateway/handle_webhook.go` — Webhook handler reference for cloud source design
-- `gateway/gateway.go` — Constants and error responses
-- `gateway/types.go` — Request type definitions
-- `gateway/openapi.yaml` — OpenAPI specification verification
-- `gateway/regular_handler.go` — Regular request handler
-- `gateway/import_handler.go` — Import request handler
-- `gateway/validator/**/*.go` — Validator chain verification for SDK payloads
-- `gateway/internal/bot/**/*.go` — Bot detection verification for SDK user-agents
-- `gateway/response/**/*.go` — Response code and message verification
-- `gateway/types/**/*.go` — Context types and auth request context
-- `gateway/webhook/**/*.go` — Webhook pipeline reference for cloud source design
+**E-031: Idempotent Sync Validation**
 
-**Gateway Test Files (Modify/Create):**
-- `gateway/gateway_test.go` — Extend with SDK-specific payload tests
-- `gateway/handle_test.go` — Extend with mobile/server SDK context field tests
-- `gateway/handle_http_auth_test.go` — Extend with SDK auth pattern tests
-- `gateway/handle_http_beacon_test.go` — Extend with Analytics 2.0 beacon tests
-- `gateway/handle_http_pixel_test.go` — Extend with web SDK pixel tests
-- `gateway/gateway_integration_test.go` — Extend with SDK integration scenarios
-- `gateway/integration_test.go` — Extend with SDK compatibility scenarios
-- `gateway/validator/validator_test.go` — Extend with SDK payload validation tests
-- `gateway/internal/bot/bot_test.go` — Extend with SDK user-agent tests
-- `gateway/sdk_compatibility_test.go` — New: comprehensive SDK payload format tests
-- `gateway/sdk_auth_compat_test.go` — New: Write Key Basic Auth compatibility tests
+- Integration test files: `integration_test/warehouse/idempotent_*_test.go` (all 9 connectors)
+- Test data fixtures: `integration_test/warehouse/testdata/idempotent_events.json`
+- Test helper extensions: `warehouse/integrations/testhelper/staging.go`
+- Connector-specific merge strategies under test:
+  - `warehouse/integrations/snowflake/snowflake.go` (SQL MERGE)
+  - `warehouse/integrations/bigquery/bigquery.go` (dedup views)
+  - `warehouse/integrations/redshift/redshift.go` (DELETE+INSERT)
+  - `warehouse/integrations/clickhouse/clickhouse.go` (engine-level dedup)
+  - `warehouse/integrations/postgres/postgres.go` (SQL MERGE)
+  - `warehouse/integrations/mssql/mssql.go` (bulk CopyIn)
+  - `warehouse/integrations/azure-synapse/azure_synapse.go` (bulk CopyIn)
+  - `warehouse/integrations/deltalake/deltalake.go` (MERGE)
+  - `warehouse/integrations/datalake/datalake.go` (append-only)
+- Middleware verification: `warehouse/integrations/middleware/*.go`
 
-**Integration Test Files (Create/Modify):**
-- `integration_test/sdk_compatibility/**/*` — New: full-stack SDK compatibility test suite
-- `integration_test/docker_test/docker_test.go` — Extend with SDK payload variations
+**E-032: Backfill with Configurable Date Ranges**
 
-**Cloud Source Framework Files (Create — E-009 Design & PoC):**
-- `services/cloud-sources/cloud_source.go` — Interface definitions
-- `services/cloud-sources/registry.go` — Connector registry
-- `services/cloud-sources/config.go` — Configuration types
-- `services/cloud-sources/poller.go` — Base polling implementation
-- `services/cloud-sources/webhook_receiver.go` — Base webhook receiver
-- `services/cloud-sources/schema_mapper.go` — Schema mapping layer
-- `services/cloud-sources/connectors/stripe/stripe.go` — Stripe PoC connector
-- `services/cloud-sources/cloud_source_test.go` — Framework unit tests
-- `services/cloud-sources/connectors/stripe/stripe_test.go` — Stripe PoC tests
+- New package: `warehouse/backfill/**/*.go` (service, config, handler, model, repository)
+- New package tests: `warehouse/backfill/**/*_test.go`
+- SQL migrations: `sql/migrations/warehouse/000042_add_backfill_tracking.{up,down}.sql`
+- State machine extension: `warehouse/router/state.go`
+- Upload model extension: `warehouse/internal/model/upload.go`
+- API endpoint registration: `warehouse/api/http.go`
+- Archiver query extension: `warehouse/archive/archiver.go`
+- App wiring: `warehouse/app.go`
+- Existing state tests: `warehouse/router/state_test.go`
+- Existing API tests: `warehouse/api/http_test.go`
 
-**Documentation Files (Create/Modify):**
-- `docs/architecture/cloud-source-framework.md` — Cloud source design document
-- `docs/guides/sdk-compatibility/segment-sdk-migration.md` — Master SDK migration guide
-- `docs/guides/sdk-compatibility/web-sdk-guide.md` — JavaScript SDK guide
-- `docs/guides/sdk-compatibility/mobile-sdk-guide.md` — iOS/Android SDK guide
-- `docs/guides/sdk-compatibility/server-sdk-guide.md` — Server-side SDK guide
-- `docs/gap-report/source-catalog-parity.md` — Update parity status
-- `docs/gap-report/sprint-roadmap.md` — Update Sprint 2–3 epic status
-- `docs/gap-report/index.md` — Update executive summary parity
-- `README.md` — Add SDK compatibility section
+**E-033: Warehouse Health Monitoring Enhancement**
 
-**Configuration Files (Verify):**
-- `config/config.yaml` — Gateway configuration verification
-- `config/sample.env` — Environment variable reference
+- New package: `warehouse/healthmonitor/**/*.go` (monitor, config, handler, model, repository, metrics, alerting)
+- New package tests: `warehouse/healthmonitor/**/*_test.go`
+- SQL migrations: `sql/migrations/warehouse/000044_add_health_monitoring_tables.{up,down}.sql`
+- Stats instrumentation: `warehouse/router/upload_stats.go`
+- API endpoint registration: `warehouse/api/http.go`
+- gRPC service extension: `warehouse/api/grpc.go`
+- App wiring: `warehouse/app.go`
 
-**Backend Config Files (Reference for E-009 design):**
-- `backend-config/types.go` — Source configuration model
-- `backend-config/backend-config.go` — Config fetch and cache system
+**E-034: Warehouse Selective Sync**
 
-**Segment Reference Corpus (Read-Only Baseline):**
-- `refs/segment-docs/src/connections/sources/catalog/libraries/**/*` — All SDK documentation
-- `refs/segment-docs/src/connections/sources/catalog/cloud-apps/**/*` — All 140 cloud source definitions
+- New package: `warehouse/selectivesync/**/*.go` (service, config, handler, model, repository)
+- New package tests: `warehouse/selectivesync/**/*_test.go`
+- SQL migrations: `sql/migrations/warehouse/000043_add_selective_sync_config.{up,down}.sql`
+- Backend config parsing: `warehouse/bcm/backend_config.go`
+- Schema consolidation: `warehouse/schema/schema.go`
+- Encoding pipeline: `warehouse/encoding/encoding.go`
+- Load file generation: `warehouse/internal/loadfiles/loadfiles.go`
+- State handlers: `warehouse/router/state_generate_load_files.go`, `warehouse/router/state_export_data.go`, `warehouse/router/state_create_table_uploads.go`
+- API endpoint registration: `warehouse/api/http.go`
+- App wiring: `warehouse/app.go`
+- Existing tests: `warehouse/encoding/encoding_test.go`, `warehouse/schema/schema_test.go`
+
+**E-035: Warehouse Replay from Archived Events**
+
+- New package: `warehouse/replay/**/*.go` (handler, config, model, retriever)
+- New package tests: `warehouse/replay/**/*_test.go`
+- Gateway replay handler: `gateway/handle_http_replay.go`
+- Backend config replay types: `backend-config/replay_types.go`
+- Processor routing logic: `processor/processor.go`
+- Archiver query interface: `warehouse/archive/archiver.go`
+- API endpoint registration: `warehouse/api/http.go`
+- App wiring: `warehouse/app.go`
+
+**Cross-Cutting: Configuration**
+
+- Feature flags under `Warehouse.backfill.*`, `Warehouse.healthMonitor.*`, `Warehouse.selectiveSync.*`, `Warehouse.replay.*`
+- Environment variable documentation: `.env.example`
+
+**Cross-Cutting: Documentation**
+
+- `docs/warehouse/backfill.md` — Backfill API reference and usage guide
+- `docs/warehouse/health-monitoring.md` — Health monitoring configuration and metrics catalog
+- `docs/warehouse/selective-sync.md` — Selective sync configuration and behavior
+- `docs/warehouse/replay.md` — Replay pipeline architecture and usage
 
 ### 0.6.2 Explicitly Out of Scope
 
-- **Destination Connector Expansion:** Adding or modifying destination connectors is tracked under Sprint 3–5 (E-010 through E-014) and is explicitly out of scope
-- **Functions and Transformation Framework:** Adding new transformation capabilities or custom function runtimes is tracked under Sprint 4–6 (E-015 through E-019)
-- **Protocols and Tracking Plan Enforcement:** Tracking plan validation enhancements are tracked under Sprint 5–7 (E-020 through E-025)
-- **Identity Resolution and Profiles:** Real-time identity graph implementation is tracked under Sprint 6–8 (E-026 through E-030)
-- **Warehouse Feature Enhancement:** Selective sync, backfill, and monitoring are tracked under Sprint 7–9 (E-031 through E-035)
-- **Operational Tooling:** Monitoring, alerting, and replay controls are tracked under Sprint 8–10 (E-036 through E-039)
-- **Production cloud source connectors:** E-009 is design-and-prototype only — production-grade connector implementations for Salesforce, HubSpot, Zendesk, etc. are deferred to Phase 2
-- **Device-mode destination support:** Client-side SDK destination forwarding is a native SDK concern, not a server-side Gateway feature
-- **RudderStack native SDK modifications:** Modifications to `rudder-sdk-js`, `rudder-sdk-ios`, `rudder-sdk-android` are out of scope — this sprint validates Segment SDK compatibility only
-- **Performance optimization:** No performance work beyond what is required for feature correctness; benchmarks must not regress
-- **Refactoring of existing code:** No architectural refactoring unrelated to SDK compatibility validation
-- **OTT SDK validation (Roku):** Identified as low priority (P2) in the gap report; deferred
+- **Sprint 1–6 and Sprint 10 scope**: No work on Event Spec Parity (Sprint 1–2), Gateway Hardening (Sprint 3–4), Processor Enrichment (Sprint 5–6), or Observability Platform (Sprint 10)
+- **Frontend / control plane UI**: No dashboard or web UI for backfill, health, selective sync, or replay — only backend APIs
+- **Connector feature additions**: No new warehouse connector implementations (the existing 9 connectors are exercised but not extended with new features)
+- **Performance optimization of existing sync pipeline**: No refactoring of the existing state machine, load file generation, or export pipeline for speed — only functional extensions
+- **Data retention policy changes**: No modifications to existing archival schedules or JobsDB retention beyond what backfill/replay require
+- **Multi-tenancy isolation**: No changes to workspace isolation, tenant management, or quota enforcement
+- **Authentication / authorization changes**: No new auth middleware — new endpoints inherit existing auth from the Chi router middleware chain
+- **Schema migration tooling**: No changes to the Goose migration runner itself — only new migration files
+- **Monitoring infrastructure**: No Prometheus server setup, Grafana dashboard provisioning, or AlertManager configuration — only metric emission from the warehouse process
+- **Load testing**: No performance/load test suites — only functional correctness tests
+- **Connector-level DDL changes**: No modifications to warehouse DDL generation (CREATE TABLE, ALTER TABLE) beyond what selective sync requires for column exclusion
+- **Refactoring unrelated modules**: No changes to `regulation-worker/`, `services/`, `jobsdb/`, `config/`, `admin/`, or other packages unless directly required by an integration touchpoint
 
 ## 0.7 Rules for Feature Addition
 
-### 0.7.1 Feature-Specific Rules
+### 0.7.1 User-Specified Rules
 
-- **Segment SDK Documentation as Authoritative Baseline:** All SDK compatibility decisions must reference the Segment documentation corpus in `refs/segment-docs/src/connections/sources/catalog/libraries/`. When ambiguity exists between observed SDK behavior and documented behavior, the documentation takes precedence.
+The following rules are explicitly stated in the user's instructions and must be enforced throughout implementation:
 
-- **Implement ALL Items in Scope:** For every epic (E-005 through E-009), implement ALL items listed in the scope description — do not skip any variant, endpoint, or sub-case mentioned in the epic description. This includes all 6 event types, all SDK platforms, all endpoint variants (standard, batch, beacon, pixel, import), and all authentication patterns.
+- **Implement ALL items in scope**: For every epic, implement ALL items listed in scope — do not skip any variant, endpoint, or sub-case mentioned in the epic description. Every connector must be tested (E-031), every API endpoint must be created (E-032 through E-035), and every configuration parameter must be implemented.
 
-- **Design-Only for E-009:** E-009 (Cloud source ingestion framework design) is explicitly marked "Design and prototype." Deliver a design document and a minimal proof-of-concept only — do not implement production-grade service code. The proof-of-concept must demonstrate the interface pattern and a single connector (Stripe webhook) as validation.
+- **Design-only epics**: For epics marked "Design and prototype," deliver a design document and a minimal proof-of-concept only — do not implement production-grade service code. (Note: No Sprint 7–9 epic carries this designation; all five epics are full implementations.)
 
-- **No Breaking Changes to Existing API:** All modifications must maintain backward compatibility with existing RudderStack users. The HTTP API surface (`/v1/identify`, `/v1/track`, `/v1/page`, `/v1/screen`, `/v1/group`, `/v1/alias`, `/v1/batch`, `/beacon/v1/batch`, `/pixel/v1/track`, `/pixel/v1/page`) must continue to accept all currently valid payloads without any behavioral change.
+- **Full pipeline tracing for routing changes**: For epics that require bypassing or modifying routing behavior, trace the full pipeline and modify all components involved — not just the component that initiates the change. This directly applies to E-035 (Warehouse Replay), where the replay flag must be propagated from `gateway/handle_http_replay.go` through `backend-config/replay_types.go` and `processor/processor.go` to ensure warehouse-only routing.
 
-- **Use `jsonrs` Instead of `encoding/json`:** Per the repository's `depguard` linting rule in `.golangci.yml`, all JSON serialization/deserialization in new source files must use the `jsonrs` library from `github.com/rudderlabs/rudder-go-kit`. Using `encoding/json` directly is banned.
+- **Docker prerequisite**: If any step requires Docker, start it first. Integration tests in E-031 use `dockertest/v3` for spinning up connector containers — Docker must be running before test execution.
 
-- **Table-Driven Test Patterns:** All new tests must follow the codebase's established table-driven test pattern with `t.Run()` subtests for each scenario, using `testify/require` for assertions. Integration tests must use `dockertest/v3` for container orchestration following the pattern established in `integration_test/docker_test/docker_test.go` and `integration_test/event_spec_parity/event_spec_parity_test.go`.
+- **Run all tests after implementation**: Execute the full test suite after completing implementation changes. Use non-interactive, non-watch mode: `go test ./... -count=1 -timeout 600s`.
 
-- **Docker Requirement:** If any step requires Docker, start it first. Integration tests must provision containers (PostgreSQL, Transformer, webhook recorder) before executing test scenarios.
+- **Fix all CI failures resolvable through code changes**: Any test failure or linting error that can be resolved by modifying source code must be fixed before marking completion.
 
-- **Test Execution:** Run all tests after implementation. All existing tests must continue to pass — zero regressions.
+- **Skip failures caused by missing repository secrets**: Failures due to missing AWS ECR credentials or other repository secrets that are unavailable in the development environment should be documented but not blocked on.
 
-- **CI Fix Policy:** Fix all CI failures resolvable through code changes. Skip failures caused by missing repository secrets (AWS ECR credentials).
+### 0.7.2 Architectural Conventions
 
-- **OpenAPI Specification Consistency:** Any changes to the OpenAPI spec (`gateway/openapi.yaml`) must pass the `swagger-cli validate` verification step in the CI pipeline.
+The following conventions are derived from codebase analysis and must be followed for consistency:
 
-- **Benchmark Non-Regression:** Existing benchmarks (e.g., `processorBenchmark_test.go`) must not regress due to any changes.
+- **Package structure**: Each new feature lives in its own sub-package under `warehouse/` (e.g., `warehouse/backfill/`, `warehouse/healthmonitor/`, `warehouse/selectivesync/`, `warehouse/replay/`). Each package contains `service.go`, `config.go`, `handler.go`, `model.go`, and `repository.go` following the pattern established by `warehouse/internal/` and `warehouse/archive/`.
 
-### 0.7.2 Integration Requirements
+- **Configuration pattern**: All configuration must use the `config.GetReloadableIntVar()` / `config.GetReloadableDurationVar()` / `config.GetReloadableBoolVar()` pattern, consistent with how `warehouse/archive/archiver.go` and `warehouse/app.go` register configuration keys. Keys must be nested under `Warehouse.<featureName>.<paramName>`.
 
-- **Transformer Service Compatibility:** SDK compatibility testing must account for the external Transformer service (`rudder-transformer` at port 9090). Event delivery through the full pipeline requires the Transformer for destination-specific transformations.
+- **Stats emission**: All metrics must use `statsFactory.NewTaggedStat()` with the standard tag set (`module`, `workspaceId`, `warehouseID`, `destID`, `destType`, `sourceID`, `sourceType`) as established in `warehouse/router/upload_stats.go`.
 
-- **Write Key Basic Auth Exactness:** The `Authorization: Basic base64(writeKey:)` format must be processed identically to Segment's scheme. The empty password field after the colon is critical — some SDKs may send `base64(writeKey)` without the trailing colon, and this behavior must be tested and documented.
+- **Repository pattern**: Database access must follow the repository pattern used in `warehouse/internal/repo/` — struct with `db *sqlquerywrapper.DB`, methods returning typed models, SQL queries as string constants.
 
-- **Batch Endpoint Mixed Types:** The `/v1/batch` endpoint must accept a `batch` array containing mixed event types (identify, track, page, screen, group, alias) in a single request, as this is the standard behavior for all server-side SDKs that flush events in batches.
+- **Error handling**: Use categorized error types from `warehouse/internal/model/upload.go` (`UncategorizedError`, `PermissionError`, etc.) for warehouse-specific errors. New error categories may be added for backfill and replay failures.
 
-- **Beacon Content-Type Handling:** The JavaScript SDK's `sendBeacon()` may send payloads with `Content-Type: text/plain` or `Content-Type: application/x-www-form-urlencoded` instead of `application/json`. The Gateway must handle these content types correctly.
+- **HTTP handler pattern**: Use Chi router middleware chain as established in `warehouse/api/http.go` — `StatMiddleware`, JSON content type, structured error responses with `status` and `message` fields.
 
-- **CI Pipeline Integration:** New integration tests must be compatible with the existing CI pipeline structure in `.github/workflows/tests.yaml` and must run within the 30-minute timeout for integration tests.
+- **Context propagation**: All long-running operations must accept `context.Context` as the first parameter, supporting graceful shutdown through context cancellation (consistent with `warehouse/archive/cron.go`).
 
-### 0.7.3 Security Considerations
+- **Test conventions**: Unit tests use `testify/require` assertions, table-driven `t.Run()` subtests, and `gomock` for interface mocking. Integration tests use `dockertest/v3` for container management and the existing helpers in `warehouse/integrations/testhelper/`.
 
-- **No Sensitive Data in Test Fixtures:** Test payloads must use synthetic data (fake names, emails, IPs, device IDs) and never include real user data, credentials, or API keys.
+### 0.7.3 Backward Compatibility Requirements
 
-- **Cloud Source Credential Security (E-009 Design):** The cloud source framework design document must specify encrypted credential storage, runtime-only secret injection, and credential rotation support. The proof-of-concept must not hardcode any credentials.
-
-- **HMAC Webhook Signature Validation (E-009 Design):** The cloud source webhook receiver design must include HMAC signature validation for all webhook-based cloud sources (Stripe, SendGrid, etc.) to prevent webhook spoofing.
-
-- **Authentication Integrity:** Write Key Basic Auth (`gateway/handle_http_auth.go`) must remain identical to Segment's authentication scheme. No changes to the auth flow are permitted — this sprint validates existing behavior, not modifies it.
+- **API backward compatibility**: All existing `/v1/warehouse/*` endpoints must continue to function without modification. New endpoints are additive only.
+- **State machine backward compatibility**: Existing upload jobs (those without a `BackfillJobID`) must traverse the state machine exactly as before. The backfill state is only entered when `BackfillJobID` is non-nil.
+- **Schema backward compatibility**: SQL migrations must be strictly additive — new tables and new nullable columns only. No existing column type changes, no column drops, no table renames.
+- **Configuration backward compatibility**: All new configuration keys must have safe defaults that maintain current behavior when unset. Features default to disabled (`enabled: false` for backfill, selective sync, and replay).
+- **Metric backward compatibility**: Existing metric names and tag keys must not change. New metrics are additive and use distinct names to avoid collision.
+- **Backend-config backward compatibility**: The selective sync config parser must gracefully handle destination configurations that do not contain a `selectiveSync` block — defaulting to no exclusions (all tables and columns included).
 
 ## 0.8 References
 
-### 0.8.1 Files and Folders Searched
+### 0.8.1 Codebase Files and Folders Searched
 
-The following files and directories were comprehensively searched across the codebase to derive the conclusions in this Agent Action Plan:
+The following files and folders were retrieved and analyzed to derive the conclusions in this Agent Action Plan:
 
-**Root-Level Files:**
-- `go.mod` — Go 1.26.0, complete dependency graph with 80+ direct dependencies
-- `go.sum` — Checksum closure file
-- `Dockerfile` — Multi-stage Go build definition (GO_VERSION=1.26.0, Alpine 3.23)
-- `Makefile` — Build system, test commands, tool versions
-- `config/config.yaml` — Master runtime configuration (Gateway port 8080, 64 workers, 4MB request size limit)
-- `config/sample.env` — Environment variable documentation
-- `docker-compose.yml` — Docker Compose with PostgreSQL, Transformer, MinIO, etcd services
-- `rudder-docker.yml` — Rudder stack runtime composition
-- `README.md` — Project documentation
-- `.golangci.yml` — Linter configuration (depguard rules banning `encoding/json`)
-- `main.go` — Application entrypoint
+**Reference Documentation (User-Specified)**
 
-**Gateway Directory (Exhaustive):**
-- `gateway/handle_http.go` — HTTP handler wiring for all 11+ event type handlers
-- `gateway/handle.go` — Core request handler (36KB) — event processing, userAgent extraction, bot detection
-- `gateway/handle_http_auth.go` — Authentication middleware (11KB) — writeKeyAuth, webhookAuth, sourceIDAuth, authDestIDForSource, replaySourceIDAuth
-- `gateway/handle_http_beacon.go` — Beacon tracking support with writeKey query param interception
-- `gateway/handle_http_pixel.go` — Pixel tracking with GIF response, query param to JSON payload conversion
-- `gateway/handle_http_import.go` — Historical data import handler
-- `gateway/handle_http_replay.go` — Event replay re-ingestion handler
-- `gateway/handle_http_retl.go` — Reverse ETL event ingestion handler
-- `gateway/handle_lifecycle.go` — Route registration via Chi router, Gateway setup and lifecycle (27KB)
-- `gateway/handle_webhook.go` — Webhook handler with v1/v2 auth chain support
-- `gateway/handle_observability.go` — Observability helpers
-- `gateway/handle_diagnostics.go` — Diagnostic hooks
-- `gateway/types.go` — Shared request types: `webRequestT`, `RequestHandler` interface, `userWebRequestWorkerT`
-- `gateway/gateway.go` — Constants and sentinel errors
-- `gateway/openapi.yaml` — OpenAPI 3.0.3 specification (33KB) — all endpoint definitions and payload schemas
-- `gateway/regular_handler.go` — Regular request handler implementation
-- `gateway/import_handler.go` — Import request handler implementation
-- `gateway/response/response.go` — Canonical response strings (Ok, InvalidWriteKey, SourceDisabled, etc.)
-- `gateway/types/types.go` — `AuthRequestContext` struct with SourceCategory, WriteKey, SourceEnabled, SourceDetails
-- `gateway/validator/` — Complete validator directory (msgProperties, messageId, reqType, receivedAt, requestIP, rudderID validators)
-- `gateway/internal/bot/` — Bot detection (IsBotUserAgent function)
-- `gateway/webhook/auth/auth.go` — Webhook authentication middleware (WebhookAuth struct)
-- `gateway/webhook/setup.go` — Webhook pipeline setup
-- `gateway/webhook/webhook.go` — Webhook request handling
-- `gateway/webhook/webhookTransformer.go` — Webhook payload transformation
+| File Path | Purpose |
+|-----------|---------|
+| `docs/gap-report/sprint-roadmap.md` | Sprint planning document defining Sprints 1–10, with Sprint 7–9 (Warehouse Feature Enhancement) as the assigned scope |
+| `docs/gap-report/warehouse-parity.md` | Warehouse parity analysis detailing ~80% parity, 8 gap IDs (WH-001 through WH-008), competitive strengths and weaknesses |
+| `blitzy/documentation/Technical Specifications.md` | Prior technical specification document with feature catalog, architecture, database design, and deployment infrastructure |
+| `blitzy/documentation/Project Guide.md` | Previous sprint's Agent Action Plan for Event Spec Parity (Sprint 1–2), used as structural template |
 
-**Gateway Test Files (All):**
-- `gateway/gateway_test.go` (96KB), `gateway/handle_test.go` (49KB), `gateway/gateway_integration_test.go`, `gateway/integration_test.go`, `gateway/gateway_suite_test.go`, `gateway/handle_http_auth_test.go`, `gateway/handle_http_beacon_test.go`, `gateway/handle_http_pixel_test.go`, `gateway/event_spec_parity_test.go`, `gateway/client_hints_test.go`, `gateway/validator/validator_test.go`, `gateway/internal/bot/bot_test.go`, `gateway/webhook/auth/auth_test.go`, `gateway/webhook/webhook_test.go`, `gateway/webhook/webhookTransformer_test.go`
+**Warehouse Core (State Machine, Upload Pipeline)**
 
-**Backend Configuration:**
-- `backend-config/types.go` — `SourceT` struct (ID, WriteKey, Enabled, SourceDefinition, Config, Destinations)
-- `backend-config/backend-config.go` — Config fetch and cache mechanism
+| File Path | Lines Inspected | Key Findings |
+|-----------|----------------|--------------|
+| `warehouse/router/state.go` | 1–120 | 7-state linked list state machine: Waiting → GenerateUploadSchema → CreateTableUploads → GenerateLoadFiles → UpdateTableUploadCounts → CreateRemoteSchema → ExportData, with Aborted terminal |
+| `warehouse/router/upload.go` | 1–80 | UploadJob struct and execution methods for per-upload processing |
+| `warehouse/internal/model/upload.go` | 1–80 | Upload status constants (12 states), error type constants (8 categories), Upload struct definition |
+| `warehouse/router/upload_stats.go` | 1–100 | Stats helpers: buildTags(), timerStat(), counterStat(), gaugeStat(), metric emission for totalRowsSynced, uploadSuccess |
+| `warehouse/router/state_generate_load_files.go` | Full | Load file generation orchestration state handler |
+| `warehouse/router/state_export_data.go` | Full | Data export state handler iterating user, identity, and regular tables |
+| `warehouse/router/state_create_table_uploads.go` | Full | Per-table upload record creation handler |
+| `warehouse/app.go` | 1–150 | App struct wiring, New() config reads, Setup() initialization, Run() lifecycle |
 
-**Integration Tests:**
-- `integration_test/docker_test/docker_test.go` — Full-stack Docker regression suite (32KB)
-- `integration_test/docker_test/testdata/workspaceConfigTemplate.json` — Workspace config template
-- `integration_test/event_spec_parity/event_spec_parity_test.go` — Sprint 1–2 Event Spec Parity integration test
-- `integration_test/event_spec_parity/testdata/` — Test data for Event Spec Parity tests
+**Warehouse API Layer**
 
-**Test Helpers:**
-- `testhelper/webhook/recorder.go` — Webhook request recorder (`Recorder` struct with `RequestsCount`, `Requests` methods)
-- `testhelper/health/checker.go` — Health check polling utility (`WaitUntilReady` function)
-- `testhelper/workspaceConfig/` — Workspace configuration test fixtures
+| File Path | Lines Inspected | Key Findings |
+|-----------|----------------|--------------|
+| `warehouse/api/http.go` | 1–200 | Chi router, StatMiddleware, addMasterEndpoints() registering /v1/warehouse/* routes |
+| `warehouse/api/grpc.go` | Summary | gRPC server with 15+ RPCs on port 8082 |
 
-**Services Directory:**
-- `services/` — 19 service packages (alert, archiver, controlplane, debugger, dedup, diagnostics, fileuploader, geolocation, kvstoremanager, notifier, oauth, rmetrics, rsources, sql-migrator, streammanager, transformer, transientsource, validators)
+**Warehouse Sub-Packages**
 
-**Segment Reference Corpus (Read-Only):**
-- `refs/segment-docs/src/connections/sources/catalog/libraries/website/` — JavaScript SDK, Cloudflare, Shopify
-- `refs/segment-docs/src/connections/sources/catalog/libraries/mobile/` — iOS, Android, React Native, Flutter, Kotlin Android, Unity, Xamarin, AMP
-- `refs/segment-docs/src/connections/sources/catalog/libraries/server/` — Node.js, Python, Go, Java, Ruby, PHP, .NET, C#, Kotlin (Server), Clojure, Rust
-- `refs/segment-docs/src/connections/sources/catalog/libraries/ott/` — Roku
-- `refs/segment-docs/src/connections/sources/catalog/cloud-apps/` — 140 cloud app source directories (Salesforce, Stripe, HubSpot, Zendesk, Intercom, SendGrid, Twilio, Braze, Klaviyo, Iterable, and 130 more)
-- `refs/segment-docs/src/connections/spec/` — Segment Event Specification (identify, track, page, screen, group, alias, common fields)
+| File Path | Lines Inspected | Key Findings |
+|-----------|----------------|--------------|
+| `warehouse/schema/schema.go` | 1–100 | Handler interface, TTL-cached schema with 720-minute default |
+| `warehouse/encoding/encoding.go` | 1–92 | Encoding Factory, NewEventLoader() for Parquet/JSON/CSV serialization |
+| `warehouse/internal/loadfiles/loadfiles.go` | Summary | Load file generation pipeline, GroupStagingFiles() function |
+| `warehouse/bcm/backend_config.go` | Summary | BackendConfigManager processing config updates via subscription |
+| `warehouse/archive/archiver.go` | 1–120 | Archiver struct with configurable archival (5-day default), retention (90-day), batch processing |
+| `warehouse/archive/cron.go` | Full | CronArchiver ticker loop with context cancellation, Do()+Delete() operations |
 
-**Documentation Directory:**
-- `docs/gap-report/sprint-roadmap.md` — Sprint roadmap (793 lines) — Sprint 2–3 section with E-005 to E-009 epic definitions
-- `docs/gap-report/source-catalog-parity.md` — Source Catalog Parity Analysis (723 lines) — SDK compatibility matrix, cloud source gap inventory
-- `docs/gap-report/index.md` — Gap report executive summary
-- `docs/gap-report/event-spec-parity.md` — Event Spec Parity Analysis (Sprint 1–2 reference)
-- `docs/architecture/` — Architecture documentation directory
-- `docs/guides/` — Guides documentation directory
+**Connectors (Merge Strategy Verification for E-031)**
 
-**Blitzy Documentation:**
-- `blitzy/documentation/Technical Specifications.md` — Technical Specifications (715 lines) — Sprint 1–2 Agent Action Plan reference
-- `blitzy/documentation/Project Guide.md` — Project Guide (501 lines) — Sprint 1–2 completion report with test results
+| File Path | Strategy Verified |
+|-----------|------------------|
+| `warehouse/integrations/snowflake/snowflake.go` | SQL MERGE with ShouldMerge() and allowMerge config |
+| `warehouse/integrations/bigquery/bigquery.go` | Dedup views via CREATE OR REPLACE VIEW with ROW_NUMBER() |
+| `warehouse/integrations/redshift/redshift.go` | Transactional DELETE+INSERT with dedup window (720h default) |
+| `warehouse/integrations/clickhouse/clickhouse.go` | AggregatingMergeTree / ReplacingMergeTree engine-level dedup |
+| `warehouse/integrations/postgres/postgres.go` | SQL MERGE with configurable allowMerge |
+| `warehouse/integrations/mssql/mssql.go` | Bulk CopyIn via mssql.CopyIn with staging |
+| `warehouse/integrations/azure-synapse/azure_synapse.go` | Bulk CopyIn via mssql.CopyIn with Synapse dialect |
+| `warehouse/integrations/deltalake/deltalake.go` | MERGE via Databricks SQL with ShouldMerge() |
+| `warehouse/integrations/datalake/datalake.go` | Append-only, no merge |
 
-**CI/CD:**
-- `.github/workflows/` — GitHub Actions workflows (tests, verify, builds)
+**Gateway and Processor (Replay Pipeline for E-035)**
 
-### 0.8.2 Attachments
+| File Path | Lines Inspected | Key Findings |
+|-----------|----------------|--------------|
+| `gateway/handle_http_replay.go` | Full | webReplayHandler() wrapping callType("replay") with replaySourceIDAuth |
+| `backend-config/replay_types.go` | Full | EventReplayConfig with ApplyReplaySources() source/destination cloning |
+| `processor/processor.go` | Summary | 6-stage processing pipeline; must be modified for warehouse-only routing |
 
-No attachments were provided for this project.
+**Integration Test Infrastructure**
 
-### 0.8.3 Referenced Documents
+| File Path | Key Findings |
+|-----------|--------------|
+| `integration_test/warehouse/warehouse_test.go` | Existing integration test using dockertest/v3, PostgreSQL, MinIO, SSH, transformer containers |
+| `warehouse/integrations/testhelper/staging.go` | Reusable staging file renderers, event maps, service bootstrapper |
 
-The following documents were explicitly referenced by the user as the basis for this Agent Action Plan:
+**SQL Migrations**
 
-| Document | Path | Summary |
-|----------|------|---------|
-| Sprint Roadmap | `docs/gap-report/sprint-roadmap.md` | 793-line epic sequencing roadmap covering 10 sprints across 8 capability dimensions. Sprint 2–3 section defines E-005 (API surface validation), E-006 (JS SDK testing), E-007 (mobile SDK testing), E-008 (server SDK testing), E-009 (cloud source framework design). Estimated 24 engineering days. |
-| Source Catalog Parity | `docs/gap-report/source-catalog-parity.md` | 723-line gap analysis assessing SDK compatibility (~90% API-level, ~60% library coverage, ~3% cloud app sources, ~75% ingestion endpoints, ~80% auth scheme). Identifies 140 cloud app source gap as the single largest parity gap. Provides SDK compatibility matrix for 30+ SDK platforms. |
-| Technical Specifications | `blitzy/documentation/Technical Specifications.md` | 715-line technical specification from Sprint 1–2 (Event Spec Parity). Provides Agent Action Plan reference for existing implementation patterns, dependency inventory, integration analysis, and file-by-file execution plan. |
-| Project Guide | `blitzy/documentation/Project Guide.md` | 501-line project guide from Sprint 1–2. Documents 83.3% completion, 105 hours completed, 133 unit tests passing, Go 1.26.0 environment setup, and verification commands. Provides CI/CD and testing reference. |
+| File Path | Key Findings |
+|-----------|--------------|
+| `sql/migrations/warehouse/` | 41 existing migrations (000001 through 000041); new migrations start at 000042 |
 
-### 0.8.4 External References
+**Tech Spec Sections Retrieved**
 
-- **Segment SDK Documentation (Embedded Reference):** `refs/segment-docs/src/connections/sources/catalog/libraries/` — Complete Segment SDK documentation mirror for JavaScript, iOS, Android, Node.js, Python, Go, Java, Ruby, PHP, .NET, and additional platforms
-- **Segment Cloud Source Documentation (Embedded Reference):** `refs/segment-docs/src/connections/sources/catalog/cloud-apps/` — Complete Segment cloud app source documentation for 140 integrations
-- **Segment HTTP Tracking API:** Referenced in `gateway/openapi.yaml` — the `/v1/{type}` endpoint pattern matches Segment's `api.segment.io/v1/{type}` HTTP API
-- **rudder-server v1.68.1:** Current codebase version, Go 1.26.0, Elastic License 2.0
+| Section | Key Information Extracted |
+|---------|-------------------------|
+| 2.1 Feature Catalog | Feature index F-001 through F-015, F-005 Warehouse Loading (9 connectors, 7-state machine, gRPC on 8082) |
+| 6.2 Database Design | JobsDB schema, warehouse metadata tables (wh_uploads, wh_staging_files, wh_load_files, wh_table_uploads, wh_schemas, wh_async_jobs), indexing, partitioning, migration framework |
+
+### 0.8.2 Attachments and External Metadata
+
+No external attachments (Figma URLs, design files, or uploaded documents) were provided for this task. All source material was derived from:
+
+- In-repository documentation: `docs/gap-report/sprint-roadmap.md`, `docs/gap-report/warehouse-parity.md`
+- In-repository specifications: `blitzy/documentation/Technical Specifications.md`, `blitzy/documentation/Project Guide.md`
+- Direct codebase inspection of the `rudder-server` Go monorepo (v1.68.1, Go 1.26.0)
 

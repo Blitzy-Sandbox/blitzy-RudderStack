@@ -56,7 +56,8 @@ const (
 		timings,
 		COALESCE(metadata->>'priority', '` + defaultPriority + `')::int,
 		first_event_at,
-		last_event_at
+		last_event_at,
+		backfill_job_id
 	`
 )
 
@@ -82,6 +83,15 @@ type ProcessOptions struct {
 	SkipIdentifiers                   []string
 	SkipWorkspaces                    []string
 	AllowMultipleSourcesForJobsPickup bool
+}
+
+// UploadStats contains aggregated upload statistics for health monitoring (E-033).
+type UploadStats struct {
+	TotalUploads    int64
+	SuccessCount    int64
+	FailureCount    int64
+	AvgDurationMs   int64
+	TotalRowsSynced int64
 }
 
 type UploadMetadata struct {
@@ -279,6 +289,222 @@ func (u *Uploads) Get(ctx context.Context, id int64) (model.Upload, error) {
 	}
 
 	return upload, nil
+}
+
+// GetByBackfillJobID retrieves all uploads associated with a backfill job ID.
+// The backfill_job_id is stored as a column added by migration 000042.
+func (u *Uploads) GetByBackfillJobID(ctx context.Context, backfillJobID int64) ([]model.Upload, error) {
+	defer (*repo)(u).TimerStat("get_by_backfill_job_id", nil)()
+
+	rows, err := u.db.QueryContext(ctx,
+		`SELECT
+		`+uploadColumns+`
+		FROM
+		`+uploadsTableName+`
+		WHERE
+			backfill_job_id = $1
+		ORDER BY id ASC`,
+		backfillJobID,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("querying uploads by backfill job ID: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var uploads []model.Upload
+	for rows.Next() {
+		var upload model.Upload
+		err := scanUpload(rows.Scan, &upload)
+		if err != nil {
+			return nil, fmt.Errorf("scanning upload: %w", err)
+		}
+		uploads = append(uploads, upload)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return uploads, nil
+}
+
+// CountActiveBackfillUploads returns the number of uploads with a non-null backfill_job_id
+// that are currently in a non-terminal state (not ExportedData and not Aborted).
+// Used by the scheduling layer to enforce maxConcurrentJobs limits on backfill operations.
+func (u *Uploads) CountActiveBackfillUploads(ctx context.Context) (int64, error) {
+	defer (*repo)(u).TimerStat("count_active_backfill_uploads", nil)()
+
+	var count int64
+	err := u.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM `+uploadsTableName+`
+		WHERE backfill_job_id IS NOT NULL
+		AND status NOT IN ($1, $2)`,
+		model.ExportedData, model.Aborted,
+	).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("counting active backfill uploads: %w", err)
+	}
+	return count, nil
+}
+
+// CreateWithBackfill creates an upload record with a backfill_job_id FK and links the
+// provided staging files to the upload in a single transaction. This is the backfill
+// counterpart of CreateWithStagingFiles, including the backfill_job_id column in the INSERT.
+func (u *Uploads) CreateWithBackfill(ctx context.Context, upload model.Upload, files []*model.StagingFile) (int64, error) {
+	startJSONID := files[0].ID
+	endJSONID := files[len(files)-1].ID
+
+	stagingFileIDs := make([]int64, len(files))
+	for i, file := range files {
+		stagingFileIDs[i] = file.ID
+	}
+
+	var firstEventAt, lastEventAt time.Time
+	if !files[0].FirstEventAt.IsZero() {
+		firstEventAt = files[0].FirstEventAt
+	}
+	if !files[len(files)-1].LastEventAt.IsZero() {
+		lastEventAt = files[len(files)-1].LastEventAt
+	}
+
+	metadataMap := UploadMetadata{
+		UseRudderStorage: files[0].UseRudderStorage,
+		SourceTaskRunID:  files[0].SourceTaskRunID,
+		SourceJobID:      files[0].SourceJobID,
+		SourceJobRunID:   files[0].SourceJobRunID,
+		LoadFileType:     warehouseutils.GetLoadFileType(upload.DestinationType),
+		Retried:          upload.Retried,
+		Priority:         upload.Priority,
+		NextRetryTime:    upload.NextRetryTime,
+	}
+
+	metadata, err := jsonrs.Marshal(metadataMap)
+	if err != nil {
+		return 0, fmt.Errorf("marshaling metadata: %w", err)
+	}
+
+	defer (*repo)(u).TimerStat("create_with_backfill", stats.Tags{
+		"destId":      upload.DestinationID,
+		"destType":    upload.DestinationType,
+		"workspaceId": upload.WorkspaceID,
+	})()
+
+	now := u.now()
+
+	var uploadID int64
+
+	err = u.db.WithTx(ctx, func(tx *sqlmiddleware.Tx) error {
+		err := tx.QueryRow(
+			`INSERT INTO `+uploadsTableName+` (
+			source_id, namespace, workspace_id, destination_id,
+			destination_type, start_staging_file_id,
+			end_staging_file_id, start_load_file_id,
+			end_load_file_id, status, schema,
+			error, metadata, first_event_at,
+			last_event_at, created_at, updated_at,
+			backfill_job_id
+		)
+		VALUES
+			(
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+			$11, $12, $13, $14, $15, $16, $17, $18
+			) RETURNING id;`,
+
+			upload.SourceID,
+			upload.Namespace,
+			upload.WorkspaceID,
+			upload.DestinationID,
+			upload.DestinationType,
+			startJSONID,
+			endJSONID,
+			0,
+			0,
+			upload.Status,
+			"{}",
+			"{}",
+			metadata,
+			firstEventAt,
+			lastEventAt,
+			now,
+			now,
+			upload.BackfillJobID,
+		).Scan(&uploadID)
+		if err != nil {
+			return fmt.Errorf("inserting backfill upload: %w", err)
+		}
+
+		result, err := tx.Exec(
+			`UPDATE `+stagingTableName+` SET upload_id = $1 WHERE id = ANY($2)`,
+			uploadID, pq.Array(stagingFileIDs),
+		)
+		if err != nil {
+			return fmt.Errorf("updating staging files: %w", err)
+		}
+
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("updating staging files: rows affected: %w", err)
+		}
+		if affected != int64(len(stagingFileIDs)) {
+			return fmt.Errorf("updating staging files: not all rows were updated: %d != %d", affected, len(stagingFileIDs))
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return uploadID, nil
+}
+
+// GetRecentUploadStats aggregates recent upload statistics for health monitoring.
+// Returns stats including total uploads, success/failure counts, average duration, and total rows synced.
+func (u *Uploads) GetRecentUploadStats(ctx context.Context, sourceID, destID string, since time.Time) (UploadStats, error) {
+	defer (*repo)(u).TimerStat("get_recent_upload_stats", stats.Tags{
+		"destId": destID,
+	})()
+
+	var uploadStats UploadStats
+	var avgDuration sql.NullFloat64
+
+	err := u.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*) AS total_uploads,
+			COUNT(*) FILTER (WHERE status = $3) AS success_count,
+			COUNT(*) FILTER (WHERE status LIKE '%failed%' OR status = $4) AS failure_count,
+			COALESCE(AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) * 1000), 0) AS avg_duration_ms,
+			COALESCE(SUM(
+				(SELECT COALESCE(SUM(total_events), 0) FROM `+loadTableName+` WHERE upload_id = u.id)
+			), 0) AS total_rows_synced
+		FROM
+			`+uploadsTableName+` u
+		WHERE
+			source_id = $1 AND
+			destination_id = $2 AND
+			created_at >= $5;
+	`,
+		sourceID,
+		destID,
+		model.ExportedData,
+		model.Aborted,
+		since,
+	).Scan(
+		&uploadStats.TotalUploads,
+		&uploadStats.SuccessCount,
+		&uploadStats.FailureCount,
+		&avgDuration,
+		&uploadStats.TotalRowsSynced,
+	)
+	if err != nil {
+		return UploadStats{}, fmt.Errorf("querying recent upload stats: %w", err)
+	}
+
+	if avgDuration.Valid {
+		uploadStats.AvgDurationMs = int64(avgDuration.Float64)
+	}
+
+	return uploadStats, nil
 }
 
 func (u *Uploads) GetToProcess(ctx context.Context, destType string, limit int, opts ProcessOptions) ([]model.Upload, error) {
@@ -495,6 +721,7 @@ func scanUpload(scan scanFn, upload *model.Upload) error {
 		firstEventAt, lastEventAt sql.NullTime
 		metadataRaw               []byte
 		timingsRaw                []byte
+		backfillJobID             sql.NullInt64
 	)
 
 	err := scan(
@@ -518,12 +745,16 @@ func scanUpload(scan scanFn, upload *model.Upload) error {
 		&upload.Priority,
 		&firstEventAt,
 		&lastEventAt,
+		&backfillJobID,
 	)
 	if err != nil {
 		return err
 	}
 	upload.FirstEventAt = firstEventAt.Time.UTC()
 	upload.LastEventAt = lastEventAt.Time.UTC()
+	if backfillJobID.Valid {
+		upload.BackfillJobID = &backfillJobID.Int64
+	}
 
 	if err := jsonrs.Unmarshal(schema, &upload.UploadSchema); err != nil {
 		return fmt.Errorf("unmarshal upload schema: %w", err)

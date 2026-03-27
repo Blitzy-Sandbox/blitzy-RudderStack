@@ -36,13 +36,18 @@ import (
 	whadmin "github.com/rudderlabs/rudder-server/warehouse/admin"
 	"github.com/rudderlabs/rudder-server/warehouse/api"
 	"github.com/rudderlabs/rudder-server/warehouse/archive"
+	"github.com/rudderlabs/rudder-server/warehouse/backfill"
 	"github.com/rudderlabs/rudder-server/warehouse/bcm"
 	"github.com/rudderlabs/rudder-server/warehouse/constraints"
 	"github.com/rudderlabs/rudder-server/warehouse/encoding"
+	"github.com/rudderlabs/rudder-server/warehouse/healthmonitor"
 	"github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/mode"
+	whrepo "github.com/rudderlabs/rudder-server/warehouse/internal/repo"
 	"github.com/rudderlabs/rudder-server/warehouse/multitenant"
+	"github.com/rudderlabs/rudder-server/warehouse/replay"
 	"github.com/rudderlabs/rudder-server/warehouse/router"
+	"github.com/rudderlabs/rudder-server/warehouse/selectivesync"
 	"github.com/rudderlabs/rudder-server/warehouse/slave"
 	"github.com/rudderlabs/rudder-server/warehouse/source"
 	warehouseutils "github.com/rudderlabs/rudder-server/warehouse/utils"
@@ -70,7 +75,24 @@ type App struct {
 	triggerStore       *sync.Map
 	createUploadAlways *atomic.Bool
 
+	// Sprint 7-9 feature subsystems — instantiated in Setup(), started in Run().
+	// These fields are nil-safe: when the corresponding feature is disabled,
+	// the subsystem is still instantiated but its Run() method returns immediately
+	// or its predicates return safe defaults (e.g., include everything for selective sync).
+	backfillService  *backfill.BackfillService        // E-032: Backfill orchestrator
+	healthMonitor    *healthmonitor.HealthMonitor      // E-033: Health monitoring aggregator
+	selectiveSyncSvc *selectivesync.SelectiveSyncService // E-034: Selective sync filter service
+	replayHandler    *replay.ReplayHandler             // E-035: Warehouse replay orchestrator
+
 	appName string
+
+	// dstRoutersMu protects dstToWhRouter for concurrent access from
+	// monitorDestRouters (writer) and the backfill upload adapter (reader).
+	dstRoutersMu sync.RWMutex
+	// dstToWhRouter maps destination type names to their Router instances.
+	// Populated dynamically by onConfigDataEvent and used by the backfill
+	// upload adapter to delegate CreateBackfillUpload to the correct router.
+	dstToWhRouter map[string]*router.Router
 
 	config struct {
 		host     string
@@ -89,6 +111,111 @@ type App struct {
 		configBackendURL string
 		region           string
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Interface adapters — bridge return-type mismatches between the archive layer
+// and the consumer interfaces declared in the backfill and replay packages.
+// These are lightweight wrappers; each method delegates to the underlying
+// implementation and performs a trivial projection (e.g., extracting IDs).
+// ---------------------------------------------------------------------------
+
+// backfillArchiverAdapter satisfies backfill.ArchiverQuerier by wrapping
+// *archive.Archiver and extracting staging file IDs from the richer
+// StagingFileMetadata structs that the archiver returns.
+type backfillArchiverAdapter struct {
+	archiver *archive.Archiver
+}
+
+func (a *backfillArchiverAdapter) ListArchivedStagingFiles(
+	ctx context.Context,
+	sourceID, destID string,
+	startDate, endDate time.Time,
+) ([]int64, error) {
+	files, err := a.archiver.ListArchivedStagingFiles(ctx, sourceID, destID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, len(files))
+	for i, f := range files {
+		ids[i] = f.ID
+	}
+	return ids, nil
+}
+
+// backfillStagingAdapter satisfies backfill.StagingFileQuerier by wrapping
+// *whrepo.StagingFiles and extracting IDs from the full StagingFile models
+// returned by the repository.
+type backfillStagingAdapter struct {
+	repo *whrepo.StagingFiles
+}
+
+func (a *backfillStagingAdapter) GetByDateRange(
+	ctx context.Context,
+	sourceID, destID string,
+	startDate, endDate time.Time,
+) ([]int64, error) {
+	files, err := a.repo.GetByDateRange(ctx, sourceID, destID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, len(files))
+	for i, f := range files {
+		ids[i] = f.ID
+	}
+	return ids, nil
+}
+
+// replayArchiverAdapter satisfies replay.ArchiverQuerier by wrapping
+// *archive.Archiver and converting archive.ArchivedEventBatch structs
+// to the replay.ArchivedEventBatch type expected by the replay package.
+type replayArchiverAdapter struct {
+	archiver *archive.Archiver
+}
+
+func (a *replayArchiverAdapter) QueryArchivedEvents(
+	ctx context.Context,
+	sourceID string,
+	startTime, endTime time.Time,
+) ([]replay.ArchivedEventBatch, error) {
+	batches, err := a.archiver.QueryArchivedEvents(ctx, sourceID, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]replay.ArchivedEventBatch, len(batches))
+	for i, b := range batches {
+		result[i] = replay.ArchivedEventBatch{
+			SourceID:   b.SourceID,
+			Location:   b.Location,
+			Data:       b.Data,
+			StartTime:  b.StartTime,
+			EndTime:    b.EndTime,
+			EventCount: b.EventCount,
+		}
+	}
+	return result, nil
+}
+
+// backfillUploadAdapter satisfies backfill.BackfillUploadCreator by iterating
+// through the App's per-destination-type routers to find the warehouse matching
+// the given sourceID/destID pair, then delegating to Router.CreateBackfillUpload.
+type backfillUploadAdapter struct {
+	app *App
+}
+
+func (a *backfillUploadAdapter) CreateBackfillUpload(ctx context.Context, sourceID, destID string, backfillJobID int64, stagingFileIDs []int64) error {
+	a.app.dstRoutersMu.RLock()
+	defer a.app.dstRoutersMu.RUnlock()
+
+	for _, r := range a.app.dstToWhRouter {
+		warehouses := r.CopyWarehouses()
+		for _, wh := range warehouses {
+			if wh.Source.ID == sourceID && wh.Destination.ID == destID {
+				return r.CreateBackfillUpload(ctx, wh, backfillJobID, stagingFileIDs)
+			}
+		}
+	}
+	return fmt.Errorf("no warehouse found for sourceID=%s destID=%s", sourceID, destID)
 }
 
 func New(
@@ -181,6 +308,95 @@ func (a *App) Setup(ctx context.Context) error {
 		a.notifier,
 	)
 
+	// ---------------------------------------------------------------------------
+	// Sprint 7-9: Instantiate new subsystem services
+	// ---------------------------------------------------------------------------
+
+	// E-032: Backfill service — orchestrates historical data sync for date ranges.
+	// A shared Archiver instance provides both the backfill and replay subsystems
+	// access to archived staging files and events. Adapter types bridge the
+	// return-type mismatches between archive.Archiver and the consumer interfaces
+	// (backfill.ArchiverQuerier returns []int64 while archive.Archiver returns
+	// []StagingFileMetadata; similarly for replay).
+	backfillRepo := backfill.NewRepository(a.db)
+	whArchiver := archive.New(
+		a.conf,
+		a.logger,
+		a.statsFactory,
+		a.db,
+		a.fileManagerFactory,
+		a.tenantManager,
+	)
+	stagingFilesRepo := whrepo.NewStagingFiles(a.db, a.conf)
+	a.backfillService = backfill.NewBackfillService(
+		a.conf,
+		a.logger,
+		a.statsFactory,
+		backfillRepo,
+		&backfillArchiverAdapter{archiver: whArchiver},
+		&backfillStagingAdapter{repo: stagingFilesRepo},
+	)
+
+	// E-033: Health monitor — aggregates per-upload metrics, emits Prometheus metrics,
+	// and evaluates alerting thresholds for failure rates, latency spikes, and anomalies.
+	// The HealthRepo is created separately so it can be shared with the gRPC server
+	// and the HTTP health handler, both of which need direct repository access for
+	// their query-only endpoints.
+	healthRepo := healthmonitor.NewHealthRepo(a.db, a.statsFactory)
+	a.healthMonitor = healthmonitor.NewHealthMonitor(
+		a.conf,
+		a.logger,
+		a.statsFactory,
+		a.db,
+	)
+
+	// E-034: Selective sync — per-table and per-column filtering service. Configuration
+	// is loaded from the database via a repository and cached with a configurable TTL.
+	selectiveSyncRepo := selectivesync.NewRepository(a.db)
+	a.selectiveSyncSvc = selectivesync.NewSelectiveSyncService(
+		a.conf,
+		a.logger,
+		selectiveSyncRepo,
+	)
+
+	// E-035: Replay handler — warehouse-targeted replay pipeline coordinating archiver
+	// event retrieval and Gateway injection with X-Warehouse-Replay header.
+	// The replayArchiverAdapter converts archive.ArchivedEventBatch to
+	// replay.ArchivedEventBatch for the retriever interface.
+	replayDownloader := replay.NewStagingFileDownloader(
+		a.conf,
+		a.logger,
+		a.fileManagerFactory,
+	)
+	replayRetriever := replay.NewArchivedEventRetriever(
+		a.conf,
+		a.logger,
+		a.statsFactory,
+		&replayArchiverAdapter{archiver: whArchiver},
+		replayDownloader,
+	)
+	a.replayHandler = replay.NewReplayHandler(
+		ctx,
+		a.conf,
+		a.logger,
+		a.statsFactory,
+		replayRetriever,
+		nil, // GatewayClient: not available during Setup(); replay HTTP handler validates at request time
+	)
+
+	// ---------------------------------------------------------------------------
+	// Sprint 7-9: Create HTTP handlers for API injection
+	// ---------------------------------------------------------------------------
+
+	backfillHTTPHandler := backfill.NewHandler(a.logger, a.backfillService)
+	healthMonitorHTTPHandler := healthmonitor.NewHealthHandler(a.logger, healthRepo)
+	selectiveSyncHTTPHandler := selectivesync.NewHandler(a.logger, a.selectiveSyncSvc)
+	replayHTTPHandler := replay.NewHandler(a.replayHandler, a.logger)
+
+	// ---------------------------------------------------------------------------
+	// gRPC and HTTP API wiring with Sprint 7-9 handlers
+	// ---------------------------------------------------------------------------
+
 	a.grpcServer, err = api.NewGRPCServer(
 		a.conf,
 		a.logger,
@@ -189,6 +405,7 @@ func (a *App) Setup(ctx context.Context) error {
 		a.tenantManager,
 		a.bcManager,
 		a.triggerStore,
+		healthRepo, // E-033: health monitoring repository for gRPC RPCs
 	)
 	if err != nil {
 		return fmt.Errorf("cannot create grpc server: %w", err)
@@ -206,6 +423,10 @@ func (a *App) Setup(ctx context.Context) error {
 		a.bcManager,
 		a.sourcesManager,
 		a.triggerStore,
+		backfillHTTPHandler,      // E-032: Backfill API handler
+		healthMonitorHTTPHandler, // E-033: Health Monitoring API handler
+		selectiveSyncHTTPHandler, // E-034: Selective Sync API handler
+		replayHTTPHandler,        // E-035: Warehouse Replay API handler
 	)
 	a.admin = whadmin.New(
 		a.bcManager,
@@ -454,6 +675,53 @@ func (a *App) Run(ctx context.Context) error {
 		g.Go(crash.NotifyWarehouse(func() error {
 			return a.sourcesManager.Run(gCtx)
 		}))
+
+		// E-033: Start the health monitor periodic collection loop.
+		// The monitor checks its own enabled flag internally and returns nil
+		// immediately on context cancellation for graceful shutdown.
+		g.Go(crash.NotifyWarehouse(func() error {
+			return a.healthMonitor.Run(gCtx)
+		}))
+
+		// E-032: Wire the BackfillUploadCreator into the backfill service.
+		// The adapter wraps the App's per-destination-type router map and
+		// resolves the correct Router at call time by matching sourceID+destID.
+		// This deferred injection is required because routers are created
+		// dynamically by monitorDestRouters as backend-config arrives.
+		a.backfillService.SetUploadCreator(&backfillUploadAdapter{app: a})
+
+		// E-032: Start the backfill service background monitor loop.
+		// The service checks its own enabled flag internally and skips
+		// processing when disabled, maintaining backward compatibility.
+		g.Go(crash.NotifyWarehouse(func() error {
+			return a.backfillService.Run(gCtx)
+		}))
+
+		// E-035: Wire the HTTPGatewayClient into the replay handler.
+		// The Gateway's webPort is resolved from config at runtime. The replay
+		// handler was constructed with a nil GatewayClient in Setup() because
+		// the Gateway port isn't known until config is loaded. Now that
+		// WaitForConfig has completed, we resolve the port and inject the
+		// concrete client before starting the replay goroutine.
+		{
+			gwPort := a.conf.GetIntVar(8080, 1, "Gateway.webPort")
+			gwURL := fmt.Sprintf("http://localhost:%d/internal/v1/replay", gwPort)
+			a.replayHandler.SetGatewayClient(
+				replay.NewHTTPGatewayClient(gwURL, a.logger),
+			)
+			a.logger.Infon("[WH]: Replay handler gateway client configured",
+				logger.NewStringField("gatewayURL", gwURL),
+			)
+		}
+
+		// E-035: Start the replay handler background pruning loop.
+		// Periodically removes terminal (Completed/Failed) replay jobs from
+		// the in-memory store to prevent unbounded memory growth. The loop
+		// checks its own enabled flag internally and respects context
+		// cancellation for graceful shutdown.
+		g.Go(crash.NotifyWarehouse(func() error {
+			return a.replayHandler.Run(gCtx)
+		}))
 	}
 
 	g.Go(func() error {
@@ -469,7 +737,13 @@ func (a *App) Run(ctx context.Context) error {
 
 // Gets the config from config backend and extracts enabled write keys
 func (a *App) monitorDestRouters(ctx context.Context) error {
-	dstToWhRouter := make(map[string]*router.Router)
+	a.dstRoutersMu.Lock()
+	if a.dstToWhRouter == nil {
+		a.dstToWhRouter = make(map[string]*router.Router)
+	}
+	a.dstRoutersMu.Unlock()
+
+	dstToWhRouter := a.dstToWhRouter
 	g, ctx := errgroup.WithContext(ctx)
 	ch := a.tenantManager.WatchConfig(ctx)
 	for configData := range ch {
@@ -522,6 +796,13 @@ func (a *App) onConfigDataEvent(
 					a.encodingFactory,
 					a.triggerStore,
 					a.createUploadAlways,
+					// Sprint 7-9 functional options — inject E-033 health monitor
+					// and E-034 selective sync service into each Router instance.
+					// The Router propagates these to its UploadJobFactory and all
+					// UploadJob instances for per-upload health recording and
+					// per-table/per-column filtering during load file generation.
+					router.WithSelectiveSyncService(a.selectiveSyncSvc),
+					router.WithHealthMonitor(a.healthMonitor),
 				)
 				dstToWhRouter[destination.DestinationDefinition.Name] = r
 				diffRouters[destination.DestinationDefinition.Name] = r

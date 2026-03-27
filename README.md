@@ -67,7 +67,7 @@ With RudderStack, you can build customer data pipelines that connect your whole 
 
 ## Key features
 
-- **Warehouse-first**: RudderStack treats your data warehouse as a first class citizen among destinations, with advanced features and configurable, near real-time sync.
+- **Warehouse-first**: RudderStack treats your data warehouse as a first class citizen among destinations, with advanced features and configurable, near real-time sync. Warehouse capabilities include **configurable backfill** with date-range support for historical data re-sync, **selective sync** with per-table and per-column filtering, **warehouse replay** from archived events for targeted re-processing, **enhanced health monitoring** with Prometheus metrics, per-upload tracking, and alerting thresholds, and **idempotent sync validation** across all 9 warehouse connectors (Snowflake, BigQuery, Redshift, ClickHouse, Delta Lake, PostgreSQL, MSSQL, Azure Synapse, and Datalake).
 
 - **Developer-focused**: RudderStack is built API-first. It integrates seamlessly with the tools that the developers already use and love.
 
@@ -131,8 +131,12 @@ Comprehensive documentation is available in the [`docs/`](docs/README.md) direct
 | **[Transformations](docs/guides/transformations/overview.md)** | Custom transforms and Functions |
 | **[Governance](docs/guides/governance/tracking-plans.md)** | Tracking plans, consent, event filtering |
 | **[Identity](docs/guides/identity/identity-resolution.md)** | Identity resolution and profiles |
-| **[Operations](docs/guides/operations/warehouse-sync.md)** | Warehouse sync, replay, capacity planning |
+| **[Operations](docs/guides/operations/warehouse-sync.md)** | Warehouse sync, warehouse replay, backfill, capacity planning |
 | **[Warehouse Connectors](docs/warehouse/overview.md)** | Per-warehouse setup and configuration guides |
+| **[Backfill API](docs/warehouse/backfill.md)** | Warehouse backfill with configurable date ranges |
+| **[Health Monitoring](docs/warehouse/health-monitoring.md)** | Warehouse sync health metrics, Prometheus integration, alerting |
+| **[Selective Sync](docs/warehouse/selective-sync.md)** | Per-table and per-column warehouse sync filtering |
+| **[Warehouse Replay](docs/warehouse/replay.md)** | Replay archived events through the warehouse pipeline |
 | **[Reference](docs/reference/config-reference.md)** | Configuration, environment variables, glossary |
 | **[Contributing](docs/contributing/development.md)** | Development setup, destination onboarding, testing |
 | **[SDK Compatibility](docs/guides/sdk-compatibility/segment-sdk-migration.md)** | Segment SDK migration guides for JavaScript, iOS, Android, and server-side SDKs |
@@ -141,6 +145,8 @@ Comprehensive documentation is available in the [`docs/`](docs/README.md) direct
 ### Segment Parity Gap Report
 
 A comprehensive gap analysis comparing RudderStack capabilities against Twilio Segment features is available in the [Gap Report](docs/gap-report/index.md). The **Event Spec Parity** dimension has achieved **100% field-level parity** with the Twilio Segment Event Specification, covering all six core event types (`identify`, `track`, `page`, `screen`, `group`, `alias`), all 18 standard context fields, structured Client Hints (`context.userAgentData`), 17 reserved identify traits, 12 reserved group traits, and seven semantic event categories (E-Commerce v2, Video, Mobile, B2B SaaS, Email, Live Chat, A/B Testing). **Source SDK Compatibility** has been validated across JavaScript, iOS, Android, and five server-side SDKs, raising the Source Catalog parity score from ~60% to ~85%. A [Cloud Source Framework](docs/architecture/cloud-source-framework.md) design has been produced to address the 140 cloud app source gap through a polling/webhook-based ingestion architecture. RudderStack extensions beyond the Segment spec — including `/v1/replay`, `/internal/v1/retl`, `/beacon/v1/*`, `/pixel/v1/*`, and the `merge` call type — are documented in the [Event Spec API Reference](docs/api-reference/event-spec/). The analysis also covers destination catalog coverage, transformation/Functions, Protocols enforcement, identity resolution, and warehouse sync.
+
+**Warehouse sync parity** has been improved from ~80% to ~95% through the Sprint 7–9 Warehouse Feature Enhancement, which delivered idempotent sync validation across all 9 warehouse connectors (Snowflake, BigQuery, Redshift, ClickHouse, Delta Lake, PostgreSQL, MSSQL, Azure Synapse, and Datalake), configurable backfill with date-range support, enhanced health monitoring with Prometheus metrics and alerting, selective sync with per-table and per-column filtering, and warehouse replay from archived events. See the [Backfill API](docs/warehouse/backfill.md), [Health Monitoring](docs/warehouse/health-monitoring.md), [Selective Sync](docs/warehouse/selective-sync.md), and [Warehouse Replay](docs/warehouse/replay.md) documentation for details.
 
 > **Note:** Segment Engage/Campaigns and Reverse ETL are planned for Phase 2.
 

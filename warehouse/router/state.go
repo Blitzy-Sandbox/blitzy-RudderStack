@@ -17,12 +17,23 @@ type state struct {
 var stateTransitions map[string]*state
 
 func init() {
-	stateTransitions = make(map[string]*state, 8)
+	stateTransitions = make(map[string]*state, 9)
 
 	waitingState := &state{
 		completed: model.Waiting,
 	}
 	stateTransitions[model.Waiting] = waitingState
+
+	// Backfill state (E-032) — parallel entry point for backfill uploads.
+	// Only entered when Upload.BackfillJobID is non-nil; does not alter the
+	// main Waiting → ExportedData chain. After backfill resolution completes,
+	// the upload transitions into the normal schema generation flow.
+	backfillState := &state{
+		inProgress: model.BackfillInProgress,
+		failed:     model.BackfillPending,
+		completed:  model.BackfillPending,
+	}
+	stateTransitions[model.BackfillPending] = backfillState
 
 	generateUploadSchemaState := &state{
 		inProgress: "generating_upload_schema",
@@ -79,6 +90,9 @@ func init() {
 	createRemoteSchemaState.nextState = exportDataState
 	exportDataState.nextState = nil
 	abortState.nextState = nil
+
+	// Backfill chain: BackfillPending → GeneratedUploadSchema → ... → ExportedData
+	backfillState.nextState = generateUploadSchemaState
 }
 
 func inProgressState(currentState string) string {

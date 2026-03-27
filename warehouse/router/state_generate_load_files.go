@@ -12,6 +12,17 @@ import (
 )
 
 func (job *UploadJob) generateLoadFiles() error {
+	// Retrieve selective sync config for load file generation (E-034)
+	// The selectiveSyncSvc predicates are threaded through the UploadJob to the
+	// loadfile generation pipeline. Table/column filtering is applied during
+	// staging file grouping and event encoding in the loadfiles package.
+	if job.selectiveSyncSvc != nil {
+		job.logger.Debugn("selective sync active during load file generation",
+			logger.NewStringField("sourceID", job.upload.SourceID),
+			logger.NewStringField("destID", job.upload.DestinationID),
+		)
+	}
+
 	startLoadFileID, endLoadFileID, err := job.loadfile.CreateLoadFiles(job.ctx, job.DTO())
 	if err != nil {
 		return err

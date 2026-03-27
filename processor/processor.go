@@ -74,6 +74,11 @@ type (
 	SourceConsentMap   map[SourceID]DestConsentMap
 )
 
+// warehouseOnlyCtxKey is a context key used to propagate the warehouse-only replay flag
+// through the processor pipeline stages (E-035). When set, events are routed exclusively
+// to the batch router for warehouse destinations, bypassing the regular router.
+type warehouseOnlyCtxKey struct{}
+
 const (
 	MetricKeyDelimiter    = "!<<#>>!"
 	UserTransformation    = "USER_TRANSFORMATION"
@@ -294,6 +299,21 @@ func buildStatTags(sourceID, workspaceID string, destination *backendconfig.Dest
 		"workspaceId":        workspaceID,
 		"transformationType": transformationType,
 	}
+}
+
+// isWarehouseReplayEvent checks if the given job's event payload contains the
+// warehouse-only replay flag. This flag is injected by the Gateway's
+// withWarehouseReplayTag middleware (gateway/handle_http_replay.go) into each
+// event's "context" object when the X-Warehouse-Replay header is present on
+// the replay request.
+//
+// The middleware injects a JSON boolean true via sjson.SetBytes, so we verify
+// the value is strictly a JSON boolean true (gjson.True type) as a
+// defense-in-depth measure against event payload spoofing — string "true"
+// or other truthy values are rejected.
+func isWarehouseReplayEvent(eventPayload []byte) bool {
+	result := gjson.GetBytes(eventPayload, "batch.0.context.warehouseOnly")
+	return result.Type == gjson.True
 }
 
 func (proc *Handle) newUserTransformationStat(
@@ -2092,6 +2112,21 @@ func (proc *Handle) preprocessStage(partition string, subJobs subJob, delay time
 		groupedEventsBySourceId[SourceIDT(sourceId)] = append(groupedEventsBySourceId[SourceIDT(sourceId)], transformerEvent)
 	}
 
+	// E-035: Detect warehouse-only replay flag from the event payload.
+	// When the Gateway receives a replay request with the X-Warehouse-Replay header,
+	// the withWarehouseReplayTag middleware (gateway/handle_http_replay.go) injects
+	// "warehouseOnly": true into each event's "context" object within the EventPayload.
+	// We detect this flag here and propagate it via context so downstream stages
+	// (specifically destinationTransformStage) can route events exclusively to the
+	// batch router for warehouse destinations, bypassing the regular router for
+	// real-time delivery.
+	for _, job := range jobList {
+		if isWarehouseReplayEvent(job.EventPayload) {
+			subJobs.ctx = context.WithValue(subJobs.ctx, warehouseOnlyCtxKey{}, true)
+			break
+		}
+	}
+
 	if len(statusList) != len(jobList) {
 		return nil, fmt.Errorf("len(statusList):%d != len(jobList):%d", len(statusList), len(jobList))
 	}
@@ -2568,6 +2603,17 @@ func (proc *Handle) destinationTransformStage(partition string, in *userTransfor
 		for k, v := range o.errorsPerDestID {
 			procErrorJobsByDestID[k] = append(procErrorJobsByDestID[k], v...)
 		}
+	}
+
+	// E-035: Warehouse-only replay routing.
+	// When the warehouse-only flag is set in the pipeline context (injected in preprocessStage),
+	// route all events exclusively to the batch router for warehouse destinations and bypass
+	// the regular router for real-time stream/KV/batch destinations. This enables the full
+	// replay pipeline: archiver → replay handler → Gateway → Processor → warehouse only.
+	if warehouseOnly, _ := in.ctx.Value(warehouseOnlyCtxKey{}).(bool); warehouseOnly {
+		batchDestJobs = append(batchDestJobs, destJobs...)
+		destJobs = nil
+		routerDestIDs = make(map[string]struct{})
 	}
 
 	return &storeMessage{

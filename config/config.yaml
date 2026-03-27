@@ -181,6 +181,35 @@ Warehouse:
     enableArraySupport: false
   deltalake:
     loadTableStrategy: MERGE
+  backfill:
+    enabled: false
+    maxDateRangeDays: 90
+    maxConcurrentJobs: 3
+    # Interval in seconds between backfill job status monitor checks
+    monitorIntervalSeconds: 60
+  healthMonitor:
+    enabled: true
+    collectionIntervalSeconds: 60
+    retentionDays: 30
+    alerting:
+      # Fraction of failed syncs triggering a failure rate alert (0.0-1.0)
+      failureRateThreshold: 0.1
+      # Duration in milliseconds above which a sync is considered a latency spike
+      durationSpikeThresholdMs: 300000
+      # Percentage drop in row count (vs. historical average) triggering anomaly alert
+      rowCountDropPercent: 50
+      # Whether schema drift detection alerts are enabled
+      schemaDriftEnabled: true
+      # Minimum minutes between repeated alerts for the same source/dest pair
+      cooldownMinutes: 30
+  selectiveSync:
+    enabled: false
+    cacheRefreshMinutes: 5
+  replay:
+    enabled: false
+    maxConcurrentReplays: 2
+    batchSize: 1000
+    timeoutMinutes: 60
 Processor:
   webPort: 8086
   loopSleep: 10ms

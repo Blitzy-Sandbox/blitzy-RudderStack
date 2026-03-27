@@ -1,0 +1,170 @@
+[
+  {
+    "id": "a1b2c3d4-1111-4000-8000-000000000001",
+    "user_id": "user_idempotent_001",
+    "event": "identify",
+    "received_at": "2024-01-15T10:00:00.000+00:00",
+    "table": "identifies"
+  },
+  {
+    "id": "a1b2c3d4-1111-4000-8000-000000000002",
+    "user_id": "user_idempotent_001",
+    "event": "identify",
+    "received_at": "2024-01-15T10:01:00.000+00:00",
+    "table": "identifies"
+  },
+  {
+    "id": "a1b2c3d4-1111-4000-8000-000000000003",
+    "user_id": "user_idempotent_002",
+    "event": "identify",
+    "received_at": "2024-01-15T10:02:00.000+00:00",
+    "table": "identifies"
+  },
+  {
+    "id": "a1b2c3d4-1111-4000-8000-000000000004",
+    "user_id": "user_idempotent_002",
+    "event": "identify",
+    "received_at": "2024-01-15T10:03:00.000+00:00",
+    "table": "identifies"
+  },
+  {
+    "id": "a1b2c3d4-1111-4000-8000-000000000001",
+    "user_id": "user_idempotent_003",
+    "event": "identify",
+    "received_at": "2024-01-15T10:04:00.000+00:00",
+    "table": "identifies"
+  },
+  {
+    "id": "a1b2c3d4-1111-4000-8000-000000000006",
+    "user_id": "user_idempotent_003",
+    "event": "identify",
+    "received_at": "2024-01-15T10:05:00.000+00:00",
+    "table": "identifies"
+  },
+  {
+    "id": "b2c3d4e5-2222-4000-8000-000000000007",
+    "user_id": "user_idempotent_001",
+    "event": "Product Viewed",
+    "received_at": "2024-01-15T10:06:00.000+00:00",
+    "table": "tracks"
+  },
+  {
+    "id": "b2c3d4e5-2222-4000-8000-000000000008",
+    "user_id": "user_idempotent_001",
+    "event": "Product Track",
+    "received_at": "2024-01-15T10:07:00.000+00:00",
+    "table": "tracks"
+  },
+  {
+    "id": "b2c3d4e5-2222-4000-8000-000000000009",
+    "user_id": "user_idempotent_001",
+    "event": "Order Completed",
+    "received_at": "2024-01-15T10:08:00.000+00:00",
+    "table": "tracks"
+  },
+  {
+    "id": "b2c3d4e5-2222-4000-8000-000000000010",
+    "user_id": "user_idempotent_002",
+    "event": "Product Viewed",
+    "received_at": "2024-01-15T10:09:00.000+00:00",
+    "table": "tracks"
+  },
+  {
+    "id": "b2c3d4e5-2222-4000-8000-000000000011",
+    "user_id": "user_idempotent_002",
+    "event": "Product Track",
+    "received_at": "2024-01-15T10:10:00.000+00:00",
+    "table": "tracks"
+  },
+  {
+    "id": "b2c3d4e5-2222-4000-8000-000000000012",
+    "user_id": "user_idempotent_002",
+    "event": "Order Completed",
+    "received_at": "2024-01-15T10:11:00.000+00:00",
+    "table": "tracks"
+  },
+  {
+    "id": "b2c3d4e5-2222-4000-8000-000000000013",
+    "user_id": "user_idempotent_003",
+    "event": "Product Viewed",
+    "received_at": "2024-01-15T10:12:00.000+00:00",
+    "table": "tracks"
+  },
+  {
+    "id": "b2c3d4e5-2222-4000-8000-000000000014",
+    "user_id": "user_idempotent_003",
+    "event": "Product Track",
+    "received_at": "2024-01-15T10:13:00.000+00:00",
+    "table": "tracks"
+  },
+  {
+    "id": "c3d4e5f6-3333-4000-8000-000000000015",
+    "user_id": "user_idempotent_001",
+    "event": "page",
+    "received_at": "2024-01-15T10:14:00.000+00:00",
+    "table": "pages"
+  },
+  {
+    "id": "c3d4e5f6-3333-4000-8000-000000000016",
+    "user_id": "user_idempotent_001",
+    "event": "page",
+    "received_at": "2024-01-15T10:15:00.000+00:00",
+    "table": "pages"
+  },
+  {
+    "id": "c3d4e5f6-3333-4000-8000-000000000017",
+    "user_id": "user_idempotent_002",
+    "event": "page",
+    "received_at": "2024-01-15T10:16:00.000+00:00",
+    "table": "pages"
+  },
+  {
+    "id": "c3d4e5f6-3333-4000-8000-000000000018",
+    "user_id": "user_idempotent_002",
+    "event": "page",
+    "received_at": "2024-01-15T10:17:00.000+00:00",
+    "table": "pages"
+  },
+  {
+    "id": "c3d4e5f6-3333-4000-8000-000000000015",
+    "user_id": "user_idempotent_003",
+    "event": "page",
+    "received_at": "2024-01-15T10:18:00.000+00:00",
+    "table": "pages"
+  },
+  {
+    "id": "c3d4e5f6-3333-4000-8000-000000000020",
+    "user_id": "user_idempotent_003",
+    "event": "page",
+    "received_at": "2024-01-15T10:19:00.000+00:00",
+    "table": "pages"
+  },
+  {
+    "id": "d4e5f6a7-4444-4000-8000-000000000021",
+    "user_id": "user_idempotent_001",
+    "event": "screen",
+    "received_at": "2024-01-15T10:20:00.000+00:00",
+    "table": "screens"
+  },
+  {
+    "id": "d4e5f6a7-4444-4000-8000-000000000022",
+    "user_id": "user_idempotent_002",
+    "event": "screen",
+    "received_at": "2024-01-15T10:21:00.000+00:00",
+    "table": "screens"
+  },
+  {
+    "id": "d4e5f6a7-4444-4000-8000-000000000023",
+    "user_id": "user_idempotent_002",
+    "event": "screen",
+    "received_at": "2024-01-15T10:22:00.000+00:00",
+    "table": "screens"
+  },
+  {
+    "id": "d4e5f6a7-4444-4000-8000-000000000024",
+    "user_id": "user_idempotent_003",
+    "event": "screen",
+    "received_at": "2024-01-15T10:23:00.000+00:00",
+    "table": "screens"
+  }
+]

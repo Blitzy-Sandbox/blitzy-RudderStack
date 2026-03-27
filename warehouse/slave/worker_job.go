@@ -588,7 +588,7 @@ func (jr *jobRun) handleDiscardTypes(tableName, columnName string, columnVal any
 		}
 	}
 	if hasID && hasReceivedAt {
-		eventLoader := jr.encodingFactory.NewEventLoader(discardWriter, jr.job.LoadFileType, jr.job.DestinationType)
+		eventLoader := jr.encodingFactory.NewEventLoader(discardWriter, jr.job.LoadFileType, jr.job.DestinationType, nil)
 		eventLoader.AddColumn("column_name", warehouseutils.DiscardsSchema["column_name"], columnName)
 		eventLoader.AddColumn("column_value", warehouseutils.DiscardsSchema["column_value"], fmt.Sprintf("%v", columnVal))
 		eventLoader.AddColumn("reason", warehouseutils.DiscardsSchema["reason"], reason)

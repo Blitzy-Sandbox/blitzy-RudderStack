@@ -50,7 +50,7 @@ The following table summarizes parity across all eight analysis dimensions. Pari
 | **Functions** | Source Functions, Destination Functions, Insert Functions — self-contained JS runtime (AWS Lambda) | User transforms (batch 200) + destination transforms (batch 100) via external Transformer (port 9090); no Functions runtime | **~40%** | 🟠 High |
 | **Protocols / Tracking Plans** | JSON Schema validation, anomaly detection, block/allow/sample enforcement, violation alerting, schema inference | Basic tracking plan validation via Transformer; `propagateValidationErrors` toggle; no anomaly detection | **~30%** | 🟠 High |
 | **Identity Resolution (Unify)** | Real-time identity graph, Profiles API (REST), computed/SQL traits, profile sync, data graph, 12+ ID types | Warehouse-only merge-rule resolution in `warehouse/identity/`; no real-time graph, no Profiles API | **~20%** | 🔴 Critical |
-| **Warehouse Sync** | Snowflake, BigQuery, Redshift, Postgres, Databricks + selective sync, health monitoring | 9 connectors (incl. ClickHouse, MSSQL — RudderStack-unique), 7-state upload state machine, Parquet encoding | **~80%** | 🟢 Low |
+| **Warehouse Sync** | Snowflake, BigQuery, Redshift, Postgres, Databricks + selective sync, health monitoring | 9 connectors (incl. ClickHouse, MSSQL — RudderStack-unique), 7-state upload state machine, Parquet encoding, selective sync, health monitoring, backfill API, warehouse replay | **~95%** | 🟢 Low |
 | **Privacy & Governance** | GDPR compliance, consent management, user suppression, data controls | Consent filtering (OneTrust, Ketch, Generic) with OR/AND resolution; `regulation-worker` for GDPR deletion | **~70%** | 🟡 Medium |
 
 > **Note:** Parity levels are estimates derived from feature comparison against Segment documentation. Detailed field-level and feature-level analysis is available in each linked dimension report. Parity percentages weight the breadth and depth of functional coverage, not lines of code.
@@ -68,7 +68,7 @@ xychart-beta
     title "Segment Parity by Dimension (%)"
     x-axis ["Event Spec", "Destinations", "Sources", "Functions", "Protocols", "Identity", "Warehouse", "Privacy"]
     y-axis "Parity %" 0 --> 100
-    bar [100, 28, 85, 40, 30, 20, 80, 70]
+    bar [100, 28, 85, 40, 30, 20, 95, 70]
 ```
 
 ### Gap Severity Heat Map
@@ -92,7 +92,7 @@ flowchart LR
     subgraph Low["🟢 LOW — Above 80% Parity"]
         SPEC["Event Spec<br/>100%"]
         SRC["Source Catalog<br/>~85%"]
-        WH["Warehouse Sync<br/>~80%"]
+        WH["Warehouse Sync<br/>~95%"]
     end
 
     style Critical fill:#ffcccc,stroke:#cc0000,color:#000
@@ -115,7 +115,7 @@ quadrantChart
     quadrant-3 "Strategic Investment"
     quadrant-4 "Deprioritize"
     "Event Spec (100%)": [0.10, 1.00]
-    "Warehouse (80%)": [0.30, 0.80]
+    "Warehouse (95%)": [0.30, 0.95]
     "Privacy (70%)": [0.35, 0.70]
     "Sources (60%)": [0.50, 0.60]
     "Functions (40%)": [0.65, 0.40]
@@ -222,11 +222,11 @@ All six core Segment Spec event types (`identify`, `track`, `page`, `screen`, `g
 
 Source: `gateway/openapi.yaml:14-435` | Ref: [Event Spec Parity Analysis](./event-spec-parity.md)
 
-### Warehouse Sync — ~80% Parity
+### Warehouse Sync — ~95% Parity ✅
 
-RudderStack supports nine warehouse connectors (Snowflake, BigQuery, Redshift, ClickHouse, Databricks Delta Lake, PostgreSQL, MSSQL, Azure Synapse, S3/GCS/Azure Datalake) compared to Segment's eight — ClickHouse and MSSQL are RudderStack-unique. The seven-state upload state machine provides fine-grained lifecycle control. Snowpipe Streaming integration enables low-latency Snowflake ingestion. Multiple encoding formats (Parquet, JSON, CSV) offer staging file flexibility.
+RudderStack supports nine warehouse connectors (Snowflake, BigQuery, Redshift, ClickHouse, Databricks Delta Lake, PostgreSQL, MSSQL, Azure Synapse, S3/GCS/Azure Datalake) compared to Segment's eight — ClickHouse and MSSQL are RudderStack-unique. The seven-state upload state machine provides fine-grained lifecycle control. Snowpipe Streaming integration enables low-latency Snowflake ingestion. Multiple encoding formats (Parquet, JSON, CSV) offer staging file flexibility. Per-table and per-column selective sync filtering is supported via the warehouse/selectivesync/ package. A dedicated health monitoring system with Prometheus metrics and HTTP health API is available via warehouse/healthmonitor/. Configurable date-range backfill is exposed through the POST /v1/warehouse/backfill API endpoint. End-to-end warehouse replay from archived events is supported via the warehouse/replay/ package.
 
-**Remaining gaps:** No per-table or per-column selective sync, limited sync health monitoring dashboard, config-based scheduling only (no UI-driven frequency adjustment), partial archiver-warehouse replay integration, no DB2 connector.
+**Remaining gaps:** Config-based scheduling only (no UI-driven frequency adjustment), no DB2 connector, no Avro encoding support.
 
 Source: `warehouse/identity/identity.go:36-60` | Ref: [Warehouse Parity Analysis](./warehouse-parity.md)
 
@@ -260,7 +260,7 @@ Each of the following documents provides a deep-dive analysis of a specific pari
 | 4 | [Functions Parity](./functions-parity.md) | ~40% | Transformation framework versus Segment Functions comparison, Source/Destination/Insert Functions gap analysis, and runtime architecture differences |
 | 5 | [Protocols Parity](./protocols-parity.md) | ~30% | Tracking plan enforcement feature comparison, consent management analysis, anomaly detection gap, and governance capability assessment |
 | 6 | [Identity Parity](./identity-parity.md) | ~20% | Identity resolution architecture comparison, Profiles API gap, traits infrastructure analysis, and real-time vs. batch resolution assessment |
-| 7 | [Warehouse Parity](./warehouse-parity.md) | ~80% | Warehouse connector comparison, upload state machine analysis, encoding format assessment, and sync feature gap inventory |
+| 7 | [Warehouse Parity](./warehouse-parity.md) | **~95%** | Warehouse connector comparison, upload state machine analysis, encoding format assessment, selective sync, health monitoring, backfill API, and warehouse replay |
 | 8 | [Sprint Roadmap](./sprint-roadmap.md) | — | Epic sequencing for autonomous gap closure, priority ordering by business impact, effort estimation, and dependency mapping |
 
 ---

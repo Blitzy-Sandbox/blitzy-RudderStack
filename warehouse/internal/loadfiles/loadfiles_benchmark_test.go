@@ -1,6 +1,7 @@
 package loadfiles
 
 import (
+	"context"
 	"testing"
 
 	"github.com/rudderlabs/rudder-go-kit/config"
@@ -89,7 +90,7 @@ func BenchmarkGroupBySize(b *testing.B) {
 
 			b.ResetTimer() // Reset timer to exclude setup time
 			for i := 0; i < b.N; i++ {
-				groups := lf.GroupStagingFiles(files, 128)
+				groups := lf.GroupStagingFiles(context.Background(), files, 128)
 				// Prevent compiler from optimizing away the result
 				if len(groups) == 0 {
 					b.Fatal("expected non-zero groups")

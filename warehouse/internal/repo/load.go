@@ -196,6 +196,42 @@ func scanLoadFile(scan scanFn, loadFile *model.LoadFile) error {
 	return nil
 }
 
+// GetExcludingTables retrieves load files for an upload, excluding specified tables.
+// When excludedTables is empty or nil, it behaves identically to Get (backward compatible).
+// This method supports the selective sync feature (E-034) by filtering out tables that
+// are excluded from warehouse sync via per-table configuration.
+func (lf *LoadFiles) GetExcludingTables(ctx context.Context, uploadID int64, excludedTables []string) ([]model.LoadFile, error) {
+	defer lf.TimerStat("get_excluding_tables", nil)()
+
+	if len(excludedTables) == 0 {
+		return lf.Get(ctx, uploadID)
+	}
+
+	sqlStatement := `
+		SELECT
+		` + loadTableColumns + `
+		FROM
+			` + loadTableName + `
+		WHERE
+			upload_id = $1 AND
+			table_name != ALL($2)
+		ORDER BY
+			id ASC;
+	`
+
+	rows, err := lf.db.QueryContext(ctx, sqlStatement, uploadID, pq.Array(excludedTables))
+	if err != nil {
+		return nil, fmt.Errorf("query load files excluding tables: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	loadFiles, err := scanLoadFiles(rows)
+	if err != nil {
+		return nil, fmt.Errorf("scanning load files: %w", err)
+	}
+	return loadFiles, nil
+}
+
 // GetByID returns the load file matching the id.
 func (lf *LoadFiles) GetByID(ctx context.Context, id int64) (*model.LoadFile, error) {
 	defer lf.TimerStat("get_by_id", nil)()

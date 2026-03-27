@@ -89,6 +89,14 @@ type Router struct {
 	uploadJobFactory UploadJobFactory
 	notifier         *notifier.Notifier
 
+	// Selective sync service (E-034) — provides table/column exclusion predicates.
+	// Nil when selective sync is not configured; all state handlers perform nil checks.
+	selectiveSyncSvc selectiveSyncChecker
+
+	// Health monitoring recorder (E-033) — records per-upload sync health entries.
+	// Nil when health monitoring is not configured; all callers perform nil checks.
+	healthMonitor syncHealthRecorder
+
 	config struct {
 		maxConcurrentUploadJobs           int
 		allowMultipleSourcesForJobsPickup bool
@@ -105,6 +113,8 @@ type Router struct {
 		warehouseSyncFreqIgnore           config.ValueLoader[bool]
 		cronTrackerRetries                config.ValueLoader[int64]
 		uploadBufferTimeInMin             config.ValueLoader[time.Duration]
+		backfillEnabled                   config.ValueLoader[bool]
+		backfillMaxConcurrentJobs         config.ValueLoader[int]
 	}
 
 	stats struct {
@@ -115,6 +125,32 @@ type Router struct {
 		schedulerWarehouseLengthStat     stats.Gauge
 		schedulerTotalSchedulingTimeStat stats.Timer
 		cronTrackerExecTimestamp         stats.Gauge
+	}
+}
+
+// RouterOption is a functional option for configuring the Router with optional
+// dependencies that were introduced in Sprint 7–9 (E-032, E-033, E-034).
+// Using the functional-option pattern keeps the New() constructor backward
+// compatible — existing callers that do not pass any options continue to work.
+type RouterOption func(*Router)
+
+// WithSelectiveSyncService injects the selective sync service for E-034.
+// When provided, the service's table/column exclusion predicates are propagated
+// to every UploadJob created by the Router, enabling per-table and per-column
+// filtering during load file generation, schema consolidation, and data export.
+func WithSelectiveSyncService(svc selectiveSyncChecker) RouterOption {
+	return func(r *Router) {
+		r.selectiveSyncSvc = svc
+	}
+}
+
+// WithHealthMonitor injects the health monitor for E-033.
+// When provided, the monitor's RecordSyncHealth method is propagated to every
+// UploadJob created by the Router, enabling per-upload health metric recording
+// on both success and failure paths.
+func WithHealthMonitor(hm syncHealthRecorder) RouterOption {
+	return func(r *Router) {
+		r.healthMonitor = hm
 	}
 }
 
@@ -132,6 +168,7 @@ func New(
 	encodingFactory *encoding.Factory,
 	triggerStore *sync.Map,
 	createUploadAlways createUploadAlwaysLoader,
+	opts ...RouterOption,
 ) *Router {
 	r := &Router{}
 
@@ -156,6 +193,13 @@ func New(
 	r.scheduledTimesCache = make(map[string][]int)
 	r.inProgressMap = make(map[workerIdentifierMapKey][]jobID)
 
+	// Apply functional options before factory creation so that injected
+	// dependencies (selective sync, health monitor) are available for
+	// propagation to the UploadJobFactory.
+	for _, opt := range opts {
+		opt(r)
+	}
+
 	r.uploadJobFactory = UploadJobFactory{
 		reporting:            reporting,
 		conf:                 r.conf,
@@ -164,14 +208,17 @@ func New(
 		db:                   r.db,
 		destinationValidator: validations.NewDestinationValidator(),
 		loadFile: &loadfiles.LoadFileGenerator{
-			Conf:               r.conf,
-			Logger:             r.logger.Child("loadfile"),
-			Notifier:           r.notifier,
-			StageRepo:          r.stagingRepo,
-			LoadRepo:           repo.NewLoadFiles(db, r.conf, repo.WithStats(r.statsFactory)),
-			ControlPlaneClient: controlPlaneClient,
+			Conf:                 r.conf,
+			Logger:               r.logger.Child("loadfile"),
+			Notifier:             r.notifier,
+			StageRepo:            r.stagingRepo,
+			LoadRepo:             repo.NewLoadFiles(db, r.conf, repo.WithStats(r.statsFactory)),
+			ControlPlaneClient:   controlPlaneClient,
+			SelectiveSyncService: r.selectiveSyncSvc, // E-034: wire selective sync for staging file pre-filtering
 		},
-		encodingFactory: encodingFactory,
+		encodingFactory:  encodingFactory,
+		selectiveSyncSvc: r.selectiveSyncSvc, // E-034: propagate selective sync to all UploadJob instances
+		healthMonitor:    r.healthMonitor,     // E-033: propagate health monitor to all UploadJob instances
 	}
 	loadfiles.WithConfig(r.uploadJobFactory.loadFile, r.conf)
 
@@ -714,6 +761,8 @@ func (r *Router) loadReloadableConfig(whName string) {
 	r.config.warehouseSyncFreqIgnore = r.conf.GetReloadableBoolVar(false, "Warehouse.warehouseSyncFreqIgnore")
 	r.config.cronTrackerRetries = r.conf.GetReloadableInt64Var(5, 1, "Warehouse.cronTrackerRetries")
 	r.config.uploadBufferTimeInMin = r.conf.GetReloadableDurationVar(180, time.Minute, "Warehouse.uploadBufferTimeInMin")
+	r.config.backfillEnabled = r.conf.GetReloadableBoolVar(false, "Warehouse.backfill.enabled")
+	r.config.backfillMaxConcurrentJobs = r.conf.GetReloadableIntVar(3, 1, "Warehouse.backfill.maxConcurrentJobs")
 }
 
 func (r *Router) loadStats() {
@@ -734,6 +783,106 @@ func (r *Router) copyWarehouses() []model.Warehouse {
 	warehouses := make([]model.Warehouse, len(r.warehouses))
 	copy(warehouses, r.warehouses)
 	return warehouses
+}
+
+// CopyWarehouses returns a snapshot of the current warehouse list for this router.
+// This exported variant enables cross-package access by the backfill upload adapter
+// in warehouse/app.go, which needs to look up a Warehouse by sourceID + destID
+// to delegate backfill upload creation to the correct per-destination-type router.
+func (r *Router) CopyWarehouses() []model.Warehouse {
+	return r.copyWarehouses()
+}
+
+// CreateBackfillUpload creates an upload specifically for a backfill job (E-032).
+// Backfill uploads bypass the normal scheduling guards enforced by canCreateUpload()
+// (sync frequency, exclude windows, manual-sync mode) because they are explicitly
+// triggered via the POST /v1/warehouse/backfill API endpoint.
+//
+// The created upload has its BackfillJobID set, which causes it to enter the backfill
+// state (BackfillPending) in the state machine rather than the standard Waiting state.
+// After backfill resolution completes, the upload re-enters the normal state chain at
+// GeneratedUploadSchema and proceeds through to ExportedData.
+//
+// The stagingFileIDs parameter contains the specific file IDs resolved from the
+// backfill date range by processPendingJob in the backfill service. These are the
+// exact files that must be processed — NOT whatever happens to be in the "pending"
+// queue at creation time. Historical staging files that the backfill targets have
+// already been through the pipeline and would not appear in a Pending() query.
+//
+// The method is safe to call concurrently; it serialises writes through the upload
+// repository and does not touch the in-progress map (the upload will be picked up by
+// the normal runUploadJobAllocator loop).
+func (r *Router) CreateBackfillUpload(ctx context.Context, warehouse model.Warehouse, backfillJobID int64, stagingFileIDs []int64) error {
+	// Validate that backfill uploads are permitted for this warehouse.
+	// canCreateBackfillUpload checks feature-level and concurrency constraints.
+	if !r.canCreateBackfillUpload(ctx, warehouse) {
+		return fmt.Errorf("backfill upload not allowed for warehouse %s: %w",
+			warehouse.Identifier, errBackfillUploadBypassesScheduling)
+	}
+
+	r.logger.Infon("creating backfill upload",
+		logger.NewIntField("backfillJobID", backfillJobID),
+		logger.NewStringField("sourceID", warehouse.Source.ID),
+		logger.NewStringField("destID", warehouse.Destination.ID),
+		logger.NewIntField("stagingFileCount", int64(len(stagingFileIDs))),
+	)
+
+	upload := model.Upload{
+		SourceID:        warehouse.Source.ID,
+		Namespace:       warehouse.Namespace,
+		WorkspaceID:     warehouse.WorkspaceID,
+		DestinationID:   warehouse.Destination.ID,
+		DestinationType: r.destType,
+		Status:          model.BackfillPending,
+		LoadFileType:    warehouseutils.GetLoadFileType(r.destType),
+		NextRetryTime:   r.now(),
+		Priority:        50, // Backfill uploads run at elevated priority
+		BackfillJobID:   &backfillJobID,
+	}
+
+	// Verify the upload is properly configured as a backfill operation
+	// before proceeding with staging file lookup and batch creation.
+	if !isBackfillUpload(upload) {
+		return fmt.Errorf("internal error: backfill upload missing BackfillJobID for job %d", backfillJobID)
+	}
+
+	// Retrieve the specific staging files resolved from the backfill date range.
+	// Unlike normal uploads which use Pending(), backfill uploads target historical
+	// staging files that have already been processed. These files are identified by
+	// the backfill service's date-range resolution (archiver or staging repository)
+	// and their IDs are passed here directly.
+	if len(stagingFileIDs) == 0 {
+		r.logger.Infon("no staging file IDs provided for backfill upload, skipping creation",
+			logger.NewIntField("backfillJobID", backfillJobID),
+		)
+		return nil
+	}
+
+	stagingFilesList, err := r.stagingRepo.GetByIDs(ctx, stagingFileIDs)
+	if err != nil {
+		return fmt.Errorf("fetching staging files by IDs for backfill: %w", err)
+	}
+	if len(stagingFilesList) == 0 {
+		r.logger.Warnn("staging files resolved by backfill service not found in repository",
+			logger.NewIntField("backfillJobID", backfillJobID),
+			logger.NewIntField("requestedIDs", int64(len(stagingFileIDs))),
+		)
+		return fmt.Errorf("no staging files found for the provided IDs (backfill job %d)", backfillJobID)
+	}
+
+	batches := service.StageFileBatching(stagingFilesList, r.config.stagingFilesBatchSize.Load())
+	for _, batch := range batches {
+		if _, err := r.uploadRepo.CreateWithBackfill(ctx, upload, batch); err != nil {
+			return fmt.Errorf("creating backfill upload: %w", err)
+		}
+	}
+
+	r.logger.Infon("backfill upload(s) created successfully",
+		logger.NewIntField("backfillJobID", backfillJobID),
+		logger.NewIntField("batchCount", int64(len(batches))),
+		logger.NewIntField("totalStagingFiles", int64(len(stagingFilesList))),
+	)
+	return nil
 }
 
 func (r *Router) getNowSQL() string {

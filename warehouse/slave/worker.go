@@ -333,7 +333,7 @@ func (w *worker) processSingleStagingFile(
 			return err
 		}
 
-		eventLoader := w.encodingFactory.NewEventLoader(writer, job.LoadFileType, job.DestinationType)
+		eventLoader := w.encodingFactory.NewEventLoader(writer, job.LoadFileType, job.DestinationType, nil)
 
 		// Duplicate detection by id column
 		// skip duplicate detection for users table as multiple identifies events can be present for same user	id

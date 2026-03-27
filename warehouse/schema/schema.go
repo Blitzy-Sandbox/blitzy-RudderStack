@@ -25,6 +25,7 @@ import (
 	"github.com/rudderlabs/rudder-server/warehouse/internal/model"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/repo"
 	"github.com/rudderlabs/rudder-server/warehouse/logfield"
+	"github.com/rudderlabs/rudder-server/warehouse/selectivesync"
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
 
@@ -60,7 +61,8 @@ type Handler interface {
 	// Returns the number of columns present in the schema for a given table
 	GetColumnsCount(ctx context.Context, tableName string) (int, error)
 	// Merges schemas from staging files with the schema to produce a consolidated schema.
-	ConsolidateStagingFilesSchema(ctx context.Context, stagingFiles []*model.StagingFile) (model.Schema, error)
+	// When selectiveSyncConfig is non-nil, excluded tables and columns are removed from the result.
+	ConsolidateStagingFilesSchema(ctx context.Context, stagingFiles []*model.StagingFile, selectiveSyncConfig *selectivesync.SelectiveSyncConfig) (model.Schema, error)
 	// Computes the difference between the existing schema of a table and a newly provided schema.
 	// Returns details of added and modified columns
 	TableSchemaDiff(ctx context.Context, tableName string, tableSchema model.TableSchema) (whutils.TableSchemaDiff, error)
@@ -204,7 +206,7 @@ func (sh *schema) GetColumnsCount(ctx context.Context, tableName string) (int, e
 	return len(sh.cachedSchema[tableName]), nil
 }
 
-func (sh *schema) ConsolidateStagingFilesSchema(ctx context.Context, stagingFiles []*model.StagingFile) (model.Schema, error) {
+func (sh *schema) ConsolidateStagingFilesSchema(ctx context.Context, stagingFiles []*model.StagingFile, selectiveSyncConfig *selectivesync.SelectiveSyncConfig) (model.Schema, error) {
 	consolidatedSchema := model.Schema{}
 	batches := lo.Chunk(stagingFiles, sh.stagingFilesSchemaPaginationSize)
 	for _, batch := range batches {
@@ -221,6 +223,11 @@ func (sh *schema) ConsolidateStagingFilesSchema(ctx context.Context, stagingFile
 	consolidatedSchema = overrideUsersWithIdentifiesSchema(consolidatedSchema, sh.warehouse.Type, sh.cachedSchema)
 	consolidatedSchema = enhanceDiscardsSchema(consolidatedSchema, sh.warehouse.Type)
 	consolidatedSchema = enhanceSchemaWithIDResolution(consolidatedSchema, sh.isIDResolutionEnabled(), sh.warehouse.Type)
+
+	// Apply selective sync filtering if configured (E-034).
+	// When selectiveSyncConfig is non-nil, excluded tables are removed entirely
+	// and excluded columns are removed from individual table schemas.
+	consolidatedSchema = applySelectiveSyncFilter(consolidatedSchema, selectiveSyncConfig)
 
 	return consolidatedSchema, nil
 }
@@ -412,6 +419,40 @@ func enhanceSchemaWithIDResolution(consolidatedSchema model.Schema, isIDResoluti
 			whutils.ToProviderCase(warehouseType, "updated_at"):           "datetime",
 		}
 	}
+	return consolidatedSchema
+}
+
+// applySelectiveSyncFilter removes excluded tables and columns from the consolidated schema
+// based on the provided SelectiveSyncConfig. If the config is nil or has no exclusions,
+// the schema is returned unchanged (backward compatible).
+//
+// Filtering order: excluded tables are removed first, then per-table column exclusions are
+// applied. If removing columns leaves a table with zero columns, the table is removed entirely.
+func applySelectiveSyncFilter(consolidatedSchema model.Schema, cfg *selectivesync.SelectiveSyncConfig) model.Schema {
+	if cfg == nil {
+		return consolidatedSchema
+	}
+
+	// Remove excluded tables
+	for _, excludedTable := range cfg.ExcludedTables {
+		delete(consolidatedSchema, excludedTable)
+	}
+
+	// Remove excluded columns per table
+	for tableName, excludedCols := range cfg.ExcludedColumns {
+		tableSchema, exists := consolidatedSchema[tableName]
+		if !exists {
+			continue
+		}
+		for _, excludedCol := range excludedCols {
+			delete(tableSchema, excludedCol)
+		}
+		// If all columns are excluded, remove the table entirely
+		if len(tableSchema) == 0 {
+			delete(consolidatedSchema, tableName)
+		}
+	}
+
 	return consolidatedSchema
 }
 

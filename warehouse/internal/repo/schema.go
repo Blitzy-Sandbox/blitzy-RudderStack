@@ -294,6 +294,71 @@ func (sh *WHSchema) GetForNamespace(ctx context.Context, destID, namespace strin
 	return originalSchema, nil
 }
 
+// GetSchemaExcludingTables retrieves the schema for a namespace, excluding the specified tables.
+// Filtering is applied at the Go level after fetching the full schema, not at the SQL level
+// (since the schema column is JSONB containing a full table→columns map).
+// When excludedTables is empty or nil, it behaves identically to GetForNamespace.
+func (sh *WHSchema) GetSchemaExcludingTables(ctx context.Context, destID, namespace string, excludedTables []string) (model.WHSchema, error) {
+	defer sh.TimerStat("get_schema_excluding_tables", stats.Tags{"destId": destID})()
+
+	whSchema, err := sh.GetForNamespace(ctx, destID, namespace)
+	if err != nil {
+		return model.WHSchema{}, fmt.Errorf("getting schema for namespace: %w", err)
+	}
+
+	if len(excludedTables) == 0 || len(whSchema.Schema) == 0 {
+		return whSchema, nil
+	}
+
+	// Create a filtered copy of the schema, removing excluded tables
+	filteredSchema := make(model.Schema, len(whSchema.Schema))
+	excludedSet := make(map[string]struct{}, len(excludedTables))
+	for _, t := range excludedTables {
+		excludedSet[t] = struct{}{}
+	}
+	for tableName, tableSchema := range whSchema.Schema {
+		if _, excluded := excludedSet[tableName]; !excluded {
+			filteredSchema[tableName] = tableSchema
+		}
+	}
+	whSchema.Schema = filteredSchema
+	return whSchema, nil
+}
+
+// FilterSchemaColumns returns a new schema with excluded columns removed.
+// For each table in excludedColumns, the specified columns are removed from that table's column map.
+// The original schema is not modified — a new filtered copy is returned.
+func FilterSchemaColumns(schema model.Schema, excludedColumns map[string][]string) model.Schema {
+	if len(excludedColumns) == 0 || len(schema) == 0 {
+		return schema
+	}
+
+	filteredSchema := make(model.Schema, len(schema))
+	for tableName, tableSchema := range schema {
+		excludedCols, hasExclusions := excludedColumns[tableName]
+		if !hasExclusions || len(excludedCols) == 0 {
+			filteredSchema[tableName] = tableSchema
+			continue
+		}
+
+		// Build a set of excluded columns for O(1) lookup
+		excludedSet := make(map[string]struct{}, len(excludedCols))
+		for _, col := range excludedCols {
+			excludedSet[col] = struct{}{}
+		}
+
+		// Create a new table schema without excluded columns
+		filteredTableSchema := make(model.TableSchema, len(tableSchema))
+		for colName, colType := range tableSchema {
+			if _, excluded := excludedSet[colName]; !excluded {
+				filteredTableSchema[colName] = colType
+			}
+		}
+		filteredSchema[tableName] = filteredTableSchema
+	}
+	return filteredSchema
+}
+
 func (sh *WHSchema) getForNamespace(ctx context.Context, destID, namespace string) (model.WHSchema, error) {
 	query := `SELECT ` + whSchemaTableColumns + ` FROM ` + whSchemaTableName + `
 	WHERE

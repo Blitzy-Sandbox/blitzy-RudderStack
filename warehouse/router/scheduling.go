@@ -2,11 +2,15 @@ package router
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/samber/lo/mutable"
+
+	"github.com/rudderlabs/rudder-go-kit/logger"
+	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
 
 	"github.com/rudderlabs/rudder-server/utils/timeutil"
 	"github.com/rudderlabs/rudder-server/warehouse/internal/model"
@@ -18,13 +22,17 @@ var (
 	errCurrentTimeExistsInExcludeWindow = fmt.Errorf("current time exists in exclude window")
 	errBeforeScheduledTime              = fmt.Errorf("before scheduled time")
 	errManualSyncModeEnabled            = fmt.Errorf("manual sync mode is enabled, automatic uploads are blocked")
+	errBackfillUploadBypassesScheduling = errors.New("backfill upload bypasses normal scheduling")
 )
 
 type createUploadAlwaysLoader interface {
 	Load() bool
 }
 
-// canCreateUpload indicates if an upload can be started now for the warehouse based on its configured schedule
+// canCreateUpload indicates if an upload can be started now for the warehouse based on its configured schedule.
+// Note: Backfill uploads bypass normal scheduling guards (sync frequency, exclude windows, manual sync mode).
+// The backfill bypass is handled in the router's upload creation flow by calling canCreateBackfillUpload()
+// instead of canCreateUpload() for backfill-triggered uploads.
 func (r *Router) canCreateUpload(ctx context.Context, warehouse model.Warehouse) error {
 	// can be set from rudder-cli to force uploads always
 	if r.createUploadAlways.Load() {
@@ -193,4 +201,49 @@ func (r *Router) scheduledTimes(syncFrequency, syncStartAt string) []int {
 	r.scheduledTimesCacheLock.Unlock()
 
 	return times
+}
+
+// canCreateBackfillUpload checks if a backfill-triggered upload can be created.
+// Backfill uploads bypass normal scheduling guards (sync frequency, exclude windows,
+// manual sync mode) since they are explicitly triggered via the API.
+// The only constraints are:
+// 1. The backfill feature must be enabled (Warehouse.backfill.enabled, default false)
+// 2. The concurrent backfill job limit must not be exceeded (Warehouse.backfill.maxConcurrentJobs, default 3)
+func (r *Router) canCreateBackfillUpload(ctx context.Context, warehouse model.Warehouse) bool {
+	if !r.config.backfillEnabled.Load() {
+		r.logger.Warnn("backfill upload rejected: feature is disabled",
+			logger.NewStringField("sourceID", warehouse.Source.ID),
+			logger.NewStringField("destID", warehouse.Destination.ID),
+		)
+		return false
+	}
+
+	maxConcurrent := r.config.backfillMaxConcurrentJobs.Load()
+	activeCount, err := r.uploadRepo.CountActiveBackfillUploads(ctx)
+	if err != nil {
+		r.logger.Warnn("backfill upload rejected: failed to count active backfill uploads",
+			obskit.Error(err),
+			logger.NewStringField("sourceID", warehouse.Source.ID),
+			logger.NewStringField("destID", warehouse.Destination.ID),
+		)
+		return false
+	}
+
+	if activeCount >= int64(maxConcurrent) {
+		r.logger.Infon("backfill upload rejected: concurrent job limit reached",
+			logger.NewIntField("activeCount", activeCount),
+			logger.NewIntField("maxConcurrent", int64(maxConcurrent)),
+			logger.NewStringField("sourceID", warehouse.Source.ID),
+			logger.NewStringField("destID", warehouse.Destination.ID),
+		)
+		return false
+	}
+
+	return true
+}
+
+// isBackfillUpload returns true if the given upload was triggered by a backfill operation.
+// Identified by the presence of a non-nil BackfillJobID on the upload model.
+func isBackfillUpload(upload model.Upload) bool {
+	return upload.BackfillJobID != nil
 }

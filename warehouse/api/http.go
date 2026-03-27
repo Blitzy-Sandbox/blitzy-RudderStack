@@ -66,6 +66,35 @@ type triggerUploadRequest struct {
 	DestinationID string `json:"destination_id"`
 }
 
+// backfillHandler defines the interface for backfill HTTP handlers (E-032).
+// Implementations are injected from the warehouse/backfill package.
+type backfillHandler interface {
+	TriggerBackfill(w http.ResponseWriter, r *http.Request)
+	GetBackfillStatus(w http.ResponseWriter, r *http.Request)
+}
+
+// healthMonitorHandler defines the interface for health monitoring HTTP handlers (E-033).
+// Named healthMonitorHandler (not healthHandler) to avoid collision with the existing
+// Api.healthHandler method used for standalone mode health checks.
+type healthMonitorHandler interface {
+	GetHealthSummary(w http.ResponseWriter, r *http.Request)
+	GetHealthBySourceDest(w http.ResponseWriter, r *http.Request)
+}
+
+// selectiveSyncHandler defines the interface for selective sync HTTP handlers (E-034).
+// Implementations are injected from the warehouse/selectivesync package.
+type selectiveSyncHandler interface {
+	UpdateSelectiveSync(w http.ResponseWriter, r *http.Request)
+	GetSelectiveSync(w http.ResponseWriter, r *http.Request)
+}
+
+// replayHandler defines the interface for warehouse replay HTTP handlers (E-035).
+// Implementations are injected from the warehouse/replay package.
+type replayHandler interface {
+	TriggerReplay(w http.ResponseWriter, r *http.Request)
+	GetReplayStatus(w http.ResponseWriter, r *http.Request)
+}
+
 type Api struct {
 	mode          string
 	conf          *config.Config
@@ -81,6 +110,12 @@ type Api struct {
 	uploadRepo    *repo.Uploads
 	schemaRepo    *repo.WHSchema
 	triggerStore  *sync.Map
+
+	// Sprint 7-9 feature handlers — nil-safe; routes are only registered when non-nil.
+	backfillH      backfillHandler       // E-032: Backfill API
+	healthMonitorH healthMonitorHandler  // E-033: Health Monitoring API
+	selectiveSyncH selectiveSyncHandler  // E-034: Selective Sync API
+	replayH        replayHandler         // E-035: Warehouse Replay API
 
 	config struct {
 		healthTimeout       time.Duration
@@ -103,22 +138,31 @@ func NewApi(
 	bcManager *bcm.BackendConfigManager,
 	sourceManager *source.Manager,
 	triggerStore *sync.Map,
+	// Sprint 7-9 handler dependencies — pass nil when the feature is disabled.
+	backfillH backfillHandler,
+	healthMonitorH healthMonitorHandler,
+	selectiveSyncH selectiveSyncHandler,
+	replayH replayHandler,
 ) *Api {
 	a := &Api{
-		mode:          mode,
-		conf:          conf,
-		logger:        log.Child("api"),
-		db:            db,
-		notifier:      notifier,
-		bcConfig:      bcConfig,
-		statsFactory:  statsFactory,
-		tenantManager: tenantManager,
-		bcManager:     bcManager,
-		sourceManager: sourceManager,
-		triggerStore:  triggerStore,
-		stagingRepo:   repo.NewStagingFiles(db, conf, repo.WithStats(statsFactory)),
-		uploadRepo:    repo.NewUploads(db, repo.WithStats(statsFactory)),
-		schemaRepo:    repo.NewWHSchemas(db, conf, log, repo.WithStats(statsFactory)),
+		mode:           mode,
+		conf:           conf,
+		logger:         log.Child("api"),
+		db:             db,
+		notifier:       notifier,
+		bcConfig:       bcConfig,
+		statsFactory:   statsFactory,
+		tenantManager:  tenantManager,
+		bcManager:      bcManager,
+		sourceManager:  sourceManager,
+		triggerStore:   triggerStore,
+		backfillH:      backfillH,
+		healthMonitorH: healthMonitorH,
+		selectiveSyncH: selectiveSyncH,
+		replayH:        replayH,
+		stagingRepo:    repo.NewStagingFiles(db, conf, repo.WithStats(statsFactory)),
+		uploadRepo:     repo.NewUploads(db, repo.WithStats(statsFactory)),
+		schemaRepo:     repo.NewWHSchemas(db, conf, log, repo.WithStats(statsFactory)),
 	}
 	a.config.healthTimeout = conf.GetDuration("Warehouse.healthTimeout", 10, time.Second)
 	a.config.readerHeaderTimeout = conf.GetDuration("Warehouse.readerHeaderTimeout", 3, time.Second)
@@ -131,6 +175,7 @@ func (a *Api) Start(ctx context.Context) error {
 	srvMux := chi.NewRouter()
 	srvMux.Use(
 		chiware.StatMiddleware(ctx, a.statsFactory, "warehouse"),
+		securityHeadersMiddleware,
 	)
 
 	if mode.IsStandAlone(a.mode) {
@@ -156,6 +201,20 @@ func (a *Api) Start(ctx context.Context) error {
 		ReadHeaderTimeout: a.config.readerHeaderTimeout,
 	}
 	return kithttputil.ListenAndServe(ctx, srv)
+}
+
+// securityHeadersMiddleware is a Chi-compatible middleware that sets essential
+// security response headers on every HTTP response. This is a defense-in-depth
+// measure for the internal warehouse API.
+//
+// Headers applied:
+//   - X-Content-Type-Options: nosniff — prevents MIME type sniffing attacks
+//     by instructing browsers to strictly follow the declared Content-Type.
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (a *Api) addMasterEndpoints(ctx context.Context, r chi.Router) {
@@ -193,6 +252,30 @@ func (a *Api) addMasterEndpoints(ctx context.Context, r chi.Router) {
 			r.Get("/jobs/status", a.logMiddleware(a.sourceManager.StatusJobHandler)) // TODO: add degraded mode
 
 			r.Get("/fetch-tables", a.logMiddleware(a.fetchTablesHandler)) // TODO: Remove this endpoint once sources change is released
+
+			// E-032: Backfill endpoints — trigger historical data sync for a date range.
+			if a.backfillH != nil {
+				r.Post("/backfill", a.logMiddleware(a.backfillH.TriggerBackfill))
+				r.Get("/backfill/{jobID}", a.logMiddleware(a.backfillH.GetBackfillStatus))
+			}
+
+			// E-033: Health monitoring endpoints — per-upload and aggregate sync health.
+			if a.healthMonitorH != nil {
+				r.Get("/health", a.logMiddleware(a.healthMonitorH.GetHealthSummary))
+				r.Get("/health/{sourceID}/{destID}", a.logMiddleware(a.healthMonitorH.GetHealthBySourceDest))
+			}
+
+			// E-034: Selective sync endpoints — per-table/per-column inclusion/exclusion.
+			if a.selectiveSyncH != nil {
+				r.Put("/selective-sync", a.logMiddleware(a.selectiveSyncH.UpdateSelectiveSync))
+				r.Get("/selective-sync/{sourceID}/{destID}", a.logMiddleware(a.selectiveSyncH.GetSelectiveSync))
+			}
+
+			// E-035: Warehouse replay endpoints — replay archived events to warehouse.
+			if a.replayH != nil {
+				r.Post("/replay", a.logMiddleware(a.replayH.TriggerReplay))
+				r.Get("/replay/{jobID}", a.logMiddleware(a.replayH.GetReplayStatus))
+			}
 		})
 	})
 	r.Route("/internal", func(r chi.Router) {

@@ -380,6 +380,17 @@ func (gw *Handle) getJobDataFromRequest(req *webRequestT) (jobData *jobFromReq, 
 		// this field — it passes through to the pipeline as-is.
 		eventContext, ok := misc.MapLookup(toSet, "context").(map[string]any)
 		if ok {
+			// E-035 Security: Strip the warehouseOnly field from the event context
+			// for all non-replay call types. This prevents clients from injecting
+			// "warehouseOnly": true into their event payloads via regular endpoints
+			// (e.g., /v1/track, /v1/batch, /v1/identify) to spoof warehouse-only
+			// routing. Only the withWarehouseReplayTag middleware in
+			// handle_http_replay.go is authorized to set this flag, and it runs
+			// exclusively within the callType("replay") handler chain.
+			if req.reqType != "replay" {
+				delete(eventContext, "warehouseOnly")
+			}
+
 			if idx == 0 {
 				if v, _ := misc.MapLookup(eventContext, "sources", "job_run_id").(string); v != "" {
 					sourcesJobRunID = v

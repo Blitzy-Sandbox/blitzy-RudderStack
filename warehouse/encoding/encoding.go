@@ -65,15 +65,88 @@ type EventLoader interface {
 	Write() error
 }
 
-func (m *Factory) NewEventLoader(w LoadFileWriter, loadFileType, destinationType string) EventLoader {
+func (m *Factory) NewEventLoader(w LoadFileWriter, loadFileType, destinationType string, excludedColumns []string) EventLoader {
+	var loader EventLoader
 	switch loadFileType {
 	case warehouseutils.LoadFileTypeJson:
-		return newJSONLoader(w, destinationType)
+		loader = newJSONLoader(w, destinationType)
 	case warehouseutils.LoadFileTypeParquet:
-		return newParquetLoader(w, destinationType)
+		loader = newParquetLoader(w, destinationType)
 	default:
-		return newCSVLoader(w, destinationType)
+		loader = newCSVLoader(w, destinationType)
 	}
+
+	if len(excludedColumns) > 0 {
+		exclusionSet := make(map[string]struct{}, len(excludedColumns))
+		for _, col := range excludedColumns {
+			exclusionSet[col] = struct{}{}
+		}
+		return &filteringEventLoader{
+			inner:           loader,
+			excludedColumns: exclusionSet,
+		}
+	}
+	return loader
+}
+
+// filteringEventLoader wraps an EventLoader and filters out excluded columns.
+// When a column name matches an entry in the exclusion set, the AddColumn,
+// AddEmptyColumn, and AddRow calls for that column are silently skipped.
+// This is used by the selective sync feature (E-034) to exclude specific
+// columns from warehouse load files during encoding.
+type filteringEventLoader struct {
+	inner           EventLoader
+	excludedColumns map[string]struct{}
+}
+
+func (f *filteringEventLoader) IsLoadTimeColumn(columnName string) bool {
+	return f.inner.IsLoadTimeColumn(columnName)
+}
+
+func (f *filteringEventLoader) GetLoadTimeFormat(columnName string) string {
+	return f.inner.GetLoadTimeFormat(columnName)
+}
+
+func (f *filteringEventLoader) AddColumn(columnName, columnType string, val any) {
+	if _, excluded := f.excludedColumns[columnName]; excluded {
+		// Insert a null placeholder so positional loaders (Parquet, CSV) keep
+		// columns aligned with the schema.  Map-based loaders (JSON) will emit
+		// a null key, which readers return as "".
+		f.inner.AddEmptyColumn(columnName)
+		return
+	}
+	f.inner.AddColumn(columnName, columnType, val)
+}
+
+func (f *filteringEventLoader) AddRow(columnNames, values []string) {
+	// Preserve positional alignment by keeping ALL column names and replacing
+	// excluded column values with empty strings. This matches the AddColumn approach
+	// where excluded columns use AddEmptyColumn to maintain schema alignment for
+	// positional loaders (Parquet, CSV).
+	alignedValues := make([]string, len(columnNames))
+	for i, name := range columnNames {
+		if _, excluded := f.excludedColumns[name]; excluded {
+			alignedValues[i] = "" // null placeholder preserving position
+		} else if i < len(values) {
+			alignedValues[i] = values[i]
+		}
+	}
+	f.inner.AddRow(columnNames, alignedValues)
+}
+
+func (f *filteringEventLoader) AddEmptyColumn(columnName string) {
+	// Always pass through to the inner loader — even for excluded columns —
+	// so that positional loaders (Parquet, CSV) maintain schema alignment.
+	// The inner loader writes a null/empty placeholder which readers return as "".
+	f.inner.AddEmptyColumn(columnName)
+}
+
+func (f *filteringEventLoader) WriteToString() (string, error) {
+	return f.inner.WriteToString()
+}
+
+func (f *filteringEventLoader) Write() error {
+	return f.inner.Write()
 }
 
 // EventReader is an interface for reading events from a load file

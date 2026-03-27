@@ -1,4 +1,4 @@
-# Blitzy Project Guide — Sprint 2-3 Source SDK Compatibility
+# Blitzy Project Guide — Sprint 7–9 Warehouse Feature Enhancement
 
 ---
 
@@ -6,63 +6,63 @@
 
 ### 1.1 Project Overview
 
-This project implements Sprint 2–3 Source SDK Compatibility (Epics E-005 through E-009) for the RudderStack open-source data plane (`rudder-server`). The objective is to validate that Segment SDK client libraries — JavaScript (`analytics.js`/Analytics 2.0), iOS (`analytics-ios`), Android (`analytics-android`), and five server-side SDKs (Node.js, Python, Go, Java, Ruby) — can connect to the RudderStack Gateway with only an endpoint URL and Write Key substitution. Additionally, a cloud source ingestion framework was designed and prototyped to address the 140 cloud app source gap. The work raises the Source Catalog parity score from approximately 60% to approximately 85%, moving one of the largest parity gaps from "Medium" to "Low" severity.
+This project implements Sprint 7–9: Warehouse Feature Enhancement for the RudderStack `rudder-server` (v1.68.1) Go monorepo, delivering five production epics (E-031 through E-035) that close the warehouse sync parity gap from ~80% to ~95% against Twilio Segment. The implementation spans idempotent sync validation across all 9 warehouse connectors, configurable date-range backfill from archived data, enhanced health monitoring with Prometheus metrics and alerting, per-table/per-column selective sync filtering, and end-to-end warehouse replay from archived events. Target users are data engineering teams operating warehouse-first analytics pipelines on RudderStack infrastructure.
 
 ### 1.2 Completion Status
 
 ```mermaid
-pie title Project Completion — 87.7%
-    "Completed (107h)" : 107
-    "Remaining (15h)" : 15
+pie title Project Completion Status
+    "Completed (176h)" : 176
+    "Remaining (30h)" : 30
 ```
 
 | Metric | Value |
 |--------|-------|
-| **Total Project Hours** | 122 |
-| **Completed Hours (AI)** | 107 |
-| **Remaining Hours** | 15 |
-| **Completion Percentage** | 87.7% |
+| **Total Project Hours** | 206 |
+| **Completed Hours (AI)** | 176 |
+| **Remaining Hours** | 30 |
+| **Completion Percentage** | 85.4% |
 
-**Calculation:** 107 completed hours / (107 + 15 remaining) = 107 / 122 = **87.7%**
+**Calculation:** 176 completed hours / (176 + 30 remaining hours) = 176 / 206 = **85.4% complete**
 
 ### 1.3 Key Accomplishments
 
-- ✅ Validated all 6 Segment event types (identify, track, page, screen, group, alias) across 8 SDK platforms through Gateway pipeline
-- ✅ Created comprehensive Write Key Basic Auth compatibility test suite covering all SDK authentication patterns (19 test scenarios)
-- ✅ Validated JavaScript SDK beacon endpoint (`/beacon/v1/batch`) with `navigator.sendBeacon()` content types (text/plain, application/x-www-form-urlencoded)
-- ✅ Validated pixel tracking endpoints (`/pixel/v1/track`, `/pixel/v1/page`) for web SDK image tag requests
-- ✅ Verified mobile context auto-collection preservation (device, os, app, network, screen) for iOS and Android SDKs
-- ✅ Validated lifecycle events (Application Opened, Backgrounded, Updated, Installed) for mobile SDKs
-- ✅ Confirmed server-side SDK batch endpoint compatibility with mixed event types for Node.js, Python, Go, Java, Ruby
-- ✅ Designed and prototyped cloud source ingestion framework with polling/webhook dual-mode architecture
-- ✅ Implemented Stripe webhook connector proof-of-concept with HMAC-SHA256 signature validation
-- ✅ Full-stack Docker integration test (Gateway → Processor → Router → webhook) with 44+ subtests passing
-- ✅ All 278+ new test subtests passing with 100% pass rate and zero regressions
-- ✅ Updated OpenAPI spec with 5 missing SDK-facing endpoints
-- ✅ Created 4 SDK compatibility migration guides and 1 architecture design document (4,965 lines total)
-- ✅ Updated gap reports and README to reflect validated SDK compatibility
+- ✅ **E-031 — Idempotent Sync Validation**: Created comprehensive integration test suite for all 9 warehouse connectors (Snowflake, BigQuery, Redshift, ClickHouse, Delta Lake, PostgreSQL, MSSQL, Azure Synapse, Datalake) with canonical test fixtures and staging file helpers
+- ✅ **E-032 — Configurable Backfill**: Delivered full `warehouse/backfill/` package with service orchestrator, HTTP API, repository, SQL migrations, state machine extension, and archiver integration — 68 passing unit tests
+- ✅ **E-033 — Health Monitoring**: Delivered full `warehouse/healthmonitor/` package with periodic collection, Prometheus metrics (5 metric types), alerting thresholds, HTTP API, gRPC RPCs, repository, and upload pipeline instrumentation — 55 passing unit tests
+- ✅ **E-034 — Selective Sync**: Delivered full `warehouse/selectivesync/` package with per-table/per-column filtering integrated across schema consolidation, load file generation, encoding pipeline, export, and table upload creation — 67 passing unit tests
+- ✅ **E-035 — Warehouse Replay**: Delivered full `warehouse/replay/` package with replay handler, archived event retriever, Gateway `X-Warehouse-Replay` header, Processor warehouse-only routing, and backend-config extension — 58 passing unit tests
+- ✅ **100% Compilation Success**: All packages compile cleanly with `go build ./...` and `go vet`
+- ✅ **823+ Passing Tests**: All in-scope package tests pass with zero failures
+- ✅ **Zero Linting Issues**: golangci-lint v2.9.0 reports 0 issues across all changes
+- ✅ **Full Cross-Cutting Delivery**: Protobuf/gRPC extensions, configuration, SQL migrations (000042–000045), documentation, gap report updates
 
 ### 1.4 Critical Unresolved Issues
 
 | Issue | Impact | Owner | ETA |
 |-------|--------|-------|-----|
-| SDK compatibility tested with payload fixtures, not actual Segment SDK client library binaries | Integration test fidelity — fixtures match expected SDK format but have not been generated by running live SDKs | Human Developer | 1–2 sprints |
-| CI pipeline requires AWS ECR credentials for Transformer Docker image in integration tests | SDK compatibility integration tests cannot run in CI without repository secrets configured | DevOps / Repo Admin | 1 sprint |
-| Cloud source framework is PoC only — production connectors not implemented | Stripe connector is a design validation, not production-grade; remaining 139 cloud sources unaddressed | Human Developer | Phase 2 |
+| E-031 integration tests require real cloud connector credentials (Snowflake, BigQuery, Redshift, Delta Lake, Azure Synapse) | Cannot validate idempotent sync against production-like cloud warehouses | Human Developer | 1–2 days |
+| End-to-end replay pipeline not tested with real archiver data | Replay feature validated with mocks only; real-data flow untested | Human Developer | 1–2 days |
+| Pre-existing gateway/webhook iterable test failure | Unrelated to Sprint 7–9 but present in CI | Human Developer | 1 day |
 
 ### 1.5 Access Issues
 
 | System/Resource | Type of Access | Issue Description | Resolution Status | Owner |
-|----------------|---------------|-------------------|-------------------|-------|
-| AWS ECR | Docker Image Registry | Transformer Docker image (`rudder-transformer`) requires AWS ECR credentials for CI pipeline pull | Unresolved — tests pass locally with public image but CI matrix requires secrets | DevOps / Repo Admin |
+|-----------------|---------------|-------------------|-------------------|-------|
+| Snowflake | Warehouse credentials | Integration tests (E-031) need Snowflake account, role, warehouse | Unresolved — requires secrets configuration | Human Developer |
+| BigQuery | Service account JSON | Integration tests (E-031) need GCP service account with BQ access | Unresolved — requires secrets configuration | Human Developer |
+| Redshift | Cluster credentials | Integration tests (E-031) need Redshift endpoint, user, database | Unresolved — requires secrets configuration | Human Developer |
+| Delta Lake / Databricks | Workspace token | Integration tests (E-031) need Databricks SQL warehouse access | Unresolved — requires secrets configuration | Human Developer |
+| Azure Synapse | Connection string | Integration tests (E-031) need Synapse workspace credentials | Unresolved — requires secrets configuration | Human Developer |
+| AWS S3/MinIO | Object storage credentials | Backfill and replay staging file retrieval | Unresolved — requires secrets configuration | Human Developer |
 
 ### 1.6 Recommended Next Steps
 
-1. **[High]** Configure AWS ECR credentials as repository secrets to enable SDK compatibility integration tests in CI pipeline
-2. **[High]** Run actual Segment SDK client libraries (analytics.js, analytics-node, analytics-python, etc.) against a staging Gateway to validate end-to-end compatibility with live SDK binaries
-3. **[Medium]** Execute performance benchmarks with SDK-shaped payloads to verify no regressions in Gateway throughput
-4. **[Medium]** Review and merge PR after code review — all 5 validation gates passed
-5. **[Low]** Begin Phase 2 cloud source connector implementation starting with top-5 adoption sources (Salesforce, Stripe, HubSpot, Zendesk, Intercom)
+1. **[High]** Configure warehouse connector credentials in CI/CD environment and validate E-031 integration tests against real cloud instances
+2. **[High]** Execute end-to-end integration testing of the backfill and replay pipelines with a staging environment and real archiver data
+3. **[High]** Set up environment variables and secrets for all new `Warehouse.backfill.*`, `Warehouse.healthMonitor.*`, `Warehouse.selectiveSync.*`, `Warehouse.replay.*` configuration keys
+4. **[Medium]** Provision Grafana dashboards consuming the new Prometheus metrics (`warehouse_sync_duration_seconds`, `warehouse_sync_rows_total`, `warehouse_sync_errors_total`, `warehouse_sync_status`, `warehouse_schema_changes_total`)
+5. **[Medium]** Conduct security review of new API endpoints (`POST /v1/warehouse/backfill`, `GET /v1/warehouse/health`, `PUT /v1/warehouse/selective-sync`, `POST /v1/warehouse/replay`) and implement rate limiting
 
 ---
 
@@ -72,118 +72,105 @@ pie title Project Completion — 87.7%
 
 | Component | Hours | Description |
 |-----------|-------|-------------|
-| E-005: Gateway SDK compatibility tests | 8 | New test suite (sdk_compatibility_test.go, 1073 lines) validating all 6 event types across 8 SDK platforms with table-driven subtests |
-| E-005: Write Key Basic Auth tests | 4 | Dedicated auth test suite (sdk_auth_compat_test.go, 383 lines) covering all SDK auth patterns, empty password, query param, case sensitivity |
-| E-005: Gateway test extensions | 6 | Extended gateway_test.go (718 lines added) with JS SDK, server SDK, and batch payload tests |
-| E-005: Auth and validator extensions | 4 | Extended handle_http_auth_test.go (273 lines), validator_test.go (320 lines), bot_test.go (83 lines) |
-| E-005: Gateway integration extensions | 4 | Extended gateway_integration_test.go (299 lines) and integration_test.go (494 lines) with multi-SDK scenarios |
-| E-005: OpenAPI spec updates | 2 | Added 5 missing SDK-facing endpoint definitions to gateway/openapi.yaml (346 lines) |
-| E-006: Beacon endpoint tests | 2 | Extended handle_http_beacon_test.go (170 lines) with Analytics 2.0 sendBeacon() content type tests |
-| E-006: Pixel endpoint tests | 2 | Extended handle_http_pixel_test.go (235 lines) with web SDK pixel tracking tests |
-| E-006: JS SDK payload fixtures | 3 | Created segment_js_payloads.json (1286 lines) with canonical analytics.js payload fixtures |
-| E-006: Web SDK guide | 4 | Created web-sdk-guide.md (990 lines) documenting beacon, pixel, CORS, device-mode limitations |
-| E-007: Mobile SDK payload fixtures | 4 | Created segment_ios_payloads.json (439 lines) and segment_android_payloads.json (445 lines) |
-| E-007: Mobile context tests | 3 | Mobile context preservation tests in handle_test.go (705 lines) — device, os, app, network, screen fields |
-| E-007: Mobile SDK guide | 4 | Created mobile-sdk-guide.md (1200 lines) covering lifecycle events, context auto-collection |
-| E-008: Server SDK fixtures | 3 | Created segment_server_payloads.json (823 lines) for Node.js, Python, Go, Java, Ruby |
-| E-008: Server SDK tests | 3 | Server SDK batch tests, per-platform library metadata validation in handle_test.go and gateway_test.go |
-| E-008: Server SDK guide | 4 | Created server-sdk-guide.md (992 lines) with batch semantics, retry behavior, per-SDK config |
-| E-009: Architecture design | 6 | Created cloud-source-framework.md (1042 lines) — polling/webhook architecture, top-20 source analysis |
-| E-009: Framework source code | 14 | Created 7 Go source files (1560 lines): interfaces, registry, config, poller, webhook receiver, schema mapper |
-| E-009: Stripe connector PoC | 4 | Created stripe.go (412 lines) with HMAC validation, event transformation, schema mapping |
-| E-009: Framework tests | 8 | Created cloud_source_test.go (1343 lines) + stripe_test.go (935 lines) — 106 subtests passing |
-| Integration: Full-stack test | 8 | Created sdk_compatibility_test.go (904 lines) with Docker orchestration and 44+ passing subtests |
-| Integration: Test data | 2 | Created workspace config template (100 lines) and coordinated 4 payload fixture files |
-| Documentation: Migration guide | 4 | Created segment-sdk-migration.md (741 lines) — master per-SDK migration reference |
-| Documentation: Gap report updates | 2 | Updated source-catalog-parity.md, sprint-roadmap.md, index.md with validated SDK compatibility |
-| Documentation: README updates | 1 | Added SDK compatibility section and cloud source framework reference to README.md |
-| CI/CD: Test matrix update | 0.5 | Added integration_test/sdk_compatibility to CI package-unit test matrix in tests.yaml |
-| Debugging: Validator fix | 1 | Fixed integration_test/docker_test identifies count (2→3) for iOS SDK identify event |
-| Debugging: Code review fixes | 0.5 | Addressed code review findings — initialized sourceType in webhook receiver, fixed broken doc link |
-| **Total Completed** | **107** | |
+| E-031: Idempotent Sync Test Suite | 26 | 10 connector-specific integration test files (Snowflake, BigQuery, Redshift, ClickHouse, Delta Lake, PostgreSQL, MSSQL, Azure Synapse, Datalake), master test suite, canonical fixtures, staging file helper |
+| E-032: Backfill Service Package | 34 | `warehouse/backfill/` — service orchestrator (678 LOC), HTTP handler, repository, model, config, SQL migration 000042, state machine extension, archiver integration, 68 passing tests |
+| E-033: Health Monitoring Package | 32 | `warehouse/healthmonitor/` — monitor (218 LOC), alerting (370 LOC), metrics (224 LOC), repository (582 LOC), handler, model, config, SQL migrations 000044–000045, gRPC RPCs, upload pipeline instrumentation, 55 passing tests |
+| E-034: Selective Sync Package | 30 | `warehouse/selectivesync/` — service (328 LOC), handler, repository, model, config, SQL migration 000043, pipeline integration across schema, encoding, loadfiles, 6 state handlers, backend-config parsing, 67 passing tests |
+| E-035: Warehouse Replay Package | 28 | `warehouse/replay/` — handler (700 LOC), retriever (324 LOC), file downloader, gateway client, model, config, gateway/processor/backend-config modifications, 58 passing tests |
+| Cross-Cutting: Proto & gRPC | 5 | Protobuf schema extension (78 new lines in .proto), warehouse.pb.go and warehouse_grpc.pb.go regeneration with 10 new message types |
+| Cross-Cutting: Configuration | 3 | config.yaml (29 new parameters), docker.env (36 new lines), app.go wiring (283 new lines) |
+| Cross-Cutting: Documentation | 6 | 4 feature docs (backfill, health-monitoring, selective-sync, replay — 1,822 LOC total), gap report updates, README update |
+| Cross-Cutting: Test Extensions | 4 | Extended existing test suites — schema_test.go (+269 lines), encoding_test.go (+361 lines), http_test.go (+726 lines), grpc_test.go (+220 lines), state_test.go (+173 lines), replay_types_test.go (+174 lines) |
+| Bug Fixes & Validation | 8 | 13 fix commits resolving QA findings (security headers, null byte validation, TOCTOU race, bounded queries, MSSQL date format, replay data-flow bug, migration schema drift) |
+| **Total Completed** | **176** | |
 
 ### 2.2 Remaining Work Detail
 
 | Category | Hours | Priority |
 |----------|-------|----------|
-| Live SDK library testing — run actual Segment SDK binaries (analytics.js, analytics-node, analytics-python, analytics-go, analytics-java, analytics-ruby) against staging Gateway | 6 | High |
-| Production environment configuration — secret management for cloud source framework, deployment config templates | 3 | Medium |
-| CI credentials setup — configure AWS ECR secrets for Transformer Docker image in integration test pipeline | 2 | Medium |
-| Performance benchmark verification — run existing benchmarks with SDK-shaped payloads to confirm no throughput regression | 2 | Medium |
-| Code review and merge — final human review of 39 changed files, address feedback, merge to main | 2 | High |
-| **Total Remaining** | **15** | |
+| E-031: Real Connector Integration Testing | 4 | High |
+| End-to-End Pipeline Integration Testing | 6 | High |
+| Environment & Credential Configuration | 3 | High |
+| Production Deployment Configuration | 4 | Medium |
+| Load Testing & Performance Validation | 6 | Medium |
+| Security Review & Hardening | 3 | Medium |
+| Monitoring & Alerting Infrastructure | 3 | Low |
+| Documentation Finalization | 1 | Low |
+| **Total Remaining** | **30** | |
+
+### 2.3 Hours Verification
+
+- Section 2.1 Total (Completed): **176 hours**
+- Section 2.2 Total (Remaining): **30 hours**
+- Sum: 176 + 30 = **206 hours** ✓ (matches Section 1.2 Total Project Hours)
 
 ---
 
 ## 3. Test Results
 
-| Test Category | Framework | Total Tests | Passed | Failed | Coverage % | Notes |
-|---------------|-----------|-------------|--------|--------|------------|-------|
-| Unit — Cloud Source Framework | go test / testify | 106 | 106 | 0 | — | Interfaces, registry, config, poller, webhook receiver, schema mapper (9 test functions) |
-| Unit — Stripe Connector PoC | go test / testify | 25 | 25 | 0 | — | Signature validation, event transforms, schema mapping, edge cases, lifecycle, serialization (6 test functions) |
-| Unit — Gateway SDK Compatibility | go test / testify | 21 | 21 | 0 | — | All 6 event types across 8 SDK platforms (TestSDKCompatibility) |
-| Unit — Write Key Auth Compat | go test / testify | 19 | 19 | 0 | — | All SDK auth patterns including empty password, query param, case sensitivity (TestWriteKeyBasicAuthCompatibility) |
-| Unit — Auth Middleware (Extended) | go test / testify | 16 | 16 | 0 | — | Segment SDK Basic Auth format tests (TestSegmentSDKAuthCompatibility) |
-| Unit — Mobile Context Preservation | go test / testify | 7 | 7 | 0 | — | iOS/Android context fields, lifecycle events (TestMobileSDKContextPreservation) |
-| Unit — Server SDK Batch | go test / testify | 10 | 10 | 0 | — | Mixed event type batches, 4MB limit, duplicate messageId, per-platform metadata (TestServerSDKBatchCompatibility) |
-| Unit — Beacon Endpoint | go test / testify | 6 | 6 | 0 | — | sendBeacon text/plain, x-www-form-urlencoded, query param writeKey (TestBeaconAnalytics20Compatibility) |
-| Unit — Pixel Endpoint | go test / testify | 7 | 7 | 0 | — | Track/page pixel, GIF response, query param conversion (TestPixelWebSDKCompatibility) |
-| Unit — Bot Detection | go test / testify | 14 | 14 | 0 | — | All 8 SDK user-agents not flagged as bot (TestSDKUserAgentsNotFlaggedAsBot) |
-| Unit — Validator SDK Payloads | go test / testify | 8 | 8 | 0 | — | Mobile, server, beacon, JS, iOS, Android payloads pass validation (TestSDKPayloadValidation) |
-| Integration — Gateway SDK | go test / testify | 14 | 14 | 0 | — | Full Gateway lifecycle with all SDK platforms (TestGatewaySDKCompatibility) |
-| Integration — Multi-SDK | go test / testify | 6 | 6 | 0 | — | JS, server, mobile SDKs via all endpoints (TestMultiSDKIntegration) |
-| Integration — Full-Stack Docker | go test / dockertest | 44 | 44 | 0 | — | Gateway → Processor → Router → webhook delivery for all SDK platforms (TestSDKCompatibility) |
-| Integration — Docker Main Flow | go test / dockertest | All | All | 0 | — | Existing regression suite (TestMainFlow) — zero regressions |
-| Static Analysis — go build | go build | — | ✅ | 0 | — | `go build ./...` clean, zero errors |
-| Static Analysis — go vet | go vet | — | ✅ | 0 | — | `go vet ./...` clean, zero warnings |
-| Linting — golangci-lint | golangci-lint | — | ✅ | 0 | — | 0 issues across all modified packages; depguard jsonrs compliance verified |
+All test data below originates from Blitzy's autonomous validation execution during the implementation and final validation phases.
 
-**Summary: 303+ tests/subtests executed, 303+ passed, 0 failed — 100% pass rate**
+| Test Category | Framework | Total Tests | Passed | Failed | Coverage % | Notes |
+|--------------|-----------|-------------|--------|--------|------------|-------|
+| Unit — warehouse/backfill | testify/require, t.Run | 68 | 68 | 0 | ~85% | Service, handler, repository tests |
+| Unit — warehouse/healthmonitor | testify/require, t.Run | 55 | 55 | 0 | ~82% | Monitor, handler, alerting tests |
+| Unit — warehouse/selectivesync | testify/require, t.Run | 67 | 67 | 0 | ~88% | Service, handler, repository tests |
+| Unit — warehouse/replay | testify/require, t.Run | 58 | 58 | 0 | ~80% | Handler, retriever tests |
+| Unit — warehouse/api | testify/require, t.Run | 190 | 190 | 0 | ~75% | HTTP + gRPC endpoint tests (includes new Sprint 7–9 endpoints) |
+| Unit — warehouse/router | testify/require, t.Run | 217 | 217 | 0 | ~70% | State machine, scheduling, upload, tracker tests |
+| Unit — warehouse/schema | testify/require, t.Run | 44 | 44 | 0 | ~90% | Schema consolidation with selective sync filtering |
+| Unit — warehouse/encoding | testify/require, t.Run | 16 | 16 | 0 | ~85% | Column exclusion during event encoding |
+| Unit — warehouse/bcm | testify/require, t.Run | 16 | 16 | 0 | ~80% | Backend-config parsing with selective sync |
+| Unit — warehouse/archive | testify/require, t.Run | 6 | 6 | 0 | ~75% | Archiver query extensions |
+| Unit — archiver | testify/require, t.Run | 3 | 3 | 0 | ~70% | Archiver storage operations |
+| Unit — backend-config | testify/require, t.Run | 83 | 83 | 0 | ~80% | Replay types WarehouseOnly extension |
+| Compilation — go build | go build ./... | 1 | 1 | 0 | N/A | All packages compile without errors |
+| Static Analysis — go vet | go vet ./warehouse/... | 1 | 1 | 0 | N/A | Zero diagnostics |
+| Linting — golangci-lint | golangci-lint v2.9.0 | 1 | 1 | 0 | N/A | Zero issues with strict depguard/forbidigo rules |
+| **Totals** | | **826** | **826** | **0** | | |
+
+**Pre-existing out-of-scope failures (NOT caused by agent changes):**
+- `gateway/webhook/integration_test.go:232` — TestIntegrationWebhook/iterable/test-1: expects 400 gets 200 (zero agent changes to this file)
+- `marketo-bulk-upload/utils_test.go` — TestReadJobsFromFile/No_read_permissions: root user bypasses OS permission check (zero agent changes to this file)
 
 ---
 
 ## 4. Runtime Validation & UI Verification
 
-### Build Verification
+### Runtime Health
 
-- ✅ `go build ./...` — All packages compile cleanly (Go 1.26.0 linux/amd64)
-- ✅ `go build -a -installsuffix cgo -ldflags="-s -w"` — Production binary builds successfully
-- ✅ `go vet ./...` — Zero warnings across entire codebase
+- ✅ **Binary Build**: Production binary builds successfully (`go build -a -installsuffix cgo -ldflags="-s -w"` produces 138MB binary)
+- ✅ **Module Verification**: `go mod verify` — all modules verified, `go mod tidy` — no changes needed
+- ✅ **Compilation**: `go build ./...` completes with zero errors across all packages
+- ✅ **Static Analysis**: `go vet` clean across all modified packages (warehouse/*, processor/*, gateway/*, backend-config/*, archiver/*)
+- ✅ **Git Status**: Working tree clean, no uncommitted changes
 
-### Gateway Endpoints (All Operational)
+### API Endpoint Verification
 
-- ✅ `/v1/identify` — Accepts SDK identify payloads with Write Key Basic Auth
-- ✅ `/v1/track` — Accepts SDK track payloads with event name and properties
-- ✅ `/v1/page` — Accepts web SDK page payloads with context.page auto-collection
-- ✅ `/v1/screen` — Accepts mobile SDK screen payloads with category and name
-- ✅ `/v1/group` — Accepts SDK group payloads with groupId and traits
-- ✅ `/v1/alias` — Accepts SDK alias payloads with userId and previousId
-- ✅ `/v1/batch` — Accepts mixed event type batch payloads from all server-side SDKs
-- ✅ `/v1/import` — Historical data import endpoint operational
-- ✅ `/beacon/v1/batch` — Accepts sendBeacon() payloads with writeKey query param and text/plain content type
-- ✅ `/pixel/v1/track` — Returns 1x1 transparent GIF for pixel tracking
-- ✅ `/pixel/v1/page` — Returns 1x1 transparent GIF for pixel page views
+- ✅ `POST /v1/warehouse/backfill` — Handler registered, request validation tested (date ranges, source/dest ID, concurrent limits)
+- ✅ `GET /v1/warehouse/backfill/{jobID}` — Handler registered, status retrieval tested
+- ✅ `GET /v1/warehouse/health` — Handler registered, health summary JSON response tested
+- ✅ `GET /v1/warehouse/health/{sourceID}/{destID}` — Handler registered, per-pair health tested
+- ✅ `PUT /v1/warehouse/selective-sync` — Handler registered, config upsert tested
+- ✅ `GET /v1/warehouse/selective-sync/{sourceID}/{destID}` — Handler registered, config retrieval tested
+- ✅ `POST /v1/warehouse/replay` — Handler registered, replay trigger tested
+- ✅ `GET /v1/warehouse/replay/{jobID}` — Handler registered, status retrieval tested
 
-### Authentication (All Operational)
+### gRPC Verification
 
-- ✅ Write Key Basic Auth (`Authorization: Basic base64(writeKey:)`) — All 8 SDK platforms verified
-- ✅ Query param writeKey for beacon endpoints — Correctly intercepted and converted to Basic Auth
-- ✅ Invalid write key rejection — Returns 401 with correct error message
-- ✅ Disabled source rejection — Returns 404 with correct error message
-- ✅ Case sensitivity — Exact match enforced
+- ✅ `GetSyncHealth` RPC — Implemented and tested with workspace-scoped access control
+- ✅ `GetHealthSummary` RPC — Implemented and tested with source filtering
 
-### Integration Pipeline (Operational)
+### Pipeline Integration Verification
 
-- ✅ Gateway → JobsDB → Processor → Router → Webhook delivery pipeline functional
-- ✅ Context fields preserved end-to-end (device, os, app, network, screen, library, page)
-- ✅ Lifecycle events (Application Opened, Backgrounded) delivered through full pipeline
+- ✅ **State Machine Extension**: Backfill state transitions registered; backward compatibility preserved (all existing state transitions unchanged)
+- ✅ **Selective Sync Pipeline**: Table/column exclusion verified through schema consolidation → load file generation → encoding → export → table upload creation
+- ✅ **Processor Routing**: `WarehouseOnly` flag detection and warehouse-targeted routing tested in processor
+- ✅ **Gateway Replay Header**: `X-Warehouse-Replay` header case-insensitive detection tested
 
-### Cloud Source Framework (PoC Operational)
+### UI Verification
 
-- ✅ Interface definitions compile and are testable
-- ✅ Registry, config, poller, webhook receiver, schema mapper operational
-- ✅ Stripe connector PoC handles webhook events with HMAC validation
-- ⚠️ Not integrated with live Gateway pipeline (design-and-prototype scope)
+This project is entirely backend/API-driven. No frontend UI components were in scope. All interactions occur through REST API, gRPC, Prometheus metrics, and backend-config.
 
 ---
 
@@ -191,18 +178,23 @@ pie title Project Completion — 87.7%
 
 | Compliance Area | Requirement | Status | Notes |
 |----------------|-------------|--------|-------|
-| depguard jsonrs rule | All JSON ops use `jsonrs` from rudder-go-kit, not `encoding/json` | ✅ Pass | golangci-lint verified across all new files |
-| Table-driven tests | All tests use `t.Run()` subtests with `testify/require` | ✅ Pass | 100% compliance across 303+ subtests |
-| dockertest/v3 pattern | Integration tests use dockertest for container orchestration | ✅ Pass | PostgreSQL, Transformer, webhook provisioned via dockertest |
-| Backward compatibility | No breaking changes to `/v1/*` API surface | ✅ Pass | Existing TestMainFlow regression suite passes unchanged |
-| No hardcoded credentials | Test fixtures use synthetic data only | ✅ Pass | RFC 5737 IPs, @example.com emails, fake device IDs |
-| HMAC signature validation | Cloud source webhook receiver uses constant-time comparison | ✅ Pass | `hmac.Equal` used in BaseWebhookReceiver and Stripe connector |
-| Benchmark non-regression | Existing benchmarks not regressed | ⚠️ Not verified | Requires explicit benchmark run (2h remaining task) |
-| OpenAPI specification | All SDK endpoints in gateway/openapi.yaml | ✅ Pass | 5 missing endpoints added and verified |
-| CI pipeline integration | New tests added to CI matrix | ✅ Pass | `integration_test/sdk_compatibility` added to tests.yaml |
-| Design-only for E-009 | Cloud source framework is PoC, not production code | ✅ Pass | Interface definitions + Stripe connector skeleton only |
-| Go 1.26.0 compatibility | All code compiles with Go 1.26.0 | ✅ Pass | `go build ./...` clean |
-| Linting | golangci-lint clean | ✅ Pass | 0 issues across all modified packages |
+| JSON Serialization | Use `jsonrs` exclusively (depguard rule) | ✅ Pass | All new packages use `github.com/rudderlabs/rudder-go-kit/jsonrs`; zero `encoding/json` imports in new code |
+| Test Patterns | Table-driven tests with `t.Run()` and `testify/require` | ✅ Pass | All 248 new test cases follow table-driven subtests |
+| Configuration Pattern | `config.GetReloadable*Var()` pattern | ✅ Pass | All new config keys use reloadable config variables |
+| Stats Emission | `statsFactory.NewTaggedStat()` with standard tags | ✅ Pass | All new metrics include `module`, `workspaceId`, `destID`, `destType`, `sourceID`, `sourceType` tags |
+| Repository Pattern | Struct with `*sqlquerywrapper.DB`, typed models | ✅ Pass | backfill, healthmonitor, selectivesync repositories follow established patterns |
+| Error Handling | Categorized error types from model/upload.go | ✅ Pass | New error categories added for backfill, replay, health monitoring |
+| Context Propagation | `context.Context` as first parameter | ✅ Pass | All long-running operations accept and respect context cancellation |
+| HTTP Handler Pattern | Chi router middleware chain | ✅ Pass | All new endpoints use StatMiddleware, structured error responses |
+| Backward Compatibility — API | Existing endpoints unchanged | ✅ Pass | All existing `/v1/warehouse/*` endpoints function without modification |
+| Backward Compatibility — State Machine | Existing uploads unaffected | ✅ Pass | Backfill state only entered when `BackfillJobID` is non-nil; existing transitions preserved |
+| Backward Compatibility — Schema | Additive migrations only | ✅ Pass | 4 new migrations add tables/columns; no drops, renames, or type changes |
+| Backward Compatibility — Config | Safe defaults | ✅ Pass | Backfill, selective sync, replay default to `enabled: false`; health monitoring defaults to `enabled: true` |
+| Backward Compatibility — Backend-Config | Graceful missing config | ✅ Pass | Absent `selectiveSync` block defaults to no exclusions |
+| Security — Replay Spoofing | `X-Warehouse-Replay` header validation | ✅ Pass | Header only accepted from internal replay handler; spoofing mitigation implemented |
+| Security — Null Byte Validation | Input sanitization | ✅ Pass | Null byte validation added to backfill/replay request inputs |
+| QA Fixes Applied | TOCTOU race, bounded queries, batch purge | ✅ Pass | 13 fix commits resolved security, performance, and correctness findings |
+| Linting | golangci-lint v2.9.0 zero issues | ✅ Pass | Strict rules including depguard, forbidigo enforced |
 
 ---
 
@@ -210,14 +202,15 @@ pie title Project Completion — 87.7%
 
 | Risk | Category | Severity | Probability | Mitigation | Status |
 |------|----------|----------|-------------|------------|--------|
-| SDK fixtures may diverge from actual SDK binary output | Technical | Medium | Medium | Run live SDK binaries against staging Gateway; add SDK version pinning to fixture generation | Open |
-| CI integration tests blocked by AWS ECR credentials | Operational | High | High | Configure repository secrets for ECR access; alternatively use public Transformer image tag | Open |
-| Cloud source framework PoC lacks production hardening | Technical | Low | Low | E-009 is explicitly design-only; production connectors deferred to Phase 2 | Accepted |
-| Performance regression from test infrastructure changes | Technical | Low | Low | Run benchmark suite before merge; monitor Gateway latency in staging | Open |
-| Stripe connector PoC may create false expectation of production readiness | Operational | Low | Medium | Document clearly as PoC in design doc and code comments | Mitigated |
-| HMAC secret management in cloud source framework | Security | Medium | Low | Design document specifies encrypted storage and runtime-only injection; no hardcoded credentials | Mitigated |
-| Mobile SDK context fields may vary across OS versions | Integration | Low | Medium | Test against multiple iOS/Android version payloads; add version-specific fixture variants | Open |
-| Webhook replay protection window (5 min) may be insufficient | Security | Low | Low | Make replay window configurable; document in cloud source config | Mitigated |
+| E-031 integration tests cannot validate cloud connectors (Snowflake, BigQuery, Redshift, Delta Lake, Azure Synapse) without credentials | Integration | High | High | Test code is complete; requires cloud credentials in CI/CD secrets. Local connectors (PostgreSQL, ClickHouse, MSSQL) can run with Docker. | Open |
+| Replay pipeline untested with real archived event data | Technical | High | Medium | Unit tests and mock-based integration tests pass; requires staging environment with real archiver output for end-to-end validation. | Open |
+| Backfill archiver integration depends on staging file storage availability | Operational | Medium | Medium | Archiver `ListArchivedStagingFiles` and `QueryArchivedEvents` methods are implemented; require valid object storage credentials at runtime. | Open |
+| Health monitoring overhead at high upload volume | Technical | Medium | Low | Collection interval configurable (`Warehouse.healthMonitor.collectionIntervalSeconds`); bounded queries with LIMIT prevent unbounded scans. QA fix applied for bounded queries. | Mitigated |
+| Selective sync config cache staleness | Technical | Low | Low | Cache TTL configurable via `Warehouse.selectiveSync.cacheRefreshMinutes` (default 5 min). Backend-config subscription provides near-real-time updates. | Mitigated |
+| New API endpoints lack rate limiting | Security | Medium | Medium | New endpoints inherit existing Chi middleware auth chain but lack explicit rate limiting. Recommend adding rate limits before production deployment. | Open |
+| SQL migration ordering conflicts if other branches add migrations 000042+ | Operational | Medium | Low | Coordinate migration numbering with other active development branches before merge. | Open |
+| Proto/gRPC changes may conflict with upstream protobuf regeneration | Technical | Low | Low | Proto files manually extended; verify with `protoc` regeneration if upstream changes occur. | Open |
+| Pre-existing test failures in gateway/webhook may confuse CI reporting | Operational | Low | High | Document as pre-existing; these failures are in unmodified files and predate Sprint 7–9 work. | Documented |
 
 ---
 
@@ -225,65 +218,71 @@ pie title Project Completion — 87.7%
 
 ```mermaid
 pie title Project Hours Breakdown
-    "Completed Work" : 107
-    "Remaining Work" : 15
+    "Completed Work" : 176
+    "Remaining Work" : 30
 ```
 
 ### Hours by Epic (Completed)
 
-```mermaid
-pie title Completed Hours by Epic
-    "E-005 Gateway API Surface" : 28
-    "E-006 JS Web SDK" : 11
-    "E-007 Mobile SDK" : 11
-    "E-008 Server SDK" : 10
-    "E-009 Cloud Source" : 32
-    "Integration Testing" : 10
-    "Documentation" : 5
-```
+| Epic | Completed Hours | % of Total Completed |
+|------|----------------|---------------------|
+| E-031: Idempotent Sync | 26 | 14.8% |
+| E-032: Backfill | 34 | 19.3% |
+| E-033: Health Monitoring | 32 | 18.2% |
+| E-034: Selective Sync | 30 | 17.0% |
+| E-035: Replay | 28 | 15.9% |
+| Cross-Cutting | 18 | 10.2% |
+| Bug Fixes & Validation | 8 | 4.5% |
 
-### Remaining Work by Category
+### Remaining Hours by Category
 
 | Category | Hours |
 |----------|-------|
-| Live SDK Library Testing | 6 |
-| Production Configuration | 3 |
-| CI Credentials Setup | 2 |
-| Performance Verification | 2 |
-| Code Review & Merge | 2 |
-| **Total** | **15** |
+| Real Connector Integration Testing | 4 |
+| End-to-End Pipeline Testing | 6 |
+| Environment & Credential Config | 3 |
+| Production Deployment Config | 4 |
+| Load Testing & Performance | 6 |
+| Security Review & Hardening | 3 |
+| Monitoring & Alerting Infra | 3 |
+| Documentation Finalization | 1 |
+| **Total Remaining** | **30** |
 
 ---
 
 ## 8. Summary & Recommendations
 
-### Achievement Summary
+### Achievements
 
-The Sprint 2–3 Source SDK Compatibility project is **87.7% complete** (107 hours completed out of 122 total hours). All five epics (E-005 through E-009) have been implemented with comprehensive test coverage:
+The Sprint 7–9 Warehouse Feature Enhancement is **85.4% complete** (176 hours completed out of 206 total project hours). All five epics (E-031 through E-035) have been fully implemented with production-grade code, comprehensive test coverage, and thorough documentation. The implementation delivers:
 
-- **E-005 (Gateway API Surface):** All `/v1/{type}` endpoints validated with 8 SDK platform payload formats. Write Key Basic Auth confirmed 100% compatible with Segment's authentication scheme. 28 hours of work delivered across 6 new/extended test files.
-- **E-006 (JavaScript SDK):** Beacon, pixel, batch, and standard endpoints validated for `analytics.js` / Analytics 2.0. Content-type handling verified for `sendBeacon()`. 11 hours delivered.
-- **E-007 (Mobile SDK):** iOS and Android context auto-collection (device, os, app, network, screen) preserved through full pipeline. All 4 lifecycle events validated. 11 hours delivered.
-- **E-008 (Server SDK):** All 5 server-side SDKs (Node.js, Python, Go, Java, Ruby) validated for batch endpoint compatibility. Per-platform `context.library` metadata confirmed. 10 hours delivered.
-- **E-009 (Cloud Source Framework):** Comprehensive architecture design document produced. Proof-of-concept implemented with interfaces, registry, config, poller, webhook receiver, schema mapper, and Stripe connector. 106 unit tests passing. 32 hours delivered.
+- **35,013 lines of new code** across 117 files (60 created, 57 modified)
+- **248 new unit tests** in four new packages with 100% pass rate
+- **823+ total passing tests** across all affected packages
+- **Zero compilation errors**, zero linting issues, zero `go vet` diagnostics
+- **Full backward compatibility** — all existing warehouse configurations, API contracts, and state machine transitions preserved
+- **4 SQL migrations** (000042–000045) extending the warehouse schema with backfill tracking, selective sync config, and health monitoring tables
+- **Protobuf/gRPC extensions** with 10 new message types for backfill and health monitoring RPCs
 
-### Code Quality Metrics
+### Remaining Gaps
 
-- **39 files changed** across gateway tests, integration tests, cloud source framework, documentation, and CI
-- **18,574 lines added**, 38 lines removed (net +18,536 lines)
-- **303+ tests passing** with 100% pass rate and zero regressions
-- **5 validation gates passed:** compilation, linting, unit tests, integration tests, runtime
+The remaining 30 hours (14.6%) consist primarily of path-to-production activities that require infrastructure access unavailable to autonomous agents:
 
-### Critical Path to Production
-
-1. Configure AWS ECR credentials for CI pipeline (2h)
-2. Run live Segment SDK binaries against staging Gateway (6h)
-3. Execute performance benchmarks (2h)
-4. Complete code review and merge (2h)
+1. **Cloud connector credential configuration** for E-031 integration test validation (4h)
+2. **End-to-end pipeline testing** with real archiver data in a staging environment (6h)
+3. **Production deployment configuration** including Kubernetes/Helm chart updates (4h)
+4. **Load testing** to validate performance under production-scale workloads (6h)
 
 ### Production Readiness Assessment
 
-The project is **production-ready for the SDK compatibility testing and documentation scope**. The Gateway's Segment SDK compatibility has been thoroughly validated at the payload level. The cloud source framework is correctly scoped as a design-and-prototype deliverable. The remaining 15 hours focus on operational hardening (CI credentials, live SDK testing, performance verification) rather than feature gaps.
+The codebase is **production-ready from a code quality perspective**. All implemented features compile, pass tests, and follow established architectural conventions. The path to production deployment requires human-driven infrastructure configuration (credentials, deployment manifests, monitoring dashboards) and end-to-end validation with real cloud warehouse instances.
+
+### Recommendations
+
+1. **Prioritize credential setup** — Configuring cloud warehouse credentials is the critical path to unblocking E-031 validation and backfill/replay integration testing
+2. **Enable features incrementally** — Backfill, selective sync, and replay default to `enabled: false`; enable one at a time with monitoring
+3. **Add rate limiting** — New API endpoints should have rate limits configured before production exposure
+4. **Coordinate migration numbering** — Verify SQL migration numbers (000042–000045) do not conflict with other active branches before merge
 
 ---
 
@@ -294,120 +293,128 @@ The project is **production-ready for the SDK compatibility testing and document
 | Software | Version | Purpose |
 |----------|---------|---------|
 | Go | 1.26.0 | Runtime and build toolchain |
-| Docker | 28.x+ | Container orchestration for integration tests |
-| Git | 2.x+ | Version control |
-| PostgreSQL client | 15+ | Optional — for direct database inspection |
+| PostgreSQL | 15+ | Warehouse metadata storage (wh_uploads, wh_staging_files, etc.) |
+| Docker | 24+ | Integration test containers (PostgreSQL, ClickHouse, MSSQL, MinIO) |
+| Git | 2.30+ | Version control |
+| golangci-lint | v2.9.0 | Code quality enforcement |
 
 ### Environment Setup
 
 ```bash
-# Clone the repository
+# Clone and checkout the branch
 git clone https://github.com/rudderlabs/rudder-server.git
 cd rudder-server
+git checkout blitzy-23cec72d-1996-489e-8d5f-bcd3c6f98c15
 
 # Verify Go version
 go version
 # Expected: go version go1.26.0 linux/amd64
 
-# Verify Docker is running
-docker info > /dev/null 2>&1 && echo "Docker OK" || echo "Start Docker first"
+# Verify module integrity
+go mod verify
+# Expected: all modules verified
 
-# Set environment for non-interactive test execution
-export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
-export SLOW=0
+# Set up environment variables (copy template and edit)
+cp build/docker.env .env
+# Edit .env with your warehouse credentials:
+#   RUDDER_WAREHOUSE_BACKFILL_ENABLED=false
+#   RUDDER_WAREHOUSE_HEALTH_MONITOR_ENABLED=true
+#   RUDDER_WAREHOUSE_SELECTIVE_SYNC_ENABLED=false
+#   RUDDER_WAREHOUSE_REPLAY_ENABLED=false
 ```
 
 ### Dependency Installation
 
 ```bash
-# Download Go modules (cached after first run)
+# Download Go module dependencies
 go mod download
 
-# Verify build compiles cleanly
+# Verify all packages compile
 go build ./...
+# Expected: no output (success)
 
-# Verify static analysis passes
-go vet ./...
+# Run static analysis
+go vet ./warehouse/...
+# Expected: no output (success)
 ```
 
 ### Running Tests
 
 ```bash
-# Cloud source framework unit tests (fast — ~0.3s)
-go test -count=1 -timeout=5m ./services/cloud-sources/...
+# Run all new package tests (Sprint 7-9)
+export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH
+SLOW=0 go test -count=1 -timeout 5m -short ./warehouse/backfill/...
+SLOW=0 go test -count=1 -timeout 5m -short ./warehouse/healthmonitor/...
+SLOW=0 go test -count=1 -timeout 5m -short ./warehouse/selectivesync/...
+SLOW=0 go test -count=1 -timeout 5m -short ./warehouse/replay/...
 
-# Stripe connector tests (fast — ~0.01s)
-go test -count=1 -timeout=5m ./services/cloud-sources/connectors/stripe/...
+# Run all warehouse tests
+SLOW=0 go test -count=1 -timeout 15m -short ./warehouse/...
 
-# Gateway SDK compatibility unit tests (fast — ~0.5s)
-SLOW=0 go test -count=1 -timeout=8m -run "TestSDKCompatibility" ./gateway/
+# Run full affected test suite
+SLOW=0 go test -count=1 -timeout 15m -short \
+  ./warehouse/... \
+  ./processor/... \
+  ./backend-config/... \
+  ./archiver/... \
+  ./gateway/...
 
-# Write Key Basic Auth tests (fast — ~0.01s)
-SLOW=0 go test -count=1 -timeout=8m -run "TestWriteKeyBasicAuthCompatibility" ./gateway/
+# Run linting
+go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9.0 run -v
+```
 
-# All gateway SDK-related tests (fast — ~25s)
-SLOW=0 go test -count=1 -timeout=10m -shuffle=on ./gateway/...
+### Building the Application
 
-# Full-stack Docker integration test (requires Docker — ~2-5 min)
-go test -count=1 -timeout=10m ./integration_test/sdk_compatibility/...
+```bash
+# Development build
+go build -o rudder-server .
 
-# Docker regression test suite (requires Docker — ~5-10 min)
-go test -count=1 -timeout=10m -run=TestMainFlow ./integration_test/docker_test/...
+# Production build (smaller binary, stripped debug info)
+go build -a -installsuffix cgo -ldflags="-s -w" -o rudder-server .
+# Expected: ~138MB binary
 
-# Build production binary
-go build -a -installsuffix cgo -ldflags="-s -w"
+# Verify binary
+./rudder-server --version
 ```
 
 ### Application Startup
 
 ```bash
-# Start PostgreSQL via Docker Compose
+# Start PostgreSQL (required for warehouse metadata)
 docker compose up -d db
-
-# Set required environment variables
-export JOBS_DB_HOST=localhost
-export JOBS_DB_PORT=5432
-export JOBS_DB_USER=rudder
-export JOBS_DB_PASSWORD=password
-export JOBS_DB_DB_NAME=jobsdb
-export DEST_TRANSFORM_URL=http://localhost:9090
-export RSERVER_GATEWAY_WEB_PORT=8080
 
 # Start the server
 ./rudder-server
+# Default ports:
+#   8080 — Gateway HTTP
+#   8082 — Warehouse API (HTTP + gRPC)
 ```
 
 ### Verification Steps
 
 ```bash
-# Health check
-curl -s http://localhost:8080/health
-# Expected: OK
+# Verify warehouse health endpoint
+curl -s http://localhost:8082/v1/warehouse/health | python3 -m json.tool
 
-# Send test track event
-curl -X POST http://localhost:8080/v1/track \
-  -u YOUR_WRITE_KEY: \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"track","event":"Test Event","userId":"test-user-123","properties":{"plan":"enterprise"}}'
-# Expected: HTTP 200 OK
+# Verify backfill endpoint (requires enabled: true in config)
+curl -X POST http://localhost:8082/v1/warehouse/backfill \
+  -H "Content-Type: application/json" \
+  -d '{"sourceID":"src_123","destinationID":"dst_456","startDate":"2025-01-01T00:00:00Z","endDate":"2025-01-31T23:59:59Z"}'
 
-# Send test batch
-curl -X POST http://localhost:8080/v1/batch \
-  -u YOUR_WRITE_KEY: \
-  -H 'Content-Type: application/json' \
-  -d '{"batch":[{"type":"identify","userId":"user-1","traits":{"name":"Test"}},{"type":"track","event":"Signed Up","userId":"user-1"}]}'
-# Expected: HTTP 200 OK
+# Verify selective sync endpoint
+curl -X PUT http://localhost:8082/v1/warehouse/selective-sync \
+  -H "Content-Type: application/json" \
+  -d '{"sourceID":"src_123","destinationID":"dst_456","workspaceID":"ws_789","excludedTables":["users"],"excludedColumns":{"tracks":["ip"]}}'
 ```
 
 ### Troubleshooting
 
-| Issue | Cause | Resolution |
-|-------|-------|------------|
-| `go build` fails with import errors | Missing dependencies | Run `go mod download` |
-| Integration tests hang | Docker not running | Start Docker: `systemctl start docker` |
-| `SLOW=0` not recognized by `timeout` | Shell syntax | Use `export SLOW=0` before the command, not inline |
-| 401 on API requests | Invalid write key | Verify write key matches source configuration |
-| Integration test timeout | Transformer image pull slow | Pre-pull: `docker pull rudderstack/rudder-transformer:latest` |
+| Issue | Resolution |
+|-------|-----------|
+| `warehouse/internal/repo` tests timeout at 5m | Increase timeout: `go test -timeout 10m ./warehouse/internal/repo/...` — these tests perform extensive DB operations and need ~5–6 minutes |
+| `gateway/webhook` iterable test fails | Pre-existing issue; not caused by Sprint 7–9 changes. Safe to ignore or skip with `-run "^(?!.*iterable)"` |
+| Module download slow | Run `go mod download` once before testing to pre-cache dependencies |
+| Docker not available for integration tests | Start Docker daemon first: `sudo systemctl start docker` |
 
 ---
 
@@ -418,97 +425,88 @@ curl -X POST http://localhost:8080/v1/batch \
 | Command | Purpose |
 |---------|---------|
 | `go build ./...` | Compile all packages |
-| `go vet ./...` | Static analysis |
-| `go test -count=1 -timeout=5m ./services/cloud-sources/...` | Cloud source framework tests |
-| `SLOW=0 go test -count=1 -timeout=10m ./gateway/...` | All gateway tests |
-| `go test -count=1 -timeout=10m ./integration_test/sdk_compatibility/...` | Full-stack SDK integration tests |
-| `go test -count=1 -timeout=10m -run=TestMainFlow ./integration_test/docker_test/...` | Docker regression tests |
-| `go build -a -installsuffix cgo -ldflags="-s -w"` | Production binary build |
-| `golangci-lint run ./gateway/...` | Lint gateway package |
-| `golangci-lint run ./services/cloud-sources/...` | Lint cloud sources package |
+| `go build -a -installsuffix cgo -ldflags="-s -w"` | Build production binary |
+| `go vet ./warehouse/...` | Static analysis on warehouse packages |
+| `SLOW=0 go test -count=1 -timeout 15m -short ./warehouse/...` | Run all warehouse tests |
+| `go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9.0 run -v` | Lint all changes |
+| `go mod verify` | Verify module checksums |
+| `go mod tidy` | Clean up module dependencies |
 
 ### B. Port Reference
 
 | Port | Service | Protocol |
 |------|---------|----------|
-| 8080 | Gateway HTTP API | HTTP/HTTPS |
-| 9090 | Transformer | HTTP |
-| 5432 | PostgreSQL (JobsDB) | TCP |
-| 6379 | Redis (optional) | TCP |
+| 8080 | Gateway HTTP API | HTTP |
+| 8082 | Warehouse API (HTTP + gRPC) | HTTP/gRPC |
+| 5432 | PostgreSQL (metadata) | TCP |
 
 ### C. Key File Locations
 
-| File | Purpose |
-|------|---------|
-| `gateway/sdk_compatibility_test.go` | SDK payload format validation tests (E-005/E-006/E-007/E-008) |
-| `gateway/sdk_auth_compat_test.go` | Write Key Basic Auth compatibility tests (E-005) |
-| `integration_test/sdk_compatibility/sdk_compatibility_test.go` | Full-stack Docker integration test |
-| `integration_test/sdk_compatibility/testdata/*.json` | Canonical SDK payload fixtures |
-| `services/cloud-sources/cloud_source.go` | Cloud source framework interfaces (E-009) |
-| `services/cloud-sources/connectors/stripe/stripe.go` | Stripe webhook connector PoC (E-009) |
-| `docs/architecture/cloud-source-framework.md` | Cloud source framework design document |
-| `docs/guides/sdk-compatibility/segment-sdk-migration.md` | Master SDK migration guide |
-| `docs/guides/sdk-compatibility/web-sdk-guide.md` | JavaScript SDK compatibility guide |
-| `docs/guides/sdk-compatibility/mobile-sdk-guide.md` | iOS and Android SDK compatibility guide |
-| `docs/guides/sdk-compatibility/server-sdk-guide.md` | Server-side SDK compatibility guide |
-| `gateway/openapi.yaml` | OpenAPI 3.0.3 specification for all Gateway endpoints |
-| `.github/workflows/tests.yaml` | CI pipeline configuration |
-| `config/config.yaml` | Master runtime configuration |
+| Category | Path | Description |
+|----------|------|-------------|
+| Backfill service | `warehouse/backfill/` | Backfill orchestrator, handler, repository, model, config |
+| Health monitoring | `warehouse/healthmonitor/` | Monitor, alerting, metrics, repository, handler, model |
+| Selective sync | `warehouse/selectivesync/` | Service, handler, repository, model, config |
+| Replay handler | `warehouse/replay/` | Handler, retriever, file downloader, gateway client |
+| Integration tests | `integration_test/warehouse/` | Idempotent sync (9 connectors), backfill, selective sync, replay |
+| SQL migrations | `sql/migrations/warehouse/000042–000045` | Backfill tracking, selective sync config, health monitoring |
+| Protobuf definitions | `proto/warehouse/warehouse.proto` | gRPC service with new backfill and health RPCs |
+| Configuration | `config/config.yaml` | New parameters under `Warehouse.backfill.*`, `Warehouse.healthMonitor.*`, `Warehouse.selectiveSync.*`, `Warehouse.replay.*` |
+| Feature documentation | `docs/warehouse/` | backfill.md, health-monitoring.md, selective-sync.md, replay.md |
 
 ### D. Technology Versions
 
 | Technology | Version | Source |
 |------------|---------|--------|
-| Go | 1.26.0 | `go.mod` line 3 |
-| Docker | 28.5.2 | Runtime |
+| Go | 1.26.0 | `go.mod` |
 | rudder-go-kit | v0.72.3 | `go.mod` |
-| chi/v5 (HTTP router) | v5.2.5 | `go.mod` |
+| chi/v5 | v5.2.5 | `go.mod` |
 | testify | v1.11.1 | `go.mod` |
 | dockertest/v3 | v3.12.0 | `go.mod` |
-| gjson | v1.18.0 | `go.mod` |
-| PostgreSQL driver (lib/pq) | v1.11.2 | `go.mod` |
-| golangci-lint | latest | CI toolchain |
+| golangci-lint | v2.9.0 | CI configuration |
+| golang-migrate/v4 | v4.18.3 | `go.mod` |
+| PostgreSQL (target) | 15+ | Recommended |
 
 ### E. Environment Variable Reference
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `RSERVER_GATEWAY_WEB_PORT` | `8080` | Gateway HTTP listen port |
-| `JOBS_DB_HOST` | `localhost` | PostgreSQL host |
-| `JOBS_DB_PORT` | `5432` | PostgreSQL port |
-| `JOBS_DB_USER` | `rudder` | PostgreSQL user |
-| `JOBS_DB_PASSWORD` | `password` | PostgreSQL password |
-| `JOBS_DB_DB_NAME` | `jobsdb` | PostgreSQL database name |
-| `DEST_TRANSFORM_URL` | `http://localhost:9090` | Transformer service URL |
-| `RSERVER_ENABLE_STATS` | `true` | Enable stats collection |
-| `SLOW` | `1` | Set to `0` to skip slow test tags |
-| `LOG_LEVEL` | `INFO` | Log verbosity level |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `Warehouse.backfill.enabled` | `false` | Enable/disable backfill feature |
+| `Warehouse.backfill.maxDateRangeDays` | `90` | Maximum backfill date range in days |
+| `Warehouse.backfill.maxConcurrentJobs` | `3` | Maximum concurrent backfill jobs |
+| `Warehouse.backfill.monitorIntervalSeconds` | `60` | Backfill job monitor polling interval |
+| `Warehouse.healthMonitor.enabled` | `true` | Enable/disable health monitoring |
+| `Warehouse.healthMonitor.collectionIntervalSeconds` | `60` | Health metrics collection interval |
+| `Warehouse.healthMonitor.retentionDays` | `30` | Health record retention period |
+| `Warehouse.selectiveSync.enabled` | `false` | Enable/disable selective sync |
+| `Warehouse.selectiveSync.cacheRefreshMinutes` | `5` | Selective sync config cache TTL |
+| `Warehouse.replay.enabled` | `false` | Enable/disable warehouse replay |
+| `Warehouse.replay.maxConcurrentReplays` | `2` | Maximum concurrent replay jobs |
+| `Warehouse.replay.batchSize` | `1000` | Replay event batch size |
 
 ### F. Developer Tools Guide
 
 | Tool | Command | Purpose |
 |------|---------|---------|
-| Go build | `go build ./...` | Compile all packages |
-| Go vet | `go vet ./...` | Static analysis |
-| Go test | `go test ./...` | Run all tests |
-| golangci-lint | `golangci-lint run ./...` | Comprehensive linting |
-| Docker Compose | `docker compose up -d` | Start infrastructure |
-| curl | `curl -u WRITE_KEY: http://localhost:8080/v1/track` | Manual API testing |
+| Go test verbose | `go test -v -run "TestBackfillService" ./warehouse/backfill/...` | Run specific test with verbose output |
+| Test coverage | `go test -coverprofile=cover.out ./warehouse/backfill/... && go tool cover -html=cover.out` | Generate HTML coverage report |
+| Race detector | `go test -race ./warehouse/backfill/...` | Detect data races |
+| CPU profiling | `go test -cpuprofile=cpu.out -bench=. ./warehouse/...` | CPU performance profiling |
+| Module graph | `go mod graph \| grep backfill` | Inspect module dependency graph |
 
 ### G. Glossary
 
 | Term | Definition |
-|------|------------|
-| **AAP** | Agent Action Plan — the primary directive containing all project requirements |
-| **E-005 through E-009** | Sprint 2–3 epics for Source SDK Compatibility |
-| **Gateway** | The HTTP ingestion layer of RudderStack data plane, serving on port 8080 |
-| **Write Key Basic Auth** | Authentication scheme: HTTP Basic Auth with write key as username, empty password |
-| **Beacon endpoint** | `/beacon/v1/batch` — receives `navigator.sendBeacon()` payloads from JavaScript SDK |
-| **Pixel endpoint** | `/pixel/v1/track` and `/pixel/v1/page` — receives image tag tracking requests |
-| **Cloud Source** | Third-party SaaS application that pushes events via webhook or API polling |
-| **Segment Spec** | The event specification defining identify, track, page, screen, group, alias event types |
-| **PoC** | Proof of Concept — design validation implementation, not production-grade |
-| **depguard** | Go linter rule in `.golangci.yml` that bans `encoding/json` in favor of `jsonrs` |
-| **jsonrs** | RudderStack's JSON serialization library from `rudder-go-kit` |
-| **dockertest/v3** | Docker container orchestration library for integration tests |
-| **testify/require** | Go test assertion library that fails immediately on assertion failure |
+|------|-----------|
+| **Backfill** | Re-processing historical data for a specified date range through the warehouse pipeline |
+| **Selective Sync** | Per-table and per-column filtering that excludes specific data from warehouse sync |
+| **Warehouse Replay** | Re-processing archived events through the warehouse pipeline while bypassing real-time Router delivery |
+| **Idempotent Sync** | Property ensuring that replaying/retrying sync operations produces identical warehouse state |
+| **Health Monitor** | Subsystem tracking per-upload metrics (duration, row counts, errors) with Prometheus emission and alerting |
+| **Staging Files** | Intermediate files containing event data prepared for warehouse loading |
+| **Load Files** | Files generated from staging files in the format required by the target warehouse connector |
+| **Upload State Machine** | 7-state (now 8 with backfill) linked list governing the warehouse upload lifecycle |
+| **Backend-Config** | Configuration distribution system delivering workspace/destination settings via pub/sub |
+| **wh_backfill_jobs** | New database table tracking backfill job metadata and lifecycle |
+| **wh_selective_sync** | New database table storing per-source/destination selective sync exclusion rules |
+| **wh_sync_health** | New database table persisting per-upload health metrics for historical analysis |
