@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/base64"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -575,5 +576,277 @@ func TestAuth(t *testing.T) {
 			require.NoError(t, err, "reading response body should succeed")
 			require.Equal(t, "destination is disabled\n", string(body))
 		})
+	})
+}
+
+// TestSegmentSDKAuthCompatibility validates that the Gateway's Write Key Basic Auth
+// implementation is fully compatible with all Segment SDK authentication patterns.
+// Each Segment SDK (JavaScript, iOS, Android, Node.js, Python, Go, Java, Ruby) sends
+// Authorization: Basic base64(writeKey:) where the password is an empty string after
+// the colon separator. This test suite validates standard auth, edge cases, error
+// responses, and the beacon query-param-to-Basic-Auth conversion pathway.
+func TestSegmentSDKAuthCompatibility(t *testing.T) {
+	// Standard delegate that responds OK on successful authentication.
+	delegate := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("OK"))
+	})
+	statsStore, err := memstats.New()
+	require.NoError(t, err)
+
+	// newGateway creates a Handle with the given writeKey→source map,
+	// mirroring the helper pattern established in TestAuth.
+	newGateway := func(writeKeysSourceMap map[string]backendconfig.SourceT) *Handle {
+		return &Handle{
+			logger:             logger.NOP,
+			stats:              statsStore,
+			writeKeysSourceMap: writeKeysSourceMap,
+		}
+	}
+
+	t.Run("Segment SDK Basic Auth with empty password", func(t *testing.T) {
+		// All Segment SDKs send Authorization: Basic base64(writeKey:) where
+		// the password field is an empty string. This is the canonical auth
+		// pattern used by analytics.js, analytics-ios, analytics-android,
+		// analytics-node, analytics-python, analytics-go, analytics-java, and
+		// analytics-ruby. r.SetBasicAuth(writeKey, "") produces exactly this
+		// header format.
+		writeKey := "2RVlfpFJ2sPJG4MjxMvqsQ9FjhS"
+		gw := newGateway(map[string]backendconfig.SourceT{
+			writeKey: {Enabled: true},
+		})
+		r := httptest.NewRequest("POST", "/v1/track", nil)
+		r.SetBasicAuth(writeKey, "")
+		r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, "track"))
+		w := httptest.NewRecorder()
+		gw.writeKeyAuth(delegate).ServeHTTP(w, r)
+
+		require.Equal(t, http.StatusOK, w.Code, "Segment SDK standard Basic Auth with empty password should succeed")
+		body, err := io.ReadAll(w.Body)
+		require.NoError(t, err, "reading response body should succeed")
+		require.Equal(t, "OK", string(body))
+	})
+
+	t.Run("Basic Auth without trailing colon", func(t *testing.T) {
+		// Edge case: some HTTP clients may send Authorization: Basic base64(writeKey)
+		// without the trailing colon that separates username from password.
+		// Go's net/http.Request.BasicAuth() requires the "user:password" format
+		// and returns ok=false when no colon is present, causing the Gateway to
+		// reject the request with NoWriteKeyInBasicAuth. This behavior is correct
+		// because the HTTP Basic Auth spec (RFC 7617) mandates the colon separator.
+		writeKey := "2RVlfpFJ2sPJG4MjxMvqsQ9FjhS"
+		gw := newGateway(map[string]backendconfig.SourceT{
+			writeKey: {Enabled: true},
+		})
+		r := httptest.NewRequest("POST", "/v1/track", nil)
+		// Manually construct the Authorization header WITHOUT the colon separator.
+		// This produces base64("writeKey") instead of base64("writeKey:").
+		r.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(writeKey)))
+		r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, "track"))
+		w := httptest.NewRecorder()
+		gw.writeKeyAuth(delegate).ServeHTTP(w, r)
+
+		require.Equal(t, http.StatusUnauthorized, w.Code,
+			"Basic Auth without colon separator should be rejected per RFC 7617")
+		body, err := io.ReadAll(w.Body)
+		require.NoError(t, err, "reading response body should succeed")
+		require.Equal(t, "failed to read writekey from header\n", string(body),
+			"response should indicate missing writeKey in Basic Auth header")
+	})
+
+	t.Run("Write Key with special characters", func(t *testing.T) {
+		// Verify that writeKeys containing URL-sensitive and base64-special
+		// characters (+, /, =) are correctly handled through the Basic Auth
+		// base64 encoding/decoding cycle. Segment write keys can contain
+		// alphanumeric characters and some special characters; the auth
+		// middleware must preserve them exactly.
+		specialKeys := []struct {
+			name     string
+			writeKey string
+		}{
+			{name: "plus sign", writeKey: "write+Key+123"},
+			{name: "forward slash", writeKey: "write/Key/456"},
+			{name: "equals sign", writeKey: "writeKey==789"},
+			{name: "mixed special chars", writeKey: "a+b/c=d"},
+		}
+		for _, tc := range specialKeys {
+			t.Run(tc.name, func(t *testing.T) {
+				gw := newGateway(map[string]backendconfig.SourceT{
+					tc.writeKey: {Enabled: true},
+				})
+				r := httptest.NewRequest("POST", "/v1/identify", nil)
+				r.SetBasicAuth(tc.writeKey, "")
+				r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, "identify"))
+				w := httptest.NewRecorder()
+				gw.writeKeyAuth(delegate).ServeHTTP(w, r)
+
+				require.Equal(t, http.StatusOK, w.Code,
+					"writeKey with special character %q should authenticate successfully", tc.name)
+				body, err := io.ReadAll(w.Body)
+				require.NoError(t, err, "reading response body should succeed")
+				require.Equal(t, "OK", string(body))
+			})
+		}
+	})
+
+	t.Run("Write Key case sensitivity", func(t *testing.T) {
+		// Verify that write key lookup is case-sensitive. The writeKeysSourceMap
+		// uses exact string matching, so "AbCdEf" and "abcdef" must be treated
+		// as different keys. This is important because Segment write keys are
+		// case-sensitive identifiers and must not be normalized.
+		registeredKey := "AbCdEf123XyZ"
+		gw := newGateway(map[string]backendconfig.SourceT{
+			registeredKey: {Enabled: true},
+		})
+
+		// The registered key (exact case) should authenticate successfully.
+		t.Run("exact case matches", func(t *testing.T) {
+			r := httptest.NewRequest("POST", "/v1/track", nil)
+			r.SetBasicAuth(registeredKey, "")
+			r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, "track"))
+			w := httptest.NewRecorder()
+			gw.writeKeyAuth(delegate).ServeHTTP(w, r)
+
+			require.Equal(t, http.StatusOK, w.Code,
+				"exact case writeKey should authenticate successfully")
+			body, err := io.ReadAll(w.Body)
+			require.NoError(t, err)
+			require.Equal(t, "OK", string(body))
+		})
+
+		// A lowercased version of the same key should fail — keys are case-sensitive.
+		t.Run("lowercase variant rejected", func(t *testing.T) {
+			r := httptest.NewRequest("POST", "/v1/track", nil)
+			r.SetBasicAuth("abcdef123xyz", "")
+			r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, "track"))
+			w := httptest.NewRecorder()
+			gw.writeKeyAuth(delegate).ServeHTTP(w, r)
+
+			require.Equal(t, http.StatusUnauthorized, w.Code,
+				"lowercased writeKey should fail authentication (case-sensitive)")
+			body, err := io.ReadAll(w.Body)
+			require.NoError(t, err)
+			require.Equal(t, "invalid write key\n", string(body))
+		})
+
+		// An uppercased version of the same key should also fail.
+		t.Run("uppercase variant rejected", func(t *testing.T) {
+			r := httptest.NewRequest("POST", "/v1/track", nil)
+			r.SetBasicAuth("ABCDEF123XYZ", "")
+			r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, "track"))
+			w := httptest.NewRecorder()
+			gw.writeKeyAuth(delegate).ServeHTTP(w, r)
+
+			require.Equal(t, http.StatusUnauthorized, w.Code,
+				"uppercased writeKey should fail authentication (case-sensitive)")
+			body, err := io.ReadAll(w.Body)
+			require.NoError(t, err)
+			require.Equal(t, "invalid write key\n", string(body))
+		})
+	})
+
+	t.Run("Rejection of invalid writeKey returns 401", func(t *testing.T) {
+		// Verify the exact HTTP 401 Unauthorized response when a writeKey is
+		// provided that does not exist in the source map. Segment SDKs expect
+		// a 401 response for invalid credentials, not 403 or other status codes.
+		gw := newGateway(map[string]backendconfig.SourceT{
+			"validWriteKey123": {Enabled: true},
+		})
+		r := httptest.NewRequest("POST", "/v1/track", nil)
+		r.SetBasicAuth("nonExistentWriteKey999", "")
+		r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, "track"))
+		w := httptest.NewRecorder()
+		gw.writeKeyAuth(delegate).ServeHTTP(w, r)
+
+		require.Equal(t, http.StatusUnauthorized, w.Code,
+			"invalid writeKey should return HTTP 401 Unauthorized")
+		body, err := io.ReadAll(w.Body)
+		require.NoError(t, err, "reading response body should succeed")
+		require.Equal(t, "invalid write key\n", string(body),
+			"response body should match response.InvalidWriteKey")
+	})
+
+	t.Run("Rejection of disabled source returns 404", func(t *testing.T) {
+		// Verify the exact HTTP 404 Not Found response when a valid writeKey
+		// maps to a disabled source. This matches the Segment API behavior
+		// where a disabled source returns 404, distinguishing it from
+		// authentication failures (401).
+		writeKey := "disabledSourceKey456"
+		gw := newGateway(map[string]backendconfig.SourceT{
+			writeKey: {
+				Enabled:     false,
+				ID:          "source-id-001",
+				Name:        "disabled-test-source",
+				WorkspaceID: "workspace-001",
+				WriteKey:    writeKey,
+				SourceDefinition: backendconfig.SourceDefinitionT{
+					Category: "eventStream",
+					Name:     "javascript",
+				},
+			},
+		})
+		r := httptest.NewRequest("POST", "/v1/track", nil)
+		r.SetBasicAuth(writeKey, "")
+		r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, "track"))
+		w := httptest.NewRecorder()
+		gw.writeKeyAuth(delegate).ServeHTTP(w, r)
+
+		require.Equal(t, http.StatusNotFound, w.Code,
+			"disabled source should return HTTP 404 Not Found")
+		body, err := io.ReadAll(w.Body)
+		require.NoError(t, err, "reading response body should succeed")
+		require.Equal(t, "source is disabled\n", string(body),
+			"response body should match response.SourceDisabled")
+	})
+
+	t.Run("Empty Authorization header", func(t *testing.T) {
+		// Verify the exact HTTP 401 Unauthorized response when no Authorization
+		// header is present at all. Segment SDKs always include the Authorization
+		// header, but this tests the defensive behavior when a raw HTTP client
+		// omits credentials entirely.
+		gw := newGateway(map[string]backendconfig.SourceT{
+			"someKey": {Enabled: true},
+		})
+		r := httptest.NewRequest("POST", "/v1/track", nil)
+		// Deliberately do NOT set any Authorization header.
+		r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, "track"))
+		w := httptest.NewRecorder()
+		gw.writeKeyAuth(delegate).ServeHTTP(w, r)
+
+		require.Equal(t, http.StatusUnauthorized, w.Code,
+			"missing Authorization header should return HTTP 401 Unauthorized")
+		body, err := io.ReadAll(w.Body)
+		require.NoError(t, err, "reading response body should succeed")
+		require.Equal(t, "failed to read writekey from header\n", string(body),
+			"response body should match response.NoWriteKeyInBasicAuth")
+	})
+
+	t.Run("Query param writeKey for beacon endpoints", func(t *testing.T) {
+		// Validate the beacon-style authentication where writeKey is passed as
+		// a URL query parameter instead of the Basic Auth header. The
+		// beaconInterceptor reads the writeKey from query params, converts it
+		// to a Basic Auth header via r.SetBasicAuth(writeKey, ""), and then
+		// delegates to the downstream handler which runs writeKeyAuth.
+		// This is the pattern used by analytics.js navigator.sendBeacon() calls.
+		writeKey := "beaconWriteKey789"
+		gw := newGateway(map[string]backendconfig.SourceT{
+			writeKey: {Enabled: true},
+		})
+		r := httptest.NewRequest("POST", "/beacon/v1/batch", nil)
+		// Set writeKey as a query parameter, not as a Basic Auth header.
+		params := url.Values{}
+		params.Add("writeKey", writeKey)
+		r.URL.RawQuery = params.Encode()
+		r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, "batch"))
+		w := httptest.NewRecorder()
+
+		// Chain the beaconInterceptor with writeKeyAuth to validate the full
+		// query-param → Basic Auth → writeKeyAuth authentication flow.
+		gw.beaconInterceptor(gw.writeKeyAuth(delegate)).ServeHTTP(w, r)
+
+		require.Equal(t, http.StatusOK, w.Code,
+			"beacon query param writeKey should authenticate through beaconInterceptor → writeKeyAuth")
+		body, err := io.ReadAll(w.Body)
+		require.NoError(t, err, "reading response body should succeed")
+		require.Equal(t, "OK", string(body))
 	})
 }

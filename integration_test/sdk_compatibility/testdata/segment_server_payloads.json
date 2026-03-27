@@ -1,0 +1,823 @@
+{
+  "node": {
+    "batch": [
+      {
+        "type": "identify",
+        "userId": "user-node-sdk-test-001",
+        "anonymousId": "anon-node-sdk-test-001",
+        "messageId": "msg-node-sdk-identify-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-node",
+            "version": "7.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.40"
+        },
+        "traits": {
+          "email": "node.user@example.com",
+          "name": "Node TestUser",
+          "firstName": "Node",
+          "lastName": "TestUser",
+          "phone": "+1-555-400-0001",
+          "age": 35,
+          "company": {
+            "id": "comp-node-001",
+            "name": "NodeCorp Inc."
+          },
+          "createdAt": "2024-08-10T09:00:00.000Z"
+        }
+      },
+      {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user-node-sdk-test-001",
+        "anonymousId": "anon-node-sdk-test-001",
+        "messageId": "msg-node-sdk-track-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-node",
+            "version": "7.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.40"
+        },
+        "properties": {
+          "orderId": "order-node-sdk-50314b8e",
+          "revenue": 199.99,
+          "currency": "USD",
+          "total": 219.99,
+          "shipping": 10.00,
+          "tax": 10.00
+        }
+      },
+      {
+        "type": "page",
+        "name": "Documentation",
+        "userId": "user-node-sdk-test-001",
+        "anonymousId": "anon-node-sdk-test-001",
+        "messageId": "msg-node-sdk-page-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-node",
+            "version": "7.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.40"
+        },
+        "properties": {
+          "url": "https://docs.example.com/getting-started",
+          "path": "/getting-started",
+          "title": "Getting Started - Documentation"
+        }
+      },
+      {
+        "type": "screen",
+        "name": "Admin Dashboard",
+        "userId": "user-node-sdk-test-001",
+        "anonymousId": "anon-node-sdk-test-001",
+        "messageId": "msg-node-sdk-screen-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-node",
+            "version": "7.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.40"
+        },
+        "properties": {
+          "variation": "default"
+        }
+      },
+      {
+        "type": "group",
+        "userId": "user-node-sdk-test-001",
+        "anonymousId": "anon-node-sdk-test-001",
+        "groupId": "grp-node-sdk-001",
+        "messageId": "msg-node-sdk-group-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-node",
+            "version": "7.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.40"
+        },
+        "traits": {
+          "name": "NodeCorp Inc.",
+          "plan": "enterprise",
+          "industry": "Technology",
+          "employees": 250
+        }
+      },
+      {
+        "type": "alias",
+        "userId": "user-node-sdk-test-001",
+        "anonymousId": "anon-node-sdk-test-001",
+        "previousId": "anon-node-sdk-test-001",
+        "messageId": "msg-node-sdk-alias-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-node",
+            "version": "7.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.40"
+        }
+      }
+    ],
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "context": {
+      "library": {
+        "name": "analytics-node",
+        "version": "7.3.0"
+      }
+    }
+  },
+  "python": {
+    "batch": [
+      {
+        "type": "identify",
+        "userId": "user-python-sdk-test-001",
+        "anonymousId": "anon-python-sdk-test-001",
+        "messageId": "msg-python-sdk-identify-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-python",
+            "version": "2.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.50"
+        },
+        "traits": {
+          "email": "python.user@example.com",
+          "name": "Python TestUser",
+          "firstName": "Python",
+          "lastName": "TestUser",
+          "phone": "+1-555-500-0001",
+          "age": 29,
+          "company": {
+            "id": "comp-python-001",
+            "name": "PyCorp Inc."
+          },
+          "createdAt": "2024-05-20T14:00:00.000Z"
+        }
+      },
+      {
+        "type": "track",
+        "event": "Subscription Started",
+        "userId": "user-python-sdk-test-001",
+        "anonymousId": "anon-python-sdk-test-001",
+        "messageId": "msg-python-sdk-track-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-python",
+            "version": "2.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.50"
+        },
+        "properties": {
+          "plan": "business",
+          "mrr": 99.00,
+          "trial": false,
+          "billing_cycle": "monthly",
+          "currency": "USD"
+        }
+      },
+      {
+        "type": "page",
+        "name": "API Reference",
+        "userId": "user-python-sdk-test-001",
+        "anonymousId": "anon-python-sdk-test-001",
+        "messageId": "msg-python-sdk-page-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-python",
+            "version": "2.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.50"
+        },
+        "properties": {
+          "url": "https://api.example.com/reference/v2",
+          "path": "/reference/v2",
+          "title": "API Reference v2"
+        }
+      },
+      {
+        "type": "screen",
+        "name": "Analytics Overview",
+        "userId": "user-python-sdk-test-001",
+        "anonymousId": "anon-python-sdk-test-001",
+        "messageId": "msg-python-sdk-screen-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-python",
+            "version": "2.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.50"
+        },
+        "properties": {
+          "variation": "default"
+        }
+      },
+      {
+        "type": "group",
+        "userId": "user-python-sdk-test-001",
+        "anonymousId": "anon-python-sdk-test-001",
+        "groupId": "grp-python-sdk-001",
+        "messageId": "msg-python-sdk-group-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-python",
+            "version": "2.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.50"
+        },
+        "traits": {
+          "name": "PyCorp Inc.",
+          "plan": "business",
+          "industry": "Data Science",
+          "employees": 120
+        }
+      },
+      {
+        "type": "alias",
+        "userId": "user-python-sdk-test-001",
+        "anonymousId": "anon-python-sdk-test-001",
+        "previousId": "anon-python-sdk-test-001",
+        "messageId": "msg-python-sdk-alias-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-python",
+            "version": "2.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.50"
+        }
+      }
+    ],
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "context": {
+      "library": {
+        "name": "analytics-python",
+        "version": "2.3.0"
+      }
+    }
+  },
+  "go": {
+    "batch": [
+      {
+        "type": "identify",
+        "userId": "user-go-sdk-test-001",
+        "anonymousId": "anon-go-sdk-test-001",
+        "messageId": "msg-go-sdk-identify-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-go",
+            "version": "3.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.60"
+        },
+        "traits": {
+          "email": "go.user@example.com",
+          "name": "Go TestUser",
+          "firstName": "Go",
+          "lastName": "TestUser",
+          "phone": "+1-555-600-0001",
+          "age": 32,
+          "company": {
+            "id": "comp-go-001",
+            "name": "GoCorp Inc."
+          },
+          "createdAt": "2024-02-15T11:00:00.000Z"
+        }
+      },
+      {
+        "type": "track",
+        "event": "Build Completed",
+        "userId": "user-go-sdk-test-001",
+        "anonymousId": "anon-go-sdk-test-001",
+        "messageId": "msg-go-sdk-track-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-go",
+            "version": "3.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.60"
+        },
+        "properties": {
+          "project": "rudder-server",
+          "duration": 245.8,
+          "status": "success",
+          "commit_sha": "abc123def456",
+          "branch": "main"
+        }
+      },
+      {
+        "type": "page",
+        "name": "Dashboard",
+        "userId": "user-go-sdk-test-001",
+        "anonymousId": "anon-go-sdk-test-001",
+        "messageId": "msg-go-sdk-page-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-go",
+            "version": "3.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.60"
+        },
+        "properties": {
+          "url": "https://app.example.com/dashboard",
+          "path": "/dashboard",
+          "title": "Dashboard - GoCorp"
+        }
+      },
+      {
+        "type": "screen",
+        "name": "Deployment Status",
+        "userId": "user-go-sdk-test-001",
+        "anonymousId": "anon-go-sdk-test-001",
+        "messageId": "msg-go-sdk-screen-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-go",
+            "version": "3.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.60"
+        },
+        "properties": {
+          "variation": "default"
+        }
+      },
+      {
+        "type": "group",
+        "userId": "user-go-sdk-test-001",
+        "anonymousId": "anon-go-sdk-test-001",
+        "groupId": "grp-go-sdk-001",
+        "messageId": "msg-go-sdk-group-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-go",
+            "version": "3.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.60"
+        },
+        "traits": {
+          "name": "GoCorp Inc.",
+          "plan": "startup",
+          "industry": "DevOps",
+          "employees": 45
+        }
+      },
+      {
+        "type": "alias",
+        "userId": "user-go-sdk-test-001",
+        "anonymousId": "anon-go-sdk-test-001",
+        "previousId": "anon-go-sdk-test-001",
+        "messageId": "msg-go-sdk-alias-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-go",
+            "version": "3.3.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.60"
+        }
+      }
+    ],
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "context": {
+      "library": {
+        "name": "analytics-go",
+        "version": "3.3.0"
+      }
+    }
+  },
+  "java": {
+    "batch": [
+      {
+        "type": "identify",
+        "userId": "user-java-sdk-test-001",
+        "anonymousId": "anon-java-sdk-test-001",
+        "messageId": "msg-java-sdk-identify-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-java",
+            "version": "3.5.1"
+          },
+          "channel": "server",
+          "ip": "198.51.100.70"
+        },
+        "traits": {
+          "email": "java.user@example.com",
+          "name": "Java TestUser",
+          "firstName": "Java",
+          "lastName": "TestUser",
+          "phone": "+1-555-700-0001",
+          "age": 40,
+          "company": {
+            "id": "comp-java-001",
+            "name": "JavaCorp Inc."
+          },
+          "createdAt": "2024-01-05T08:00:00.000Z"
+        }
+      },
+      {
+        "type": "track",
+        "event": "Payment Processed",
+        "userId": "user-java-sdk-test-001",
+        "anonymousId": "anon-java-sdk-test-001",
+        "messageId": "msg-java-sdk-track-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-java",
+            "version": "3.5.1"
+          },
+          "channel": "server",
+          "ip": "198.51.100.70"
+        },
+        "properties": {
+          "amount": 499.99,
+          "method": "credit_card",
+          "currency": "USD",
+          "card_brand": "visa",
+          "card_last_four": "4242"
+        }
+      },
+      {
+        "type": "page",
+        "name": "Billing",
+        "userId": "user-java-sdk-test-001",
+        "anonymousId": "anon-java-sdk-test-001",
+        "messageId": "msg-java-sdk-page-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-java",
+            "version": "3.5.1"
+          },
+          "channel": "server",
+          "ip": "198.51.100.70"
+        },
+        "properties": {
+          "url": "https://billing.example.com/invoices",
+          "path": "/invoices",
+          "title": "Invoices - Billing Portal"
+        }
+      },
+      {
+        "type": "screen",
+        "name": "Invoice Detail",
+        "userId": "user-java-sdk-test-001",
+        "anonymousId": "anon-java-sdk-test-001",
+        "messageId": "msg-java-sdk-screen-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-java",
+            "version": "3.5.1"
+          },
+          "channel": "server",
+          "ip": "198.51.100.70"
+        },
+        "properties": {
+          "variation": "default"
+        }
+      },
+      {
+        "type": "group",
+        "userId": "user-java-sdk-test-001",
+        "anonymousId": "anon-java-sdk-test-001",
+        "groupId": "grp-java-sdk-001",
+        "messageId": "msg-java-sdk-group-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-java",
+            "version": "3.5.1"
+          },
+          "channel": "server",
+          "ip": "198.51.100.70"
+        },
+        "traits": {
+          "name": "JavaCorp Inc.",
+          "plan": "enterprise",
+          "industry": "Finance",
+          "employees": 1500
+        }
+      },
+      {
+        "type": "alias",
+        "userId": "user-java-sdk-test-001",
+        "anonymousId": "anon-java-sdk-test-001",
+        "previousId": "anon-java-sdk-test-001",
+        "messageId": "msg-java-sdk-alias-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-java",
+            "version": "3.5.1"
+          },
+          "channel": "server",
+          "ip": "198.51.100.70"
+        }
+      }
+    ],
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "context": {
+      "library": {
+        "name": "analytics-java",
+        "version": "3.5.1"
+      }
+    }
+  },
+  "ruby": {
+    "batch": [
+      {
+        "type": "identify",
+        "userId": "user-ruby-sdk-test-001",
+        "anonymousId": "anon-ruby-sdk-test-001",
+        "messageId": "msg-ruby-sdk-identify-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ruby",
+            "version": "2.4.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.80"
+        },
+        "traits": {
+          "email": "ruby.user@example.com",
+          "name": "Ruby TestUser",
+          "firstName": "Ruby",
+          "lastName": "TestUser",
+          "phone": "+1-555-800-0001",
+          "age": 33,
+          "company": {
+            "id": "comp-ruby-001",
+            "name": "RubyCorp Inc."
+          },
+          "createdAt": "2024-04-01T10:00:00.000Z"
+        }
+      },
+      {
+        "type": "track",
+        "event": "Report Generated",
+        "userId": "user-ruby-sdk-test-001",
+        "anonymousId": "anon-ruby-sdk-test-001",
+        "messageId": "msg-ruby-sdk-track-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ruby",
+            "version": "2.4.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.80"
+        },
+        "properties": {
+          "report_type": "monthly_revenue",
+          "format": "pdf",
+          "rows": 1250,
+          "duration_ms": 3420,
+          "file_size_bytes": 524288
+        }
+      },
+      {
+        "type": "page",
+        "name": "Reports",
+        "userId": "user-ruby-sdk-test-001",
+        "anonymousId": "anon-ruby-sdk-test-001",
+        "messageId": "msg-ruby-sdk-page-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ruby",
+            "version": "2.4.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.80"
+        },
+        "properties": {
+          "url": "https://reports.example.com/monthly",
+          "path": "/monthly",
+          "title": "Monthly Reports"
+        }
+      },
+      {
+        "type": "screen",
+        "name": "Report Viewer",
+        "userId": "user-ruby-sdk-test-001",
+        "anonymousId": "anon-ruby-sdk-test-001",
+        "messageId": "msg-ruby-sdk-screen-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ruby",
+            "version": "2.4.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.80"
+        },
+        "properties": {
+          "variation": "default"
+        }
+      },
+      {
+        "type": "group",
+        "userId": "user-ruby-sdk-test-001",
+        "anonymousId": "anon-ruby-sdk-test-001",
+        "groupId": "grp-ruby-sdk-001",
+        "messageId": "msg-ruby-sdk-group-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ruby",
+            "version": "2.4.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.80"
+        },
+        "traits": {
+          "name": "RubyCorp Inc.",
+          "plan": "growth",
+          "industry": "Reporting",
+          "employees": 85
+        }
+      },
+      {
+        "type": "alias",
+        "userId": "user-ruby-sdk-test-001",
+        "anonymousId": "anon-ruby-sdk-test-001",
+        "previousId": "anon-ruby-sdk-test-001",
+        "messageId": "msg-ruby-sdk-alias-001",
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "sentAt": "2025-01-15T10:30:01.000Z",
+        "integrations": {
+          "All": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ruby",
+            "version": "2.4.0"
+          },
+          "channel": "server",
+          "ip": "198.51.100.80"
+        }
+      }
+    ],
+    "sentAt": "2025-01-15T10:30:01.000Z",
+    "context": {
+      "library": {
+        "name": "analytics-ruby",
+        "version": "2.4.0"
+      }
+    }
+  }
+}
