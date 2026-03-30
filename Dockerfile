@@ -26,6 +26,14 @@ RUN go mod download
 
 COPY . .
 
+# Build the main rudder-server binary. The Go module compiles all transitively
+# imported packages into a single static binary, which now includes:
+#   - Core pipeline: Gateway, Processor (6-stage), Router, Batch Router, Warehouse
+#   - Functions runtime: Source Functions, Destination Functions, Insert Functions (E-015 to E-019)
+#   - Protocols enforcement: JSON Schema validation, anomaly detection, enforcement modes (E-020 to E-025)
+#   - Identity resolution: real-time identity graph, Profiles API, profile sync (E-026 to E-030)
+#   - Operational tooling: delivery monitoring, alerting engine, pipeline profiling (E-036 to E-039)
+#   - Destination connectors: expanded stream and cloud destination producers (E-010 to E-014)
 RUN BUILD_DATE=$(date "+%F,%T") \
     LDFLAGS="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT_HASH} -X main.buildDate=$BUILD_DATE -X main.builtBy=${REVISION} -X main.enterpriseToken=${ENTERPRISE_TOKEN} " \
     make build
