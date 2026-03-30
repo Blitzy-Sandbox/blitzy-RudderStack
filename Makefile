@@ -60,6 +60,49 @@ endif
 
 test-warehouse: test-warehouse-integration test-teardown
 
+.PHONY: test-functions test-protocols test-identity test-monitoring test-destinations
+.PHONY: test-functions-integration test-identity-integration test-destination-parity
+
+test-functions: ## Run Functions framework tests
+	$(eval TEST_CMD = SLOW=0 gotestsum --format pkgname-and-test-fails --)
+	$(eval TEST_OPTIONS = -p=1 -v -failfast -shuffle=on -coverprofile=profile.out -covermode=atomic -coverpkg=./... -vet=all --timeout=15m)
+	$(TEST_CMD) -count=1 $(TEST_OPTIONS) ./functions/... && touch $(TESTFILE) || true
+
+test-protocols: ## Run Protocols and tracking plan enforcement tests
+	$(eval TEST_CMD = SLOW=0 gotestsum --format pkgname-and-test-fails --)
+	$(eval TEST_OPTIONS = -p=1 -v -failfast -shuffle=on -coverprofile=profile.out -covermode=atomic -coverpkg=./... -vet=all --timeout=15m)
+	$(TEST_CMD) -count=1 $(TEST_OPTIONS) ./protocols/... ./processor/anomalydetection/... ./processor/enforcement/... && touch $(TESTFILE) || true
+
+test-identity: ## Run Identity resolution and Profiles tests
+	$(eval TEST_CMD = SLOW=0 gotestsum --format pkgname-and-test-fails --)
+	$(eval TEST_OPTIONS = -p=1 -v -failfast -shuffle=on -coverprofile=profile.out -covermode=atomic -coverpkg=./... -vet=all --timeout=15m)
+	$(TEST_CMD) -count=1 $(TEST_OPTIONS) ./identity/... && touch $(TESTFILE) || true
+
+test-monitoring: ## Run monitoring, alerting, and profiling tests
+	$(eval TEST_CMD = SLOW=0 gotestsum --format pkgname-and-test-fails --)
+	$(eval TEST_OPTIONS = -p=1 -v -failfast -shuffle=on -coverprofile=profile.out -covermode=atomic -coverpkg=./... -vet=all --timeout=15m)
+	$(TEST_CMD) -count=1 $(TEST_OPTIONS) ./services/monitoring/... ./services/alerting/... ./services/profiling/... && touch $(TESTFILE) || true
+
+test-destinations: ## Run destination connector and stream manager tests
+	$(eval TEST_CMD = SLOW=0 gotestsum --format pkgname-and-test-fails --)
+	$(eval TEST_OPTIONS = -p=1 -v -failfast -shuffle=on -coverprofile=profile.out -covermode=atomic -coverpkg=./... -vet=all --timeout=15m)
+	$(TEST_CMD) -count=1 $(TEST_OPTIONS) ./services/streammanager/... ./integration_test/destination_parity/... && touch $(TESTFILE) || true
+
+test-functions-integration: ## Run Functions integration tests
+	$(eval TEST_CMD = SLOW=1 gotestsum --format pkgname-and-test-fails --)
+	$(eval TEST_OPTIONS = -p=1 -v -failfast -shuffle=on -coverprofile=profile.out -covermode=atomic -coverpkg=./... -vet=all --timeout=30m)
+	$(TEST_CMD) -count=1 $(TEST_OPTIONS) ./integration_test/functions/... && touch $(TESTFILE) || true
+
+test-identity-integration: ## Run Identity resolution integration tests
+	$(eval TEST_CMD = SLOW=1 gotestsum --format pkgname-and-test-fails --)
+	$(eval TEST_OPTIONS = -p=1 -v -failfast -shuffle=on -coverprofile=profile.out -covermode=atomic -coverpkg=./... -vet=all --timeout=30m)
+	$(TEST_CMD) -count=1 $(TEST_OPTIONS) ./integration_test/identity/... && touch $(TESTFILE) || true
+
+test-destination-parity: ## Run destination payload parity integration tests
+	$(eval TEST_CMD = SLOW=1 gotestsum --format pkgname-and-test-fails --)
+	$(eval TEST_OPTIONS = -p=1 -v -failfast -shuffle=on -coverprofile=profile.out -covermode=atomic -coverpkg=./... -vet=all --timeout=30m)
+	$(TEST_CMD) -count=1 $(TEST_OPTIONS) ./integration_test/destination_parity/... && touch $(TESTFILE) || true
+
 test-teardown:
 	@if [ -f "$(TESTFILE)" ]; then \
     	echo "Tests passed, tearing down..." ;\
