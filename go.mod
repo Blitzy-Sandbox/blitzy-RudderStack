@@ -93,6 +93,8 @@ require (
 	github.com/rudderlabs/sql-tunnels v0.1.7
 	github.com/rudderlabs/sqlconnect-go v1.20.3
 	github.com/samber/lo v1.52.0
+	// Sprint feature dependency: JSON Schema draft-07 validation for Protocols enforcement (E-020)
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/segmentio/go-hll v1.0.1
 	github.com/segmentio/kafka-go v0.4.50
 	github.com/segmentio/ksuid v1.0.4
@@ -122,6 +124,8 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260203192932-546029d2fa20
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
+	// Sprint feature dependency: V8 JavaScript runtime for Functions framework (E-015 to E-017)
+	rogchap.com/v8go v0.9.0
 )
 
 require (
