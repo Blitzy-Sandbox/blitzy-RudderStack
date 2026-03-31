@@ -1,0 +1,256 @@
+{
+  "destination_type": "FIREHOSE",
+  "destination_tier": "stream",
+  "segment_equivalent": {
+    "slug": "amazon-kinesis-firehose",
+    "name": "Amazon Kinesis Firehose",
+    "has_direct_equivalent": true
+  },
+  "segment_reference_payload": {
+    "description": "Segment sends a JSON event payload as a single record to the configured Firehose delivery stream. The delivery stream name is sourced from the destination settings (settings.streamName). Each event is sent individually via the PutRecord API as a JSON-encoded data blob.",
+    "delivery_stream_name": "segment-firehose-stream",
+    "record": {
+      "data": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "category": "Widgets"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "msg-abc-123",
+        "integrations": {
+          "All": true
+        }
+      }
+    },
+    "api_call": {
+      "service": "firehose",
+      "method": "PutRecord",
+      "parameters": {
+        "DeliveryStreamName": "segment-firehose-stream",
+        "Record": {
+          "Data": "<JSON-encoded event payload bytes>"
+        }
+      }
+    },
+    "config_source": {
+      "delivery_stream_name": "settings.streamName",
+      "region": "settings.region",
+      "authentication": "IAM role or access key from settings"
+    }
+  },
+  "rudderstack_expected_payload": {
+    "description": "RudderStack sends a JSON event payload as a single record to the configured Firehose delivery stream. The delivery stream name is sourced from the destination config via the 'deliveryStreamMapTo' field in the transformed payload. Each event is sent individually via the PutRecord API. The event envelope includes additional RudderStack-specific fields (rudderId, originalTimestamp, sentAt, receivedAt).",
+    "delivery_stream_name": "rudder-firehose-stream",
+    "transformed_payload_to_producer": {
+      "message": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "category": "Widgets"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "msg-xyz-789",
+        "rudderId": "rudder-uuid-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "deliveryStreamMapTo": "rudder-firehose-stream"
+    },
+    "api_call": {
+      "service": "firehose",
+      "method": "PutRecord",
+      "parameters": {
+        "DeliveryStreamName": "rudder-firehose-stream",
+        "Record": {
+          "Data": "<JSON-encoded 'message' field bytes via jsonrs.Marshal>"
+        }
+      }
+    },
+    "config_source": {
+      "delivery_stream_name": "destination config → transformed into deliveryStreamMapTo field by Transformer",
+      "region": "destination config 'Region'",
+      "authentication": "IAMRoleARN + ExternalID from destination config, resolved via awsutils.NewSessionConfigForDestination",
+      "max_idle_conns_per_host": "config.GetIntVar(64, 1, 'Router.FIREHOSE.httpMaxIdleConnsPerHost', 'Router.FIREHOSE.noOfWorkers', 'Router.noOfWorkers')"
+    },
+    "producer_package": "services/streammanager/firehose/firehosemanager.go",
+    "producer_interface": "common.StreamProducer (Produce, Close)",
+    "factory_registration": "services/streammanager/streammanager.go NewProducer switch case 'FIREHOSE'"
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "delivery_stream_name": {
+      "segment": "Derived from settings.streamName configured in Segment UI",
+      "rudderstack": "Derived from destination config, injected into transformed payload as 'deliveryStreamMapTo' field by the external Transformer service",
+      "parity_status": "functionally_equivalent",
+      "notes": "Both resolve to the same AWS Firehose DeliveryStreamName parameter. Config source path differs but output is equivalent."
+    },
+    "record_data_format": {
+      "segment": "JSON-encoded event payload sent as Firehose Record.Data bytes",
+      "rudderstack": "JSON-encoded 'message' field from transformed payload, marshaled via jsonrs.Marshal into Record.Data bytes",
+      "parity_status": "needs_verification",
+      "notes": "Both send JSON-encoded event data. RudderStack extracts the 'message' sub-field from the transformed payload and marshals it separately. Segment may send the entire event object directly."
+    },
+    "record_batching_strategy": {
+      "segment": "Segment may use PutRecordBatch for higher throughput, batching multiple records per API call",
+      "rudderstack": "RudderStack uses PutRecord (single record per API call) in the current implementation",
+      "parity_status": "gap_identified",
+      "notes": "RudderStack sends one record per PutRecord call. Segment may support PutRecordBatch for batch delivery. This is a throughput optimization gap, not a data parity gap — the record content is equivalent."
+    },
+    "payload_compression": {
+      "segment": "Segment may apply compression to record data before sending to Firehose",
+      "rudderstack": "RudderStack sends uncompressed JSON data in Record.Data",
+      "parity_status": "needs_verification",
+      "notes": "Firehose itself can apply compression (GZIP, Snappy, etc.) at the delivery stream level via its buffering configuration. Neither platform's SDK-level compression affects the logical payload content."
+    },
+    "context_library": {
+      "segment": "context.library.name = 'analytics.js' (or other Segment SDK name)",
+      "rudderstack": "context.library.name = 'rudder-sdk-js' (or other RudderStack SDK name)",
+      "parity_status": "expected_difference",
+      "notes": "SDK library identifiers naturally differ between platforms. This is an expected difference, not a parity gap."
+    },
+    "envelope_fields": {
+      "segment": "Standard Segment event fields: type, event, userId, anonymousId, timestamp, properties, context, messageId, integrations",
+      "rudderstack": "Same core fields plus RudderStack-specific envelope: rudderId, originalTimestamp, sentAt, receivedAt",
+      "parity_status": "expected_difference",
+      "notes": "RudderStack adds pipeline timestamp tracking fields. These are additive and do not affect destination-side processing."
+    },
+    "message_id": {
+      "segment": "messageId generated by Segment SDK with Segment UUID strategy",
+      "rudderstack": "messageId generated by RudderStack SDK with different UUID generation",
+      "parity_status": "expected_difference",
+      "notes": "Message IDs serve as deduplication keys. Different generation strategies but same semantic purpose."
+    },
+    "aws_authentication": {
+      "segment": "IAM role or access key pair configured in Segment destination settings",
+      "rudderstack": "IAMRoleARN + ExternalID from destination config, resolved via awsutils.NewSessionConfigForDestination with STS AssumeRole",
+      "parity_status": "functionally_equivalent",
+      "notes": "Both support IAM role-based authentication. RudderStack uses ExternalID for cross-account STS AssumeRole. Configuration path differs but AWS authentication result is equivalent."
+    },
+    "error_handling": {
+      "segment": "Segment retries on transient failures with backoff",
+      "rudderstack": "RudderStack parses AWS errors via common.ParseAWSError, maps to HTTP status codes (400 for client errors, 500 for service errors), returns structured (statusCode, respStatus, responseMessage) tuple to Router for retry decisions",
+      "parity_status": "functionally_equivalent",
+      "notes": "Both platforms retry on transient errors. RudderStack's error classification feeds into the Router's retry/backoff/circuit-breaker logic."
+    }
+  },
+  "destination_config_schema": {
+    "rudderstack": {
+      "Region": "AWS region for the Firehose delivery stream (e.g., 'us-east-1')",
+      "IAMRoleARN": "ARN of the IAM role to assume for cross-account Firehose access",
+      "ExternalID": "External ID for STS AssumeRole to prevent confused deputy attacks",
+      "mapEvents": "Event-to-delivery-stream mapping configuration processed by Transformer"
+    },
+    "segment": {
+      "region": "AWS region for the Firehose delivery stream",
+      "streamName": "Name of the Firehose delivery stream",
+      "roleAddress": "IAM role ARN for authentication",
+      "externalId": "External ID for cross-account access"
+    }
+  },
+  "validation_test_cases": [
+    {
+      "name": "track_event_basic",
+      "description": "Basic track event delivered to Firehose delivery stream",
+      "input_event_type": "track",
+      "expected_delivery_stream": "rudder-firehose-stream",
+      "expected_record_contains_field": "event",
+      "expected_status_code": 200
+    },
+    {
+      "name": "identify_event",
+      "description": "Identify event with user traits delivered to Firehose",
+      "input_event_type": "identify",
+      "expected_delivery_stream": "rudder-firehose-stream",
+      "expected_record_contains_field": "traits",
+      "expected_status_code": 200
+    },
+    {
+      "name": "missing_delivery_stream",
+      "description": "Payload without deliveryStreamMapTo should return 400",
+      "input_event_type": "track",
+      "expected_delivery_stream": null,
+      "expected_status_code": 400,
+      "expected_error_message": "[FireHose] error  :: Delivery Stream not found"
+    },
+    {
+      "name": "empty_delivery_stream",
+      "description": "Payload with empty deliveryStreamMapTo should return 400",
+      "input_event_type": "track",
+      "expected_delivery_stream": "",
+      "expected_status_code": 400,
+      "expected_error_message": "[FireHose] error :: empty delivery stream"
+    },
+    {
+      "name": "missing_message",
+      "description": "Payload without message field should return 400",
+      "input_event_type": "track",
+      "expected_status_code": 400,
+      "expected_error_message": "[FireHose] error :: message from payload not found"
+    },
+    {
+      "name": "nil_client",
+      "description": "Producer with nil client should return 400 immediately",
+      "input_event_type": "track",
+      "expected_status_code": 400,
+      "expected_error_message": "[FireHose] error :: Could not create producer"
+    }
+  ],
+  "parity_summary": {
+    "overall_status": "needs_verification",
+    "data_content_parity": "high",
+    "config_path_parity": "functionally_equivalent",
+    "batching_parity": "gap_identified",
+    "compression_parity": "needs_verification",
+    "authentication_parity": "functionally_equivalent",
+    "error_handling_parity": "functionally_equivalent",
+    "known_gaps": [
+      "RudderStack uses PutRecord (single record); Segment may use PutRecordBatch (batch delivery)",
+      "RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) not present in Segment payloads",
+      "SDK library identifiers differ (rudder-sdk-js vs analytics.js)",
+      "Record compression strategy may differ at the SDK level"
+    ],
+    "known_equivalences": [
+      "Both use AWS Firehose PutRecord API with DeliveryStreamName and Record.Data",
+      "Both send JSON-encoded event data as the record payload",
+      "Both support IAM role-based cross-account authentication",
+      "Both support all six standard event types (track, identify, page, screen, group, alias)",
+      "Core event fields (type, event, userId, anonymousId, timestamp, properties, context) are structurally identical"
+    ]
+  },
+  "notes": "Firehose shared stream destination. RudderStack package: services/streammanager/firehose/. Segment slug: amazon-kinesis-firehose. RudderStack's FirehoseProducer implements the common.StreamProducer interface (Produce, Close) and is registered in the NewProducer factory switch in services/streammanager/streammanager.go. The producer extracts 'message' and 'deliveryStreamMapTo' from the Transformer-processed payload, marshals the message via jsonrs.Marshal, and sends it as a single PutRecord call. Key parity gaps from the gap report: record batching strategy (PutRecord vs PutRecordBatch) and payload compression. The AWS SDK v2 (aws-sdk-go-v2/service/firehose) is used for API communication with STS-based cross-account role assumption via awsutils.NewSessionConfigForDestination."
+}
