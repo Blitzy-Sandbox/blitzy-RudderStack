@@ -1,0 +1,80 @@
+{
+  "basic_webhook": {
+    "body": {
+      "userId": "webhook-user-001",
+      "event": "external_signup",
+      "properties": {
+        "plan": "pro",
+        "source": "partner_api",
+        "referralCode": "REF-FN-001"
+      },
+      "timestamp": "2025-06-15T15:00:00.000Z"
+    },
+    "headers": {
+      "Content-Type": "application/json",
+      "X-Webhook-Source": "partner-service"
+    },
+    "queryParameters": {},
+    "method": "POST"
+  },
+  "webhook_with_headers_and_query": {
+    "body": {
+      "userId": "webhook-user-002",
+      "event": "payment_received",
+      "amount": 99.99,
+      "currency": "USD"
+    },
+    "headers": {
+      "Content-Type": "application/json",
+      "X-Webhook-Source": "stripe-mock",
+      "X-Webhook-Signature": "sha256=abc123def456",
+      "X-Request-Id": "req-fn-test-002"
+    },
+    "queryParameters": {
+      "source": "stripe",
+      "version": "2",
+      "environment": "test"
+    },
+    "method": "POST"
+  },
+  "malformed_payload": {
+    "body": "this is not valid json content - just a raw string",
+    "headers": {
+      "Content-Type": "text/plain"
+    },
+    "queryParameters": {},
+    "method": "POST"
+  },
+  "event_not_supported_trigger": {
+    "body": {
+      "errorType": "EventNotSupported",
+      "userId": "webhook-user-003",
+      "event": "unsupported_event_type",
+      "properties": {
+        "reason": "This event type is not handled by the source function"
+      }
+    },
+    "headers": {
+      "Content-Type": "application/json",
+      "X-Webhook-Source": "test-harness"
+    },
+    "queryParameters": {},
+    "method": "POST"
+  },
+  "retry_error_trigger": {
+    "body": {
+      "errorType": "RetryError",
+      "userId": "webhook-user-004",
+      "event": "transient_failure_test",
+      "properties": {
+        "reason": "Simulates a temporary upstream failure requiring retry"
+      }
+    },
+    "headers": {
+      "Content-Type": "application/json",
+      "X-Webhook-Source": "test-harness"
+    },
+    "queryParameters": {},
+    "method": "POST"
+  }
+}
