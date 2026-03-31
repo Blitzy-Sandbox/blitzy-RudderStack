@@ -1,0 +1,1003 @@
+{
+  "destination_type": "GOOGLE_ANALYTICS",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "api_endpoint": "https://www.google-analytics.com/mp/collect",
+    "query_parameters": {
+      "measurement_id": "G-XXXXXXXXXX",
+      "api_secret": "aBcDeFgHiJkLmNoPqRsT"
+    },
+    "track": {
+      "standard_event": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "non_personalized_ads": false,
+        "events": [
+          {
+            "name": "button_clicked",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "category": "UI",
+              "label": "signup_cta",
+              "value": 1.0
+            }
+          }
+        ],
+        "user_properties": {
+          "plan_type": {
+            "value": "premium"
+          }
+        }
+      },
+      "ecommerce_purchase": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "non_personalized_ads": false,
+        "events": [
+          {
+            "name": "purchase",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "transaction_id": "txn-12345",
+              "value": 72.05,
+              "currency": "USD",
+              "tax": 3.60,
+              "shipping": 5.99,
+              "coupon": "SUMMER_SALE",
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "affiliation": "Google Merchandise Store",
+                  "coupon": "SUMMER_FUN",
+                  "discount": 2.22,
+                  "index": 0,
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "item_category2": "Adult",
+                  "item_category3": "Shirts",
+                  "item_category4": "Crew",
+                  "item_category5": "Short sleeve",
+                  "item_list_id": "related_products",
+                  "item_list_name": "Related Products",
+                  "item_variant": "green",
+                  "price": 10.01,
+                  "quantity": 3
+                },
+                {
+                  "item_id": "SKU_12346",
+                  "item_name": "Google Grey Women's Tee",
+                  "affiliation": "Google Merchandise Store",
+                  "coupon": "SUMMER_FUN",
+                  "discount": 3.33,
+                  "index": 1,
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "item_category2": "Adult",
+                  "item_category3": "Shirts",
+                  "item_variant": "grey",
+                  "price": 20.01,
+                  "quantity": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ecommerce_product_viewed": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "events": [
+          {
+            "name": "view_item",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "currency": "USD",
+              "value": 10.01,
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "item_variant": "green",
+                  "price": 10.01,
+                  "quantity": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ecommerce_product_added": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "events": [
+          {
+            "name": "add_to_cart",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "currency": "USD",
+              "value": 10.01,
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "item_variant": "green",
+                  "price": 10.01,
+                  "quantity": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ecommerce_checkout_started": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "events": [
+          {
+            "name": "begin_checkout",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "currency": "USD",
+              "value": 30.03,
+              "coupon": "SUMMER_FUN",
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "price": 10.01,
+                  "quantity": 3
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ecommerce_product_list_viewed": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "events": [
+          {
+            "name": "view_item_list",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "item_list_id": "featured_products",
+              "item_list_name": "Featured Products",
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "price": 10.01,
+                  "index": 0
+                },
+                {
+                  "item_id": "SKU_12346",
+                  "item_name": "Google Grey Women's Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "price": 20.01,
+                  "index": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ecommerce_product_removed": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "events": [
+          {
+            "name": "remove_from_cart",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "currency": "USD",
+              "value": 10.01,
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "price": 10.01,
+                  "quantity": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "identify": {
+      "client_id": "client_abc123.1678886400",
+      "user_id": "user-001",
+      "timestamp_micros": "1678886400000000",
+      "non_personalized_ads": false,
+      "user_properties": {
+        "email": {
+          "value": "john@example.com"
+        },
+        "first_name": {
+          "value": "John"
+        },
+        "last_name": {
+          "value": "Doe"
+        },
+        "plan_type": {
+          "value": "premium"
+        },
+        "company": {
+          "value": "Acme Corp"
+        },
+        "created_at": {
+          "value": "2023-01-15T10:30:00Z"
+        }
+      },
+      "events": [
+        {
+          "name": "user_properties_updated",
+          "params": {
+            "session_id": "1678886400",
+            "engagement_time_msec": 100
+          }
+        }
+      ]
+    },
+    "page": {
+      "client_id": "client_abc123.1678886400",
+      "user_id": "user-001",
+      "timestamp_micros": "1678886400000000",
+      "non_personalized_ads": false,
+      "events": [
+        {
+          "name": "page_view",
+          "params": {
+            "session_id": "1678886400",
+            "engagement_time_msec": 100,
+            "page_title": "Home",
+            "page_location": "https://www.example.com/home",
+            "page_referrer": "https://www.google.com/search?q=example",
+            "language": "en-us",
+            "screen_resolution": "1920x1080"
+          }
+        }
+      ]
+    },
+    "screen": {
+      "client_id": "client_abc123.1678886400",
+      "user_id": "user-001",
+      "timestamp_micros": "1678886400000000",
+      "non_personalized_ads": false,
+      "events": [
+        {
+          "name": "screen_view",
+          "params": {
+            "session_id": "1678886400",
+            "engagement_time_msec": 100,
+            "firebase_screen": "HomeScreen",
+            "firebase_screen_class": "HomeActivity",
+            "firebase_screen_id": "screen-001"
+          }
+        }
+      ]
+    },
+    "group": {
+      "client_id": "client_abc123.1678886400",
+      "user_id": "user-001",
+      "timestamp_micros": "1678886400000000",
+      "events": [
+        {
+          "name": "join_group",
+          "params": {
+            "session_id": "1678886400",
+            "engagement_time_msec": 100,
+            "group_id": "grp-456"
+          }
+        }
+      ],
+      "user_properties": {
+        "group_name": {
+          "value": "Acme Corp"
+        },
+        "group_industry": {
+          "value": "Technology"
+        },
+        "group_plan": {
+          "value": "enterprise"
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "api_endpoint": "https://www.google-analytics.com/mp/collect",
+    "query_parameters": {
+      "measurement_id": "G-XXXXXXXXXX",
+      "api_secret": "aBcDeFgHiJkLmNoPqRsT"
+    },
+    "track": {
+      "standard_event": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "non_personalized_ads": false,
+        "events": [
+          {
+            "name": "button_clicked",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "category": "UI",
+              "label": "signup_cta",
+              "value": 1.0
+            }
+          }
+        ],
+        "user_properties": {
+          "plan_type": {
+            "value": "premium"
+          }
+        }
+      },
+      "ecommerce_purchase": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "non_personalized_ads": false,
+        "events": [
+          {
+            "name": "purchase",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "transaction_id": "txn-12345",
+              "value": 72.05,
+              "currency": "USD",
+              "tax": 3.60,
+              "shipping": 5.99,
+              "coupon": "SUMMER_SALE",
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "affiliation": "Google Merchandise Store",
+                  "coupon": "SUMMER_FUN",
+                  "discount": 2.22,
+                  "index": 0,
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "item_category2": "Adult",
+                  "item_category3": "Shirts",
+                  "item_category4": "Crew",
+                  "item_category5": "Short sleeve",
+                  "item_list_id": "related_products",
+                  "item_list_name": "Related Products",
+                  "item_variant": "green",
+                  "price": 10.01,
+                  "quantity": 3
+                },
+                {
+                  "item_id": "SKU_12346",
+                  "item_name": "Google Grey Women's Tee",
+                  "affiliation": "Google Merchandise Store",
+                  "coupon": "SUMMER_FUN",
+                  "discount": 3.33,
+                  "index": 1,
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "item_category2": "Adult",
+                  "item_category3": "Shirts",
+                  "item_variant": "grey",
+                  "price": 20.01,
+                  "quantity": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ecommerce_product_viewed": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "events": [
+          {
+            "name": "view_item",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "currency": "USD",
+              "value": 10.01,
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "item_variant": "green",
+                  "price": 10.01,
+                  "quantity": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ecommerce_product_added": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "events": [
+          {
+            "name": "add_to_cart",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "currency": "USD",
+              "value": 10.01,
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "item_variant": "green",
+                  "price": 10.01,
+                  "quantity": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ecommerce_checkout_started": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "events": [
+          {
+            "name": "begin_checkout",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "currency": "USD",
+              "value": 30.03,
+              "coupon": "SUMMER_FUN",
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "price": 10.01,
+                  "quantity": 3
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ecommerce_product_list_viewed": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "events": [
+          {
+            "name": "view_item_list",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "item_list_id": "featured_products",
+              "item_list_name": "Featured Products",
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "price": 10.01,
+                  "index": 0
+                },
+                {
+                  "item_id": "SKU_12346",
+                  "item_name": "Google Grey Women's Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "price": 20.01,
+                  "index": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ecommerce_product_removed": {
+        "client_id": "client_abc123.1678886400",
+        "user_id": "user-001",
+        "timestamp_micros": "1678886400000000",
+        "events": [
+          {
+            "name": "remove_from_cart",
+            "params": {
+              "session_id": "1678886400",
+              "engagement_time_msec": 100,
+              "currency": "USD",
+              "value": 10.01,
+              "items": [
+                {
+                  "item_id": "SKU_12345",
+                  "item_name": "Stan and Friends Tee",
+                  "item_brand": "Google",
+                  "item_category": "Apparel",
+                  "price": 10.01,
+                  "quantity": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "identify": {
+      "client_id": "client_abc123.1678886400",
+      "user_id": "user-001",
+      "timestamp_micros": "1678886400000000",
+      "non_personalized_ads": false,
+      "user_properties": {
+        "email": {
+          "value": "john@example.com"
+        },
+        "first_name": {
+          "value": "John"
+        },
+        "last_name": {
+          "value": "Doe"
+        },
+        "plan_type": {
+          "value": "premium"
+        },
+        "company": {
+          "value": "Acme Corp"
+        },
+        "created_at": {
+          "value": "2023-01-15T10:30:00Z"
+        }
+      },
+      "events": [
+        {
+          "name": "user_properties_updated",
+          "params": {
+            "session_id": "1678886400",
+            "engagement_time_msec": 100
+          }
+        }
+      ]
+    },
+    "page": {
+      "client_id": "client_abc123.1678886400",
+      "user_id": "user-001",
+      "timestamp_micros": "1678886400000000",
+      "non_personalized_ads": false,
+      "events": [
+        {
+          "name": "page_view",
+          "params": {
+            "session_id": "1678886400",
+            "engagement_time_msec": 100,
+            "page_title": "Home",
+            "page_location": "https://www.example.com/home",
+            "page_referrer": "https://www.google.com/search?q=example",
+            "language": "en-us",
+            "screen_resolution": "1920x1080"
+          }
+        }
+      ]
+    },
+    "screen": {
+      "client_id": "client_abc123.1678886400",
+      "user_id": "user-001",
+      "timestamp_micros": "1678886400000000",
+      "non_personalized_ads": false,
+      "events": [
+        {
+          "name": "screen_view",
+          "params": {
+            "session_id": "1678886400",
+            "engagement_time_msec": 100,
+            "firebase_screen": "HomeScreen",
+            "firebase_screen_class": "HomeActivity",
+            "firebase_screen_id": "screen-001"
+          }
+        }
+      ]
+    },
+    "group": {
+      "client_id": "client_abc123.1678886400",
+      "user_id": "user-001",
+      "timestamp_micros": "1678886400000000",
+      "events": [
+        {
+          "name": "join_group",
+          "params": {
+            "session_id": "1678886400",
+            "engagement_time_msec": 100,
+            "group_id": "grp-456"
+          }
+        }
+      ],
+      "user_properties": {
+        "group_name": {
+          "value": "Acme Corp"
+        },
+        "group_industry": {
+          "value": "Technology"
+        },
+        "group_plan": {
+          "value": "enterprise"
+        }
+      }
+    },
+    "rudderstack_envelope_differences": {
+      "description": "Fields present in the RudderStack inbound event envelope that are not forwarded to GA4 Measurement Protocol but may influence payload construction.",
+      "additional_fields": [
+        "rudderId",
+        "originalTimestamp",
+        "sentAt",
+        "receivedAt"
+      ],
+      "library_field": "rudder-sdk-js (vs Segment analytics.js)",
+      "message_id_format": "UUID v4 (RudderStack) vs Segment format"
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group"
+  ],
+  "field_mappings": {
+    "event_name_mapping": {
+      "description": "Mapping of Segment/RudderStack semantic event names to GA4 Measurement Protocol event names. Standard track events use the event name as-is (snake_cased). Ecommerce events are mapped to GA4 recommended ecommerce event names.",
+      "rules": [
+        {
+          "source_event": "Order Completed",
+          "ga4_event_name": "purchase",
+          "notes": "GA4 recommended ecommerce event. Requires transaction_id, value, currency, items."
+        },
+        {
+          "source_event": "Product Viewed",
+          "ga4_event_name": "view_item",
+          "notes": "GA4 recommended ecommerce event. Requires currency, value, items."
+        },
+        {
+          "source_event": "Product Added",
+          "ga4_event_name": "add_to_cart",
+          "notes": "GA4 recommended ecommerce event. Requires currency, value, items."
+        },
+        {
+          "source_event": "Product Removed",
+          "ga4_event_name": "remove_from_cart",
+          "notes": "GA4 recommended ecommerce event. Requires currency, value, items."
+        },
+        {
+          "source_event": "Checkout Started",
+          "ga4_event_name": "begin_checkout",
+          "notes": "GA4 recommended ecommerce event. Requires currency, value, items."
+        },
+        {
+          "source_event": "Product List Viewed",
+          "ga4_event_name": "view_item_list",
+          "notes": "GA4 recommended ecommerce event. Requires items with item_list_id, item_list_name."
+        },
+        {
+          "source_event": "Product Clicked",
+          "ga4_event_name": "select_item",
+          "notes": "GA4 recommended ecommerce event. Requires items."
+        },
+        {
+          "source_event": "Payment Info Entered",
+          "ga4_event_name": "add_payment_info",
+          "notes": "GA4 recommended ecommerce event. Requires currency, value, items. Optional: coupon, payment_type."
+        },
+        {
+          "source_event": "Shipping Info Entered",
+          "ga4_event_name": "add_shipping_info",
+          "notes": "GA4 recommended ecommerce event. Requires currency, value, items. Optional: coupon, shipping_tier."
+        },
+        {
+          "source_event": "Order Refunded",
+          "ga4_event_name": "refund",
+          "notes": "GA4 recommended ecommerce event. Requires transaction_id. For partial refunds include items."
+        },
+        {
+          "source_event": "Promotion Viewed",
+          "ga4_event_name": "view_promotion",
+          "notes": "GA4 recommended ecommerce event. Requires items. Optional: promotion_id, promotion_name, creative_name, creative_slot."
+        },
+        {
+          "source_event": "Promotion Clicked",
+          "ga4_event_name": "select_promotion",
+          "notes": "GA4 recommended ecommerce event. Requires items. Optional: promotion_id, promotion_name."
+        },
+        {
+          "source_event": "Product Added to Wishlist",
+          "ga4_event_name": "add_to_wishlist",
+          "notes": "GA4 recommended ecommerce event. Requires currency, value, items."
+        },
+        {
+          "source_event": "Cart Viewed",
+          "ga4_event_name": "view_cart",
+          "notes": "GA4 recommended ecommerce event. Requires currency, value, items."
+        },
+        {
+          "source_event": "Products Searched",
+          "ga4_event_name": "search",
+          "notes": "GA4 recommended event. Requires search_term parameter."
+        },
+        {
+          "source_event": "(any custom track)",
+          "ga4_event_name": "snake_cased_event_name",
+          "notes": "Custom track events are sent as-is with the event name converted to snake_case. Must not exceed 40 characters. Must start with an alphabetic character."
+        }
+      ]
+    },
+    "ecommerce_event_translation": {
+      "description": "Mapping of Segment/RudderStack ecommerce product properties to GA4 items array fields. The items array can contain up to 200 elements with up to 27 custom parameters per item.",
+      "product_to_item_fields": {
+        "product_id": "item_id",
+        "sku": "item_id (fallback if product_id absent)",
+        "name": "item_name",
+        "brand": "item_brand",
+        "category": "item_category",
+        "variant": "item_variant",
+        "price": "price",
+        "quantity": "quantity",
+        "coupon": "coupon",
+        "position": "index",
+        "url": "(not mapped — GA4 items do not support url)",
+        "image_url": "(not mapped — GA4 items do not support image_url)"
+      },
+      "order_to_event_fields": {
+        "order_id": "transaction_id",
+        "total": "value",
+        "revenue": "value (fallback if total absent)",
+        "currency": "currency",
+        "tax": "tax",
+        "shipping": "shipping",
+        "coupon": "coupon",
+        "discount": "discount",
+        "affiliation": "affiliation"
+      },
+      "category_hierarchy": {
+        "description": "GA4 supports up to 5 item category levels. A single Segment category string with delimiters is split into item_category through item_category5.",
+        "example": {
+          "source": "Apparel/Adult/Shirts/Crew/Short sleeve",
+          "result": {
+            "item_category": "Apparel",
+            "item_category2": "Adult",
+            "item_category3": "Shirts",
+            "item_category4": "Crew",
+            "item_category5": "Short sleeve"
+          }
+        },
+        "delimiter": "/"
+      }
+    },
+    "custom_dimension_metric_mapping": {
+      "description": "Mapping of custom properties to GA4 custom dimensions and metrics. GA4 supports event-scoped and user-scoped custom parameters. Event-scoped parameters are placed in events[].params. User-scoped parameters are placed in user_properties.",
+      "event_scoped_parameters": {
+        "description": "Custom event properties from the track call properties object are mapped to GA4 event parameters in events[].params. Parameter names must be 40 characters or fewer. Parameter values must be 100 characters or fewer for strings.",
+        "limits": {
+          "max_event_params": 25,
+          "max_param_name_length": 40,
+          "max_param_value_length_string": 100,
+          "max_param_value_length_number": "no limit"
+        }
+      },
+      "user_scoped_parameters": {
+        "description": "User traits from identify calls are mapped to GA4 user_properties. Each user property has a 'value' sub-field. Property names must be 24 characters or fewer. Property values must be 36 characters or fewer.",
+        "limits": {
+          "max_user_properties": 25,
+          "max_property_name_length": 24,
+          "max_property_value_length": 36
+        }
+      },
+      "reserved_parameter_names": [
+        "firebase_conversion",
+        "firebase_event_origin",
+        "firebase_previous_class",
+        "firebase_previous_id",
+        "firebase_previous_screen",
+        "firebase_screen",
+        "firebase_screen_class",
+        "firebase_screen_id",
+        "first_open_time",
+        "first_visit_time",
+        "last_deep_link_referrer",
+        "user_id",
+        "first_open_after_install"
+      ],
+      "reserved_event_names": [
+        "ad_activeview",
+        "ad_click",
+        "ad_exposure",
+        "ad_query",
+        "ad_reward",
+        "adunit_exposure",
+        "app_clear_data",
+        "app_exception",
+        "app_install",
+        "app_remove",
+        "app_store_refund",
+        "app_store_subscription_cancel",
+        "app_store_subscription_convert",
+        "app_store_subscription_renew",
+        "app_update",
+        "dynamic_link_app_open",
+        "dynamic_link_app_update",
+        "dynamic_link_first_open",
+        "error",
+        "firebase_campaign",
+        "firebase_in_app_message_action",
+        "firebase_in_app_message_dismiss",
+        "firebase_in_app_message_impression",
+        "first_open",
+        "first_visit",
+        "in_app_purchase",
+        "notification_dismiss",
+        "notification_foreground",
+        "notification_open",
+        "notification_receive",
+        "os_update",
+        "screen_view",
+        "session_start",
+        "user_engagement"
+      ]
+    },
+    "client_id_derivation": {
+      "description": "The GA4 client_id is a required field that uniquely identifies a browser instance or device. It is derived from the Segment/RudderStack event context and identity fields.",
+      "derivation_priority": [
+        {
+          "priority": 1,
+          "source": "context.integrations.Google Analytics 4.clientId",
+          "notes": "Explicit client_id passed via integration-specific options"
+        },
+        {
+          "priority": 2,
+          "source": "properties.clientId or properties.client_id",
+          "notes": "Client ID passed as an event property"
+        },
+        {
+          "priority": 3,
+          "source": "context.ga4.clientId",
+          "notes": "Client ID from GA4-specific context namespace"
+        },
+        {
+          "priority": 4,
+          "source": "anonymousId",
+          "notes": "Falls back to the anonymous ID assigned by the SDK. Segment uses format '<random>.<timestamp>', RudderStack uses UUID v4."
+        },
+        {
+          "priority": 5,
+          "source": "userId",
+          "notes": "Last resort fallback. Not recommended as client_id should represent a device/browser, not a user."
+        }
+      ],
+      "format": "String. Typically '<random_number>.<unix_timestamp>' for web (e.g., '1234567890.1678886400'). For mobile, use the Firebase app_instance_id.",
+      "user_id_note": "The GA4 user_id field (separate from client_id) is set from the Segment/RudderStack userId when present. This enables cross-device identity stitching in GA4."
+    },
+    "session_handling": {
+      "description": "GA4 requires session_id and engagement_time_msec parameters for events to appear in real-time and session-scoped reports. Without these parameters, events are processed but may show as '(not set)' in attribution reports.",
+      "session_id": {
+        "derivation": [
+          {
+            "priority": 1,
+            "source": "properties.sessionId or properties.session_id",
+            "notes": "Explicit session ID from event properties"
+          },
+          {
+            "priority": 2,
+            "source": "context.sessionId",
+            "notes": "Session ID from SDK context"
+          },
+          {
+            "priority": 3,
+            "source": "Timestamp-derived (epoch seconds of session start)",
+            "notes": "Falls back to a timestamp-based session ID if not explicitly provided. GA4 sessions are identified by unique session_id values — sending a new session_id starts a new session."
+          }
+        ],
+        "format": "String representation of a positive integer (epoch seconds recommended). Must not change within a session.",
+        "new_session_behavior": "A new unique session_id value causes GA4 to count a new session."
+      },
+      "engagement_time_msec": {
+        "description": "Required for events to display in real-time reports. Represents the engagement time in milliseconds. Minimum recommended value is 1.",
+        "default_value": 100,
+        "derivation": "Set from context.engagement_time_msec if available, otherwise defaults to 100ms."
+      }
+    },
+    "page_and_screen_mapping": {
+      "page_event": {
+        "description": "Segment/RudderStack page calls map to GA4 page_view events. Page properties are mapped to GA4 page_view recommended parameters.",
+        "field_map": {
+          "name": "page_title (also used as event parameter if needed)",
+          "properties.title": "page_title",
+          "properties.url": "page_location",
+          "properties.path": "page_location (fallback, combined with origin if needed)",
+          "properties.referrer": "page_referrer",
+          "context.locale": "language",
+          "context.screen.width + context.screen.height": "screen_resolution (formatted as 'WIDTHxHEIGHT')"
+        }
+      },
+      "screen_event": {
+        "description": "Segment/RudderStack screen calls map to GA4 screen_view events. Screen properties are mapped to Firebase screen parameters.",
+        "field_map": {
+          "name": "firebase_screen",
+          "properties.screenClass or context.screen.class": "firebase_screen_class",
+          "properties.screenId": "firebase_screen_id"
+        },
+        "notes": "screen_view is only allowed for App streams. For web streams, use page_view instead."
+      }
+    },
+    "group_event_mapping": {
+      "description": "Segment/RudderStack group calls do not have a direct GA4 equivalent. The recommended approach is to map group calls to the GA4 join_group event and store group traits as user properties.",
+      "event_name": "join_group",
+      "field_map": {
+        "groupId": "group_id (event parameter)",
+        "traits.name": "group_name (user property)",
+        "traits.industry": "group_industry (user property)",
+        "traits.plan": "group_plan (user property)",
+        "traits.*": "Remaining traits stored as user properties (subject to 25 user property limit and naming constraints)"
+      }
+    },
+    "consent_parameters": {
+      "description": "GA4 Measurement Protocol supports consent configuration. Consent state from Segment/RudderStack context.consent is mapped to GA4 consent object.",
+      "mapping": {
+        "context.consent.categoryPreferences.analytics": "ad_user_data and analytics_storage",
+        "context.consent.categoryPreferences.advertising": "ad_storage and ad_personalization"
+      },
+      "values": ["GRANTED", "DENIED", "UNSET"]
+    },
+    "api_constraints": {
+      "description": "GA4 Measurement Protocol enforces several payload constraints that must be respected during event transformation.",
+      "max_events_per_request": 25,
+      "max_params_per_event": 25,
+      "max_user_properties_per_request": 25,
+      "max_event_name_length": 40,
+      "max_param_name_length": 40,
+      "max_param_value_length": 100,
+      "max_user_property_name_length": 24,
+      "max_user_property_value_length": 36,
+      "max_items_per_event": 200,
+      "max_custom_item_params": 27,
+      "max_payload_size_bytes": 8192,
+      "timestamp_backdating_limit_hours": 72,
+      "validation_behavior_options": ["RELAXED", "ENFORCE_RECOMMENDATIONS"],
+      "http_method": "POST",
+      "content_type": "application/json",
+      "success_response": "2xx with no body content (typically 204 No Content)"
+    }
+  },
+  "notes": "Google Analytics shared cloud destination. Category: Analytics. Segment has GA4 Cloud (Actions) destination (slug: actions-google-analytics-4) and GA4 Web (Actions) destination (slug: actions-google-analytics-4-web). Both use the GA4 Measurement Protocol (v2) endpoint at https://www.google-analytics.com/mp/collect. The Cloud Actions variant sends server-side via Measurement Protocol, while the Web Actions variant uses client-side gtag.js. For payload parity testing, both Segment and RudderStack produce identical GA4 Measurement Protocol JSON payloads, differing only in envelope metadata (library name, messageId format, presence of rudderId/originalTimestamp/sentAt/receivedAt fields). The GA4 Measurement Protocol requires client_id and at least one event with name and params. session_id and engagement_time_msec are strongly recommended for real-time reporting. Ecommerce events follow GA4 recommended event naming conventions (purchase, view_item, add_to_cart, begin_checkout, etc.) with structured items arrays. Custom dimensions map to event params; custom metrics map to numeric event params; user properties are set via the user_properties object. GA4 does not return error details for malformed payloads — it returns 2xx even for invalid data. Validation should use the debug endpoint at https://www.google-analytics.com/debug/mp/collect."
+}
