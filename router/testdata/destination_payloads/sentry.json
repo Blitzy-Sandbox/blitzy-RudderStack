@@ -1,0 +1,659 @@
+{
+  "destination_type": "SENTRY",
+  "destination_tier": "cloud",
+  "segment_slug": "sentry",
+  "category": "Performance Monitoring",
+  "event_types": ["track", "identify"],
+  "api_endpoints": {
+    "envelope": {
+      "url": "https://{sentry_host}/api/{project_id}/envelope/",
+      "method": "POST",
+      "description": "Primary event ingestion endpoint. Events, transactions, attachments, and sessions are sent as envelope payloads. Authentication via DSN sentry_key in X-Sentry-Auth header or query parameter.",
+      "content_type": "application/x-sentry-envelope"
+    },
+    "store": {
+      "url": "https://{sentry_host}/api/{project_id}/store/",
+      "method": "POST",
+      "description": "Deprecated event store endpoint for sending raw JSON event payloads. Replaced by the envelope endpoint in modern SDKs.",
+      "content_type": "application/json",
+      "deprecated": true
+    },
+    "user_feedback": {
+      "url": "https://sentry.io/api/0/projects/{organization_slug}/{project_slug}/user-feedback/",
+      "method": "POST",
+      "description": "User feedback submission endpoint. Allows attaching user-reported feedback to a captured Sentry event via event_id.",
+      "content_type": "application/json"
+    }
+  },
+  "authentication": {
+    "type": "dsn",
+    "description": "Sentry uses a Data Source Name (DSN) for authentication. The DSN contains the public key, project ID, and host. The public key is passed via the X-Sentry-Auth header or as a sentry_key query parameter. No secret key is needed for client-side SDKs.",
+    "dsn_format": "https://<public_key>@<sentry_host>/<project_id>",
+    "header": "X-Sentry-Auth: Sentry sentry_version=7, sentry_key=<public_key>, sentry_client=<sdk_name>/<sdk_version>",
+    "config_fields": {
+      "dsn": {
+        "type": "string",
+        "required": true,
+        "description": "The public DSN from Sentry project settings (Client Keys). Format: https://<public_key>@<host>/<project_id>"
+      }
+    }
+  },
+  "rate_limits": {
+    "default": "Varies by Sentry plan; communicated via 429 status code and Retry-After header",
+    "x_sentry_rate_limits": "Response header X-Sentry-Rate-Limits provides per-category rate limit details (error, transaction, attachment, session)",
+    "notes": "SDKs must honor 429 responses and back off for the duration specified in Retry-After. Dropped events during rate limiting are not retried."
+  },
+  "segment_reference_payloads": {
+    "identify": {
+      "description": "Segment maps identify calls to Sentry.setUser() in device mode. The userId is mapped to the user id field, and traits are passed as user context properties. Sentry's setUser accepts id, email, username, and ip_address as standard fields; additional traits are stored as custom user data.",
+      "input_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "username": "janedoe",
+          "name": "Jane Doe",
+          "phone": "+1-555-867-5309",
+          "company": "Acme Corp",
+          "plan": "enterprise",
+          "ip_address": "203.0.113.50"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://www.example.com/dashboard",
+            "title": "Dashboard - Example"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "seg-msg-identify-001"
+      },
+      "expected_api_call": {
+        "description": "Sentry is a device-mode destination. Segment calls the Sentry JavaScript SDK method Sentry.setUser() directly in the browser. No HTTP API call is made by Segment to Sentry servers for identify events.",
+        "method": "Sentry.setUser",
+        "parameters": {
+          "id": "user_123",
+          "email": "jane.doe@example.com",
+          "username": "janedoe",
+          "name": "Jane Doe",
+          "phone": "+1-555-867-5309",
+          "company": "Acme Corp",
+          "plan": "enterprise",
+          "ip_address": "203.0.113.50"
+        },
+        "notes": "The userId is mapped to the id field in setUser. All traits are passed through. Standard Sentry user fields are id, email, username, and ip_address. Additional traits become custom user attributes attached to subsequent error events."
+      }
+    },
+    "track": {
+      "description": "Segment does not directly forward track events to Sentry as API calls. Sentry automatically captures JavaScript errors and unhandled promise rejections. Track events may be used to add breadcrumbs for debugging context. Sentry captures errors via Sentry.captureException() or Sentry.captureMessage(), which are not triggered by Segment track calls.",
+      "input_event": {
+        "type": "track",
+        "event": "Error Captured",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "properties": {
+          "error_message": "SyntaxError: Unexpected token",
+          "error_type": "SyntaxError",
+          "severity": "error",
+          "page_url": "https://www.example.com/checkout",
+          "browser": "Chrome 120",
+          "os": "macOS 14.2"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://www.example.com/checkout",
+            "title": "Checkout - Example"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "seg-msg-track-001"
+      },
+      "expected_api_call": {
+        "description": "Sentry does not consume standard analytics track events. Errors are captured automatically by Sentry's SDK error handlers (global error handler, unhandled rejection handler). The Sentry SDK posts captured events to the envelope endpoint as structured error payloads with full stack traces, breadcrumbs, and user context.",
+        "method": "POST",
+        "endpoint": "https://{sentry_host}/api/{project_id}/envelope/",
+        "headers": {
+          "Content-Type": "application/x-sentry-envelope",
+          "X-Sentry-Auth": "Sentry sentry_version=7, sentry_key=<public_key>, sentry_client=sentry.javascript.browser/8.x.x"
+        },
+        "body": {
+          "event_id": "fc6d8c0c43fc4630ad850ee518f1b9d0",
+          "timestamp": "2026-02-25T12:05:00.000",
+          "platform": "javascript",
+          "level": "error",
+          "logger": "",
+          "server_name": "",
+          "release": "my-app@1.0.0",
+          "environment": "production",
+          "exception": {
+            "values": [
+              {
+                "type": "SyntaxError",
+                "value": "Unexpected token",
+                "mechanism": {
+                  "type": "onerror",
+                  "handled": false
+                },
+                "stacktrace": {
+                  "frames": [
+                    {
+                      "filename": "https://www.example.com/static/js/app.js",
+                      "function": "processCheckout",
+                      "lineno": 142,
+                      "colno": 15,
+                      "in_app": true
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "user": {
+            "id": "user_123",
+            "email": "jane.doe@example.com",
+            "username": "janedoe",
+            "ip_address": "203.0.113.50"
+          },
+          "tags": {
+            "browser": "Chrome 120",
+            "os": "macOS 14.2"
+          },
+          "breadcrumbs": {
+            "values": [
+              {
+                "timestamp": "2026-02-25T12:04:55.000Z",
+                "category": "navigation",
+                "data": {
+                  "from": "/cart",
+                  "to": "/checkout"
+                }
+              }
+            ]
+          },
+          "contexts": {
+            "browser": {
+              "name": "Chrome",
+              "version": "120"
+            },
+            "os": {
+              "name": "macOS",
+              "version": "14.2"
+            }
+          },
+          "sdk": {
+            "name": "sentry.javascript.browser",
+            "version": "8.x.x"
+          }
+        },
+        "notes": "This payload represents what Sentry's own SDK sends to its backend when an error is captured. Segment does not directly produce this payload. Sentry auto-captures errors and enriches them with the user context set via Sentry.setUser() from the Segment identify call."
+      }
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "identify": {
+      "description": "RudderStack maps identify calls to Sentry.setUser() in device mode, following the same pattern as Segment. RudderStack maps userId to the Sentry user id field. All traits are passed through to setUser. RudderStack adds standard envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event.",
+      "input_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "username": "janedoe",
+          "name": "Jane Doe",
+          "phone": "+1-555-867-5309",
+          "company": "Acme Corp",
+          "plan": "enterprise",
+          "ip_address": "203.0.113.50"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://www.example.com/dashboard",
+            "title": "Dashboard - Example"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "rs-msg-identify-001",
+        "rudderId": "rudder-uuid-identify-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "expected_api_call": {
+        "description": "RudderStack calls Sentry.setUser() in device mode, identical to Segment. The userId is mapped to the id field. All traits are passed as user context attributes.",
+        "method": "Sentry.setUser",
+        "parameters": {
+          "id": "user_123",
+          "email": "jane.doe@example.com",
+          "username": "janedoe",
+          "name": "Jane Doe",
+          "phone": "+1-555-867-5309",
+          "company": "Acme Corp",
+          "plan": "enterprise",
+          "ip_address": "203.0.113.50"
+        },
+        "notes": "RudderStack maps userId to id in Sentry.setUser(), identical to Segment's mapping. RudderStack loads the Sentry SDK from https://browser.sentry-cdn.com/ domain. Content Security Policy may need to allowlist this domain."
+      }
+    },
+    "track": {
+      "description": "RudderStack does not directly forward track events to Sentry as API calls, following the same pattern as Segment. Sentry automatically captures JavaScript errors and enriches them with user context set via identify. The RudderStack envelope fields (rudderId, sentAt, receivedAt) do not affect Sentry's error capture behavior.",
+      "input_event": {
+        "type": "track",
+        "event": "Error Captured",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "properties": {
+          "error_message": "SyntaxError: Unexpected token",
+          "error_type": "SyntaxError",
+          "severity": "error",
+          "page_url": "https://www.example.com/checkout",
+          "browser": "Chrome 120",
+          "os": "macOS 14.2"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://www.example.com/checkout",
+            "title": "Checkout - Example"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "rs-msg-track-001",
+        "rudderId": "rudder-uuid-track-001",
+        "originalTimestamp": "2026-02-25T12:05:00.000Z",
+        "sentAt": "2026-02-25T12:05:01.000Z",
+        "receivedAt": "2026-02-25T12:05:02.000Z"
+      },
+      "expected_api_call": {
+        "description": "Sentry does not consume standard analytics track events. Errors are captured automatically by Sentry's SDK. The Sentry SDK posts captured events to the envelope endpoint. The behavior is identical to the Segment integration since both use the same underlying Sentry JavaScript SDK.",
+        "method": "POST",
+        "endpoint": "https://{sentry_host}/api/{project_id}/envelope/",
+        "headers": {
+          "Content-Type": "application/x-sentry-envelope",
+          "X-Sentry-Auth": "Sentry sentry_version=7, sentry_key=<public_key>, sentry_client=sentry.javascript.browser/8.x.x"
+        },
+        "body": {
+          "event_id": "fc6d8c0c43fc4630ad850ee518f1b9d0",
+          "timestamp": "2026-02-25T12:05:00.000",
+          "platform": "javascript",
+          "level": "error",
+          "release": "my-app@1.0.0",
+          "environment": "production",
+          "exception": {
+            "values": [
+              {
+                "type": "SyntaxError",
+                "value": "Unexpected token",
+                "mechanism": {
+                  "type": "onerror",
+                  "handled": false
+                },
+                "stacktrace": {
+                  "frames": [
+                    {
+                      "filename": "https://www.example.com/static/js/app.js",
+                      "function": "processCheckout",
+                      "lineno": 142,
+                      "colno": 15,
+                      "in_app": true
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "user": {
+            "id": "user_123",
+            "email": "jane.doe@example.com",
+            "username": "janedoe",
+            "ip_address": "203.0.113.50"
+          },
+          "tags": {
+            "browser": "Chrome 120",
+            "os": "macOS 14.2"
+          },
+          "breadcrumbs": {
+            "values": [
+              {
+                "timestamp": "2026-02-25T12:04:55.000Z",
+                "category": "navigation",
+                "data": {
+                  "from": "/cart",
+                  "to": "/checkout"
+                }
+              }
+            ]
+          },
+          "contexts": {
+            "browser": {
+              "name": "Chrome",
+              "version": "120"
+            },
+            "os": {
+              "name": "macOS",
+              "version": "14.2"
+            }
+          },
+          "sdk": {
+            "name": "sentry.javascript.browser",
+            "version": "8.x.x"
+          }
+        },
+        "notes": "The Sentry error payload structure is identical regardless of whether Segment or RudderStack loaded the Sentry SDK, since both use the same Sentry JavaScript SDK under the hood. The only difference is the user context set via setUser() from each platform's identify call."
+      }
+    }
+  },
+  "field_mappings": {
+    "user_context_mapping": {
+      "userId_to_id": {
+        "segment_field": "userId",
+        "sentry_field": "user.id",
+        "description": "Both Segment and RudderStack map the userId to the Sentry user id field via Sentry.setUser({ id: userId }). This is the primary user identifier in Sentry.",
+        "parity_status": "equivalent"
+      },
+      "email": {
+        "segment_field": "traits.email",
+        "sentry_field": "user.email",
+        "description": "Email trait is mapped directly to the Sentry user email field. This is a standard Sentry user field used for issue assignment and notification.",
+        "parity_status": "equivalent"
+      },
+      "username": {
+        "segment_field": "traits.username",
+        "sentry_field": "user.username",
+        "description": "Username trait is mapped directly to the Sentry user username field. Displayed in the Sentry UI alongside error events.",
+        "parity_status": "equivalent"
+      },
+      "ip_address": {
+        "segment_field": "traits.ip_address OR context.ip",
+        "sentry_field": "user.ip_address",
+        "description": "IP address can come from traits.ip_address or context.ip. Sentry uses ip_address for geographic grouping and display. If set to '{{auto}}', Sentry infers the IP from the connection.",
+        "parity_status": "needs_verification",
+        "known_gap": "Segment may pass ip_address from traits while RudderStack may derive it from context.ip. Verify both approaches produce the same Sentry user.ip_address value."
+      },
+      "custom_traits": {
+        "segment_field": "traits.*",
+        "sentry_field": "user.* (custom attributes)",
+        "description": "Non-standard traits (name, phone, company, plan, etc.) are passed to Sentry.setUser() as additional properties. These appear in the Sentry event user context but are not indexed by Sentry for search.",
+        "parity_status": "equivalent"
+      },
+      "anonymousId": {
+        "segment_field": "anonymousId",
+        "sentry_field": "not directly mapped",
+        "description": "Sentry does not have a built-in concept of anonymous ID. The anonymousId from Segment or RudderStack is not passed to Sentry.setUser() by default. Sentry assigns its own internal session-based identifiers.",
+        "parity_status": "divergent",
+        "known_gap": "anonymousId is not forwarded to Sentry. Users without a userId will not have Sentry user context unless traits are provided."
+      }
+    },
+    "error_event_tracking_format": {
+      "description": "Sentry captures errors automatically via global error handlers. The Sentry event payload format includes exception data, stack traces, breadcrumbs, and context. This section documents how Sentry structures the error data that is enriched by the user context from identify calls.",
+      "event_structure": {
+        "event_id": {
+          "type": "string (UUID4 hex, no dashes)",
+          "description": "Unique identifier for the event, generated by the Sentry SDK"
+        },
+        "timestamp": {
+          "type": "string (ISO 8601 or Unix float)",
+          "description": "When the event was created in the SDK"
+        },
+        "platform": {
+          "type": "string",
+          "description": "SDK platform identifier (e.g., 'javascript', 'python', 'node')"
+        },
+        "level": {
+          "type": "string",
+          "description": "Event severity: fatal, error, warning, info, debug. Defaults to 'error'",
+          "default": "error"
+        },
+        "exception": {
+          "type": "object",
+          "description": "Exception interface containing error type, message, mechanism, and stack trace frames"
+        },
+        "user": {
+          "type": "object",
+          "description": "User context set via Sentry.setUser() from the identify call. Contains id, email, username, ip_address, and custom fields",
+          "standard_fields": ["id", "email", "username", "ip_address"]
+        },
+        "tags": {
+          "type": "object (string keys and values)",
+          "description": "Indexed key-value pairs for filtering. Tags must be strings and under 200 characters."
+        },
+        "breadcrumbs": {
+          "type": "array of objects",
+          "description": "Trail of events leading up to the error. Includes navigation, console, HTTP requests, and UI interactions."
+        },
+        "contexts": {
+          "type": "object",
+          "description": "Structured context data: browser, os, device, runtime, app. Auto-populated by the SDK."
+        },
+        "release": {
+          "type": "string",
+          "description": "Application release version. Must be unique per organization. Set via Sentry.init() or Segment/RudderStack configuration."
+        },
+        "environment": {
+          "type": "string",
+          "description": "Deployment environment (e.g., 'production', 'staging'). Set via Sentry.init() or Segment/RudderStack configuration.",
+          "default": "production"
+        },
+        "extra": {
+          "type": "object",
+          "description": "Arbitrary additional data attached to the event. Not indexed for search."
+        },
+        "fingerprint": {
+          "type": "array of strings",
+          "description": "Custom grouping fingerprint for issue deduplication. Overrides Sentry's default grouping algorithm."
+        }
+      }
+    },
+    "sentry_sdk_initialization": {
+      "description": "Both Segment and RudderStack initialize the Sentry SDK in device mode with configuration from the destination settings. Key initialization parameters are mapped from the analytics platform's destination configuration.",
+      "fields": {
+        "dsn": {
+          "source": "destination_config.dsn (Public DSN)",
+          "description": "Required. The Data Source Name containing the public key, host, and project ID."
+        },
+        "environment": {
+          "source": "destination_config.environment",
+          "description": "Optional. Sets the Sentry environment for filtering events by deployment stage."
+        },
+        "release": {
+          "source": "destination_config.release OR destination_config.customVersionProperty (window[property])",
+          "description": "Optional. Application version string. Can be set statically or dynamically from a window property."
+        },
+        "serverName": {
+          "source": "destination_config.serverName",
+          "description": "Optional. Hostname or device identifier."
+        },
+        "logger": {
+          "source": "destination_config.logger",
+          "description": "Optional. Logger name used by Sentry."
+        },
+        "debug": {
+          "source": "destination_config.debug",
+          "description": "Optional. Enables Sentry debug mode (logs to console, does not send events). Both Segment and RudderStack support this toggle."
+        }
+      }
+    }
+  },
+  "parity_analysis": {
+    "overall_status": "needs_verification",
+    "identify_parity": {
+      "status": "high_confidence",
+      "description": "Identify calls map identically to Sentry.setUser() in both Segment and RudderStack. The userId is mapped to user.id, and all traits are passed through. The core user fields (id, email, username, ip_address) are standard in Sentry and handled equivalently by both platforms.",
+      "known_gaps": [
+        "ip_address sourcing: Segment may use traits.ip_address while RudderStack may prefer context.ip",
+        "anonymousId is not forwarded to Sentry by either platform",
+        "Custom trait serialization: Verify both platforms pass non-standard traits identically to setUser()"
+      ]
+    },
+    "track_parity": {
+      "status": "high_confidence",
+      "description": "Neither Segment nor RudderStack directly sends track events to Sentry's API. Both platforms rely on Sentry's automatic error capture, which operates independently of analytics track calls. Parity is inherently high because both platforms use the same underlying Sentry JavaScript SDK.",
+      "known_gaps": [
+        "Track events do not map to Sentry API calls in either platform",
+        "Error capture behavior depends entirely on Sentry SDK initialization parameters, not on track event payloads",
+        "Breadcrumb enrichment from track events is not natively supported by either platform's integration"
+      ]
+    },
+    "destination_api_differences": [
+      {
+        "area": "User Identification",
+        "segment_approach": "Calls Sentry.setUser() with userId mapped to id and all traits passed through",
+        "rudderstack_approach": "Calls Sentry.setUser() with userId mapped to id and all traits passed through",
+        "gap": "Verify identical trait serialization for non-standard fields"
+      },
+      {
+        "area": "SDK Initialization",
+        "segment_approach": "Initializes Sentry via analytics.js integration bundle, loading Sentry SDK from sentry-cdn.com",
+        "rudderstack_approach": "Initializes Sentry via RudderStack device mode, loading Sentry SDK from browser.sentry-cdn.com",
+        "gap": "Verify SDK version and CDN URL produce equivalent Sentry initialization"
+      },
+      {
+        "area": "Configuration Mapping",
+        "segment_approach": "Maps DSN, environment, release, customVersionProperty, debug, logger, serverName, ignoreErrors, denyUrls, allowUrls from Segment destination settings",
+        "rudderstack_approach": "Maps DSN, environment, release, setReleaseByProperty, debug, logger, serverName, ignoreErrors, denyUrls, allowUrls, includePaths from RudderStack destination settings",
+        "gap": "Verify configuration field names and mapping logic produce identical Sentry.init() calls"
+      },
+      {
+        "area": "Error Capture",
+        "segment_approach": "Sentry automatically captures errors after SDK initialization. User context from identify enriches error events.",
+        "rudderstack_approach": "Same automatic error capture behavior since the underlying Sentry SDK is identical.",
+        "gap": "No functional gap expected; both platforms delegate error capture to the native Sentry SDK"
+      },
+      {
+        "area": "Release Tracking",
+        "segment_approach": "Supports static release string and dynamic customVersionProperty from window object",
+        "rudderstack_approach": "Supports static release string and setReleaseByProperty from window object",
+        "gap": "Field name differs (customVersionProperty vs setReleaseByProperty) but behavior should be equivalent"
+      }
+    ]
+  },
+  "destination_config": {
+    "required_settings": {
+      "dsn": {
+        "type": "string",
+        "description": "Public DSN (Data Source Name) from Sentry project settings. Contains the public key, host, and project ID. Found in Sentry under Projects > [Project] > Settings > Client Keys (DSN).",
+        "sensitive": false,
+        "example": "https://b70a31b3510c4cf793964a185cfe1fd0@o123456.ingest.sentry.io/1234567"
+      }
+    },
+    "optional_settings": {
+      "environment": {
+        "type": "string",
+        "description": "Deployment environment name (e.g., 'production', 'staging', 'development'). Sets the Sentry environment for filtering events.",
+        "default": "production"
+      },
+      "release": {
+        "type": "string",
+        "description": "Static application version string for release tracking in Sentry. Must be unique across the organization.",
+        "default": ""
+      },
+      "customVersionProperty": {
+        "type": "string",
+        "description": "Name of a property on the global window object containing the dynamic release version (e.g., 'APP_VERSION' reads window.APP_VERSION). Takes precedence over the static release field. Called 'setReleaseByProperty' in RudderStack.",
+        "default": ""
+      },
+      "serverName": {
+        "type": "string",
+        "description": "Hostname or device identifier. Used to track which host the client is running on.",
+        "default": ""
+      },
+      "logger": {
+        "type": "string",
+        "description": "Logger name used by Sentry for categorizing log entries.",
+        "default": ""
+      },
+      "debug": {
+        "type": "boolean",
+        "description": "Enable Sentry debug mode. In debug mode, Sentry logs activity to the browser console and does not send events to the server.",
+        "default": false
+      },
+      "ignoreErrors": {
+        "type": "array of strings",
+        "description": "List of error messages to filter out before sending to Sentry. Supports string matching and regular expressions.",
+        "default": []
+      },
+      "denyUrls": {
+        "type": "array of strings",
+        "description": "URLs from which errors should be ignored. Supports regex patterns and exact string matches.",
+        "default": []
+      },
+      "allowUrls": {
+        "type": "array of strings",
+        "description": "Only report errors from URLs matching these patterns. All other frames appear collapsed in the Sentry dashboard. Supports regex patterns.",
+        "default": []
+      },
+      "includePaths": {
+        "type": "array of strings",
+        "description": "Regex patterns of URLs that are part of the app in stack traces. Non-matching frames appear collapsed. RudderStack-specific setting name for Sentry's allowUrls.",
+        "default": []
+      }
+    }
+  },
+  "known_gaps": [
+    {
+      "gap_id": "SENTRY-001",
+      "description": "Device-mode only: Both Segment and RudderStack support Sentry only in device mode (client-side via JavaScript SDK). There is no cloud-mode (server-side) integration where the analytics platform sends events directly to Sentry's envelope or store API.",
+      "severity": "informational",
+      "impact": "Server-side sources (Node.js, Python, Go SDKs) cannot forward events to Sentry via Segment or RudderStack. Users must integrate the Sentry SDK directly for server-side error tracking."
+    },
+    {
+      "gap_id": "SENTRY-002",
+      "description": "No track event forwarding: Neither Segment nor RudderStack forwards analytics track events to Sentry. Sentry captures errors automatically; track events do not trigger Sentry event submissions.",
+      "severity": "low",
+      "impact": "Users expecting track events to appear in Sentry will not see them. Error capture is handled entirely by the Sentry SDK's automatic instrumentation."
+    },
+    {
+      "gap_id": "SENTRY-003",
+      "description": "Configuration field naming: The dynamic release version property has different names in Segment (customVersionProperty) and RudderStack (setReleaseByProperty). Behavior is identical but migration between platforms requires configuration mapping.",
+      "severity": "low",
+      "impact": "Users migrating from Segment to RudderStack must update the configuration key name for dynamic release tracking."
+    },
+    {
+      "gap_id": "SENTRY-004",
+      "description": "Sentry SDK version: Segment and RudderStack may bundle or load different versions of the Sentry JavaScript SDK. Sentry SDK API changes between major versions (e.g., Raven.js vs @sentry/browser) could cause behavioral differences.",
+      "severity": "medium",
+      "impact": "Verify that both platforms load a compatible Sentry SDK version. Older Segment integrations may reference the deprecated Raven.js while RudderStack uses the modern @sentry/browser SDK."
+    },
+    {
+      "gap_id": "SENTRY-005",
+      "description": "Anonymous user context: When no userId is provided (anonymous users), neither platform sets Sentry user context. Sentry errors from anonymous sessions will not have user identification unless traits like email or ip_address are provided.",
+      "severity": "low",
+      "impact": "Anonymous user errors in Sentry will lack user identification. This is consistent behavior across both platforms."
+    },
+    {
+      "gap_id": "SENTRY-006",
+      "description": "Content Security Policy: RudderStack documents that the Sentry SDK is loaded from https://browser.sentry-cdn.com/ and notes that CSP allowlisting may be required. Segment loads from the same CDN but may not document this requirement as explicitly.",
+      "severity": "low",
+      "impact": "Users with strict CSP policies must allowlist the Sentry CDN domain for the integration to function."
+    },
+    {
+      "gap_id": "SENTRY-007",
+      "description": "Release requirement: Sentry requires a release value for session tracking. If neither the Release field nor the dynamic version property is configured, the session may be discarded by Sentry.",
+      "severity": "medium",
+      "impact": "Session replay and release health features in Sentry will not function without a configured release value. Both platforms should document this requirement prominently."
+    }
+  ],
+  "notes": "Sentry is a shared cloud destination in the Performance Monitoring category. Both Segment and RudderStack support Sentry as a device-mode (client-side) destination only. The integration initializes the Sentry JavaScript SDK in the browser and maps identify calls to Sentry.setUser() for user context enrichment on automatically-captured errors. Track events are not forwarded to Sentry — error capture is handled entirely by the Sentry SDK's automatic instrumentation (global error handlers, unhandled promise rejection handlers). Key parity areas: (1) Sentry.setUser() field mapping from identify traits, (2) Sentry.init() configuration parameter mapping from destination settings, (3) Sentry SDK version compatibility between platforms, (4) Dynamic release version resolution from window properties. The Sentry Envelope API (POST /api/{project_id}/envelope/) is the modern event ingestion endpoint used by the Sentry SDK itself, replacing the deprecated Store API (POST /api/{project_id}/store/). Authentication uses DSN-derived public keys via X-Sentry-Auth header. Rate limits are communicated via 429 status codes and X-Sentry-Rate-Limits response headers."
+}
