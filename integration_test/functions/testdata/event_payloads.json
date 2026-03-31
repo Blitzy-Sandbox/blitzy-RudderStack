@@ -1,0 +1,170 @@
+{
+  "track": {
+    "type": "track",
+    "event": "Product Purchased",
+    "userId": "fn-test-user-001",
+    "anonymousId": "fn-test-anon-001",
+    "messageId": "msg-fn-track-001",
+    "timestamp": "2025-06-15T14:00:00.000Z",
+    "sentAt": "2025-06-15T14:00:01.000Z",
+    "originalTimestamp": "2025-06-15T14:00:00.000Z",
+    "properties": {
+      "product_id": "prod-fn-001",
+      "name": "Test Product",
+      "price": 49.99,
+      "currency": "USD",
+      "quantity": 1,
+      "category": "Test Category"
+    },
+    "context": {
+      "ip": "198.51.100.10",
+      "library": {
+        "name": "rudder-sdk-go",
+        "version": "1.0.0"
+      },
+      "locale": "en-US",
+      "traits": {
+        "email": "fn-user@example.com",
+        "name": "Functions Test User"
+      }
+    },
+    "integrations": {
+      "All": true
+    }
+  },
+  "identify": {
+    "type": "identify",
+    "userId": "fn-test-user-001",
+    "anonymousId": "fn-test-anon-001",
+    "messageId": "msg-fn-identify-001",
+    "timestamp": "2025-06-15T14:01:00.000Z",
+    "sentAt": "2025-06-15T14:01:01.000Z",
+    "originalTimestamp": "2025-06-15T14:01:00.000Z",
+    "traits": {
+      "email": "fn-user@example.com",
+      "name": "Functions Test User",
+      "plan": "enterprise",
+      "company": "Test Corp"
+    },
+    "context": {
+      "ip": "198.51.100.10",
+      "library": {
+        "name": "rudder-sdk-go",
+        "version": "1.0.0"
+      },
+      "locale": "en-US"
+    },
+    "integrations": {
+      "All": true
+    }
+  },
+  "group": {
+    "type": "group",
+    "userId": "fn-test-user-001",
+    "anonymousId": "fn-test-anon-001",
+    "groupId": "fn-test-group-001",
+    "messageId": "msg-fn-group-001",
+    "timestamp": "2025-06-15T14:02:00.000Z",
+    "sentAt": "2025-06-15T14:02:01.000Z",
+    "originalTimestamp": "2025-06-15T14:02:00.000Z",
+    "traits": {
+      "name": "Test Organization",
+      "industry": "Technology",
+      "employees": 150,
+      "plan": "enterprise"
+    },
+    "context": {
+      "ip": "198.51.100.10",
+      "library": {
+        "name": "rudder-sdk-go",
+        "version": "1.0.0"
+      }
+    },
+    "integrations": {
+      "All": true
+    }
+  },
+  "page": {
+    "type": "page",
+    "name": "Functions Dashboard",
+    "userId": "fn-test-user-001",
+    "anonymousId": "fn-test-anon-001",
+    "messageId": "msg-fn-page-001",
+    "timestamp": "2025-06-15T14:03:00.000Z",
+    "sentAt": "2025-06-15T14:03:01.000Z",
+    "originalTimestamp": "2025-06-15T14:03:00.000Z",
+    "properties": {
+      "title": "Functions Dashboard",
+      "url": "https://app.example.com/functions",
+      "path": "/functions",
+      "referrer": "https://app.example.com/home"
+    },
+    "context": {
+      "ip": "198.51.100.10",
+      "library": {
+        "name": "analytics.js",
+        "version": "3.12.0"
+      },
+      "page": {
+        "path": "/functions",
+        "referrer": "https://app.example.com/home",
+        "title": "Functions Dashboard",
+        "url": "https://app.example.com/functions"
+      }
+    },
+    "integrations": {
+      "All": true
+    }
+  },
+  "screen": {
+    "type": "screen",
+    "name": "Functions Screen",
+    "userId": "fn-test-user-001",
+    "anonymousId": "fn-test-anon-001",
+    "messageId": "msg-fn-screen-001",
+    "timestamp": "2025-06-15T14:04:00.000Z",
+    "sentAt": "2025-06-15T14:04:01.000Z",
+    "originalTimestamp": "2025-06-15T14:04:00.000Z",
+    "properties": {
+      "name": "Functions Screen",
+      "feed_type": "curated"
+    },
+    "context": {
+      "ip": "198.51.100.10",
+      "library": {
+        "name": "rudder-sdk-ios",
+        "version": "2.0.0"
+      },
+      "os": {
+        "name": "iOS",
+        "version": "17.0"
+      },
+      "device": {
+        "type": "ios",
+        "model": "iPhone 15"
+      }
+    },
+    "integrations": {
+      "All": true
+    }
+  },
+  "alias": {
+    "type": "alias",
+    "userId": "fn-test-user-001",
+    "previousId": "fn-test-anon-001",
+    "messageId": "msg-fn-alias-001",
+    "timestamp": "2025-06-15T14:05:00.000Z",
+    "sentAt": "2025-06-15T14:05:01.000Z",
+    "originalTimestamp": "2025-06-15T14:05:00.000Z",
+    "context": {
+      "ip": "198.51.100.10",
+      "library": {
+        "name": "rudder-sdk-go",
+        "version": "1.0.0"
+      }
+    },
+    "integrations": {
+      "All": true
+    }
+  }
+}
