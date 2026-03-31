@@ -48,6 +48,29 @@ func (m *SimpleMockSrcHydrationClient) Hydrate(_ context.Context, _ types.SrcHyd
 	return m.HydratedOutput, m.err
 }
 
+// SimpleMockFunctionsClient is a minimal mock for FunctionsClient (E-015/E-016/E-017)
+type SimpleMockFunctionsClient struct {
+	ExecuteSourceOutput      types.FunctionResponse
+	ExecuteSourceErr         error
+	ExecuteDestinationOutput types.Response
+	ExecuteInsertOutput      types.Response
+}
+
+// ExecuteSourceFunction implements the FunctionsClient interface
+func (m *SimpleMockFunctionsClient) ExecuteSourceFunction(_ context.Context, _ string, _ types.FunctionRequest) (types.FunctionResponse, error) {
+	return m.ExecuteSourceOutput, m.ExecuteSourceErr
+}
+
+// ExecuteDestinationFunction implements the FunctionsClient interface
+func (m *SimpleMockFunctionsClient) ExecuteDestinationFunction(_ context.Context, _ string, _ string, _ []types.TransformerEvent) types.Response {
+	return m.ExecuteDestinationOutput
+}
+
+// ExecuteInsertFunction implements the FunctionsClient interface
+func (m *SimpleMockFunctionsClient) ExecuteInsertFunction(_ context.Context, _ string, _ []types.TransformerEvent) types.Response {
+	return m.ExecuteInsertOutput
+}
+
 // SimpleClients is a minimal implementation of TransformerClients
 type SimpleClients struct {
 	userClient         UserClient
@@ -55,6 +78,7 @@ type SimpleClients struct {
 	destinationClient  DestinationClient
 	trackingPlanClient TrackingPlanClient
 	sycHydrationClient SrcHydrationClient
+	functionsClient    FunctionsClient // Functions runtime client (E-015/E-016/E-017)
 }
 
 // NewSimpleClients creates a new instance of SimpleClients with empty responses
@@ -110,6 +134,10 @@ func (s *SimpleClients) TrackingPlan() TrackingPlanClient {
 
 func (s *SimpleClients) SrcHydration() SrcHydrationClient { return s.sycHydrationClient }
 
+// Functions returns the functions client. Returns nil when not set, maintaining
+// backward compatibility with tests that don't configure Functions (E-015/E-016/E-017).
+func (s *SimpleClients) Functions() FunctionsClient { return s.functionsClient }
+
 // SetUserTransformOutput sets the response for the User transformer
 func (s *SimpleClients) SetUserTransformOutput(response types.Response) {
 	s.userClient = &SimpleMockUserClient{
@@ -162,6 +190,11 @@ func (s *SimpleClients) WithDynamicTrackingPlanValidate(validateFn func(context.
 // WithDynamicSrcHydration sets a custom function for Source Hydration
 func (s *SimpleClients) WithDynamicSrcHydration(hydrateFn func(context.Context, types.SrcHydrationRequest) (types.SrcHydrationResponse, error)) {
 	s.sycHydrationClient = &dynamicSrcHydrationClient{hydrateFn: hydrateFn}
+}
+
+// SetFunctionsClient sets the FunctionsClient for Functions runtime testing (E-015/E-016/E-017)
+func (s *SimpleClients) SetFunctionsClient(fc FunctionsClient) {
+	s.functionsClient = fc
 }
 
 // Helper types for dynamic behavior
