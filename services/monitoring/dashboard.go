@@ -6,6 +6,7 @@
 package monitoring
 
 import (
+	"bytes"
 	"context"
 	"math"
 	"net/http"
@@ -101,12 +102,14 @@ func (lw *latencyWindow) record(ms float64) {
 	}
 }
 
-// percentile returns the p-th percentile (0 ≤ p ≤ 1) of the observations
-// currently in the window. If the window is empty it returns 0.
-func (lw *latencyWindow) percentile(p float64) float64 {
+// percentiles computes multiple percentiles (0 ≤ p ≤ 1) in a single pass by
+// copying and sorting the active observations once. This avoids the O(N log N)
+// cost per percentile that occurs when calling percentile() individually.
+func (lw *latencyWindow) percentiles(ps ...float64) []float64 {
 	n := lw.size()
+	results := make([]float64, len(ps))
 	if n == 0 {
-		return 0
+		return results
 	}
 
 	// Copy the active slice so sorting does not disturb the ring buffer.
@@ -118,15 +121,19 @@ func (lw *latencyWindow) percentile(p float64) float64 {
 	}
 	sort.Float64s(active)
 
-	// Nearest-rank method for percentile calculation.
-	rank := p * float64(n-1)
-	lower := int(math.Floor(rank))
-	upper := int(math.Ceil(rank))
-	if lower == upper || upper >= n {
-		return active[lower]
+	for i, p := range ps {
+		// Nearest-rank method for percentile calculation.
+		rank := p * float64(n-1)
+		lower := int(math.Floor(rank))
+		upper := int(math.Ceil(rank))
+		if lower == upper || upper >= n {
+			results[i] = active[lower]
+		} else {
+			frac := rank - float64(lower)
+			results[i] = active[lower]*(1-frac) + active[upper]*frac
+		}
 	}
-	frac := rank - float64(lower)
-	return active[lower]*(1-frac) + active[upper]*frac
+	return results
 }
 
 // size returns the number of valid observations.
@@ -168,29 +175,39 @@ type DashboardService struct {
 
 // NewDashboardService creates a new DashboardService. Configuration is read
 // from the provided config.Config following the rudder-go-kit configuration
-// pattern (see router/handle.go):
+// pattern. Config keys match the Monitoring section in config.yaml:
 //
-//   - Monitoring.aggregationWindowSeconds — aggregation tick interval (default 60s)
-//   - Monitoring.retentionPeriodSeconds — metric retention before eviction (default 3600s / 1 hour)
+//   - Monitoring.dashboard.refreshInterval — aggregation tick interval (default 10s)
+//   - Monitoring.dashboard.retentionPeriod — metric retention before eviction (default 86400s / 24 hours)
 //
 // A scoped child logger is created via log.Child("monitoring") following the
 // pattern in services/alert/alertmanager.go.
+//
+// The service registers itself as the package-level default dashboard via
+// RegisterDashboard so that recording helpers in metrics.go automatically
+// bridge Prometheus writes into the in-memory dashboard state.
 func NewDashboardService(conf *config.Config, log logger.Logger) *DashboardService {
 	aggregationWindow := conf.GetDurationVar(
-		60, time.Second,
-		"Monitoring.aggregationWindowSeconds",
+		10, time.Second,
+		"Monitoring.dashboard.refreshInterval",
 	)
 	retentionPeriod := conf.GetDurationVar(
-		3600, time.Second,
-		"Monitoring.retentionPeriodSeconds",
+		86400, time.Second,
+		"Monitoring.dashboard.retentionPeriod",
 	)
 
-	return &DashboardService{
+	ds := &DashboardService{
 		logger:            log.Child("monitoring"),
 		destinations:      make(map[string]*internalDestinationState),
 		aggregationWindow: aggregationWindow,
 		retentionPeriod:   retentionPeriod,
 	}
+
+	// Bridge: register this dashboard so package-level recording helpers
+	// (RecordDelivery, RecordFailure, etc.) also populate the in-memory state.
+	RegisterDashboard(ds)
+
+	return ds
 }
 
 // ---------------------------------------------------------------------------
@@ -264,11 +281,13 @@ func (ds *DashboardService) computeDerivedMetrics() {
 		state.metrics.ThroughputPerSec = float64(delta) / windowSec
 		state.prevTotal = currentTotal
 
-		// Latency percentiles from the sliding window.
+		// Latency percentiles from the sliding window — computed in a single
+		// pass to avoid sorting the observation slice three times.
 		if state.latency != nil && state.latency.size() > 0 {
-			state.metrics.LatencyP50Ms = state.latency.percentile(0.50)
-			state.metrics.LatencyP95Ms = state.latency.percentile(0.95)
-			state.metrics.LatencyP99Ms = state.latency.percentile(0.99)
+			pcts := state.latency.percentiles(0.50, 0.95, 0.99)
+			state.metrics.LatencyP50Ms = pcts[0]
+			state.metrics.LatencyP95Ms = pcts[1]
+			state.metrics.LatencyP99Ms = pcts[2]
 		}
 	}
 }
@@ -285,14 +304,13 @@ func (ds *DashboardService) cleanup() {
 
 	now := time.Now()
 	for id, state := range ds.destinations {
-		if time.Since(state.metrics.LastUpdated) > ds.retentionPeriod {
+		if now.Sub(state.metrics.LastUpdated) > ds.retentionPeriod {
 			delete(ds.destinations, id)
 			ds.logger.Debugn("Evicted stale destination metrics",
 				obskit.DestinationID(id),
 			)
 		}
 	}
-	_ = now // suppress unused-variable warning for time.Now used via time.Since
 }
 
 // ---------------------------------------------------------------------------
@@ -341,9 +359,10 @@ func (ds *DashboardService) GetMetrics(destinationID ...string) *DashboardRespon
 // Recording methods — called by metrics.go helpers and Router integration
 // ---------------------------------------------------------------------------
 
-// recordSuccess increments the success counter for a destination. It is safe
-// for concurrent use.
-func (ds *DashboardService) recordSuccess(destinationID, destinationType string) {
+// RecordSuccess increments the success counter for a destination. It is safe
+// for concurrent use. Exported so that external packages (e.g., router) can
+// call it directly or via the monitoring.RecordDelivery helper.
+func (ds *DashboardService) RecordSuccess(destinationType, destinationID string) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
@@ -352,8 +371,10 @@ func (ds *DashboardService) recordSuccess(destinationID, destinationType string)
 	state.metrics.LastUpdated = time.Now()
 }
 
-// recordFailure increments the failure counter for a destination.
-func (ds *DashboardService) recordFailure(destinationID, destinationType string) {
+// RecordFailure increments the failure counter for a destination.
+// Exported so that external packages can call it directly or via the
+// monitoring.RecordFailure helper.
+func (ds *DashboardService) RecordFailure(destinationType, destinationID string) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
@@ -362,10 +383,12 @@ func (ds *DashboardService) recordFailure(destinationID, destinationType string)
 	state.metrics.LastUpdated = time.Now()
 }
 
-// recordLatency records a single latency observation for a destination. The
+// RecordLatency records a single latency observation for a destination. The
 // observation is appended to the per-destination sliding window from which
 // percentiles are derived during the next aggregation tick.
-func (ds *DashboardService) recordLatency(destinationID, destinationType string, latency time.Duration) {
+// Exported so that external packages can call it directly or via the
+// monitoring.RecordLatency helper.
+func (ds *DashboardService) RecordLatency(destinationType, destinationID string, latency time.Duration) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
@@ -378,8 +401,10 @@ func (ds *DashboardService) recordLatency(destinationID, destinationType string,
 	state.metrics.LastUpdated = time.Now()
 }
 
-// recordRetry increments the retry counter for a destination.
-func (ds *DashboardService) recordRetry(destinationID, destinationType string) {
+// RecordRetry increments the retry counter for a destination.
+// Exported so that external packages can call it directly or via the
+// monitoring.RecordRetry helper.
+func (ds *DashboardService) RecordRetry(destinationType, destinationID string) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
@@ -388,17 +413,23 @@ func (ds *DashboardService) recordRetry(destinationID, destinationType string) {
 	state.metrics.LastUpdated = time.Now()
 }
 
-// recordCircuitBreakerState sets the circuit-breaker gauge for a destination.
-//
-//	0 = closed (healthy)
-//	1 = open (unhealthy)
-//	2 = half-open (recovery probe)
-func (ds *DashboardService) recordCircuitBreakerState(destinationID, destinationType string, state int) {
+// RecordCircuitBreakerState sets the circuit-breaker gauge for a destination.
+// The stateStr parameter is one of "closed", "open", or "half-open".
+// Exported so that external packages can call it directly or via the
+// monitoring.RecordCircuitBreakerState helper.
+func (ds *DashboardService) RecordCircuitBreakerState(destinationType, destinationID string, stateStr string) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
 	s := ds.getOrCreateState(destinationID, destinationType)
-	s.metrics.CircuitBreakerState = state
+	switch stateStr {
+	case "open":
+		s.metrics.CircuitBreakerState = CircuitBreakerOpen
+	case "half-open":
+		s.metrics.CircuitBreakerState = CircuitBreakerHalfOpen
+	default:
+		s.metrics.CircuitBreakerState = CircuitBreakerClosed
+	}
 	s.metrics.LastUpdated = time.Now()
 }
 
@@ -444,12 +475,16 @@ func (ds *DashboardService) DashboardHandler(w http.ResponseWriter, r *http.Requ
 		resp = ds.GetMetrics()
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := jsonrs.NewEncoder(w).Encode(resp); err != nil {
+	// Buffer the JSON response so that a partial write does not produce a
+	// corrupted response followed by an error body on the same connection.
+	var buf bytes.Buffer
+	if err := jsonrs.NewEncoder(&buf).Encode(resp); err != nil {
 		ds.logger.Errorn("Failed to encode dashboard response", obskit.Error(err))
 		http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(buf.Bytes())
 }
 
 // RegisterRoutes mounts the monitoring dashboard API endpoint on the provided

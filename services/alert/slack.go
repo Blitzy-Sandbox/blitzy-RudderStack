@@ -51,6 +51,9 @@ func (s *Slack) Alert(message string) {
 		pkgLogger.Errorn("Alert: Failed to alert service", obskit.Error(err))
 		return
 	}
+	// Immediately defer response closure to ensure the body is drained and
+	// closed on ALL code paths, including early returns and panics.
+	defer func() { kithttputil.CloseResponse(resp) }()
 
 	// Validate response status — Slack webhooks return 200 on success;
 	// 202 is also accepted for consistency with other alert providers.
@@ -58,10 +61,8 @@ func (s *Slack) Alert(message string) {
 		pkgLogger.Errorn("Alert: Got error response", logger.NewIntField("statusCode", int64(resp.StatusCode)))
 	}
 
-	// Read the response body for logging and ensure the response is always
-	// properly drained and closed to prevent resource leaks.
+	// Read the response body for logging purposes.
 	body, err := io.ReadAll(resp.Body)
-	defer func() { kithttputil.CloseResponse(resp) }()
 	if err != nil {
 		pkgLogger.Errorn("Alert: Failed to read response body", obskit.Error(err))
 		return

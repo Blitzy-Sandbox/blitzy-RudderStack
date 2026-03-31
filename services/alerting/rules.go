@@ -130,6 +130,59 @@ type AlertRule struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// validConditions enumerates all recognized AlertCondition values for
+// validation purposes. A rule whose Condition is not in this set is rejected.
+var validConditions = map[AlertCondition]struct{}{
+	ThroughputDrop:   {},
+	ErrorRateSpike:   {},
+	DeliveryFailures: {},
+	WarehouseLatency: {},
+	JobsDBQueueDepth: {},
+}
+
+// validOperators enumerates all recognized ComparisonOperator values for
+// validation purposes. A rule whose ComparisonOperator is not in this set
+// is rejected.
+var validOperators = map[ComparisonOperator]struct{}{
+	LessThan:           {},
+	GreaterThan:        {},
+	LessThanOrEqual:    {},
+	GreaterThanOrEqual: {},
+	Equal:              {},
+}
+
+// Validate checks all field constraints of the AlertRule and returns an error
+// describing the first validation failure encountered, or nil if the rule is
+// valid. Callers should invoke Validate before persisting or evaluating a rule.
+//
+// Checked constraints:
+//   - Condition must be one of the recognized AlertCondition values.
+//   - Threshold must be non-negative.
+//   - ComparisonOperator must be one of the recognized operator values.
+//   - Channels must contain at least one entry (otherwise the alert has no
+//     notification target).
+func (r AlertRule) Validate() error {
+	if r.Condition == "" {
+		return fmt.Errorf("alert rule validation: condition is required")
+	}
+	if _, ok := validConditions[r.Condition]; !ok {
+		return fmt.Errorf("alert rule validation: unknown condition %q", r.Condition)
+	}
+	if r.Threshold < 0 {
+		return fmt.Errorf("alert rule validation: threshold must be non-negative, got %f", r.Threshold)
+	}
+	if r.ComparisonOperator == "" {
+		return fmt.Errorf("alert rule validation: comparison operator is required")
+	}
+	if _, ok := validOperators[r.ComparisonOperator]; !ok {
+		return fmt.Errorf("alert rule validation: unknown comparison operator %q", r.ComparisonOperator)
+	}
+	if len(r.Channels) == 0 {
+		return fmt.Errorf("alert rule validation: at least one notification channel is required")
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // MetricSnapshot — current pipeline metric values for rule evaluation
 // ---------------------------------------------------------------------------

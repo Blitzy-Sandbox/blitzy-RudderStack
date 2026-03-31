@@ -1,14 +1,16 @@
 package gateway
 
 import (
-	"encoding/json"
+	stdjson "encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/rudderlabs/rudder-go-kit/config"
 	kithttputil "github.com/rudderlabs/rudder-go-kit/httputil"
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
@@ -19,6 +21,20 @@ import (
 	gwtypes "github.com/rudderlabs/rudder-server/gateway/types"
 )
 
+// sensitiveHeaders lists HTTP header names (canonical form) that must be
+// stripped from the request context forwarded to the Functions runtime and
+// persisted in the jobs database. This prevents credentials, session tokens,
+// and authentication headers from leaking into event storage.
+var sensitiveHeaders = map[string]struct{}{ //nolint:unused // transitively unused until routes are mounted in handle_lifecycle.go
+	"Authorization":   {},
+	"Cookie":          {},
+	"Set-Cookie":      {},
+	"X-Functions-Token": {},
+	"Proxy-Authorization": {},
+}
+
+// defaultMaxBodySize is the maximum request body size (in bytes) accepted by
+// the Source Functions webhook handler. Requests exceeding this limit are
 // sourceFunctionsWebhookHandler returns an http.HandlerFunc that processes
 // Source Functions webhook requests at /v1/functions/source. It authenticates
 // the request via the writeKey-based auth middleware, reads the raw webhook
@@ -78,6 +94,13 @@ func (gw *Handle) sourceFunctionsWebhookHandler() http.HandlerFunc {
 			}
 		}()
 
+		// Enforce a configurable request body size limit to prevent DoS via
+		// oversized payloads (CWE-400). The limit defaults to 5 MB and is
+		// configurable via Gateway.sourceFunctions.maxBodySize.
+		const defaultMaxBodySize int64 = 5 * 1024 * 1024 // 5 MB
+		maxBody := config.GetInt64("Gateway.sourceFunctions.maxBodySize", defaultMaxBodySize)
+		r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+
 		// Read the incoming webhook payload
 		body, err := io.ReadAll(r.Body)
 		_ = r.Body.Close()
@@ -136,7 +159,7 @@ func (gw *Handle) sourceFunctionsWebhookHandler() http.HandlerFunc {
 type sourceFunctionEvent struct {
 	Type        string                 `json:"type"`
 	Event       string                 `json:"event"`
-	Properties  json.RawMessage        `json:"properties"`
+	Properties  stdjson.RawMessage     `json:"properties"`
 	Context     map[string]interface{} `json:"context"`
 	AnonymousID string                 `json:"anonymousId"`
 	MessageID   string                 `json:"messageId"`
@@ -181,7 +204,7 @@ type sourceFunctionBatch struct {
 func buildSourceFunctionPayload(body []byte, r *http.Request, arctx *gwtypes.AuthRequestContext) ([]byte, error) {
 	// Determine properties: use raw JSON if the body is valid JSON, otherwise
 	// wrap the raw body string as a "body" field.
-	var properties json.RawMessage
+	var properties stdjson.RawMessage
 	if jsonrs.Default.Valid(body) {
 		properties = body
 	} else {
@@ -193,10 +216,21 @@ func buildSourceFunctionPayload(body []byte, r *http.Request, arctx *gwtypes.Aut
 		}
 	}
 
-	// Build the headers map from the request
+	// Build the headers map from the request, stripping sensitive headers
+	// (Authorization, Cookie, X-Functions-Token, etc.) to prevent credential
+	// leakage into the event context and jobs database (CWE-200).
 	headers := make(map[string]string, len(r.Header))
 	for key, values := range r.Header {
 		if len(values) > 0 {
+			canonicalKey := http.CanonicalHeaderKey(key)
+			if _, isSensitive := sensitiveHeaders[canonicalKey]; isSensitive {
+				continue
+			}
+			// Also skip headers with common sensitive prefixes
+			lower := strings.ToLower(key)
+			if strings.HasPrefix(lower, "x-api-key") || strings.HasPrefix(lower, "x-auth") {
+				continue
+			}
 			headers[key] = values[0]
 		}
 	}

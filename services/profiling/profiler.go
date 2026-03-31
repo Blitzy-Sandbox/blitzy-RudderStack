@@ -70,6 +70,13 @@ type StageProfile struct {
 	SampleCount int           `json:"sample_count"`
 }
 
+// maxSamplesPerStage limits the number of latency samples kept in memory per
+// pipeline stage. When exceeded, the oldest samples are evicted (FIFO). This
+// prevents unbounded memory growth under sustained load. The value 10000 gives
+// sufficient statistical accuracy for percentile computations while keeping the
+// per-stage buffer under ~160 KB (10K × 16 bytes per time.Duration).
+const maxSamplesPerStage = 10000
+
 // Profiler collects per-stage latency samples, computes percentile profiles,
 // and exposes the data via an HTTP handler. All public methods are safe for
 // concurrent use.
@@ -84,43 +91,67 @@ type Profiler struct {
 
 // NewProfiler creates a Profiler initialised with default configuration.
 //
-// Configuration keys (hot-reloadable):
-//   - Profiling.enabled   – master toggle (default: true)
-//   - Profiling.samplingRate – percentage of events to sample, 1-100 (default: 100)
+// Configuration keys (hot-reloadable, matching config.yaml Monitoring section):
+//   - Monitoring.profiling.enabled    – master toggle (default: true)
+//   - Monitoring.profiling.sampleRate – percentage of events to sample, 1-100 (default: 100)
 func NewProfiler() *Profiler {
 	return &Profiler{
 		stageData:    make(map[string][]time.Duration),
 		logger:       logger.NewLogger().Child("profiling"),
 		statsFactory: stats.Default,
-		samplingRate: config.GetReloadableIntVar(100, 1, "Profiling.samplingRate"),
-		enabled:      config.GetReloadableBoolVar(true, "Profiling.enabled"),
+		samplingRate: config.GetReloadableIntVar(100, 1, "Monitoring.profiling.sampleRate"),
+		enabled:      config.GetReloadableBoolVar(true, "Monitoring.profiling.enabled"),
 	}
 }
 
 // RecordStageLatency records a single latency observation for the given
-// pipeline stage. The sample is appended to the in-memory buffer and also
-// emitted to Prometheus via the stats infrastructure (pipeline_stage_latency
-// timer tagged with the stage name).
+// pipeline stage. The sample is appended to the in-memory buffer (subject to
+// sampling rate) and also emitted to Prometheus via the stats infrastructure
+// (pipeline_stage_latency timer tagged with the stage name).
 //
-// Recording is a no-op when profiling is disabled.
+// Recording is a no-op when profiling is disabled. Only a configurable
+// percentage of events (Monitoring.profiling.sampleRate) are buffered
+// in-memory; the Prometheus timer always receives all observations regardless
+// of sampling.
+//
+// The in-memory buffer is capped at maxSamplesPerStage per stage. When the cap
+// is reached, the oldest samples are evicted (FIFO) to prevent unbounded
+// memory growth under sustained load.
 func (p *Profiler) RecordStageLatency(stage string, latency time.Duration) {
 	if !p.enabled.Load() {
 		return
 	}
 
-	// Append to in-memory buffer under write lock.
-	p.mu.Lock()
-	p.stageData[stage] = append(p.stageData[stage], latency)
-	p.mu.Unlock()
-
-	// Emit to Prometheus / stats infrastructure following the tagged stat
-	// pattern from processor/trackingplan.go (lines 155-159) and
-	// router/handle_observability.go (line 111).
+	// Always emit to Prometheus regardless of in-memory sampling.
 	p.statsFactory.NewTaggedStat(
 		"pipeline_stage_latency",
 		stats.TimerType,
 		stats.Tags{"stage": stage},
 	).SendTiming(latency)
+
+	// Apply sampling rate: only buffer a percentage of observations in memory
+	// for percentile computation. The sampling rate is hot-reloadable via config.
+	rate := p.samplingRate.Load()
+	if rate < 100 {
+		// Use a simple deterministic modulo check for low overhead. Each latency
+		// value's nanosecond portion provides sufficient entropy for sampling.
+		if int(latency.Nanoseconds()%100) >= rate {
+			return
+		}
+	}
+
+	// Append to in-memory buffer under write lock with capacity enforcement.
+	p.mu.Lock()
+	buf := p.stageData[stage]
+	buf = append(buf, latency)
+	// FIFO eviction: drop the oldest samples when buffer exceeds capacity.
+	if len(buf) > maxSamplesPerStage {
+		excess := len(buf) - maxSamplesPerStage
+		copy(buf, buf[excess:])
+		buf = buf[:maxSamplesPerStage]
+	}
+	p.stageData[stage] = buf
+	p.mu.Unlock()
 }
 
 // GenerateReport computes a ProfileReport from all latency samples collected
@@ -237,27 +268,36 @@ func (p *Profiler) recordPrometheusMetrics(report *ProfileReport) {
 // ---------------------------------------------------------------------------
 
 // computePercentile calculates the given percentile (0–100) from a slice of
-// durations using linear interpolation. A copy of the data is sorted so the
-// caller's slice is not modified.
+// durations by sorting a copy and using linear interpolation. This is a
+// convenience wrapper around percentileFromSorted for standalone callers and
+// tests. For batch computation of multiple percentiles on the same data, prefer
+// sorting once and calling percentileFromSorted directly (as computeStageProfile
+// does) to avoid redundant sorting.
+func computePercentile(data []time.Duration, percentile float64) time.Duration {
+	if len(data) == 0 {
+		return 0
+	}
+	sorted := make([]time.Duration, len(data))
+	copy(sorted, data)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	return percentileFromSorted(sorted, percentile)
+}
+
+// percentileFromSorted computes the given percentile (0–100) from a pre-sorted
+// slice of durations using linear interpolation. The caller MUST provide sorted
+// input; the function performs no validation or sorting of its own.
 //
 // Edge cases:
 //   - empty data → 0
 //   - single element → that element
-func computePercentile(data []time.Duration, percentile float64) time.Duration {
-	n := len(data)
+func percentileFromSorted(sorted []time.Duration, percentile float64) time.Duration {
+	n := len(sorted)
 	if n == 0 {
 		return 0
 	}
 	if n == 1 {
-		return data[0]
+		return sorted[0]
 	}
-
-	// Sort a copy to avoid mutating the caller's slice.
-	sorted := make([]time.Duration, n)
-	copy(sorted, data)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i] < sorted[j]
-	})
 
 	// Linear interpolation between floor and ceil indices.
 	idx := (percentile / 100.0) * float64(n-1)
@@ -276,32 +316,36 @@ func computePercentile(data []time.Duration, percentile float64) time.Duration {
 // computeStageProfile builds a StageProfile from a slice of latency samples.
 // It computes P50, P95, P99, Mean, Min, Max, and SampleCount. Returns a
 // zero-valued StageProfile when the input is empty.
+//
+// The data is sorted exactly once and all three percentiles are extracted from
+// the pre-sorted slice, avoiding the previous approach of re-sorting for each
+// percentile computation.
 func computeStageProfile(data []time.Duration) StageProfile {
 	n := len(data)
 	if n == 0 {
 		return StageProfile{}
 	}
 
+	// Sort a copy once for all percentile computations.
+	sorted := make([]time.Duration, n)
+	copy(sorted, data)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i] < sorted[j]
+	})
+
+	// Min and Max are at the ends of the sorted slice; Mean via summation.
 	var sum time.Duration
-	minVal := data[0]
-	maxVal := data[0]
-	for _, d := range data {
+	for _, d := range sorted {
 		sum += d
-		if d < minVal {
-			minVal = d
-		}
-		if d > maxVal {
-			maxVal = d
-		}
 	}
 
 	return StageProfile{
-		P50:         computePercentile(data, 50),
-		P95:         computePercentile(data, 95),
-		P99:         computePercentile(data, 99),
+		P50:         percentileFromSorted(sorted, 50),
+		P95:         percentileFromSorted(sorted, 95),
+		P99:         percentileFromSorted(sorted, 99),
 		Mean:        sum / time.Duration(n),
-		Min:         minVal,
-		Max:         maxVal,
+		Min:         sorted[0],
+		Max:         sorted[n-1],
 		SampleCount: n,
 	}
 }

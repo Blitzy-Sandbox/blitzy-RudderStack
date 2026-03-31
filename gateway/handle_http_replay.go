@@ -92,33 +92,13 @@ func (gw *Handle) withWarehouseReplayTag(delegate http.HandlerFunc) http.Handler
 			}
 		}
 
-		// Advanced replay filter passthrough (E-038).
-		// When advanced replay filter headers are present on the request, inject them
-		// into each event's context alongside the warehouseOnly tag. This allows the
-		// basic replay endpoint (/v1/replay) to also benefit from advanced filter
-		// parameters when both warehouse replay and filter headers are sent together.
-		//
-		// Each non-empty header value is injected into the event context using the
-		// same sjson.SetBytes pattern as the warehouseOnly injection above. The
-		// injectReplayFilters helper (handle_http_replay_advanced.go) handles the
-		// per-field injection and uses strings.EqualFold for the boolean dry-run check,
-		// consistent with the X-Warehouse-Replay comparison at the top of this function.
-		sourceFilter := r.Header.Get("X-Replay-Source-Filter")
-		startDate := r.Header.Get("X-Replay-Start-Date")
-		endDate := r.Header.Get("X-Replay-End-Date")
-		destFilter := r.Header.Get("X-Replay-Destination-Filter")
-		dryRunStr := r.Header.Get("X-Replay-Dry-Run")
-
-		if sourceFilter != "" || startDate != "" || endDate != "" || destFilter != "" || dryRunStr != "" {
-			if batch.Exists() && batch.IsArray() {
-				for i := range batch.Array() {
-					prefix := "batch." + strconv.Itoa(i) + ".context."
-					body = injectReplayFilters(body, prefix, sourceFilter, startDate, endDate, destFilter, dryRunStr)
-				}
-			} else {
-				body = injectReplayFilters(body, "context.", sourceFilter, startDate, endDate, destFilter, dryRunStr)
-			}
-		}
+		// Note: Advanced replay filters (source-level, date-range, destination-level, dry-run)
+		// are handled exclusively by withAdvancedReplayFilters (handle_http_replay_advanced.go).
+		// For the advanced handler chain (withAdvancedReplayFilters → withWarehouseReplayTag),
+		// filter injection occurs once in withAdvancedReplayFilters before this middleware runs,
+		// avoiding duplicate injection. For the basic replay chain (withWarehouseReplayTag only),
+		// advanced filter headers are not processed — users should use the /v1/replay/advanced
+		// endpoint for filter support.
 
 		// Replace the request body with the modified payload
 		r.Body = io.NopCloser(bytes.NewReader(body))

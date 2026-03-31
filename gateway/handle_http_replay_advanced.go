@@ -39,7 +39,7 @@ func isDryRunReplay(r *http.Request) bool {
 //	endDate       → <prefix>replayDateRange.endDate     (string)
 //	destFilter    → <prefix>replayDestinationFilter     (string)
 //	dryRunStr     → <prefix>replayDryRun                (bool true, only when dryRunStr == "true")
-func injectReplayFilters(body []byte, prefix, sourceFilter, startDate, endDate, destFilter, dryRunStr string) []byte {
+func injectReplayFilters(body []byte, prefix, sourceFilter, startDate, endDate, destFilter, dryRunStr string) []byte { //nolint:unused // transitively unused until routes are mounted in handle_lifecycle.go
 	if sourceFilter != "" {
 		if modified, err := sjson.SetBytes(body, prefix+"replaySourceFilter", sourceFilter); err == nil {
 			body = modified
@@ -98,6 +98,8 @@ func injectReplayFilters(body []byte, prefix, sourceFilter, startDate, endDate, 
 func (gw *Handle) withAdvancedReplayFilters(delegate http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Extract all advanced replay filter headers from the request.
+		// Header naming convention: X-Replay-* prefix is the canonical format, aligned
+		// with the openapi.yaml specification and the existing X-Warehouse-Replay pattern.
 		sourceFilter := r.Header.Get("X-Replay-Source-Filter")
 		startDate := r.Header.Get("X-Replay-Start-Date")
 		endDate := r.Header.Get("X-Replay-End-Date")
@@ -129,18 +131,21 @@ func (gw *Handle) withAdvancedReplayFilters(delegate http.HandlerFunc) http.Hand
 		}
 
 		// Validate date-range parameters if provided.
-		// Invalid dates are logged as warnings but still injected — the downstream
-		// Processor/Archiver can apply stricter validation and reject if needed.
+		// Invalid dates are logged as warnings and skipped (not injected into event
+		// context) to prevent propagating malformed data to downstream processors.
+		// Other valid filters are still applied normally.
 		if startDate != "" {
 			if _, parseErr := time.Parse(time.RFC3339, startDate); parseErr != nil {
-				gw.logger.Warnn("Invalid X-Replay-Start-Date format, expected RFC3339",
+				gw.logger.Warnn("Invalid X-Replay-Start-Date format, expected RFC3339; skipping date injection",
 					logger.NewStringField("value", startDate))
+				startDate = "" // clear invalid value to prevent injection
 			}
 		}
 		if endDate != "" {
 			if _, parseErr := time.Parse(time.RFC3339, endDate); parseErr != nil {
-				gw.logger.Warnn("Invalid X-Replay-End-Date format, expected RFC3339",
+				gw.logger.Warnn("Invalid X-Replay-End-Date format, expected RFC3339; skipping date injection",
 					logger.NewStringField("value", endDate))
+				endDate = "" // clear invalid value to prevent injection
 			}
 		}
 

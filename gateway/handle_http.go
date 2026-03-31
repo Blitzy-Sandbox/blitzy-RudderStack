@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	gwtypes "github.com/rudderlabs/rudder-server/gateway/types"
@@ -82,45 +83,51 @@ func (gw *Handle) webSourceFunctionsHandler() http.HandlerFunc {
 // This handler delegates to the Protocols API router registered via the protocols package.
 // The actual CRUD logic, versioning, and CSV import/export are in protocols/api/handler.go.
 // The protocols API routes are mounted at /v1/protocols/... in handle_lifecycle.go.
+// Bearer token authentication is enforced at the gateway level via requireBearerAuth;
+// the internal handler may perform additional authorization checks.
 func (gw *Handle) webProtocolsHandler() http.HandlerFunc {
-	return withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
+	return requireBearerAuth(withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
 		// Delegate to the protocols API handler registered in gw.internalHttpHandlers
 		if handler, ok := gw.internalHttpHandlers["/v1/protocols"]; ok {
 			handler.ServeHTTP(w, r)
 			return
 		}
 		http.Error(w, "Protocols API not configured", http.StatusServiceUnavailable)
-	})
+	}))
 }
 
 // webProfilesHandler - handler for Profiles REST API (E-027)
 // This handler delegates to the Identity/Profiles API router registered via the identity package.
 // The actual profile lookup logic (traits, events, external_ids, metadata) is in identity/profiles/api.go.
 // Profiles API targets sub-200ms response times backed by Redis caching.
+// Bearer token authentication is enforced at the gateway level via requireBearerAuth;
+// the internal handler may perform additional authorization checks.
 func (gw *Handle) webProfilesHandler() http.HandlerFunc {
-	return withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
+	return requireBearerAuth(withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
 		// Delegate to the profiles API handler registered in gw.internalHttpHandlers
 		if handler, ok := gw.internalHttpHandlers["/v1/profiles"]; ok {
 			handler.ServeHTTP(w, r)
 			return
 		}
 		http.Error(w, "Profiles API not configured", http.StatusServiceUnavailable)
-	})
+	}))
 }
 
 // webMonitoringHandler - handler for per-destination delivery monitoring dashboard (E-036)
 // Serves per-destination delivery metrics including success/failure rates, latency percentiles
 // (p50/p95/p99), throughput, retry counts, and circuit breaker state.
 // The actual metrics aggregation is in services/monitoring/dashboard.go.
+// Bearer token authentication is enforced at the gateway level via requireBearerAuth;
+// the internal handler may perform additional authorization checks.
 func (gw *Handle) webMonitoringHandler() http.HandlerFunc {
-	return withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
+	return requireBearerAuth(withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
 		// Delegate to the monitoring dashboard handler registered in gw.internalHttpHandlers
 		if handler, ok := gw.internalHttpHandlers["/v1/monitoring"]; ok {
 			handler.ServeHTTP(w, r)
 			return
 		}
 		http.Error(w, "Monitoring API not configured", http.StatusServiceUnavailable)
-	})
+	}))
 }
 
 // webAdvancedReplayHandler - handler for advanced replay with source/date-range/destination filtering and dry-run (E-038)
@@ -203,6 +210,38 @@ func (gw *Handle) callType(callType string, delegate http.HandlerFunc) http.Hand
 	return func(w http.ResponseWriter, r *http.Request) {
 		r = r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamCallType, callType))
 		delegate(w, r)
+	}
+}
+
+// requireBearerAuth is a middleware that enforces the presence of a valid Authorization
+// header with a Bearer token format on management API endpoints. This provides gateway-level
+// authentication as a defense-in-depth layer to ensure management endpoints (Protocols,
+// Profiles, Monitoring) are not publicly accessible without credentials.
+//
+// The middleware validates the header format only (Bearer <token> with non-empty token).
+// Actual token validation and authorization is delegated to the internal handler, which
+// has access to workspace context and backend-config for token verification.
+//
+// Returns HTTP 401 Unauthorized with WWW-Authenticate challenge if the Authorization
+// header is missing, malformed, or contains an empty token.
+// requireBearerAuth wraps handler with Bearer token authentication check.
+// Used by webProtocolsHandler, webProfilesHandler, webMonitoringHandler —
+// these handler factory methods are defined but awaiting route mounting in
+// handle_lifecycle.go (future checkpoint).
+func requireBearerAuth(delegate http.HandlerFunc) http.HandlerFunc { //nolint:unused // transitively unused until routes are mounted in handle_lifecycle.go
+	return func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="RudderStack API"`)
+			http.Error(w, "Authorization header required", http.StatusUnauthorized)
+			return
+		}
+		if !strings.HasPrefix(authHeader, "Bearer ") || strings.TrimSpace(authHeader[7:]) == "" {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="RudderStack API"`)
+			http.Error(w, "Invalid or missing Bearer token", http.StatusUnauthorized)
+			return
+		}
+		delegate.ServeHTTP(w, r)
 	}
 }
 

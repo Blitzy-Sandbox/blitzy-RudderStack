@@ -121,6 +121,11 @@ type ScalingRecommendation struct {
 // CapacityPlanner
 // ---------------------------------------------------------------------------
 
+// maxThroughputSamplesPerStage limits the number of throughput observations
+// kept in memory per pipeline stage. When exceeded, the oldest samples are
+// evicted (FIFO). This matches the capacity-capping approach in profiler.go.
+const maxThroughputSamplesPerStage = 10000
+
 // CapacityPlanner records per-stage throughput observations and generates
 // capacity planning reports with bottleneck identification and scaling
 // recommendations. All public methods are safe for concurrent use.
@@ -133,12 +138,13 @@ type CapacityPlanner struct {
 }
 
 // NewCapacityPlanner creates a CapacityPlanner wired to the given Profiler.
-// The target throughput is loaded from the "Profiling.targetThroughput"
-// configuration key (default: DefaultTargetThroughput = 50,000 events/sec).
+// The target throughput is loaded from the "Monitoring.profiling.targetThroughput"
+// configuration key (default: DefaultTargetThroughput = 50,000 events/sec),
+// matching the config.yaml path under the Monitoring section.
 func NewCapacityPlanner(profiler *Profiler) *CapacityPlanner {
 	return &CapacityPlanner{
 		profiler:         profiler,
-		targetThroughput: config.GetIntVar(DefaultTargetThroughput, 1, "Profiling.targetThroughput"),
+		targetThroughput: config.GetIntVar(DefaultTargetThroughput, 1, "Monitoring.profiling.targetThroughput"),
 		throughputData:   make(map[string][]float64),
 		logger:           logger.NewLogger().Child("profiling.capacity"),
 	}
@@ -152,9 +158,21 @@ func NewCapacityPlanner(profiler *Profiler) *CapacityPlanner {
 // pipeline stage. This method is thread-safe and is intended to be called by
 // external callers (e.g. pipeline instrumentation) to feed data into the
 // capacity planner.
+//
+// The in-memory buffer is capped at maxThroughputSamplesPerStage per stage.
+// When the cap is reached, the oldest samples are evicted (FIFO) to prevent
+// unbounded memory growth under sustained load.
 func (cp *CapacityPlanner) RecordThroughput(stage string, eventsPerSec float64) {
 	cp.mu.Lock()
-	cp.throughputData[stage] = append(cp.throughputData[stage], eventsPerSec)
+	buf := cp.throughputData[stage]
+	buf = append(buf, eventsPerSec)
+	// FIFO eviction: drop the oldest samples when buffer exceeds capacity.
+	if len(buf) > maxThroughputSamplesPerStage {
+		excess := len(buf) - maxThroughputSamplesPerStage
+		copy(buf, buf[excess:])
+		buf = buf[:maxThroughputSamplesPerStage]
+	}
+	cp.throughputData[stage] = buf
 	cp.mu.Unlock()
 }
 

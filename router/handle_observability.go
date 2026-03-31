@@ -14,6 +14,7 @@ import (
 	"github.com/rudderlabs/rudder-server/jobsdb"
 	"github.com/rudderlabs/rudder-server/router/internal/eventorder"
 	"github.com/rudderlabs/rudder-server/services/diagnostics"
+	"github.com/rudderlabs/rudder-server/services/monitoring"
 	"github.com/rudderlabs/rudder-server/services/rsources"
 	. "github.com/rudderlabs/rudder-server/utils/tx" //nolint:staticcheck
 )
@@ -141,8 +142,10 @@ func (rt *Handle) pipelineDelayStats(partition string, first, last *jobsdb.JobT)
 
 // recordDeliverySuccess records a successful delivery event for the given destination.
 // Used by the Delivery Dashboard (E-036) for per-destination success rate monitoring.
+// Delegates to monitoring.RecordDelivery for unified metric recording (Prometheus + dashboard).
 func (rt *Handle) recordDeliverySuccess(destinationID, destinationName, workspaceID string) {
-	stats.Default.NewTaggedStat("rudder_destination_delivery_success_total", stats.CountType, stats.Tags{
+	monitoring.RecordDelivery(destinationID, rt.destType)
+	stats.Default.NewTaggedStat(monitoring.DeliverySuccessTotal, stats.CountType, stats.Tags{
 		"destType":      rt.destType,
 		"destinationId": destinationID,
 		"destination":   destinationName,
@@ -153,8 +156,10 @@ func (rt *Handle) recordDeliverySuccess(destinationID, destinationName, workspac
 
 // recordDeliveryFailure records a failed delivery event for the given destination.
 // Used by the Delivery Dashboard (E-036) for per-destination failure rate monitoring.
+// Delegates to monitoring.RecordFailure for unified metric recording (Prometheus + dashboard).
 func (rt *Handle) recordDeliveryFailure(destinationID, destinationName, workspaceID, errorCode string) {
-	stats.Default.NewTaggedStat("rudder_destination_delivery_failure_total", stats.CountType, stats.Tags{
+	monitoring.RecordFailure(destinationID, rt.destType)
+	stats.Default.NewTaggedStat(monitoring.DeliveryFailureTotal, stats.CountType, stats.Tags{
 		"destType":      rt.destType,
 		"destinationId": destinationID,
 		"destination":   destinationName,
@@ -166,8 +171,10 @@ func (rt *Handle) recordDeliveryFailure(destinationID, destinationName, workspac
 
 // recordDeliveryLatency records the delivery latency for the given destination.
 // Used by the Delivery Dashboard (E-036) for per-destination latency percentile tracking (p50/p95/p99).
+// Delegates to monitoring.RecordLatency for unified metric recording (Prometheus + dashboard).
 func (rt *Handle) recordDeliveryLatency(destinationID, destinationName, workspaceID string, latency time.Duration) {
-	stats.Default.NewTaggedStat("rudder_destination_delivery_latency_seconds", stats.HistogramType, stats.Tags{
+	monitoring.RecordLatency(destinationID, rt.destType, latency)
+	stats.Default.NewTaggedStat(monitoring.DeliveryLatencySeconds, stats.HistogramType, stats.Tags{
 		"destType":      rt.destType,
 		"destinationId": destinationID,
 		"destination":   destinationName,
@@ -178,8 +185,10 @@ func (rt *Handle) recordDeliveryLatency(destinationID, destinationName, workspac
 
 // recordDeliveryThroughput records the delivery throughput gauge for the given destination.
 // Used by the Delivery Dashboard (E-036) for per-destination and aggregate throughput monitoring.
+// Delegates to monitoring.RecordThroughput for unified metric recording (Prometheus + dashboard).
 func (rt *Handle) recordDeliveryThroughput(destinationID, destinationName, workspaceID string, eventCount int) {
-	stats.Default.NewTaggedStat("rudder_destination_delivery_throughput", stats.GaugeType, stats.Tags{
+	monitoring.RecordThroughput(destinationID, rt.destType, float64(eventCount))
+	stats.Default.NewTaggedStat(monitoring.DeliveryThroughputEventsPerSecond, stats.GaugeType, stats.Tags{
 		"destType":      rt.destType,
 		"destinationId": destinationID,
 		"destination":   destinationName,
@@ -190,8 +199,10 @@ func (rt *Handle) recordDeliveryThroughput(destinationID, destinationName, works
 
 // recordRetryCount records a retry event for the given destination.
 // Used by the Delivery Dashboard (E-036) for tracking delivery retry frequency per destination.
+// Delegates to monitoring.RecordRetry for unified metric recording (Prometheus + dashboard).
 func (rt *Handle) recordRetryCount(destinationID, destinationName, workspaceID string) {
-	stats.Default.NewTaggedStat("rudder_destination_retry_count_total", stats.CountType, stats.Tags{
+	monitoring.RecordRetry(destinationID, rt.destType)
+	stats.Default.NewTaggedStat(monitoring.DeliveryRetryTotal, stats.CountType, stats.Tags{
 		"destType":      rt.destType,
 		"destinationId": destinationID,
 		"destination":   destinationName,
@@ -203,6 +214,7 @@ func (rt *Handle) recordRetryCount(destinationID, destinationName, workspaceID s
 // recordCircuitBreakerState records the circuit breaker state for the given destination.
 // Used by the Delivery Dashboard (E-036) for monitoring circuit breaker transitions.
 // State values: "closed" (0), "half-open" (1), "open" (2).
+// Delegates to monitoring.RecordCircuitBreakerState for unified metric recording (Prometheus + dashboard).
 func (rt *Handle) recordCircuitBreakerState(destinationID, destinationName, workspaceID, state string) {
 	stateValue := 0
 	switch state {
@@ -212,8 +224,14 @@ func (rt *Handle) recordCircuitBreakerState(destinationID, destinationName, work
 		stateValue = 1
 	case "open":
 		stateValue = 2
+	default:
+		rt.logger.Warnn("Unknown circuit breaker state, defaulting to closed (0)",
+			logger.NewStringField("state", state),
+			logger.NewStringField("destType", rt.destType),
+			logger.NewStringField("destinationId", destinationID))
 	}
-	stats.Default.NewTaggedStat("rudder_destination_circuit_breaker_state", stats.GaugeType, stats.Tags{
+	monitoring.RecordCircuitBreakerState(destinationID, rt.destType, stateValue)
+	stats.Default.NewTaggedStat(monitoring.CircuitBreakerState, stats.GaugeType, stats.Tags{
 		"destType":      rt.destType,
 		"destinationId": destinationID,
 		"destination":   destinationName,

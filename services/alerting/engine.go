@@ -25,7 +25,6 @@ import (
 
 	"github.com/rudderlabs/rudder-go-kit/config"
 	"github.com/rudderlabs/rudder-go-kit/logger"
-	"github.com/rudderlabs/rudder-go-kit/stats"
 	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
 )
 
@@ -42,6 +41,22 @@ func init() {
 }
 
 // ---------------------------------------------------------------------------
+// MetricCollector — interface for collecting pipeline metrics
+// ---------------------------------------------------------------------------
+
+// MetricCollector provides an abstraction for reading current pipeline metric
+// values. Implementations may source data from in-memory aggregations (e.g.,
+// the monitoring dashboard), Prometheus gauge registries, or other stats
+// backends. The alerting engine uses this interface to populate MetricSnapshot
+// values for threshold evaluation.
+type MetricCollector interface {
+	// CollectMetrics returns a snapshot of current pipeline metric values.
+	// Implementations should populate all fields that are available; zero
+	// values indicate that the metric is either unknown or at its zero state.
+	CollectMetrics() MetricSnapshot
+}
+
+// ---------------------------------------------------------------------------
 // AlertEngine — core alerting rules engine
 // ---------------------------------------------------------------------------
 
@@ -50,7 +65,7 @@ func init() {
 //
 // The engine follows a pull-based evaluation model: on each tick of the
 // configurable evaluation interval, it fetches all enabled rules from the
-// RuleRepository, builds a MetricSnapshot from the stats infrastructure,
+// RuleRepository, builds a MetricSnapshot from the MetricCollector,
 // evaluates each rule's threshold condition, and dispatches any triggered
 // alerts to the rule's configured notification channels.
 //
@@ -66,7 +81,7 @@ func init() {
 //	goroutine, and the channels map is protected by an RWMutex for concurrent reads.
 type AlertEngine struct {
 	// config provides access to reloadable configuration values, specifically
-	// the evaluation interval (Alerting.evaluationInterval).
+	// the evaluation interval (Monitoring.alerting.evaluationInterval).
 	config *config.Config
 
 	// logger is the scoped logger instance for this engine. Uses the package-level
@@ -81,12 +96,13 @@ type AlertEngine struct {
 	// calls ListEnabled to fetch the set of rules to evaluate on each tick.
 	ruleRepo RuleRepository
 
-	// statsFactory provides access to the shared metrics infrastructure for
-	// reading current pipeline metric values during snapshot construction.
-	statsFactory stats.Stats
+	// metricCollector provides access to current pipeline metric values for
+	// building MetricSnapshot during periodic evaluation. When nil, the engine
+	// returns zero-valued snapshots and logs a warning.
+	metricCollector MetricCollector
 
 	// evalInterval is the duration between consecutive evaluation cycles.
-	// Loaded from config key "Alerting.evaluationInterval" with a default of 60s.
+	// Loaded from config key "Monitoring.alerting.evaluationInterval" with a default of 30s.
 	evalInterval time.Duration
 
 	// cancel is the context cancellation function used to signal the evaluation
@@ -110,18 +126,19 @@ type AlertEngine struct {
 //     an empty map is used (alerts will be evaluated but not dispatched).
 //   - ruleRepo: Repository for fetching alert rules. Must not be nil for the
 //     periodic evaluation loop to function.
-//   - statsFactory: Stats provider for building metric snapshots. May be nil if
-//     metrics are provided externally via the Evaluate method.
+//   - metricCollector: Provider for current pipeline metric values. May be nil if
+//     metrics are provided externally via the Evaluate method; in that case,
+//     the periodic evaluation loop logs warnings and uses zero-valued snapshots.
 //
-// The evaluation interval is read from the config key "Alerting.evaluationInterval"
-// with a default of 60 seconds. This follows the config.GetDuration pattern used
-// in services/alert/pagerduty.go and services/alert/victorops.go.
+// The evaluation interval is read from the config key "Monitoring.alerting.evaluationInterval"
+// with a default of 30 seconds, matching the config.yaml path under the Monitoring section.
+// This follows the config.GetDuration pattern used in services/alert/pagerduty.go.
 func NewAlertEngine(
 	conf *config.Config,
 	log logger.Logger,
 	channels map[string]NotificationChannel,
 	ruleRepo RuleRepository,
-	statsFactory stats.Stats,
+	metricCollector MetricCollector,
 ) *AlertEngine {
 	if log == nil {
 		log = pkgLogger
@@ -130,17 +147,17 @@ func NewAlertEngine(
 		channels = make(map[string]NotificationChannel)
 	}
 
-	// Load the configurable evaluation interval following the pattern from
-	// services/alert/pagerduty.go line 35: config.GetDuration("key", default, unit)
-	evalInterval := conf.GetDuration("Alerting.evaluationInterval", 60, time.Second)
+	// Load the configurable evaluation interval from the Monitoring.alerting section
+	// of config.yaml. Default is 30s to match the config.yaml definition.
+	evalInterval := conf.GetDuration("Monitoring.alerting.evaluationInterval", 30, time.Second)
 
 	return &AlertEngine{
-		config:       conf,
-		logger:       log,
-		channels:     channels,
-		ruleRepo:     ruleRepo,
-		statsFactory: statsFactory,
-		evalInterval: evalInterval,
+		config:          conf,
+		logger:          log,
+		channels:        channels,
+		ruleRepo:        ruleRepo,
+		metricCollector: metricCollector,
+		evalInterval:    evalInterval,
 	}
 }
 
@@ -151,6 +168,11 @@ func NewAlertEngine(
 // Start begins the periodic evaluation loop in a background goroutine.
 // The loop runs until the provided context is cancelled or Stop is called.
 //
+// Start checks the "Monitoring.alerting.enabled" configuration flag before
+// launching the evaluation goroutine. If alerting is disabled (the default),
+// Start returns nil immediately without starting any background work. This
+// config-gating ensures the engine imposes zero overhead when not needed.
+//
 // Start creates a derived context with its own cancel function, ensuring that
 // Stop can cleanly shut down the evaluation loop independently of the parent
 // context's lifecycle.
@@ -158,6 +180,12 @@ func NewAlertEngine(
 // Returns nil on successful startup. The evaluation loop goroutine is tracked
 // via sync.WaitGroup for clean shutdown synchronization in Stop.
 func (e *AlertEngine) Start(ctx context.Context) error {
+	// Config-gated: alerting is disabled by default per config.yaml.
+	if !e.config.GetBool("Monitoring.alerting.enabled", false) {
+		e.logger.Infon("Alerting engine disabled via Monitoring.alerting.enabled config")
+		return nil
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	e.mu.Lock()
@@ -254,17 +282,7 @@ func (e *AlertEngine) evaluateAll(ctx context.Context) {
 			continue
 		}
 
-		// Rule triggered — build the alert payload.
-		metricValue, _ := getMetricValue(rule.Condition, snapshot)
-		alert := Alert{
-			RuleID:      rule.ID,
-			Condition:   rule.Condition,
-			Message:     fmt.Sprintf("Alert triggered: %s metric value %.2f breached threshold %.2f", rule.Condition, metricValue, rule.Threshold),
-			Value:       metricValue,
-			Threshold:   rule.Threshold,
-			WorkspaceID: rule.WorkspaceID,
-			Timestamp:   time.Now(),
-		}
+		alert := buildAlertFromRule(rule, snapshot)
 
 		e.logger.Warnn("Alert triggered",
 			logger.NewStringField("ruleID", rule.ID),
@@ -347,18 +365,7 @@ func (e *AlertEngine) Evaluate(ctx context.Context, rules []AlertRule, snapshot 
 			continue
 		}
 
-		// Build the alert payload from the triggered rule and current metric value.
-		metricValue, _ := getMetricValue(rule.Condition, snapshot)
-		alert := Alert{
-			RuleID:      rule.ID,
-			Condition:   rule.Condition,
-			Message:     fmt.Sprintf("Alert triggered: %s metric value %.2f breached threshold %.2f", rule.Condition, metricValue, rule.Threshold),
-			Value:       metricValue,
-			Threshold:   rule.Threshold,
-			WorkspaceID: rule.WorkspaceID,
-			Timestamp:   time.Now(),
-		}
-
+		alert := buildAlertFromRule(rule, snapshot)
 		triggered = append(triggered, alert)
 		e.dispatchAlert(ctx, alert, rule.Channels)
 	}
@@ -367,26 +374,49 @@ func (e *AlertEngine) Evaluate(ctx context.Context, rules []AlertRule, snapshot 
 }
 
 // ---------------------------------------------------------------------------
+// Alert Builder Helper
+// ---------------------------------------------------------------------------
+
+// buildAlertFromRule constructs an Alert payload from a triggered rule and
+// the metric snapshot that caused the trigger. This centralises the alert
+// construction logic that is shared by both evaluateAll (periodic) and
+// Evaluate (manual/test) code paths.
+func buildAlertFromRule(rule AlertRule, snapshot MetricSnapshot) Alert {
+	metricValue, _ := getMetricValue(rule.Condition, snapshot)
+	return Alert{
+		RuleID:      rule.ID,
+		Condition:   rule.Condition,
+		Message:     fmt.Sprintf("Alert triggered: %s metric value %.2f breached threshold %.2f", rule.Condition, metricValue, rule.Threshold),
+		Value:       metricValue,
+		Threshold:   rule.Threshold,
+		WorkspaceID: rule.WorkspaceID,
+		Timestamp:   time.Now(),
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Metric Snapshot Builder
 // ---------------------------------------------------------------------------
 
-// buildMetricSnapshot collects current pipeline metric values from the stats
-// infrastructure and returns a populated MetricSnapshot.
+// buildMetricSnapshot collects current pipeline metric values from the
+// configured MetricCollector and returns a populated MetricSnapshot.
 //
-// The stats.Stats interface (from rudder-go-kit/stats) is primarily a metrics
-// recording interface (NewStat, NewTaggedStat) rather than a metrics reading
-// interface. In production deployments, metric values are typically collected
-// from Prometheus queries or internal gauges. This implementation returns a
-// baseline snapshot with zero values as a starting point.
-//
-// For production use with real metric values, callers should either:
-//  1. Use the public Evaluate method with a pre-populated MetricSnapshot
-//  2. Extend this method to read from a metrics provider (e.g., Prometheus
-//     HTTP API or internal gauge registry)
+// When a MetricCollector is provided (via NewAlertEngine), it delegates
+// to the collector to obtain real-time metric values from the monitoring
+// dashboard or stats infrastructure. When no collector is configured, the
+// method returns a zero-valued snapshot and logs a warning to aid debugging.
 //
 // The CollectedAt timestamp is always set to the current time to enable
 // staleness detection by downstream consumers.
 func (e *AlertEngine) buildMetricSnapshot() MetricSnapshot {
+	if e.metricCollector != nil {
+		snapshot := e.metricCollector.CollectMetrics()
+		// Ensure CollectedAt is always fresh regardless of collector implementation.
+		snapshot.CollectedAt = time.Now()
+		return snapshot
+	}
+
+	e.logger.Warnn("No metric collector configured — returning zero-valued snapshot; alerts may not fire correctly")
 	return MetricSnapshot{
 		Throughput:              0,
 		ErrorRate:               0,
