@@ -1,0 +1,799 @@
+{
+  "destination_type": "INTERCOM",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "identify": {
+      "description": "Segment identify call maps to Intercom Contacts API — creates or updates a contact (user or lead)",
+      "endpoint": "POST https://api.intercom.io/contacts",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "role": "user",
+        "external_id": "user_123",
+        "email": "john.doe@example.com",
+        "name": "John Doe",
+        "phone": "+1-555-0123",
+        "avatar": "https://www.example.com/avatar/john.png",
+        "signed_up_at": 1740484800,
+        "last_seen_at": 1740484800,
+        "custom_attributes": {
+          "plan": "premium",
+          "monthly_spend": 99.99,
+          "company_size": "51-200",
+          "title": "Senior Engineer",
+          "industry": "Technology"
+        }
+      },
+      "update_endpoint": "PUT https://api.intercom.io/contacts/{id}",
+      "update_request_body": {
+        "role": "user",
+        "email": "john.doe@example.com",
+        "name": "John Doe",
+        "phone": "+1-555-0456",
+        "custom_attributes": {
+          "plan": "enterprise",
+          "monthly_spend": 199.99,
+          "title": "Staff Engineer"
+        }
+      },
+      "search_endpoint": "POST https://api.intercom.io/contacts/search",
+      "search_request_body": {
+        "query": {
+          "operator": "AND",
+          "value": [
+            {
+              "field": "external_id",
+              "operator": "=",
+              "value": "user_123"
+            }
+          ]
+        }
+      },
+      "response_example": {
+        "type": "contact",
+        "id": "6329fae8b3fe5f5e18040bc3",
+        "workspace_id": "abc123def",
+        "external_id": "user_123",
+        "role": "user",
+        "email": "john.doe@example.com",
+        "name": "John Doe",
+        "phone": "+1-555-0123",
+        "avatar": {
+          "type": "avatar",
+          "image_url": "https://www.example.com/avatar/john.png"
+        },
+        "signed_up_at": 1740484800,
+        "last_seen_at": 1740484800,
+        "created_at": 1740484800,
+        "updated_at": 1740484800,
+        "custom_attributes": {
+          "plan": "premium",
+          "monthly_spend": 99.99,
+          "company_size": "51-200",
+          "title": "Senior Engineer",
+          "industry": "Technology"
+        },
+        "tags": {
+          "type": "list",
+          "data": [],
+          "url": "/contacts/6329fae8b3fe5f5e18040bc3/tags",
+          "total_count": 0,
+          "has_more": false
+        },
+        "notes": {
+          "type": "list",
+          "data": [],
+          "url": "/contacts/6329fae8b3fe5f5e18040bc3/notes",
+          "total_count": 0,
+          "has_more": false
+        },
+        "companies": {
+          "type": "list",
+          "data": [],
+          "url": "/contacts/6329fae8b3fe5f5e18040bc3/companies",
+          "total_count": 0,
+          "has_more": false
+        }
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "traits": {
+          "email": "john.doe@example.com",
+          "name": "John Doe",
+          "firstName": "John",
+          "lastName": "Doe",
+          "phone": "+1-555-0123",
+          "avatar": "https://www.example.com/avatar/john.png",
+          "createdAt": "2026-02-25T12:00:00.000Z",
+          "plan": "premium",
+          "monthlySpend": 99.99,
+          "company": {
+            "name": "Acme Corp",
+            "id": "company_456",
+            "employee_count": "51-200",
+            "industry": "Technology"
+          },
+          "title": "Senior Engineer"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "title": "Dashboard - Acme Corp",
+            "url": "https://app.acme.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-identify-001"
+      }
+    },
+    "track": {
+      "description": "Segment track call maps to Intercom Events API — submits a user event with metadata",
+      "endpoint": "POST https://api.intercom.io/events",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "event_name": "product-viewed",
+        "created_at": 1740484800,
+        "user_id": "user_123",
+        "metadata": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": {
+            "amount": 4999,
+            "currency": "usd"
+          },
+          "category": "Widgets",
+          "url": "https://www.acme.com/products/premium-widget"
+        }
+      },
+      "request_body_email_identified": {
+        "event_name": "product-viewed",
+        "created_at": 1740484800,
+        "email": "john.doe@example.com",
+        "metadata": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": {
+            "amount": 4999,
+            "currency": "usd"
+          },
+          "category": "Widgets",
+          "url": "https://www.acme.com/products/premium-widget"
+        }
+      },
+      "revenue_event_body": {
+        "event_name": "order-completed",
+        "created_at": 1740484800,
+        "user_id": "user_123",
+        "metadata": {
+          "order_id": "ORD-99001",
+          "revenue": {
+            "amount": 4999,
+            "currency": "usd"
+          },
+          "products": "Premium Widget (x1)",
+          "quantity": 1
+        }
+      },
+      "response_example": {
+        "status": 202
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets",
+          "url": "https://www.acme.com/products/premium-widget"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "title": "Product Page",
+            "url": "https://www.acme.com/products/premium-widget"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-track-001"
+      }
+    },
+    "group": {
+      "description": "Segment group call maps to Intercom Companies API — creates or updates a company and associates the user",
+      "company_endpoint": "POST https://api.intercom.io/companies",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "company_request_body": {
+        "company_id": "company_456",
+        "name": "Acme Corp",
+        "plan": "enterprise",
+        "size": 150,
+        "website": "https://www.acme.com",
+        "industry": "Technology",
+        "monthly_spend": 2999.00,
+        "remote_created_at": 1709856000,
+        "custom_attributes": {
+          "region": "North America",
+          "tier": "enterprise",
+          "annual_revenue": "10M-50M"
+        }
+      },
+      "attach_contact_endpoint": "POST https://api.intercom.io/contacts/{contact_id}/companies",
+      "attach_contact_request_body": {
+        "id": "661fabc1234567890abcdef0"
+      },
+      "response_example": {
+        "type": "company",
+        "company_id": "company_456",
+        "id": "661fabc1234567890abcdef0",
+        "name": "Acme Corp",
+        "plan": {
+          "type": "plan",
+          "id": "1",
+          "name": "enterprise"
+        },
+        "size": 150,
+        "website": "https://www.acme.com",
+        "industry": "Technology",
+        "monthly_spend": 2999.00,
+        "remote_created_at": 1709856000,
+        "created_at": 1740484800,
+        "updated_at": 1740484800,
+        "custom_attributes": {
+          "region": "North America",
+          "tier": "enterprise",
+          "annual_revenue": "10M-50M"
+        },
+        "segments": {
+          "type": "segment.list",
+          "segments": []
+        },
+        "tags": {
+          "type": "tag.list",
+          "tags": []
+        }
+      },
+      "source_event": {
+        "type": "group",
+        "userId": "user_123",
+        "groupId": "company_456",
+        "traits": {
+          "name": "Acme Corp",
+          "plan": "enterprise",
+          "employees": 150,
+          "website": "https://www.acme.com",
+          "industry": "Technology",
+          "monthlySpend": 2999.00,
+          "createdAt": "2024-03-08T00:00:00.000Z",
+          "region": "North America",
+          "tier": "enterprise",
+          "annualRevenue": "10M-50M"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-group-001"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "identify": {
+      "description": "RudderStack identify call maps to Intercom Contacts API — creates or updates a contact (user or lead)",
+      "endpoint": "POST https://api.intercom.io/contacts",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "role": "user",
+        "external_id": "user_123",
+        "email": "john.doe@example.com",
+        "name": "John Doe",
+        "phone": "+1-555-0123",
+        "avatar": "https://www.example.com/avatar/john.png",
+        "signed_up_at": 1740484800,
+        "last_seen_at": 1740484800,
+        "custom_attributes": {
+          "plan": "premium",
+          "monthly_spend": 99.99,
+          "company_size": "51-200",
+          "title": "Senior Engineer",
+          "industry": "Technology"
+        }
+      },
+      "update_endpoint": "PUT https://api.intercom.io/contacts/{id}",
+      "update_request_body": {
+        "role": "user",
+        "email": "john.doe@example.com",
+        "name": "John Doe",
+        "phone": "+1-555-0456",
+        "custom_attributes": {
+          "plan": "enterprise",
+          "monthly_spend": 199.99,
+          "title": "Staff Engineer"
+        }
+      },
+      "search_endpoint": "POST https://api.intercom.io/contacts/search",
+      "search_request_body": {
+        "query": {
+          "operator": "AND",
+          "value": [
+            {
+              "field": "external_id",
+              "operator": "=",
+              "value": "user_123"
+            }
+          ]
+        }
+      },
+      "response_example": {
+        "type": "contact",
+        "id": "6329fae8b3fe5f5e18040bc3",
+        "workspace_id": "abc123def",
+        "external_id": "user_123",
+        "role": "user",
+        "email": "john.doe@example.com",
+        "name": "John Doe",
+        "phone": "+1-555-0123",
+        "avatar": {
+          "type": "avatar",
+          "image_url": "https://www.example.com/avatar/john.png"
+        },
+        "signed_up_at": 1740484800,
+        "last_seen_at": 1740484800,
+        "created_at": 1740484800,
+        "updated_at": 1740484800,
+        "custom_attributes": {
+          "plan": "premium",
+          "monthly_spend": 99.99,
+          "company_size": "51-200",
+          "title": "Senior Engineer",
+          "industry": "Technology"
+        },
+        "tags": {
+          "type": "list",
+          "data": [],
+          "url": "/contacts/6329fae8b3fe5f5e18040bc3/tags",
+          "total_count": 0,
+          "has_more": false
+        },
+        "notes": {
+          "type": "list",
+          "data": [],
+          "url": "/contacts/6329fae8b3fe5f5e18040bc3/notes",
+          "total_count": 0,
+          "has_more": false
+        },
+        "companies": {
+          "type": "list",
+          "data": [],
+          "url": "/contacts/6329fae8b3fe5f5e18040bc3/companies",
+          "total_count": 0,
+          "has_more": false
+        }
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "traits": {
+          "email": "john.doe@example.com",
+          "name": "John Doe",
+          "firstName": "John",
+          "lastName": "Doe",
+          "phone": "+1-555-0123",
+          "avatar": "https://www.example.com/avatar/john.png",
+          "createdAt": "2026-02-25T12:00:00.000Z",
+          "plan": "premium",
+          "monthlySpend": 99.99,
+          "company": {
+            "name": "Acme Corp",
+            "id": "company_456",
+            "employee_count": "51-200",
+            "industry": "Technology"
+          },
+          "title": "Senior Engineer"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "title": "Dashboard - Acme Corp",
+            "url": "https://app.acme.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-identify-001",
+        "rudderId": "rudder-uuid-identify-001"
+      }
+    },
+    "track": {
+      "description": "RudderStack track call maps to Intercom Events API — submits a user event with metadata",
+      "endpoint": "POST https://api.intercom.io/events",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "event_name": "product-viewed",
+        "created_at": 1740484800,
+        "user_id": "user_123",
+        "metadata": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": {
+            "amount": 4999,
+            "currency": "usd"
+          },
+          "category": "Widgets",
+          "url": "https://www.acme.com/products/premium-widget"
+        }
+      },
+      "request_body_email_identified": {
+        "event_name": "product-viewed",
+        "created_at": 1740484800,
+        "email": "john.doe@example.com",
+        "metadata": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": {
+            "amount": 4999,
+            "currency": "usd"
+          },
+          "category": "Widgets",
+          "url": "https://www.acme.com/products/premium-widget"
+        }
+      },
+      "revenue_event_body": {
+        "event_name": "order-completed",
+        "created_at": 1740484800,
+        "user_id": "user_123",
+        "metadata": {
+          "order_id": "ORD-99001",
+          "revenue": {
+            "amount": 4999,
+            "currency": "usd"
+          },
+          "products": "Premium Widget (x1)",
+          "quantity": 1
+        }
+      },
+      "response_example": {
+        "status": 202
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets",
+          "url": "https://www.acme.com/products/premium-widget"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "title": "Product Page",
+            "url": "https://www.acme.com/products/premium-widget"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-track-001",
+        "rudderId": "rudder-uuid-track-001"
+      }
+    },
+    "group": {
+      "description": "RudderStack group call maps to Intercom Companies API — creates or updates a company and associates the user",
+      "company_endpoint": "POST https://api.intercom.io/companies",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "company_request_body": {
+        "company_id": "company_456",
+        "name": "Acme Corp",
+        "plan": "enterprise",
+        "size": 150,
+        "website": "https://www.acme.com",
+        "industry": "Technology",
+        "monthly_spend": 2999.00,
+        "remote_created_at": 1709856000,
+        "custom_attributes": {
+          "region": "North America",
+          "tier": "enterprise",
+          "annual_revenue": "10M-50M"
+        }
+      },
+      "attach_contact_endpoint": "POST https://api.intercom.io/contacts/{contact_id}/companies",
+      "attach_contact_request_body": {
+        "id": "661fabc1234567890abcdef0"
+      },
+      "response_example": {
+        "type": "company",
+        "company_id": "company_456",
+        "id": "661fabc1234567890abcdef0",
+        "name": "Acme Corp",
+        "plan": {
+          "type": "plan",
+          "id": "1",
+          "name": "enterprise"
+        },
+        "size": 150,
+        "website": "https://www.acme.com",
+        "industry": "Technology",
+        "monthly_spend": 2999.00,
+        "remote_created_at": 1709856000,
+        "created_at": 1740484800,
+        "updated_at": 1740484800,
+        "custom_attributes": {
+          "region": "North America",
+          "tier": "enterprise",
+          "annual_revenue": "10M-50M"
+        },
+        "segments": {
+          "type": "segment.list",
+          "segments": []
+        },
+        "tags": {
+          "type": "tag.list",
+          "tags": []
+        }
+      },
+      "source_event": {
+        "type": "group",
+        "userId": "user_123",
+        "groupId": "company_456",
+        "traits": {
+          "name": "Acme Corp",
+          "plan": "enterprise",
+          "employees": 150,
+          "website": "https://www.acme.com",
+          "industry": "Technology",
+          "monthlySpend": 2999.00,
+          "createdAt": "2024-03-08T00:00:00.000Z",
+          "region": "North America",
+          "tier": "enterprise",
+          "annualRevenue": "10M-50M"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-group-001",
+        "rudderId": "rudder-uuid-group-001"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "group"
+  ],
+  "field_mappings": {
+    "identify_to_contact": {
+      "description": "Maps Segment/RudderStack identify traits to Intercom Contact fields via Contacts API v2.x",
+      "endpoint": "POST /contacts (create) or PUT /contacts/{id} (update)",
+      "identification_strategy": {
+        "primary": "userId maps to external_id in Intercom — the preferred unique identifier for contacts",
+        "fallback": "email address used when userId is not available — Intercom can match contacts by email",
+        "search_before_create": "Both platforms search for existing contact using external_id or email before creating. Uses POST /contacts/search to find existing contacts."
+      },
+      "trait_to_field_mapping": {
+        "userId": "external_id",
+        "traits.email": "email",
+        "traits.name": "name",
+        "traits.firstName + traits.lastName": "name (concatenated if name trait not provided)",
+        "traits.phone": "phone",
+        "traits.avatar": "avatar (URL string)",
+        "traits.createdAt": "signed_up_at (converted from ISO 8601 to Unix timestamp)",
+        "traits.plan": "custom_attributes.plan",
+        "traits.monthlySpend": "custom_attributes.monthly_spend",
+        "traits.title": "custom_attributes.title",
+        "traits.company.name": "Used for company association (separate Companies API call)",
+        "traits.company.id": "Used for company association (company_id in Companies API)",
+        "traits.*": "custom_attributes.* (all unmapped traits become custom attributes)"
+      },
+      "role_determination": {
+        "description": "Intercom distinguishes between 'user' (authenticated) and 'lead' (anonymous/visitor). Role assignment is based on identification method.",
+        "with_userId": "role = 'user' — contacts with external_id are treated as known users",
+        "without_userId": "role = 'lead' — contacts identified only by email may be treated as leads",
+        "note": "Role cannot be changed from user to lead after creation. Lead-to-user conversion is supported."
+      },
+      "timestamp_conversion": {
+        "description": "Intercom uses Unix timestamps (seconds) while Segment/RudderStack use ISO 8601",
+        "segment_format": "2026-02-25T12:00:00.000Z",
+        "intercom_format": 1740484800,
+        "fields_affected": [
+          "signed_up_at",
+          "last_seen_at",
+          "remote_created_at"
+        ]
+      }
+    },
+    "track_to_event": {
+      "description": "Maps Segment/RudderStack track events to Intercom Events via Events API",
+      "endpoint": "POST /events",
+      "event_name_mapping": {
+        "strategy": "Segment/RudderStack event name is converted to lowercase kebab-case for Intercom convention",
+        "segment_field": "event",
+        "intercom_field": "event_name",
+        "transformation": "Event name is typically lowercased and spaces replaced with hyphens (e.g., 'Product Viewed' → 'product-viewed')",
+        "example": {
+          "segment_event": "Product Viewed",
+          "intercom_event_name": "product-viewed"
+        }
+      },
+      "user_identification": {
+        "primary": "userId maps to user_id field in Events API — preferred identifier",
+        "fallback": "email used when userId is not available — can identify contact by email",
+        "intercom_id": "Intercom's internal contact id can also be used but requires prior lookup",
+        "note": "At least one of user_id, email, or id must be provided. user_id (external_id) is preferred."
+      },
+      "property_mapping": {
+        "properties.*": "metadata.* (event properties become metadata key-value pairs)",
+        "properties.revenue or properties.price": "metadata.price (Intercom rich link format: {amount: cents, currency: lowercase})",
+        "timestamp": "created_at (converted from ISO 8601 to Unix timestamp in seconds)"
+      },
+      "metadata_constraints": {
+        "max_metadata_keys": 10,
+        "max_key_length": 255,
+        "supported_value_types": [
+          "string",
+          "integer",
+          "boolean",
+          "rich link (url, value)",
+          "monetary amount (amount in cents, currency)"
+        ],
+        "note": "Intercom limits metadata to 10 key-value pairs per event. Nested objects are flattened or must use rich link format. Arrays are not supported directly."
+      },
+      "revenue_handling": {
+        "description": "Monetary values in Intercom use a special rich format with amount in cents and lowercase currency code",
+        "segment_format": "properties.price = 49.99, properties.currency = 'USD'",
+        "intercom_format": "metadata.price = { amount: 4999, currency: 'usd' }",
+        "conversion": "Dollar amount is multiplied by 100 to get cents; currency code is lowercased"
+      }
+    },
+    "group_to_company": {
+      "description": "Maps Segment/RudderStack group calls to Intercom Companies API — creates or updates a company and associates the calling user",
+      "company_endpoint": "POST /companies",
+      "attach_endpoint": "POST /contacts/{contact_id}/companies",
+      "trait_to_field_mapping": {
+        "groupId": "company_id (the unique identifier for the company — used for upsert)",
+        "traits.name": "name",
+        "traits.plan": "plan (used for Intercom's plan-based segmentation)",
+        "traits.employees or traits.size": "size (integer employee count)",
+        "traits.website": "website",
+        "traits.industry": "industry",
+        "traits.monthlySpend": "monthly_spend (decimal amount)",
+        "traits.createdAt": "remote_created_at (converted from ISO 8601 to Unix timestamp)",
+        "traits.*": "custom_attributes.* (all unmapped traits become custom attributes)"
+      },
+      "two_step_process": {
+        "description": "Group calls require two API operations: (1) create/update the company, (2) attach the user contact to the company",
+        "step_1": "POST /companies with company_id and traits — Intercom upserts by company_id",
+        "step_2": "POST /contacts/{contact_id}/companies with company Intercom ID — associates the user with the company",
+        "note": "Step 2 requires the Intercom internal company ID from the Step 1 response, and the Intercom internal contact ID from a prior identify/search call"
+      },
+      "company_upsert": {
+        "description": "Intercom Companies API automatically upserts based on company_id",
+        "behavior": "If a company with the given company_id exists, it is updated; otherwise a new company is created",
+        "required_field": "company_id is required and serves as the dedup key"
+      }
+    }
+  },
+  "parity_gaps": {
+    "event_name_convention": {
+      "severity": "medium",
+      "description": "Intercom convention uses lowercase kebab-case event names (e.g., 'product-viewed'). The transformation from Segment spec event names (e.g., 'Product Viewed') to Intercom format must be consistent between Segment and RudderStack connectors."
+    },
+    "metadata_limit": {
+      "severity": "medium",
+      "description": "Intercom limits event metadata to 10 key-value pairs. Both platforms must apply the same truncation or selection strategy when the source event has more than 10 properties. Verify identical property selection priority."
+    },
+    "monetary_value_format": {
+      "severity": "medium",
+      "description": "Intercom uses amount-in-cents with lowercase currency code (e.g., {amount: 4999, currency: 'usd'}). Both platforms must convert dollar amounts to cents identically and handle edge cases (e.g., floating point precision, missing currency)."
+    },
+    "contact_search_strategy": {
+      "severity": "medium",
+      "description": "Before creating a contact, both platforms should search for existing contacts using external_id first, then email as fallback. The search strategy order and de-duplication logic must match to prevent creating duplicate contacts."
+    },
+    "company_association_flow": {
+      "severity": "low",
+      "description": "Group calls require a two-step process (create/update company, then attach contact). Both platforms must handle the case where the contact does not yet exist in Intercom when a group call arrives. Verify identical error handling and retry behavior."
+    },
+    "timestamp_conversion_precision": {
+      "severity": "low",
+      "description": "Intercom uses Unix timestamps in seconds. Both platforms must round or truncate milliseconds identically when converting from ISO 8601 timestamps. Sub-second differences may cause minor data inconsistencies."
+    },
+    "custom_attribute_type_coercion": {
+      "severity": "low",
+      "description": "Intercom custom attributes support string, integer, float, boolean, and datetime types. Both platforms must apply the same type inference rules when mapping Segment spec trait values to Intercom custom attribute types."
+    },
+    "lead_vs_user_role_assignment": {
+      "severity": "low",
+      "description": "Intercom distinguishes between 'user' and 'lead' roles. Both platforms should assign the same role based on the presence of userId. When only anonymousId is available, both should create a lead. When userId is present, both should create a user."
+    },
+    "context_library_fields": {
+      "severity": "informational",
+      "description": "Segment source events have context.library.name='analytics.js'; RudderStack source events have context.library.name='rudder-sdk-js'. These are SDK-level differences and do not affect the Intercom destination payload."
+    },
+    "rudderstack_envelope_fields": {
+      "severity": "informational",
+      "description": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to source events. These fields are stripped before sending to Intercom API and do not affect destination payload parity."
+    },
+    "segment_variants": {
+      "severity": "informational",
+      "description": "Segment offers 3 Intercom variants: Classic (legacy server-side), Cloud Mode (Actions with configurable mappings), and Web (Actions device-mode). The Actions variants use configurable field mappings with event subscriptions. RudderStack uses a single cloud connector with fixed mapping logic via the Transformer service."
+    }
+  },
+  "authentication": {
+    "method": "Bearer Token (Access Token)",
+    "header": "Authorization: Bearer {access_token}",
+    "token_source": "Intercom Developer Hub — OAuth 2.0 app or direct access token from workspace settings",
+    "api_version": {
+      "header": "Intercom-Version",
+      "recommended": "2.11",
+      "note": "Intercom API versioning is controlled via the Intercom-Version header. Both platforms should use the same API version to ensure consistent response shapes."
+    },
+    "rate_limits": {
+      "standard": "1000 requests per minute per workspace (for most endpoints)",
+      "events_api": "500 events per second per workspace (burst), sustained 50 events per second",
+      "contacts_search": "15 requests per 10 seconds per workspace",
+      "burst": "Rate limit responses return HTTP 429 with Retry-After header"
+    },
+    "scopes_required": [
+      "contacts:read",
+      "contacts:write",
+      "events:read",
+      "events:write",
+      "companies:read",
+      "companies:write",
+      "tags:read",
+      "tags:write"
+    ],
+    "note": "Both Segment and RudderStack use Bearer token authentication for the Intercom API. OAuth 2.0 is supported for app-based integrations. The access token provides workspace-level access."
+  },
+  "notes": "Intercom shared cloud destination. Categories: Livechat, Customer Success, Email Marketing. Segment has 3 variants: Classic (legacy server-side), Cloud Mode (Actions with configurable mappings), and Web (Actions device-mode). RudderStack supports Intercom as a cloud destination via the Router with Transformer-based payload mapping. Key Intercom API endpoints used: Contacts (/contacts), Events (/events), Companies (/companies). Primary identification uses external_id (from userId) with email as fallback. Intercom uses Unix timestamps (seconds) rather than ISO 8601. Event metadata is limited to 10 key-value pairs with special monetary amount format (cents + lowercase currency). Company association from group calls requires a two-step process: create/update company, then attach contact to company. The payload parity validation should compare the final HTTP request sent to Intercom API endpoints, ensuring identical field mapping, timestamp conversion, event name formatting, metadata structure, and contact identification strategy for both platforms."
+}
