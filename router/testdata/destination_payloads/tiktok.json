@@ -1,0 +1,521 @@
+{
+  "destination_type": "TIKTOK",
+  "destination_tier": "cloud",
+  "category": "Advertising",
+  "segment_slug": "actions-tiktok-pixel",
+  "api_endpoint": "https://business-api.tiktok.com/open_api/v1.3/event/track/",
+  "api_version": "v1.3",
+  "event_types": ["track", "page"],
+  "authentication": {
+    "method": "access_token",
+    "header": "Access-Token",
+    "description": "TikTok Events API requires an Access Token generated from TikTok Ads Manager and a Pixel ID (event_source_id) for web events."
+  },
+  "destination_config": {
+    "pixelCode": "EXAMPLE_PIXEL_CODE_1234567890",
+    "accessToken": "example-access-token-abc123def456",
+    "hashUserProperties": true,
+    "eventSourceType": "web"
+  },
+  "standard_events": [
+    "ViewContent",
+    "ClickButton",
+    "Search",
+    "AddToWishlist",
+    "AddToCart",
+    "InitiateCheckout",
+    "AddPaymentInfo",
+    "CompletePayment",
+    "PlaceAnOrder",
+    "Contact",
+    "Download",
+    "SubmitForm",
+    "CompleteRegistration",
+    "Subscribe",
+    "PageView"
+  ],
+  "segment_reference_payloads": {
+    "track": {
+      "description": "Segment track call mapped to TikTok Events API for a Purchase (CompletePayment) event",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "order_id": "order-789",
+          "revenue": 99.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 2,
+              "category": "Widgets"
+            }
+          ]
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "page": {
+            "url": "https://example.com/checkout/complete?ttclid=E.C.P.abc123def456",
+            "referrer": "https://example.com/cart"
+          },
+          "traits": {
+            "email": "user@example.com",
+            "phone": "+14155551234"
+          },
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "messageId": "seg-msg-abc-123"
+      },
+      "output_payload": {
+        "pixel_code": "EXAMPLE_PIXEL_CODE_1234567890",
+        "event": "CompletePayment",
+        "event_id": "seg-msg-abc-123",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "context": {
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "page": {
+            "url": "https://example.com/checkout/complete?ttclid=E.C.P.abc123def456",
+            "referrer": "https://example.com/cart"
+          },
+          "ad": {
+            "callback": "E.C.P.abc123def456"
+          },
+          "user": {
+            "email": "hashed_sha256_of_user@example.com",
+            "phone_number": "hashed_sha256_of_+14155551234",
+            "external_id": "hashed_sha256_of_user_123",
+            "ttp": "",
+            "ttclid": "E.C.P.abc123def456"
+          }
+        },
+        "properties": {
+          "currency": "USD",
+          "value": 99.99,
+          "description": "",
+          "order_id": "order-789",
+          "contents": [
+            {
+              "content_id": "SKU-001",
+              "content_name": "Premium Widget",
+              "content_category": "Widgets",
+              "price": 49.99,
+              "quantity": 2,
+              "content_type": "product"
+            }
+          ]
+        },
+        "event_source": "web",
+        "event_source_id": "EXAMPLE_PIXEL_CODE_1234567890"
+      }
+    },
+    "page": {
+      "description": "Segment page call mapped to TikTok PageView event",
+      "input_event": {
+        "type": "page",
+        "name": "Product Detail",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T11:55:00.000Z",
+        "properties": {
+          "url": "https://example.com/products/premium-widget",
+          "title": "Premium Widget | Example Store",
+          "referrer": "https://www.tiktok.com/",
+          "path": "/products/premium-widget"
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "traits": {
+            "email": "user@example.com"
+          },
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "messageId": "seg-msg-def-456"
+      },
+      "output_payload": {
+        "pixel_code": "EXAMPLE_PIXEL_CODE_1234567890",
+        "event": "PageView",
+        "event_id": "seg-msg-def-456",
+        "timestamp": "2026-02-25T11:55:00.000Z",
+        "context": {
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "referrer": "https://www.tiktok.com/"
+          },
+          "user": {
+            "email": "hashed_sha256_of_user@example.com",
+            "external_id": "hashed_sha256_of_user_123",
+            "ttp": "",
+            "ttclid": ""
+          }
+        },
+        "properties": {},
+        "event_source": "web",
+        "event_source_id": "EXAMPLE_PIXEL_CODE_1234567890"
+      }
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "track": {
+      "description": "RudderStack track call mapped to TikTok Events API for a Purchase (CompletePayment) event",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "properties": {
+          "order_id": "order-789",
+          "revenue": 99.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 2,
+              "category": "Widgets"
+            }
+          ]
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "page": {
+            "url": "https://example.com/checkout/complete?ttclid=E.C.P.abc123def456",
+            "referrer": "https://example.com/cart"
+          },
+          "traits": {
+            "email": "user@example.com",
+            "phone": "+14155551234"
+          },
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "messageId": "rs-msg-xyz-789",
+        "rudderId": "rudder-uuid-abc-123"
+      },
+      "output_payload": {
+        "pixel_code": "EXAMPLE_PIXEL_CODE_1234567890",
+        "event": "CompletePayment",
+        "event_id": "rs-msg-xyz-789",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "context": {
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "page": {
+            "url": "https://example.com/checkout/complete?ttclid=E.C.P.abc123def456",
+            "referrer": "https://example.com/cart"
+          },
+          "ad": {
+            "callback": "E.C.P.abc123def456"
+          },
+          "user": {
+            "email": "hashed_sha256_of_user@example.com",
+            "phone_number": "hashed_sha256_of_+14155551234",
+            "external_id": "hashed_sha256_of_user_123",
+            "ttp": "",
+            "ttclid": "E.C.P.abc123def456"
+          }
+        },
+        "properties": {
+          "currency": "USD",
+          "value": 99.99,
+          "description": "",
+          "order_id": "order-789",
+          "contents": [
+            {
+              "content_id": "SKU-001",
+              "content_name": "Premium Widget",
+              "content_category": "Widgets",
+              "price": 49.99,
+              "quantity": 2,
+              "content_type": "product"
+            }
+          ]
+        },
+        "event_source": "web",
+        "event_source_id": "EXAMPLE_PIXEL_CODE_1234567890"
+      }
+    },
+    "page": {
+      "description": "RudderStack page call mapped to TikTok PageView event",
+      "input_event": {
+        "type": "page",
+        "name": "Product Detail",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T11:55:00.000Z",
+        "originalTimestamp": "2026-02-25T11:55:00.000Z",
+        "sentAt": "2026-02-25T11:55:01.000Z",
+        "receivedAt": "2026-02-25T11:55:02.000Z",
+        "properties": {
+          "url": "https://example.com/products/premium-widget",
+          "title": "Premium Widget | Example Store",
+          "referrer": "https://www.tiktok.com/",
+          "path": "/products/premium-widget"
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "traits": {
+            "email": "user@example.com"
+          },
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "messageId": "rs-msg-pqr-012",
+        "rudderId": "rudder-uuid-def-456"
+      },
+      "output_payload": {
+        "pixel_code": "EXAMPLE_PIXEL_CODE_1234567890",
+        "event": "PageView",
+        "event_id": "rs-msg-pqr-012",
+        "timestamp": "2026-02-25T11:55:00.000Z",
+        "context": {
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "referrer": "https://www.tiktok.com/"
+          },
+          "user": {
+            "email": "hashed_sha256_of_user@example.com",
+            "external_id": "hashed_sha256_of_user_123",
+            "ttp": "",
+            "ttclid": ""
+          }
+        },
+        "properties": {},
+        "event_source": "web",
+        "event_source_id": "EXAMPLE_PIXEL_CODE_1234567890"
+      }
+    }
+  },
+  "field_mappings": {
+    "pixel_code": {
+      "segment_source": "settings.pixelCode from destination configuration",
+      "rudderstack_source": "destination config pixelCode",
+      "tiktok_field": "pixel_code / event_source_id",
+      "description": "TikTok Pixel ID used as the event_source_id for web events. Both platforms derive from destination configuration."
+    },
+    "event_name_mapping": {
+      "description": "Maps Segment/RudderStack event names to TikTok standard event names. Both platforms apply similar transformations.",
+      "mappings": {
+        "Order Completed": "CompletePayment",
+        "Checkout Started": "InitiateCheckout",
+        "Product Added": "AddToCart",
+        "Product Added To Wishlist": "AddToWishlist",
+        "Payment Info Entered": "AddPaymentInfo",
+        "Products Searched": "Search",
+        "Product Viewed": "ViewContent",
+        "Page Viewed": "PageView",
+        "Signed Up": "CompleteRegistration",
+        "Contact Us": "Contact",
+        "Download": "Download",
+        "Form Submitted": "SubmitForm",
+        "Subscribe": "Subscribe"
+      },
+      "custom_events": "Non-standard event names are forwarded as custom events using the original event name"
+    },
+    "user_identification": {
+      "email": {
+        "segment_source": "context.traits.email or properties.email",
+        "rudderstack_source": "context.traits.email or properties.email",
+        "tiktok_field": "context.user.email",
+        "transform": "SHA-256 hash after lowercasing",
+        "description": "Email address is lowercased and SHA-256 hashed before sending to TikTok for user matching."
+      },
+      "phone": {
+        "segment_source": "context.traits.phone or properties.phone",
+        "rudderstack_source": "context.traits.phone or properties.phone",
+        "tiktok_field": "context.user.phone_number",
+        "transform": "SHA-256 hash after removing non-numeric characters (except leading +)",
+        "description": "Phone number is normalized and SHA-256 hashed before sending to TikTok."
+      },
+      "external_id": {
+        "segment_source": "userId",
+        "rudderstack_source": "userId",
+        "tiktok_field": "context.user.external_id",
+        "transform": "SHA-256 hash",
+        "description": "User ID is SHA-256 hashed and sent as external_id for cross-platform user matching."
+      },
+      "ttclid": {
+        "segment_source": "Extracted from page URL query parameter 'ttclid' or context.integrations.TikTok.ttclid",
+        "rudderstack_source": "Extracted from page URL query parameter 'ttclid' or context.integrations.TikTok.ttclid",
+        "tiktok_field": "context.user.ttclid and context.ad.callback",
+        "transform": "Passed as-is (no hashing)",
+        "description": "TikTok Click ID is extracted from the landing page URL and forwarded for ad attribution."
+      },
+      "ttp": {
+        "segment_source": "context.integrations.TikTok.ttp or _ttp cookie value",
+        "rudderstack_source": "context.integrations.TikTok.ttp or _ttp cookie value",
+        "tiktok_field": "context.user.ttp",
+        "transform": "Passed as-is (no hashing)",
+        "description": "TikTok browser pixel cookie identifier used for cross-channel user matching."
+      },
+      "ip_address": {
+        "segment_source": "context.ip",
+        "rudderstack_source": "context.ip",
+        "tiktok_field": "context.ip",
+        "transform": "Passed as-is (supports IPv4 and IPv6)",
+        "description": "Client IP address forwarded for geo-targeting and user matching."
+      },
+      "user_agent": {
+        "segment_source": "context.userAgent",
+        "rudderstack_source": "context.userAgent",
+        "tiktok_field": "context.user_agent",
+        "transform": "Passed as-is",
+        "description": "Browser user agent string forwarded for device identification."
+      }
+    },
+    "event_properties": {
+      "currency": {
+        "segment_source": "properties.currency",
+        "rudderstack_source": "properties.currency",
+        "tiktok_field": "properties.currency",
+        "description": "ISO-4217 currency code for monetary events."
+      },
+      "value": {
+        "segment_source": "properties.revenue or properties.value or properties.total",
+        "rudderstack_source": "properties.revenue or properties.value or properties.total",
+        "tiktok_field": "properties.value",
+        "description": "Monetary value of the event. Segment and RudderStack both map revenue/value/total to TikTok value."
+      },
+      "contents": {
+        "segment_source": "properties.products[] mapped to contents[]",
+        "rudderstack_source": "properties.products[] mapped to contents[]",
+        "tiktok_field": "properties.contents[]",
+        "description": "Product array mapped from Segment spec products to TikTok contents format.",
+        "item_mappings": {
+          "product_id": "content_id",
+          "name": "content_name",
+          "category": "content_category",
+          "price": "price",
+          "quantity": "quantity",
+          "content_type": "Defaults to 'product'"
+        }
+      },
+      "description": {
+        "segment_source": "properties.description",
+        "rudderstack_source": "properties.description",
+        "tiktok_field": "properties.description",
+        "description": "Description of the item or page."
+      },
+      "query": {
+        "segment_source": "properties.query",
+        "rudderstack_source": "properties.query",
+        "tiktok_field": "properties.query",
+        "description": "Search query string for Search events."
+      }
+    },
+    "event_metadata": {
+      "event_id": {
+        "segment_source": "messageId",
+        "rudderstack_source": "messageId",
+        "tiktok_field": "event_id",
+        "description": "Used for event deduplication between pixel and server-side events. Both platforms use messageId."
+      },
+      "timestamp": {
+        "segment_source": "timestamp (ISO 8601)",
+        "rudderstack_source": "timestamp (ISO 8601)",
+        "tiktok_field": "timestamp",
+        "description": "Event timestamp in ISO 8601 format. TikTok accepts ISO 8601 or yyyy-MM-dd'T'HH:mm:ss:SSSZ."
+      },
+      "event_source": {
+        "segment_source": "Defaults to 'web'; configurable per destination settings",
+        "rudderstack_source": "Defaults to 'web'; configurable per destination settings",
+        "tiktok_field": "event_source",
+        "description": "Supported values: web, app, offline, crm. Determines the event channel type."
+      },
+      "page_url": {
+        "segment_source": "context.page.url or properties.url",
+        "rudderstack_source": "context.page.url or properties.url",
+        "tiktok_field": "context.page.url",
+        "description": "Page URL where the event occurred."
+      },
+      "page_referrer": {
+        "segment_source": "context.page.referrer or properties.referrer",
+        "rudderstack_source": "context.page.referrer or properties.referrer",
+        "tiktok_field": "context.page.referrer",
+        "description": "Referrer URL for the page."
+      }
+    }
+  },
+  "parity_assessment": {
+    "status": "needs_verification",
+    "overall_parity": "high",
+    "known_differences": [
+      {
+        "field": "context.library",
+        "description": "Segment uses 'analytics.js'; RudderStack uses 'rudder-sdk-js'. This field is in the input event and does not affect the TikTok output payload.",
+        "severity": "none",
+        "impact": "No impact — library metadata is not forwarded to TikTok."
+      },
+      {
+        "field": "RudderStack envelope fields",
+        "description": "RudderStack input events include additional fields: rudderId, originalTimestamp, sentAt, receivedAt. These are RudderStack-specific envelope fields not present in Segment events.",
+        "severity": "none",
+        "impact": "No impact — these envelope fields are not forwarded to TikTok."
+      },
+      {
+        "field": "messageId format",
+        "description": "Segment and RudderStack generate messageId values using different UUID strategies. Both are used as event_id for TikTok deduplication.",
+        "severity": "low",
+        "impact": "Minimal — only affects deduplication key format, not functionality."
+      },
+      {
+        "field": "ttclid extraction",
+        "description": "Both platforms extract ttclid from the page URL query parameter. Verify that URL parsing logic handles edge cases identically (encoded characters, missing parameter).",
+        "severity": "low",
+        "impact": "Could affect ad attribution if extraction logic differs."
+      },
+      {
+        "field": "PII hashing",
+        "description": "Both platforms should SHA-256 hash email, phone, and external_id. Verify that lowercasing and normalization steps are identical (e.g., phone number stripping of spaces/dashes).",
+        "severity": "medium",
+        "impact": "Different hashing inputs produce different hashes, affecting TikTok user matching rates."
+      },
+      {
+        "field": "event name mapping",
+        "description": "Verify that the Transformer service maps Segment spec event names (e.g., 'Order Completed') to TikTok standard events (e.g., 'CompletePayment') identically between Segment and RudderStack.",
+        "severity": "medium",
+        "impact": "Different event name mappings would cause events to be categorized differently in TikTok Ads Manager."
+      }
+    ],
+    "validation_requirements": [
+      "Verify pixel_code / event_source_id is correctly derived from destination config",
+      "Verify all standard event name mappings match Segment's TikTok destination",
+      "Verify PII fields (email, phone, external_id) are SHA-256 hashed with identical normalization",
+      "Verify ttclid extraction from URL query parameters matches Segment behavior",
+      "Verify ttp cookie value forwarding matches Segment behavior",
+      "Verify contents[] array mapping from products[] is field-for-field identical",
+      "Verify event_id deduplication uses messageId consistently",
+      "Verify timestamp format is accepted by TikTok (ISO 8601)",
+      "Verify custom (non-standard) events are forwarded with original event name"
+    ]
+  },
+  "notes": "TikTok is a shared cloud destination in the Advertising category. Segment has an Actions-based variant (actions-tiktok-pixel) in addition to the classic integration. RudderStack delivers TikTok via the Router as a cloud REST destination. The TikTok Events API v1.3 endpoint requires pixel_code (event_source_id) and access_token for authentication. User data (email, phone, external_id) must be SHA-256 hashed before transmission. TikTok supports event deduplication via event_id matching between pixel and server-side events. Key parity focus areas: event name mapping consistency, PII normalization and hashing, ttclid/ttp forwarding, and contents/products array field mapping."
+}
