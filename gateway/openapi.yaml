@@ -1018,6 +1018,1313 @@ paths:
               example: "Invalid Authorization Header"
       security:
         - sourceIDAuth: []
+  # ============================================================
+  # Functions API Endpoints (Sprint 4-6, E-015, E-018)
+  # ============================================================
+  /v1/functions/source:
+    post:
+      tags:
+        - Functions API
+      summary: Source Functions Webhook
+      description: >-
+        Receives inbound webhook events and processes them through a configured
+        Source Function's onRequest(request, settings) handler. The Source
+        Function transforms the incoming webhook payload into one or more
+        RudderStack events.
+      operationId: SourceFunctionsWebhook
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Arbitrary webhook payload from the third-party source.
+        required: true
+      responses:
+        '200':
+          description: StatusOK
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "OK"
+        '400':
+          description: StatusBadRequest
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid request"
+        '401':
+          description: StatusUnauthorized
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid Authorization Header"
+        '500':
+          description: StatusInternalServerError
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Internal server error"
+      security:
+        - functionsTokenAuth: []
+        - writeKeyAuth: []
+  /v1/functions:
+    get:
+      tags:
+        - Functions API
+      summary: List Functions
+      description: >-
+        Returns a paginated list of all configured functions including Source
+        Functions, Destination Functions, and Insert Functions for the
+        authenticated workspace.
+      operationId: ListFunctions
+      parameters:
+        - name: type
+          in: query
+          description: >-
+            Filter functions by type. Valid values are source, destination,
+            and insert.
+          required: false
+          schema:
+            type: string
+            enum:
+              - source
+              - destination
+              - insert
+        - name: limit
+          in: query
+          description: Maximum number of functions to return. Default is 50.
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          description: Number of functions to skip for pagination. Default is 0.
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Successful response with list of functions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionsList'
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+      security:
+        - bearerAuth: []
+    post:
+      tags:
+        - Functions API
+      summary: Create Function
+      description: >-
+        Creates a new function with the specified type, code, and settings.
+        The function type determines how it is invoked in the pipeline. Source
+        functions process inbound webhooks via onRequest, destination functions
+        process outbound events via typed handlers (onTrack, onIdentify, etc.),
+        and insert functions transform events before destination delivery.
+      operationId: CreateFunction
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionCreateRequest'
+        required: true
+      responses:
+        '201':
+          description: Function created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Function'
+        '400':
+          description: StatusBadRequest
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid function definition"
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+      security:
+        - bearerAuth: []
+  /v1/functions/{functionId}:
+    get:
+      tags:
+        - Functions API
+      summary: Get Function
+      description: >-
+        Returns the details of a specific function by its unique identifier
+        including code, settings, version history, and runtime configuration.
+      operationId: GetFunction
+      parameters:
+        - name: functionId
+          in: path
+          description: Unique identifier of the function.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response with function details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Function'
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Function not found"
+      security:
+        - bearerAuth: []
+    put:
+      tags:
+        - Functions API
+      summary: Update Function
+      description: >-
+        Updates the code, settings, or configuration of an existing function.
+        Creates a new version of the function upon successful update.
+      operationId: UpdateFunction
+      parameters:
+        - name: functionId
+          in: path
+          description: Unique identifier of the function.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionCreateRequest'
+        required: true
+      responses:
+        '200':
+          description: Function updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Function'
+        '400':
+          description: StatusBadRequest
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid function definition"
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Function not found"
+      security:
+        - bearerAuth: []
+    delete:
+      tags:
+        - Functions API
+      summary: Delete Function
+      description: >-
+        Permanently deletes a function and all its versions and associated
+        secrets. This action cannot be undone.
+      operationId: DeleteFunction
+      parameters:
+        - name: functionId
+          in: path
+          description: Unique identifier of the function.
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Function deleted successfully.
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Function not found"
+      security:
+        - bearerAuth: []
+  /v1/functions/{functionId}/test:
+    post:
+      tags:
+        - Functions API
+      summary: Test Function
+      description: >-
+        Invokes a function with a test payload and returns the execution result
+        including transformed output, execution logs, and any errors encountered
+        during processing. Does not affect live pipeline data.
+      operationId: TestFunction
+      parameters:
+        - name: functionId
+          in: path
+          description: Unique identifier of the function to test.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionTestRequest'
+        required: true
+      responses:
+        '200':
+          description: Test execution completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionTestResponse'
+        '400':
+          description: StatusBadRequest
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid test payload"
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Function not found"
+      security:
+        - bearerAuth: []
+  # ============================================================
+  # Protocols API Endpoints (Sprint 5-7, E-024)
+  # ============================================================
+  /v1/protocols/tracking-plans:
+    get:
+      tags:
+        - Protocols API
+      summary: List Tracking Plans
+      description: >-
+        Returns a paginated list of all tracking plans configured for the
+        authenticated workspace. Each tracking plan contains a JSON Schema
+        draft-07 definition and enforcement configuration.
+      operationId: ListTrackingPlans
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of tracking plans to return. Default is 50.
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          description: Number of tracking plans to skip for pagination. Default is 0.
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Successful response with list of tracking plans.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trackingPlans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrackingPlan'
+                  total:
+                    type: integer
+                    description: Total number of tracking plans.
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+      security:
+        - bearerAuth: []
+    post:
+      tags:
+        - Protocols API
+      summary: Create Tracking Plan
+      description: >-
+        Creates a new tracking plan with a JSON Schema draft-07 definition and
+        enforcement configuration. The enforcement config specifies per-source
+        per-call-type behavior: Block Event, Omit Properties, or Allow.
+      operationId: CreateTrackingPlan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - schema
+              properties:
+                name:
+                  type: string
+                  description: Human-readable name for the tracking plan.
+                schema:
+                  type: object
+                  description: >-
+                    JSON Schema draft-07 definition for event validation
+                    including required properties, types, patterns, and
+                    nested object schemas.
+                enforcementConfig:
+                  type: object
+                  description: >-
+                    Per-source per-call-type enforcement mode configuration.
+                    Keys are source IDs, values are objects mapping call types
+                    (track, identify, group, page, screen) to enforcement
+                    modes (block, omit, allow).
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: string
+                      enum:
+                        - block
+                        - omit
+                        - allow
+        required: true
+      responses:
+        '201':
+          description: Tracking plan created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingPlan'
+        '400':
+          description: StatusBadRequest
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid tracking plan definition"
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+      security:
+        - bearerAuth: []
+  /v1/protocols/tracking-plans/{trackingPlanId}:
+    get:
+      tags:
+        - Protocols API
+      summary: Get Tracking Plan
+      description: >-
+        Returns the details of a specific tracking plan by its unique
+        identifier including the full JSON Schema definition, enforcement
+        configuration, and version metadata.
+      operationId: GetTrackingPlan
+      parameters:
+        - name: trackingPlanId
+          in: path
+          description: Unique identifier of the tracking plan.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response with tracking plan details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingPlan'
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Tracking plan not found"
+      security:
+        - bearerAuth: []
+    put:
+      tags:
+        - Protocols API
+      summary: Update Tracking Plan
+      description: >-
+        Updates the schema, enforcement configuration, or metadata of an
+        existing tracking plan. Creates a new version entry in the tracking
+        plan version history with an optional changelog description.
+      operationId: UpdateTrackingPlan
+      parameters:
+        - name: trackingPlanId
+          in: path
+          description: Unique identifier of the tracking plan.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Updated human-readable name for the tracking plan.
+                schema:
+                  type: object
+                  description: Updated JSON Schema draft-07 definition.
+                enforcementConfig:
+                  type: object
+                  description: Updated enforcement mode configuration.
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: string
+                      enum:
+                        - block
+                        - omit
+                        - allow
+                changelog:
+                  type: string
+                  description: Description of changes made in this version update.
+        required: true
+      responses:
+        '200':
+          description: Tracking plan updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingPlan'
+        '400':
+          description: StatusBadRequest
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid tracking plan definition"
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Tracking plan not found"
+      security:
+        - bearerAuth: []
+    delete:
+      tags:
+        - Protocols API
+      summary: Delete Tracking Plan
+      description: >-
+        Permanently deletes a tracking plan and all its version history.
+        Sources referencing this tracking plan will no longer enforce its
+        schema. This action cannot be undone.
+      operationId: DeleteTrackingPlan
+      parameters:
+        - name: trackingPlanId
+          in: path
+          description: Unique identifier of the tracking plan.
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Tracking plan deleted successfully.
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Tracking plan not found"
+      security:
+        - bearerAuth: []
+  /v1/protocols/tracking-plans/{trackingPlanId}/versions:
+    get:
+      tags:
+        - Protocols API
+      summary: List Tracking Plan Versions
+      description: >-
+        Returns the version history of a specific tracking plan. Each version
+        includes the full schema snapshot, version number, changelog, and
+        timestamp of when the version was created.
+      operationId: ListTrackingPlanVersions
+      parameters:
+        - name: trackingPlanId
+          in: path
+          description: Unique identifier of the tracking plan.
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of versions to return. Default is 20.
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          description: Number of versions to skip for pagination. Default is 0.
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Successful response with version history.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  versions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrackingPlanVersion'
+                  total:
+                    type: integer
+                    description: Total number of versions.
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Tracking plan not found"
+      security:
+        - bearerAuth: []
+  /v1/protocols/tracking-plans/{trackingPlanId}/export:
+    get:
+      tags:
+        - Protocols API
+      summary: Export Tracking Plan as CSV
+      description: >-
+        Exports a tracking plan as a CSV file containing event names, property
+        definitions, types, required status, and descriptions. Useful for
+        sharing tracking plan specifications with non-technical stakeholders.
+      operationId: ExportTrackingPlan
+      parameters:
+        - name: trackingPlanId
+          in: path
+          description: Unique identifier of the tracking plan.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful CSV export of the tracking plan.
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: CSV formatted tracking plan definition.
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Tracking plan not found"
+      security:
+        - bearerAuth: []
+  /v1/protocols/tracking-plans/import:
+    post:
+      tags:
+        - Protocols API
+      summary: Import Tracking Plan from CSV
+      description: >-
+        Imports a tracking plan from a CSV file. The CSV must contain columns
+        for event name, property name, property type, required status, and
+        description. Creates a new tracking plan or updates an existing one
+        based on the provided name.
+      operationId: ImportTrackingPlan
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file containing the tracking plan definition.
+                name:
+                  type: string
+                  description: >-
+                    Name for the imported tracking plan. If omitted, the file
+                    name is used.
+        required: true
+      responses:
+        '201':
+          description: Tracking plan imported successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingPlan'
+        '400':
+          description: StatusBadRequest
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid CSV format"
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+      security:
+        - bearerAuth: []
+  # ============================================================
+  # Profiles API Endpoints (Sprint 6-8, E-027)
+  # ============================================================
+  /v1/profiles/{profileId}:
+    get:
+      tags:
+        - Profiles API
+      summary: Get Profile
+      description: >-
+        Returns the unified profile for a given profile identifier including
+        traits, events, external identifiers, and metadata. The include query
+        parameter controls which sections are returned. Designed for sub-200ms
+        response times with Redis-backed caching.
+      operationId: GetProfile
+      parameters:
+        - name: profileId
+          in: path
+          description: >-
+            Unique identifier of the profile in the identity graph. Can be a
+            canonical user ID or any resolved external identifier.
+          required: true
+          schema:
+            type: string
+        - name: include
+          in: query
+          description: >-
+            Comma-separated list of profile sections to include in the response.
+            Valid values are traits, events, external_ids, and metadata. If
+            omitted, all sections are returned.
+          required: false
+          schema:
+            type: string
+            example: "traits,events,external_ids,metadata"
+      responses:
+        '200':
+          description: Successful response with unified profile data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Profile not found"
+      security:
+        - bearerAuth: []
+  /v1/profiles/{profileId}/traits:
+    get:
+      tags:
+        - Profiles API
+      summary: Get Profile Traits
+      description: >-
+        Returns the computed and observed traits for a specific profile. Traits
+        are key-value pairs collected from identify calls and computed trait
+        definitions.
+      operationId: GetProfileTraits
+      parameters:
+        - name: profileId
+          in: path
+          description: Unique identifier of the profile.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response with profile traits.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  traits:
+                    type: object
+                    description: Key-value map of all traits for this profile.
+                    additionalProperties: true
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Profile not found"
+      security:
+        - bearerAuth: []
+  /v1/profiles/{profileId}/events:
+    get:
+      tags:
+        - Profiles API
+      summary: Get Profile Events
+      description: >-
+        Returns a paginated list of events associated with a specific profile
+        across all merged identities. Events are returned in reverse
+        chronological order.
+      operationId: GetProfileEvents
+      parameters:
+        - name: profileId
+          in: path
+          description: Unique identifier of the profile.
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of events to return. Default is 20.
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: cursor
+          in: query
+          description: >-
+            Opaque cursor string for pagination. Returned in the response as
+            nextCursor when more events are available.
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response with profile events.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    description: List of events for this profile.
+                    items:
+                      type: object
+                      description: Individual event record.
+                      additionalProperties: true
+                  nextCursor:
+                    type: string
+                    description: >-
+                      Cursor for retrieving the next page of events. Null if
+                      no more events are available.
+                  hasMore:
+                    type: boolean
+                    description: Whether more events are available.
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Profile not found"
+      security:
+        - bearerAuth: []
+  /v1/profiles/{profileId}/external_ids:
+    get:
+      tags:
+        - Profiles API
+      summary: Get Profile External IDs
+      description: >-
+        Returns all external identifiers associated with a profile. Supports
+        12+ identifier types including user_id, email, anonymous_id, phone,
+        ios.id, android.id, ios.idfa, android.aaid, ga_client_id,
+        amp_device_id, cross_domain_id, and custom identifiers.
+      operationId: GetProfileExternalIds
+      parameters:
+        - name: profileId
+          in: path
+          description: Unique identifier of the profile.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response with external identifiers.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  externalIds:
+                    type: array
+                    description: List of external identifiers for this profile.
+                    items:
+                      $ref: '#/components/schemas/ExternalId'
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Profile not found"
+      security:
+        - bearerAuth: []
+  /v1/profiles/{profileId}/metadata:
+    get:
+      tags:
+        - Profiles API
+      summary: Get Profile Metadata
+      description: >-
+        Returns metadata about a profile including creation timestamp, last
+        seen timestamp, identity graph segment ID, merge history, and source
+        attribution information.
+      operationId: GetProfileMetadata
+      parameters:
+        - name: profileId
+          in: path
+          description: Unique identifier of the profile.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response with profile metadata.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metadata:
+                    type: object
+                    description: Profile metadata and identity graph information.
+                    properties:
+                      createdAt:
+                        type: string
+                        format: date-time
+                        description: Timestamp when the profile was first created.
+                      lastSeenAt:
+                        type: string
+                        format: date-time
+                        description: Timestamp of the most recent event.
+                      segmentId:
+                        type: string
+                        description: Identity graph segment identifier.
+                      mergeCount:
+                        type: integer
+                        description: Number of identity merges performed.
+                      sources:
+                        type: array
+                        description: List of source IDs that contributed events.
+                        items:
+                          type: string
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+        '404':
+          description: StatusNotFound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Profile not found"
+      security:
+        - bearerAuth: []
+  # ============================================================
+  # Replay API Endpoints (Sprint 8-10, E-038)
+  # ============================================================
+  /v1/replay/advanced:
+    post:
+      tags:
+        - Replay API
+      summary: Advanced Replay
+      description: >-
+        Replay events with advanced filtering capabilities including source-level,
+        date-range, and destination-level filtering. Supports a dry-run mode
+        that previews the replay scope without executing. Events are replayed
+        through the full pipeline including transformation and routing.
+      operationId: AdvancedReplay
+      parameters:
+        - name: X-Replay-Source-Filter
+          in: header
+          description: >-
+            Source ID to filter replay events. Only events originally received
+            from this source will be replayed.
+          required: false
+          schema:
+            type: string
+        - name: X-Replay-Start-Date
+          in: header
+          description: >-
+            Start date for the replay time window. Events before this timestamp
+            are excluded. ISO 8601 format.
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: X-Replay-End-Date
+          in: header
+          description: >-
+            End date for the replay time window. Events after this timestamp
+            are excluded. ISO 8601 format.
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: X-Replay-Destination-Filter
+          in: header
+          description: >-
+            Destination ID to filter replay. Only replays events to the
+            specified destination regardless of original routing.
+          required: false
+          schema:
+            type: string
+        - name: X-Replay-Dry-Run
+          in: header
+          description: >-
+            When set to true, returns a preview of events that would be
+            replayed without actually executing the replay. Useful for
+            estimating replay scope and impact.
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: X-Warehouse-Replay
+          in: header
+          description: >-
+            When set to true, tags the replay for warehouse-only routing.
+            Events will only be delivered to warehouse destinations.
+          required: false
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplayAdvancedRequest'
+        required: true
+      responses:
+        '200':
+          description: StatusOK
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "OK"
+        '400':
+          description: StatusBadRequest
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid request"
+        '401':
+          description: StatusUnauthorized
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+              example: "Invalid Authorization Header"
+      security:
+        - sourceIDAuth: []
+  # ============================================================
+  # Monitoring API Endpoints (Sprint 8-10, E-036)
+  # ============================================================
+  /v1/monitoring/dashboard:
+    get:
+      tags:
+        - Monitoring API
+      summary: Get Delivery Dashboard
+      description: >-
+        Returns per-destination event delivery metrics including success and
+        failure counts, latency percentiles (p50, p95, p99), throughput rate,
+        retry counts, and circuit breaker state. Metrics are aggregated over
+        a configurable time window and can be filtered to a specific destination.
+      operationId: GetDeliveryDashboard
+      parameters:
+        - name: destinationId
+          in: query
+          description: >-
+            Filter metrics to a specific destination by its unique identifier.
+            If omitted, returns metrics for all active destinations.
+          required: false
+          schema:
+            type: string
+        - name: window
+          in: query
+          description: >-
+            Time window for metric aggregation. Valid values are 5m, 15m, 1h,
+            6h, 24h. Default is 1h.
+          required: false
+          schema:
+            type: string
+            enum:
+              - 5m
+              - 15m
+              - 1h
+              - 6h
+              - 24h
+            default: 1h
+      responses:
+        '200':
+          description: Successful response with delivery dashboard metrics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+        '401':
+          description: StatusUnauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or missing authentication token"
+      security:
+        - bearerAuth: []
 servers:
   - url: /v1
 components:
@@ -1030,6 +2337,19 @@ components:
       type: http
       scheme: basic
       description: SourceID Basic Authentication
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        Bearer token authentication for Functions, Protocols, and Profiles
+        management APIs.
+    functionsTokenAuth:
+      type: apiKey
+      in: header
+      name: X-Functions-Token
+      description: >-
+        Function-specific authentication token for Source Functions webhook
+        ingestion endpoints.
   schemas:
     UserAgentData:
       type: object
@@ -1433,3 +2753,492 @@ components:
                 type: string
       required:
         - batch
+    # ===========================================================
+    # Functions API Schemas (Sprint 4-6, E-018)
+    # ===========================================================
+    Function:
+      type: object
+      description: >-
+        Represents a configured function in the RudderStack pipeline.
+        Functions can be Source Functions (process inbound webhooks),
+        Destination Functions (process outbound events with typed handlers),
+        or Insert Functions (pre-destination transformation hooks).
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the function.
+        workspaceId:
+          type: string
+          description: Workspace to which this function belongs.
+        name:
+          type: string
+          description: Human-readable name for the function.
+        type:
+          type: string
+          description: >-
+            Type of function determining its invocation point in the pipeline.
+          enum:
+            - source
+            - destination
+            - insert
+        code:
+          type: string
+          description: >-
+            JavaScript source code of the function. Source functions must
+            export an onRequest handler. Destination functions may export
+            onTrack, onIdentify, onGroup, onPage, onScreen, onAlias,
+            onDelete, and onBatch handlers. Insert functions export a
+            handler that receives and returns transformed events.
+        version:
+          type: integer
+          description: Current version number of the function code.
+        settings:
+          type: object
+          description: >-
+            Key-value configuration settings passed to the function at
+            runtime. These are available as the settings parameter in
+            handler functions.
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the function was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the function was last updated.
+      required:
+        - id
+        - workspaceId
+        - name
+        - type
+        - code
+        - version
+    FunctionCreateRequest:
+      type: object
+      description: Request payload for creating or updating a function.
+      properties:
+        name:
+          type: string
+          description: Human-readable name for the function.
+        type:
+          type: string
+          description: Type of function (source, destination, or insert).
+          enum:
+            - source
+            - destination
+            - insert
+        code:
+          type: string
+          description: JavaScript source code of the function.
+        settings:
+          type: object
+          description: >-
+            Key-value configuration settings for the function runtime.
+          additionalProperties:
+            type: string
+      required:
+        - name
+        - type
+        - code
+    FunctionTestRequest:
+      type: object
+      description: >-
+        Request payload for testing a function with a sample event or
+        webhook payload.
+      properties:
+        payload:
+          type: object
+          description: >-
+            Test payload to pass to the function. For source functions this
+            represents the inbound webhook request. For destination and
+            insert functions this represents an event object.
+          additionalProperties: true
+        settings:
+          type: object
+          description: >-
+            Optional settings overrides for the test invocation. If omitted
+            the function's stored settings are used.
+          additionalProperties:
+            type: string
+      required:
+        - payload
+    FunctionTestResponse:
+      type: object
+      description: >-
+        Response from a function test invocation containing the transformed
+        output, execution logs, and any errors encountered.
+      properties:
+        output:
+          type: object
+          description: >-
+            The transformed output produced by the function. For source
+            functions this is one or more RudderStack events. For destination
+            functions this is the destination API payload. For insert
+            functions this is the modified event.
+          additionalProperties: true
+        logs:
+          type: array
+          description: >-
+            Console log output captured during function execution. Contains
+            all messages written via console.log, console.info, etc.
+          items:
+            type: string
+        errors:
+          type: array
+          description: >-
+            Error messages captured during function execution. Includes
+            typed errors such as EventNotSupported, InvalidEventPayload,
+            ValidationError, RetryError, and DropEvent.
+          items:
+            type: string
+        durationMs:
+          type: number
+          description: Execution duration in milliseconds.
+    FunctionsList:
+      type: object
+      description: Paginated list of functions.
+      properties:
+        functions:
+          type: array
+          description: Array of function objects.
+          items:
+            $ref: '#/components/schemas/Function'
+        total:
+          type: integer
+          description: Total number of functions matching the filter criteria.
+        limit:
+          type: integer
+          description: Maximum number of functions returned per page.
+        offset:
+          type: integer
+          description: Number of functions skipped for pagination.
+    # ===========================================================
+    # Protocols API Schemas (Sprint 5-7, E-024)
+    # ===========================================================
+    TrackingPlan:
+      type: object
+      description: >-
+        A tracking plan defines the expected event schema for sources
+        connected to a workspace. It uses JSON Schema draft-07 for
+        validation and supports configurable enforcement modes (Block,
+        Omit, Allow) per source per call type.
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the tracking plan.
+        workspaceId:
+          type: string
+          description: Workspace to which this tracking plan belongs.
+        name:
+          type: string
+          description: Human-readable name for the tracking plan.
+        schema:
+          type: object
+          description: >-
+            JSON Schema draft-07 definition for event validation. Supports
+            required properties, regex patterns, nested object schemas,
+            enum values, and full type enforcement including any, array,
+            object, boolean, integer, number, string, null, and date-time.
+          additionalProperties: true
+        version:
+          type: integer
+          description: Current version number of the tracking plan schema.
+        enforcementConfig:
+          type: object
+          description: >-
+            Per-source per-call-type enforcement mode configuration. Each
+            key is a source ID mapping to an object where keys are call
+            types (track, identify, group, page, screen) and values are
+            enforcement modes.
+          additionalProperties:
+            type: object
+            description: >-
+              Call-type to enforcement-mode mapping for a specific source.
+            additionalProperties:
+              type: string
+              description: >-
+                Enforcement mode: block (reject the entire event), omit
+                (strip non-conforming properties but allow the event), or
+                allow (pass the event through with violations reported).
+              enum:
+                - block
+                - omit
+                - allow
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the tracking plan was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the tracking plan was last updated.
+      required:
+        - id
+        - workspaceId
+        - name
+        - schema
+        - version
+    TrackingPlanVersion:
+      type: object
+      description: >-
+        Represents a historical version of a tracking plan schema. Each
+        update to a tracking plan creates a new version entry preserving
+        the full schema snapshot and changelog.
+      properties:
+        id:
+          type: string
+          description: Unique identifier for this version entry.
+        trackingPlanId:
+          type: string
+          description: Identifier of the parent tracking plan.
+        version:
+          type: integer
+          description: Sequential version number.
+        schema:
+          type: object
+          description: >-
+            Full JSON Schema draft-07 definition snapshot at this version.
+          additionalProperties: true
+        changelog:
+          type: string
+          description: >-
+            Human-readable description of changes made in this version.
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when this version was created.
+      required:
+        - id
+        - trackingPlanId
+        - version
+        - schema
+    # ===========================================================
+    # Profiles API Schemas (Sprint 6-8, E-027)
+    # ===========================================================
+    Profile:
+      type: object
+      description: >-
+        A unified user profile resolved from the real-time identity graph.
+        Contains traits collected from identify calls, event history,
+        external identifiers across 12+ types, and profile metadata.
+      properties:
+        profileId:
+          type: string
+          description: >-
+            Canonical profile identifier in the identity graph.
+        traits:
+          type: object
+          description: >-
+            Key-value map of all traits associated with this profile
+            including properties from identify calls and computed traits.
+          additionalProperties: true
+        events:
+          type: array
+          description: >-
+            Recent event history associated with this profile across all
+            merged identities.
+          items:
+            type: object
+            description: Individual event record with full payload.
+            additionalProperties: true
+        externalIds:
+          type: array
+          description: >-
+            All external identifiers associated with this profile spanning
+            12+ identifier types including user_id, email, anonymous_id,
+            phone, ios.id, android.id, ios.idfa, android.aaid,
+            ga_client_id, amp_device_id, cross_domain_id, and custom
+            identifiers.
+          items:
+            $ref: '#/components/schemas/ExternalId'
+        metadata:
+          type: object
+          description: >-
+            Profile metadata including creation time, last activity, merge
+            history, and source attribution.
+          properties:
+            createdAt:
+              type: string
+              format: date-time
+              description: Timestamp when the profile was first created.
+            lastSeenAt:
+              type: string
+              format: date-time
+              description: Timestamp of the most recent activity.
+            segmentId:
+              type: string
+              description: Identity graph segment identifier.
+            mergeCount:
+              type: integer
+              description: Number of identity merges performed.
+            sources:
+              type: array
+              description: Source IDs that contributed data to this profile.
+              items:
+                type: string
+      required:
+        - profileId
+    ExternalId:
+      type: object
+      description: >-
+        An external identifier associated with a profile. Represents a
+        single identity claim from a specific source such as user_id,
+        email, anonymous_id, phone, or device identifiers.
+      properties:
+        type:
+          type: string
+          description: >-
+            The identifier type. Standard types include user_id, email,
+            anonymous_id, phone, ios.id, android.id, ios.idfa,
+            android.aaid, ga_client_id, amp_device_id, cross_domain_id.
+            Custom identifier types are also supported.
+        value:
+          type: string
+          description: The identifier value.
+        createdSource:
+          type: string
+          description: >-
+            Source ID from which this external identifier was first
+            observed.
+        createdAt:
+          type: string
+          format: date-time
+          description: >-
+            Timestamp when this external identifier was first associated
+            with the profile.
+      required:
+        - type
+        - value
+    # ===========================================================
+    # Monitoring API Schemas (Sprint 8-10, E-036)
+    # ===========================================================
+    DashboardResponse:
+      type: object
+      description: >-
+        Aggregated delivery metrics dashboard response containing per-
+        destination metrics and a collection timestamp.
+      properties:
+        destinations:
+          type: array
+          description: >-
+            Array of per-destination delivery metrics. Each entry contains
+            success/failure counts, latency percentiles, throughput, and
+            operational state.
+          items:
+            $ref: '#/components/schemas/DestinationMetrics'
+        timestamp:
+          type: string
+          format: date-time
+          description: >-
+            Timestamp when these metrics were last computed.
+        window:
+          type: string
+          description: >-
+            Time window over which metrics were aggregated.
+      required:
+        - destinations
+        - timestamp
+    DestinationMetrics:
+      type: object
+      description: >-
+        Delivery metrics for a single destination including delivery
+        success and failure rates, latency distribution, throughput, and
+        circuit breaker state.
+      properties:
+        destinationId:
+          type: string
+          description: Unique identifier of the destination.
+        destinationType:
+          type: string
+          description: >-
+            Type of the destination (e.g., webhook, S3, BigQuery, Kafka).
+        successCount:
+          type: integer
+          description: >-
+            Number of events successfully delivered in the time window.
+        failureCount:
+          type: integer
+          description: >-
+            Number of events that failed delivery in the time window.
+        latencyP50Ms:
+          type: number
+          description: >-
+            50th percentile (median) delivery latency in milliseconds.
+        latencyP95Ms:
+          type: number
+          description: >-
+            95th percentile delivery latency in milliseconds.
+        latencyP99Ms:
+          type: number
+          description: >-
+            99th percentile delivery latency in milliseconds.
+        throughputPerSec:
+          type: number
+          description: >-
+            Average events delivered per second in the time window.
+        retryCount:
+          type: integer
+          description: >-
+            Number of delivery retries attempted in the time window.
+        circuitBreakerState:
+          type: string
+          description: >-
+            Current state of the destination circuit breaker for delivery
+            protection.
+          enum:
+            - closed
+            - half-open
+            - open
+        lastUpdated:
+          type: string
+          format: date-time
+          description: >-
+            Timestamp when metrics for this destination were last updated.
+      required:
+        - destinationId
+        - destinationType
+        - successCount
+        - failureCount
+    # ===========================================================
+    # Replay API Schemas (Sprint 8-10, E-038)
+    # ===========================================================
+    ReplayAdvancedRequest:
+      type: object
+      description: >-
+        Request payload for advanced replay with filtering capabilities.
+        Extends the standard batch payload with source-level, date-range,
+        and destination-level filter parameters plus dry-run support.
+      allOf:
+        - $ref: '#/components/schemas/BatchPayload'
+        - type: object
+          properties:
+            sourceFilter:
+              type: string
+              description: >-
+                Source ID to filter replay events. Only events from this
+                source are replayed.
+            startDate:
+              type: string
+              format: date-time
+              description: >-
+                Start of the replay time window. Events before this
+                timestamp are excluded. ISO 8601 format.
+            endDate:
+              type: string
+              format: date-time
+              description: >-
+                End of the replay time window. Events after this timestamp
+                are excluded. ISO 8601 format.
+            destinationFilter:
+              type: string
+              description: >-
+                Destination ID to route replayed events to. Overrides
+                original event routing.
+            dryRun:
+              type: boolean
+              description: >-
+                When true, returns a preview of the replay scope without
+                executing. Default is false.
+              default: false
