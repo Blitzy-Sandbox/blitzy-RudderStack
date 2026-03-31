@@ -1,0 +1,484 @@
+{
+  "destination_type": "FACEBOOK_PIXEL",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "track": {
+      "endpoint": "https://graph.facebook.com/v18.0/{pixel_id}/events",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "query_params": {
+        "access_token": "EAABsbCS1IXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      },
+      "body": {
+        "data": [
+          {
+            "event_name": "Purchase",
+            "event_time": 1709121600,
+            "event_source_url": "https://example.com/checkout/complete",
+            "action_source": "website",
+            "user_data": {
+              "em": [
+                "62c66a7a5dd70c3146618063c344e531e6d4b59e379808443ce962b3abd63c5a"
+              ],
+              "ph": [
+                "254aa248acb47dd654ca3ea53f48c2c26d641d23d7e2e93a1ec56258df7674c4"
+              ],
+              "fn": [
+                "a8cfcd74832004951b4408cdb0a5dbcd8c7e52d43f7fe244bf720582e05241da"
+              ],
+              "ln": [
+                "de1dc5e17e70be6106b01fe759dab3c4a1b931d826e58cf29b4e3ff1a55c5ee2"
+              ],
+              "ct": [
+                "a2647bf2a73e10e88db7074dc0b67fb7bf54205ceeae10e981c12bb52e4b8e23"
+              ],
+              "st": [
+                "6959097001d10501ac7d54c0bdb8db61420f658f2922cc26e46d536119a31126"
+              ],
+              "zp": [
+                "dca55df81f5e1f1d93e3de0e3dbbef87db6f5c91ced879b5fbf682dccc0d4e0c"
+              ],
+              "country": [
+                "f53960feeb7ceb35d4e3bfe30e0c85e3d7e9756fecac229f0a9cb7f6e0e4e7ae"
+              ],
+              "external_id": [
+                "bef57ec7f53a6d40beb640a780a639c83bc29ac8a9816f1fc6c5c6dcd93c4721"
+              ],
+              "client_ip_address": "192.168.1.1",
+              "client_user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "fbc": "fb.1.1612345678901.AbCdEfGhIjKl",
+              "fbp": "fb.1.1612345678901.1234567890"
+            },
+            "custom_data": {
+              "currency": "USD",
+              "value": 99.99,
+              "content_name": "Premium Widget",
+              "content_category": "Electronics",
+              "content_ids": ["SKU-001"],
+              "content_type": "product",
+              "contents": [
+                {
+                  "id": "SKU-001",
+                  "quantity": 1,
+                  "item_price": 99.99
+                }
+              ],
+              "num_items": 1,
+              "order_id": "order-12345"
+            },
+            "event_id": "msg-abc-123"
+          }
+        ]
+      }
+    },
+    "identify": {
+      "endpoint": "https://graph.facebook.com/v18.0/{pixel_id}/events",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "query_params": {
+        "access_token": "EAABsbCS1IXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      },
+      "body": {
+        "data": [
+          {
+            "event_name": "identify",
+            "event_time": 1709121600,
+            "action_source": "website",
+            "user_data": {
+              "em": [
+                "62c66a7a5dd70c3146618063c344e531e6d4b59e379808443ce962b3abd63c5a"
+              ],
+              "ph": [
+                "254aa248acb47dd654ca3ea53f48c2c26d641d23d7e2e93a1ec56258df7674c4"
+              ],
+              "fn": [
+                "a8cfcd74832004951b4408cdb0a5dbcd8c7e52d43f7fe244bf720582e05241da"
+              ],
+              "ln": [
+                "de1dc5e17e70be6106b01fe759dab3c4a1b931d826e58cf29b4e3ff1a55c5ee2"
+              ],
+              "external_id": [
+                "bef57ec7f53a6d40beb640a780a639c83bc29ac8a9816f1fc6c5c6dcd93c4721"
+              ],
+              "client_ip_address": "192.168.1.1",
+              "client_user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+            },
+            "custom_data": {}
+          }
+        ]
+      }
+    },
+    "page": {
+      "endpoint": "https://graph.facebook.com/v18.0/{pixel_id}/events",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "query_params": {
+        "access_token": "EAABsbCS1IXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      },
+      "body": {
+        "data": [
+          {
+            "event_name": "PageView",
+            "event_time": 1709121600,
+            "event_source_url": "https://example.com/products",
+            "action_source": "website",
+            "user_data": {
+              "em": [
+                "62c66a7a5dd70c3146618063c344e531e6d4b59e379808443ce962b3abd63c5a"
+              ],
+              "external_id": [
+                "bef57ec7f53a6d40beb640a780a639c83bc29ac8a9816f1fc6c5c6dcd93c4721"
+              ],
+              "client_ip_address": "192.168.1.1",
+              "client_user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "fbc": "fb.1.1612345678901.AbCdEfGhIjKl",
+              "fbp": "fb.1.1612345678901.1234567890"
+            },
+            "custom_data": {
+              "page_title": "Product Catalog",
+              "page_path": "/products",
+              "referrer": "https://google.com"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "endpoint": "https://graph.facebook.com/v18.0/{pixel_id}/events",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "query_params": {
+        "access_token": "EAABsbCS1IXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      },
+      "body": {
+        "data": [
+          {
+            "event_name": "Purchase",
+            "event_time": 1709121600,
+            "event_source_url": "https://example.com/checkout/complete",
+            "action_source": "website",
+            "user_data": {
+              "em": [
+                "62c66a7a5dd70c3146618063c344e531e6d4b59e379808443ce962b3abd63c5a"
+              ],
+              "ph": [
+                "254aa248acb47dd654ca3ea53f48c2c26d641d23d7e2e93a1ec56258df7674c4"
+              ],
+              "fn": [
+                "a8cfcd74832004951b4408cdb0a5dbcd8c7e52d43f7fe244bf720582e05241da"
+              ],
+              "ln": [
+                "de1dc5e17e70be6106b01fe759dab3c4a1b931d826e58cf29b4e3ff1a55c5ee2"
+              ],
+              "ct": [
+                "a2647bf2a73e10e88db7074dc0b67fb7bf54205ceeae10e981c12bb52e4b8e23"
+              ],
+              "st": [
+                "6959097001d10501ac7d54c0bdb8db61420f658f2922cc26e46d536119a31126"
+              ],
+              "zp": [
+                "dca55df81f5e1f1d93e3de0e3dbbef87db6f5c91ced879b5fbf682dccc0d4e0c"
+              ],
+              "country": [
+                "f53960feeb7ceb35d4e3bfe30e0c85e3d7e9756fecac229f0a9cb7f6e0e4e7ae"
+              ],
+              "external_id": [
+                "bef57ec7f53a6d40beb640a780a639c83bc29ac8a9816f1fc6c5c6dcd93c4721"
+              ],
+              "client_ip_address": "192.168.1.1",
+              "client_user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "fbc": "fb.1.1612345678901.AbCdEfGhIjKl",
+              "fbp": "fb.1.1612345678901.1234567890"
+            },
+            "custom_data": {
+              "currency": "USD",
+              "value": 99.99,
+              "content_name": "Premium Widget",
+              "content_category": "Electronics",
+              "content_ids": ["SKU-001"],
+              "content_type": "product",
+              "contents": [
+                {
+                  "id": "SKU-001",
+                  "quantity": 1,
+                  "item_price": 99.99
+                }
+              ],
+              "num_items": 1,
+              "order_id": "order-12345"
+            },
+            "event_id": "msg-xyz-789"
+          }
+        ]
+      }
+    },
+    "identify": {
+      "endpoint": "https://graph.facebook.com/v18.0/{pixel_id}/events",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "query_params": {
+        "access_token": "EAABsbCS1IXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      },
+      "body": {
+        "data": [
+          {
+            "event_name": "identify",
+            "event_time": 1709121600,
+            "action_source": "website",
+            "user_data": {
+              "em": [
+                "62c66a7a5dd70c3146618063c344e531e6d4b59e379808443ce962b3abd63c5a"
+              ],
+              "ph": [
+                "254aa248acb47dd654ca3ea53f48c2c26d641d23d7e2e93a1ec56258df7674c4"
+              ],
+              "fn": [
+                "a8cfcd74832004951b4408cdb0a5dbcd8c7e52d43f7fe244bf720582e05241da"
+              ],
+              "ln": [
+                "de1dc5e17e70be6106b01fe759dab3c4a1b931d826e58cf29b4e3ff1a55c5ee2"
+              ],
+              "external_id": [
+                "bef57ec7f53a6d40beb640a780a639c83bc29ac8a9816f1fc6c5c6dcd93c4721"
+              ],
+              "client_ip_address": "192.168.1.1",
+              "client_user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+            },
+            "custom_data": {}
+          }
+        ]
+      }
+    },
+    "page": {
+      "endpoint": "https://graph.facebook.com/v18.0/{pixel_id}/events",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "query_params": {
+        "access_token": "EAABsbCS1IXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      },
+      "body": {
+        "data": [
+          {
+            "event_name": "PageView",
+            "event_time": 1709121600,
+            "event_source_url": "https://example.com/products",
+            "action_source": "website",
+            "user_data": {
+              "em": [
+                "62c66a7a5dd70c3146618063c344e531e6d4b59e379808443ce962b3abd63c5a"
+              ],
+              "external_id": [
+                "bef57ec7f53a6d40beb640a780a639c83bc29ac8a9816f1fc6c5c6dcd93c4721"
+              ],
+              "client_ip_address": "192.168.1.1",
+              "client_user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "fbc": "fb.1.1612345678901.AbCdEfGhIjKl",
+              "fbp": "fb.1.1612345678901.1234567890"
+            },
+            "custom_data": {
+              "page_title": "Product Catalog",
+              "page_path": "/products",
+              "referrer": "https://google.com"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "event_types": ["track", "identify", "page"],
+  "field_mappings": {
+    "standard_event_mapping": {
+      "description": "Segment spec track events mapped to Facebook standard events when the event name matches a recognized standard event. Custom events are forwarded as-is.",
+      "mappings": {
+        "Products Searched": "Search",
+        "Product Viewed": "ViewContent",
+        "Product List Viewed": "ViewContent",
+        "Product Added to Wishlist": "AddToWishlist",
+        "Product Added": "AddToCart",
+        "Payment Info Entered": "AddPaymentInfo",
+        "Checkout Started": "InitiateCheckout",
+        "Order Completed": "Purchase",
+        "Lead Generated": "Lead",
+        "Signed Up": "CompleteRegistration",
+        "Subscription Started": "Subscribe",
+        "Trial Started": "StartTrial"
+      },
+      "fallback": "Custom event names are sent as-is to Facebook Conversions API"
+    },
+    "pii_hashing": {
+      "description": "Facebook requires all PII fields in user_data to be SHA256 hashed, lowercase, trimmed. Both Segment and RudderStack must normalize (lowercase, trim whitespace) before hashing.",
+      "hashed_fields": {
+        "em": "SHA256 of lowercase trimmed email address",
+        "ph": "SHA256 of phone number (digits only, with country code, no symbols)",
+        "fn": "SHA256 of lowercase trimmed first name",
+        "ln": "SHA256 of lowercase trimmed last name",
+        "ct": "SHA256 of lowercase trimmed city name (no spaces, no special characters)",
+        "st": "SHA256 of lowercase two-letter state/province code",
+        "zp": "SHA256 of zip/postal code (US: first 5 digits only)",
+        "country": "SHA256 of lowercase two-letter ISO 3166-1 country code",
+        "db": "SHA256 of date of birth in YYYYMMDD format",
+        "ge": "SHA256 of gender (f or m, single character, lowercase)",
+        "external_id": "SHA256 of external identifier (userId or anonymousId)"
+      },
+      "unhashed_fields": [
+        "client_ip_address",
+        "client_user_agent",
+        "fbc",
+        "fbp"
+      ],
+      "segment_behavior": "Segment hashes PII fields server-side before sending to Facebook Conversions API. Hashing uses SHA256 after lowercasing and trimming.",
+      "rudderstack_behavior": "RudderStack Transformer hashes PII fields via destination transform. Same SHA256 + lowercase + trim normalization pipeline."
+    },
+    "user_data_field_mapping": {
+      "description": "Mapping from Segment Spec traits/context fields to Facebook user_data parameters",
+      "mappings": {
+        "traits.email": "user_data.em (SHA256 hashed)",
+        "traits.phone": "user_data.ph (SHA256 hashed, digits only with country code)",
+        "traits.firstName OR traits.first_name": "user_data.fn (SHA256 hashed)",
+        "traits.lastName OR traits.last_name": "user_data.ln (SHA256 hashed)",
+        "traits.address.city": "user_data.ct (SHA256 hashed)",
+        "traits.address.state": "user_data.st (SHA256 hashed)",
+        "traits.address.postalCode OR traits.address.zip": "user_data.zp (SHA256 hashed)",
+        "traits.address.country": "user_data.country (SHA256 hashed)",
+        "traits.birthday OR traits.dateOfBirth": "user_data.db (SHA256 hashed, YYYYMMDD format)",
+        "traits.gender": "user_data.ge (SHA256 hashed, single char)",
+        "userId OR anonymousId": "user_data.external_id (SHA256 hashed)",
+        "context.ip": "user_data.client_ip_address (unhashed)",
+        "context.userAgent": "user_data.client_user_agent (unhashed)",
+        "properties.fbc OR context.integrations.Facebook Pixel.fbc": "user_data.fbc (unhashed, Facebook click ID)",
+        "properties.fbp OR context.integrations.Facebook Pixel.fbp": "user_data.fbp (unhashed, Facebook browser ID)"
+      }
+    },
+    "custom_data_field_mapping": {
+      "description": "Mapping from Segment Spec properties to Facebook custom_data parameters for ecommerce events",
+      "mappings": {
+        "properties.revenue OR properties.value": "custom_data.value (numeric)",
+        "properties.currency": "custom_data.currency (ISO 4217 code, defaults to USD)",
+        "properties.name OR properties.product_name": "custom_data.content_name",
+        "properties.category": "custom_data.content_category",
+        "properties.product_id OR properties.sku": "custom_data.content_ids (array)",
+        "properties.content_type": "custom_data.content_type (default: product)",
+        "properties.products": "custom_data.contents (array of {id, quantity, item_price})",
+        "properties.quantity": "custom_data.num_items",
+        "properties.query OR properties.search_string": "custom_data.search_string",
+        "properties.order_id": "custom_data.order_id",
+        "properties.status": "custom_data.status"
+      },
+      "additional_properties": "Any additional properties not matching standard custom_data fields are included as extra key-value pairs in custom_data"
+    },
+    "event_metadata_mapping": {
+      "description": "Mapping for event-level metadata fields",
+      "mappings": {
+        "timestamp": "event_time (Unix epoch seconds — Segment ISO 8601 string must be converted)",
+        "context.page.url": "event_source_url",
+        "messageId": "event_id (used for deduplication)",
+        "context.page.referrer": "custom_data.referrer (non-standard, included as custom_data)"
+      },
+      "action_source_derivation": {
+        "description": "action_source is derived from context to indicate where the event originated",
+        "rules": {
+          "website": "Default for browser-based events (context.library.name contains 'js' or context.page exists)",
+          "app": "For mobile SDK events (context.device or context.os present without web context)",
+          "email": "For email-triggered events (if context indicates email source)",
+          "phone_call": "For phone-based events",
+          "system_generated": "For server-side events with no client context",
+          "other": "Fallback for unclassifiable events"
+        }
+      }
+    },
+    "page_event_mapping": {
+      "description": "Page calls are mapped to Facebook PageView standard event",
+      "event_name": "PageView",
+      "custom_data_from_page": {
+        "properties.name OR properties.title": "custom_data.page_title",
+        "properties.path": "custom_data.page_path",
+        "properties.url": "event_source_url",
+        "properties.referrer": "custom_data.referrer"
+      }
+    },
+    "identify_event_mapping": {
+      "description": "Identify calls update user_data fields. Some implementations send an identify event to associate user data with the pixel; others skip sending to Facebook entirely.",
+      "segment_behavior": "Segment may or may not send identify calls to Facebook Pixel depending on configuration. When sent, traits are mapped to user_data fields and hashed.",
+      "rudderstack_behavior": "RudderStack sends identify calls as a custom event with event_name 'identify' containing hashed user_data. This allows Facebook to associate user identity for future event matching."
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "needs_verification",
+    "known_differences": [
+      {
+        "field": "event_id",
+        "description": "Segment uses messageId directly; RudderStack uses its own messageId format. Both serve as deduplication keys but are generated differently.",
+        "severity": "low",
+        "impact": "No functional impact — Facebook uses event_id only for deduplication within the same pixel."
+      },
+      {
+        "field": "action_source",
+        "description": "Derivation logic for action_source may differ between Segment and RudderStack. Both attempt to determine the event origin from context fields, but edge cases may produce different values.",
+        "severity": "medium",
+        "impact": "Incorrect action_source can affect event quality scoring in Facebook Events Manager. Verify both platforms produce consistent action_source for the same input events."
+      },
+      {
+        "field": "external_id",
+        "description": "Segment hashes userId; RudderStack may hash userId or anonymousId depending on configuration. Both use SHA256 but the input value selection logic may differ.",
+        "severity": "medium",
+        "impact": "Different external_id hashes prevent Facebook from matching the same user across platforms. Ensure consistent userId selection and hashing."
+      },
+      {
+        "field": "custom_data additional properties",
+        "description": "Segment may include or exclude additional properties in custom_data based on its Actions mapping configuration. RudderStack includes all non-standard properties by default.",
+        "severity": "low",
+        "impact": "Extra properties in custom_data are ignored by Facebook standard event processing but are available in custom reports."
+      },
+      {
+        "field": "timestamp precision",
+        "description": "Both convert to Unix epoch seconds. Segment may truncate sub-second precision differently than RudderStack.",
+        "severity": "low",
+        "impact": "No functional impact — Facebook accepts integer epoch seconds."
+      }
+    ],
+    "test_scenarios": [
+      "Purchase event with full ecommerce properties and all PII fields",
+      "ViewContent event with product details and minimal user data",
+      "AddToCart event with multiple products in contents array",
+      "Custom event (non-standard event name) with arbitrary properties",
+      "PageView event from page call with URL and referrer",
+      "Identify call with full trait set including address components",
+      "Event with fbc and fbp click/browser tracking parameters",
+      "Event with only anonymousId (no userId) for external_id hashing",
+      "Event with missing optional fields (graceful degradation)",
+      "Server-side event with action_source=system_generated"
+    ]
+  },
+  "destination_config": {
+    "required_settings": {
+      "pixelId": "Facebook Pixel ID (numeric string)",
+      "accessToken": "Facebook Conversions API access token (system user token or generated in Events Manager)"
+    },
+    "optional_settings": {
+      "testEventCode": "Test event code for validating events in Facebook Events Manager Test Events tool",
+      "standardPageCall": "Whether to send page calls as PageView events (boolean, default true)",
+      "blacklistPiiProperties": "Array of property names to exclude from custom_data to prevent PII leakage",
+      "whitelistPiiProperties": "Array of property names to explicitly include (overrides blacklist)",
+      "categoryToContent": "Array of mappings from event category values to Facebook content_type values",
+      "eventsToEvents": "Array of mappings from custom event names to Facebook standard event names",
+      "valueFieldIdentifier": "Which property to use as value: properties.value or properties.price (default: properties.value)",
+      "advancedMapping": "Enable advanced matching — send additional hashed user data for improved match rates",
+      "limitedDataUse": "Enable Limited Data Use for CCPA compliance — restricts data processing geography"
+    }
+  },
+  "notes": "Facebook Pixel shared cloud destination. Category: Advertising. Segment has multiple Facebook variants: Facebook Pixel (classic), Facebook Conversions API (Actions), Facebook App Events, Facebook Custom Audiences, and Facebook Personas Audiences. This fixture covers the Facebook Conversions API server-side integration which both platforms use for cloud-mode event delivery. The API endpoint is the same for both platforms (graph.facebook.com/v18.0/{pixel_id}/events). Key parity requirements: (1) identical PII hashing with SHA256 after lowercase+trim normalization, (2) consistent standard event name mapping from Segment Spec to Facebook standard events, (3) matching custom_data field extraction from event properties, (4) consistent action_source derivation from event context. RudderStack destination transform (via Transformer service on port 9090) handles the mapping and PII hashing server-side before delivery."
+}
