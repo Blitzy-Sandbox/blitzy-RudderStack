@@ -1,0 +1,27 @@
+{
+  "source_function": {
+    "code": "async function onRequest(request, settings) {\n  const body = request.json();\n  const events = [];\n  events.push({\n    type: 'track',\n    event: body.event || 'Webhook Received',\n    userId: body.userId || 'source-fn-anonymous',\n    properties: {\n      source: 'source_function',\n      originalPayload: body,\n      apiKey: settings.apiKey || 'not-set'\n    },\n    context: {\n      library: { name: 'source-function', version: '1.0.0' }\n    }\n  });\n  return events;\n}",
+    "type": "source",
+    "description": "Source Function: onRequest(request, settings) handler for webhook ingestion (E-015)"
+  },
+  "destination_function": {
+    "code": "async function onTrack(event, settings) {\n  const endpoint = settings.webhookUrl;\n  const response = await fetch(endpoint, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ ...event, handlerType: 'onTrack' })\n  });\n  return response;\n}\n\nasync function onIdentify(event, settings) {\n  const endpoint = settings.webhookUrl;\n  const response = await fetch(endpoint, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ ...event, handlerType: 'onIdentify' })\n  });\n  return response;\n}\n\nasync function onGroup(event, settings) {\n  const endpoint = settings.webhookUrl;\n  const response = await fetch(endpoint, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ ...event, handlerType: 'onGroup' })\n  });\n  return response;\n}\n\nasync function onPage(event, settings) {\n  const endpoint = settings.webhookUrl;\n  const response = await fetch(endpoint, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ ...event, handlerType: 'onPage' })\n  });\n  return response;\n}\n\nasync function onScreen(event, settings) {\n  const endpoint = settings.webhookUrl;\n  const response = await fetch(endpoint, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ ...event, handlerType: 'onScreen' })\n  });\n  return response;\n}\n\nasync function onAlias(event, settings) {\n  const endpoint = settings.webhookUrl;\n  const response = await fetch(endpoint, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ ...event, handlerType: 'onAlias' })\n  });\n  return response;\n}\n\nasync function onDelete(event, settings) {\n  return { statusCode: 200, body: JSON.stringify({ deleted: true, userId: event.userId }) };\n}\n\nasync function onBatch(events, settings) {\n  const endpoint = settings.webhookUrl;\n  const response = await fetch(endpoint, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ events: events, handlerType: 'onBatch' })\n  });\n  return response;\n}",
+    "type": "destination",
+    "description": "Destination Function: All 8 typed event handlers - onTrack, onIdentify, onGroup, onPage, onScreen, onAlias, onDelete, onBatch (E-016)"
+  },
+  "insert_function": {
+    "code": "async function onEvent(event, settings) {\n  event.properties = event.properties || {};\n  event.properties.insertFunctionApplied = true;\n  event.properties.insertFunctionVersion = settings.version || '1.0.0';\n  event.properties.processedAt = new Date().toISOString();\n  return event;\n}",
+    "type": "insert",
+    "description": "Insert Function: Pre-destination transformation hook that enriches events with metadata (E-017)"
+  },
+  "insert_function_dropper": {
+    "code": "async function onEvent(event, settings) {\n  if (event.event === 'Drop This Event' || event.properties?.shouldDrop === true) {\n    throw new DropEvent('Event filtered by insert function');\n  }\n  return event;\n}",
+    "type": "insert",
+    "description": "Insert Function: Drops events matching specific criteria by throwing DropEvent (E-017 drop behavior)"
+  },
+  "error_function": {
+    "code": "async function onRequest(request, settings) {\n  const body = request.json();\n  switch(body.errorType) {\n    case 'EventNotSupported':\n      throw new EventNotSupported('This event type is not supported');\n    case 'InvalidEventPayload':\n      throw new InvalidEventPayload('The event payload is malformed');\n    case 'ValidationError':\n      throw new ValidationError('Event failed validation rules');\n    case 'RetryError':\n      throw new RetryError('Temporary failure, please retry');\n    case 'DropEvent':\n      throw new DropEvent('Event intentionally dropped');\n    default:\n      return [{ type: 'track', event: 'Error Test Passed', userId: 'error-test-user' }];\n  }\n}",
+    "type": "source",
+    "description": "Error Function: Throws all 5 error types (EventNotSupported, InvalidEventPayload, ValidationError, RetryError, DropEvent) based on request payload (E-015/E-016/E-017 error handling)"
+  }
+}
