@@ -1,0 +1,723 @@
+{
+  "destination_type": "GOOGLEPUBSUB",
+  "destination_tier": "stream",
+  "segment_reference_payload": {
+    "destination_slug": "google-cloud-pubsub",
+    "destination_name": "Google Cloud PubSub",
+    "description": "Segment's Google Cloud Pub/Sub destination publishes each event as a JSON message to a configured Pub/Sub topic. The topic name is taken from the Segment destination settings. Message attributes can optionally be derived from event fields for subscriber-side filtering. Segment sends the full event JSON as the Pub/Sub message data.",
+    "supported_call_types": ["track", "identify", "page", "screen", "group", "alias"],
+    "integration_method": "Google Cloud Pub/Sub Publish API via Google Cloud Client SDK",
+    "authentication": {
+      "method": "Google Cloud Service Account JSON credentials",
+      "config_fields": {
+        "projectId": "Google Cloud project ID containing the Pub/Sub topic",
+        "credentials": "Service account JSON key for authentication",
+        "topicName": "Pub/Sub topic name where events are published"
+      }
+    },
+    "pubsub_publish": {
+      "topic": "Configured in Segment destination settings (e.g., 'segment-events')",
+      "message_format": "Full event JSON serialized as message data bytes",
+      "attributes": "Segment supports mapping event fields to Pub/Sub message attributes for subscriber filtering",
+      "ordering_key": "Not typically set by Segment — messages are unordered by default"
+    },
+    "sample_track_event": {
+      "type": "track",
+      "event": "Product Viewed",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "category": "Widgets",
+        "currency": "USD"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+      },
+      "messageId": "msg-seg-pubsub-001"
+    },
+    "sample_identify_event": {
+      "type": "identify",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:01:00.000Z",
+      "traits": {
+        "email": "user@example.com",
+        "name": "Jane Doe",
+        "plan": "premium",
+        "company": "Acme Corp"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-pubsub-002"
+    },
+    "sample_page_event": {
+      "type": "page",
+      "name": "Home",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:02:00.000Z",
+      "properties": {
+        "title": "Home | Acme Corp",
+        "url": "https://www.example.com/",
+        "path": "/",
+        "referrer": "https://www.google.com/"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-pubsub-003"
+    },
+    "sample_screen_event": {
+      "type": "screen",
+      "name": "Dashboard",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:03:00.000Z",
+      "properties": {
+        "section": "main",
+        "feed_type": "personalized"
+      },
+      "context": {
+        "library": {
+          "name": "analytics-ios",
+          "version": "4.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-pubsub-004"
+    },
+    "sample_group_event": {
+      "type": "group",
+      "groupId": "group-abc-123",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:04:00.000Z",
+      "traits": {
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "employees": 500,
+        "plan": "enterprise"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        }
+      },
+      "messageId": "msg-seg-pubsub-005"
+    },
+    "sample_alias_event": {
+      "type": "alias",
+      "previousId": "anon-456",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T12:05:00.000Z",
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        }
+      },
+      "messageId": "msg-seg-pubsub-006"
+    },
+    "pubsub_publish_input_format": {
+      "topic": "projects/my-gcp-project/topics/segment-events",
+      "message": {
+        "data": "<Base64-encoded full event JSON bytes>",
+        "attributes": {
+          "event_type": "track",
+          "source": "segment"
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "producer_package": "services/streammanager/googlepubsub",
+    "producer_constructor": "NewProducer",
+    "producer_interface": "common.StreamProducer",
+    "description": "RudderStack's Google Pub/Sub producer receives JSON data with three top-level fields via the Produce method: 'message' (the event payload object), 'topicId' (string identifying which Pub/Sub topic to publish to), and optional 'attributes' (a map of string key-value pairs for Pub/Sub message attributes). The producer marshals the 'message' object to JSON bytes for the pubsub.Message.Data field, copies 'attributes' to pubsub.Message.Attributes, then publishes to the topic looked up from the pre-built topicMap (constructed during NewProducer from the eventToTopicMap destination config). Topics are mapped via the eventToTopicMap config array where each entry has a 'to' key specifying the target topic name.",
+    "connection": {
+      "method": "pubsub.NewClient(ctx, projectId, options...)",
+      "protocol": "gRPC to Google Cloud Pub/Sub API",
+      "authentication": {
+        "method": "Google Cloud Service Account JSON credentials or Application Default Credentials",
+        "config_fields": {
+          "credentials": "Service account JSON key for authentication (passed via option.WithCredentialsJSON). Skipped if googleutil.ShouldSkipCredentialsInit returns true (for environments with Application Default Credentials).",
+          "projectId": "Google Cloud project ID — required; NewProducer returns error if empty",
+          "testConfig.endpoint": "Optional custom endpoint for testing (uses WithoutAuthentication and insecure gRPC when set)"
+        }
+      },
+      "publish_settings": {
+        "NumGoroutines": "Configurable via Router.GOOGLEPUBSUB.Client.NumGoroutines (default: 25)",
+        "DelayThreshold": "Configurable via Router.GOOGLEPUBSUB.Client.DelayThreshold (default: 10ms)",
+        "CountThreshold": "Configurable via Router.GOOGLEPUBSUB.Client.CountThreshold or Router.GOOGLEPUBSUB.noOfWorkers or Router.noOfWorkers (default: 64)",
+        "ByteThreshold": "Configurable via Router.GOOGLEPUBSUB.Client.ByteThreshold (default: 10MB)",
+        "FlowControlSettings.LimitExceededBehavior": "FlowControlBlock (blocks when limits exceeded)",
+        "FlowControlSettings.MaxOutstandingMessages": "Configurable via Router.GOOGLEPUBSUB.Client.MaxOutstandingMessages (default: 1000)",
+        "FlowControlSettings.MaxOutstandingBytes": "Configurable via Router.GOOGLEPUBSUB.Client.MaxOutstandingBytes (default: -1, unlimited)"
+      },
+      "retry_config": {
+        "enableRetry": "Configurable via Router.GOOGLEPUBSUB.Client.EnableRetries (default: false)",
+        "retryInitialInterval": "Configurable via Router.GOOGLEPUBSUB.Client.Retry.InitialInterval (default: 10ms)",
+        "retryMaxInterval": "Configurable via Router.GOOGLEPUBSUB.Client.Retry.MaxInterval (default: 500ms)",
+        "retryMaxElapsedTime": "Configurable via Router.GOOGLEPUBSUB.Client.Retry.MaxElapsedTime (default: 2s)",
+        "retryMaxRetries": "Configurable via Router.GOOGLEPUBSUB.Client.Retry.MaxRetries (default: 3)",
+        "retryCondition": "Only retries on specific OAuth2 authentication credential errors; all other errors are permanent"
+      }
+    },
+    "destination_config": {
+      "projectId": "my-gcp-project",
+      "credentials": "<service-account-json>",
+      "eventToTopicMap": [
+        {
+          "to": "rudder-events"
+        },
+        {
+          "to": "rudder-user-events"
+        }
+      ]
+    },
+    "produce_input_format": {
+      "description": "The Produce method receives json.RawMessage containing three fields: 'message' (event object), 'topicId' (string), and optional 'attributes' (map of string key-value pairs). The 'message' object is marshaled to JSON for pubsub.Message.Data. The 'topicId' is used to look up the pre-built Publisher from the topicMap. Attributes are copied to pubsub.Message.Attributes.",
+      "schema": {
+        "message": "<event payload object — marshaled to JSON bytes for pubsub.Message.Data>",
+        "topicId": "<string — maps to a topic in the eventToTopicMap, e.g., 'rudder-events'>",
+        "attributes": "<optional map[string]string — copied to pubsub.Message.Attributes>"
+      }
+    },
+    "track": {
+      "produce_input": {
+        "message": {
+          "type": "track",
+          "event": "Product Viewed",
+          "userId": "user_123",
+          "anonymousId": "anon-456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets",
+            "currency": "USD"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.42",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+          },
+          "messageId": "msg-rs-pubsub-001",
+          "rudderId": "rudder-uuid-001",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "topicId": "rudder-events",
+        "attributes": {
+          "event_type": "track",
+          "source": "rudderstack"
+        }
+      },
+      "pubsub_message": {
+        "Data": "{\"type\":\"track\",\"event\":\"Product Viewed\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:00:00.000Z\",\"properties\":{\"product_id\":\"SKU-001\",\"name\":\"Premium Widget\",\"price\":49.99,\"category\":\"Widgets\",\"currency\":\"USD\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\",\"userAgent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)\"},\"messageId\":\"msg-rs-pubsub-001\",\"rudderId\":\"rudder-uuid-001\",\"originalTimestamp\":\"2026-02-25T12:00:00.000Z\",\"sentAt\":\"2026-02-25T12:00:01.000Z\",\"receivedAt\":\"2026-02-25T12:00:02.000Z\"}",
+        "Attributes": {
+          "event_type": "track",
+          "source": "rudderstack"
+        }
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message_pattern": "Message publish with serverID<server_id>"
+      }
+    },
+    "identify": {
+      "produce_input": {
+        "message": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon-456",
+          "timestamp": "2026-02-25T12:01:00.000Z",
+          "traits": {
+            "email": "user@example.com",
+            "name": "Jane Doe",
+            "plan": "premium",
+            "company": "Acme Corp"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.42"
+          },
+          "messageId": "msg-rs-pubsub-002",
+          "rudderId": "rudder-uuid-002",
+          "originalTimestamp": "2026-02-25T12:01:00.000Z",
+          "sentAt": "2026-02-25T12:01:01.000Z",
+          "receivedAt": "2026-02-25T12:01:02.000Z"
+        },
+        "topicId": "rudder-events",
+        "attributes": {
+          "event_type": "identify",
+          "source": "rudderstack"
+        }
+      },
+      "pubsub_message": {
+        "Data": "{\"type\":\"identify\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:01:00.000Z\",\"traits\":{\"email\":\"user@example.com\",\"name\":\"Jane Doe\",\"plan\":\"premium\",\"company\":\"Acme Corp\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-pubsub-002\",\"rudderId\":\"rudder-uuid-002\",\"originalTimestamp\":\"2026-02-25T12:01:00.000Z\",\"sentAt\":\"2026-02-25T12:01:01.000Z\",\"receivedAt\":\"2026-02-25T12:01:02.000Z\"}",
+        "Attributes": {
+          "event_type": "identify",
+          "source": "rudderstack"
+        }
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message_pattern": "Message publish with serverID<server_id>"
+      }
+    },
+    "page": {
+      "produce_input": {
+        "message": {
+          "type": "page",
+          "name": "Home",
+          "userId": "user_123",
+          "anonymousId": "anon-456",
+          "timestamp": "2026-02-25T12:02:00.000Z",
+          "properties": {
+            "title": "Home | Acme Corp",
+            "url": "https://www.example.com/",
+            "path": "/",
+            "referrer": "https://www.google.com/"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.42"
+          },
+          "messageId": "msg-rs-pubsub-003",
+          "rudderId": "rudder-uuid-003",
+          "originalTimestamp": "2026-02-25T12:02:00.000Z",
+          "sentAt": "2026-02-25T12:02:01.000Z",
+          "receivedAt": "2026-02-25T12:02:02.000Z"
+        },
+        "topicId": "rudder-events",
+        "attributes": {
+          "event_type": "page",
+          "source": "rudderstack"
+        }
+      },
+      "pubsub_message": {
+        "Data": "{\"type\":\"page\",\"name\":\"Home\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:02:00.000Z\",\"properties\":{\"title\":\"Home | Acme Corp\",\"url\":\"https://www.example.com/\",\"path\":\"/\",\"referrer\":\"https://www.google.com/\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-pubsub-003\",\"rudderId\":\"rudder-uuid-003\",\"originalTimestamp\":\"2026-02-25T12:02:00.000Z\",\"sentAt\":\"2026-02-25T12:02:01.000Z\",\"receivedAt\":\"2026-02-25T12:02:02.000Z\"}",
+        "Attributes": {
+          "event_type": "page",
+          "source": "rudderstack"
+        }
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message_pattern": "Message publish with serverID<server_id>"
+      }
+    },
+    "screen": {
+      "produce_input": {
+        "message": {
+          "type": "screen",
+          "name": "Dashboard",
+          "userId": "user_123",
+          "anonymousId": "anon-456",
+          "timestamp": "2026-02-25T12:03:00.000Z",
+          "properties": {
+            "section": "main",
+            "feed_type": "personalized"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-node",
+              "version": "2.0.0"
+            },
+            "ip": "203.0.113.42"
+          },
+          "messageId": "msg-rs-pubsub-004",
+          "rudderId": "rudder-uuid-004",
+          "originalTimestamp": "2026-02-25T12:03:00.000Z",
+          "sentAt": "2026-02-25T12:03:01.000Z",
+          "receivedAt": "2026-02-25T12:03:02.000Z"
+        },
+        "topicId": "rudder-events",
+        "attributes": {
+          "event_type": "screen",
+          "source": "rudderstack"
+        }
+      },
+      "pubsub_message": {
+        "Data": "{\"type\":\"screen\",\"name\":\"Dashboard\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:03:00.000Z\",\"properties\":{\"section\":\"main\",\"feed_type\":\"personalized\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-node\",\"version\":\"2.0.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-pubsub-004\",\"rudderId\":\"rudder-uuid-004\",\"originalTimestamp\":\"2026-02-25T12:03:00.000Z\",\"sentAt\":\"2026-02-25T12:03:01.000Z\",\"receivedAt\":\"2026-02-25T12:03:02.000Z\"}",
+        "Attributes": {
+          "event_type": "screen",
+          "source": "rudderstack"
+        }
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message_pattern": "Message publish with serverID<server_id>"
+      }
+    },
+    "group": {
+      "produce_input": {
+        "message": {
+          "type": "group",
+          "groupId": "group-abc-123",
+          "userId": "user_123",
+          "anonymousId": "anon-456",
+          "timestamp": "2026-02-25T12:04:00.000Z",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "employees": 500,
+            "plan": "enterprise"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            }
+          },
+          "messageId": "msg-rs-pubsub-005",
+          "rudderId": "rudder-uuid-005",
+          "originalTimestamp": "2026-02-25T12:04:00.000Z",
+          "sentAt": "2026-02-25T12:04:01.000Z",
+          "receivedAt": "2026-02-25T12:04:02.000Z"
+        },
+        "topicId": "rudder-events",
+        "attributes": {
+          "event_type": "group",
+          "source": "rudderstack"
+        }
+      },
+      "pubsub_message": {
+        "Data": "{\"type\":\"group\",\"groupId\":\"group-abc-123\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:04:00.000Z\",\"traits\":{\"name\":\"Acme Corp\",\"industry\":\"Technology\",\"employees\":500,\"plan\":\"enterprise\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"}},\"messageId\":\"msg-rs-pubsub-005\",\"rudderId\":\"rudder-uuid-005\",\"originalTimestamp\":\"2026-02-25T12:04:00.000Z\",\"sentAt\":\"2026-02-25T12:04:01.000Z\",\"receivedAt\":\"2026-02-25T12:04:02.000Z\"}",
+        "Attributes": {
+          "event_type": "group",
+          "source": "rudderstack"
+        }
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message_pattern": "Message publish with serverID<server_id>"
+      }
+    },
+    "alias": {
+      "produce_input": {
+        "message": {
+          "type": "alias",
+          "previousId": "anon-456",
+          "userId": "user_123",
+          "timestamp": "2026-02-25T12:05:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            }
+          },
+          "messageId": "msg-rs-pubsub-006",
+          "rudderId": "rudder-uuid-006",
+          "originalTimestamp": "2026-02-25T12:05:00.000Z",
+          "sentAt": "2026-02-25T12:05:01.000Z",
+          "receivedAt": "2026-02-25T12:05:02.000Z"
+        },
+        "topicId": "rudder-events",
+        "attributes": {
+          "event_type": "alias",
+          "source": "rudderstack"
+        }
+      },
+      "pubsub_message": {
+        "Data": "{\"type\":\"alias\",\"previousId\":\"anon-456\",\"userId\":\"user_123\",\"timestamp\":\"2026-02-25T12:05:00.000Z\",\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"}},\"messageId\":\"msg-rs-pubsub-006\",\"rudderId\":\"rudder-uuid-006\",\"originalTimestamp\":\"2026-02-25T12:05:00.000Z\",\"sentAt\":\"2026-02-25T12:05:01.000Z\",\"receivedAt\":\"2026-02-25T12:05:02.000Z\"}",
+        "Attributes": {
+          "event_type": "alias",
+          "source": "rudderstack"
+        }
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message_pattern": "Message publish with serverID<server_id>"
+      }
+    },
+    "no_attributes": {
+      "description": "When the incoming payload has no 'attributes' field, the pubsub.Message is created with Data only and no Attributes map. This is the minimal valid publish path.",
+      "produce_input": {
+        "message": {
+          "type": "track",
+          "event": "Minimal Event",
+          "userId": "user_123",
+          "timestamp": "2026-02-25T12:06:00.000Z",
+          "properties": {},
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            }
+          },
+          "messageId": "msg-rs-pubsub-007",
+          "rudderId": "rudder-uuid-007",
+          "originalTimestamp": "2026-02-25T12:06:00.000Z",
+          "sentAt": "2026-02-25T12:06:01.000Z",
+          "receivedAt": "2026-02-25T12:06:02.000Z"
+        },
+        "topicId": "rudder-events"
+      },
+      "pubsub_message": {
+        "Data": "{\"type\":\"track\",\"event\":\"Minimal Event\",\"userId\":\"user_123\",\"timestamp\":\"2026-02-25T12:06:00.000Z\",\"properties\":{},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"}},\"messageId\":\"msg-rs-pubsub-007\",\"rudderId\":\"rudder-uuid-007\",\"originalTimestamp\":\"2026-02-25T12:06:00.000Z\",\"sentAt\":\"2026-02-25T12:06:01.000Z\",\"receivedAt\":\"2026-02-25T12:06:02.000Z\"}",
+        "Attributes": null
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message_pattern": "Message publish with serverID<server_id>"
+      }
+    },
+    "error_responses": {
+      "null_client": {
+        "statusCode": 400,
+        "status": "Failure",
+        "message": "[GooglePubSub] error :: Could not create producer"
+      },
+      "missing_message": {
+        "statusCode": 400,
+        "status": "Failure",
+        "message": "[GooglePubSub] error :: message from payload not found"
+      },
+      "missing_topic_id": {
+        "statusCode": 400,
+        "status": "Failure",
+        "message": "[GooglePubSub] error  :: Topic Id not found"
+      },
+      "invalid_topic_id_type": {
+        "statusCode": 400,
+        "status": "Failure",
+        "message": "[GooglePubSub] error :: Could not parse topic id to string"
+      },
+      "empty_topic_id": {
+        "statusCode": 400,
+        "status": "Failure",
+        "message": "[GooglePubSub] error :: empty topic id string"
+      },
+      "topic_not_in_project": {
+        "statusCode": 400,
+        "status": "Failure",
+        "message": "[GooglePubSub] error :: Topic not found in project"
+      },
+      "publish_failure": {
+        "description": "gRPC status codes are mapped to HTTP status codes via getError(). The publish error message is prefixed with '[GooglePubSub] error :: Failed to publish:'",
+        "grpc_code_mapping": {
+          "Canceled": 499,
+          "Unknown": 400,
+          "InvalidArgument": 400,
+          "FailedPrecondition": 400,
+          "Aborted": 400,
+          "OutOfRange": 400,
+          "Unimplemented": 400,
+          "DataLoss": 400,
+          "DeadlineExceeded": 504,
+          "NotFound": 404,
+          "AlreadyExists": 409,
+          "PermissionDenied": 403,
+          "ResourceExhausted": 429,
+          "Internal": 500,
+          "Unavailable": 503,
+          "Unauthenticated": 401,
+          "default": 400
+        }
+      },
+      "context_deadline_exceeded": {
+        "statusCode": 504,
+        "status": "Failure",
+        "message_pattern": "[GooglePubSub] error :: Failed to publish:<deadline exceeded error>"
+      },
+      "invalid_project_id": {
+        "description": "Returned during NewProducer when projectId is empty",
+        "error": "invalid configuration provided, missing projectId"
+      },
+      "invalid_credentials": {
+        "description": "Returned during NewProducer when credentials JSON is malformed",
+        "error": "googleutil.CompatibleGoogleCredentialsJSON validation error"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "topic_configuration": {
+      "segment": "Topic name is configured in Segment destination settings as a single topic per destination. Segment publishes all events from a source to the configured topic.",
+      "rudderstack": "Topic names are configured via the 'eventToTopicMap' array in destination config. Each entry has a 'to' key specifying the topic name. During NewProducer, a pubsub.Publisher is created for each topic in the map and stored in topicMap. The Produce method receives the target topicId in the payload JSON and looks it up in topicMap. This enables routing different events to different topics within a single destination config.",
+      "parity_gap": "RudderStack supports multi-topic routing per destination via eventToTopicMap, while Segment typically uses a single topic per destination. The topic name is resolved at different stages: Segment resolves at config time, RudderStack resolves at publish time from the payload's topicId field."
+    },
+    "message_data": {
+      "segment": "Full event JSON is sent as the Pub/Sub message data bytes. The event includes standard Segment fields: type, event, userId, anonymousId, timestamp, properties/traits, context (with library.name=analytics.js), messageId.",
+      "rudderstack": "The 'message' object from the Produce input is marshaled to JSON bytes via jsonrs.Marshal and set as pubsub.Message.Data. The event includes standard RudderStack fields plus additional envelope fields: rudderId, originalTimestamp, sentAt, receivedAt. The context.library.name identifies the RudderStack SDK.",
+      "parity_gap": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to every event payload. The context.library.name field differs (rudder-sdk-js vs analytics.js). Pub/Sub subscribers processing events from both platforms must tolerate these additional fields."
+    },
+    "message_attributes": {
+      "segment": "Segment supports configuring Pub/Sub message attributes derived from event fields for subscriber-side filtering. Attribute mapping is defined in destination settings.",
+      "rudderstack": "RudderStack passes attributes directly from the 'attributes' map in the Produce input JSON to pubsub.Message.Attributes. Attribute values are extracted as string values from the gjson Map result. If no attributes are present in the payload, the message is published without attributes.",
+      "parity_gap": "Both platforms support Pub/Sub message attributes, but the mapping mechanism differs. Segment configures attribute mapping in destination settings (declarative), while RudderStack expects attributes to be pre-computed and included in the Produce input payload (imperative). The Transformer service is responsible for computing attributes before they reach the stream manager."
+    },
+    "ordering_key": {
+      "segment": "Segment does not typically set ordering keys on Pub/Sub messages. Messages are unordered by default.",
+      "rudderstack": "RudderStack does not set pubsub.Message.OrderingKey. Messages are published without ordering guarantees at the Pub/Sub level. Event ordering is managed at the Router level via per-destination ordering guarantees before events reach the stream manager.",
+      "parity_gap": "Neither platform sets Pub/Sub-level ordering keys by default. Both rely on application-level ordering before publish. No parity gap for ordering semantics."
+    },
+    "authentication": {
+      "segment": "Google Cloud Service Account JSON credentials configured in destination settings",
+      "rudderstack": "Google Cloud Service Account JSON credentials configured in destination config ('credentials' field). Validated via googleutil.CompatibleGoogleCredentialsJSON. Supports Application Default Credentials when googleutil.ShouldSkipCredentialsInit returns true. Supports custom test endpoints with insecure credentials for integration testing.",
+      "parity_gap": "Both platforms use Service Account JSON credentials. RudderStack additionally supports Application Default Credentials and test endpoints — these are additive capabilities with no negative parity impact."
+    },
+    "event_envelope_fields": {
+      "segment": "Standard Segment event fields: type, event, userId, anonymousId, timestamp, properties/traits, context (with library.name=analytics.js), messageId",
+      "rudderstack": "Standard RudderStack event fields: type, event, userId, anonymousId, timestamp, properties/traits, context (with library.name=rudder-sdk-js), messageId, plus rudderId, originalTimestamp, sentAt, receivedAt",
+      "parity_gap": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to every event payload. The context.library.name identifies the SDK origin. Subscribers must tolerate these additional fields."
+    },
+    "error_handling": {
+      "segment": "Segment retries failed publishes based on its standard retry policy. Errors are surfaced in the Segment debugger.",
+      "rudderstack": "gRPC status codes from Pub/Sub API are mapped to HTTP status codes (see error_responses.publish_failure.grpc_code_mapping). Retry for authentication errors is configurable via Router.GOOGLEPUBSUB.Client.EnableRetries (default: false). When enabled, uses exponential backoff with configurable intervals. Non-authentication errors are treated as permanent failures.",
+      "parity_gap": "Different retry strategies: Segment uses its platform-level retry policy, while RudderStack has configurable per-producer retry with selective retry only for OAuth2 authentication errors. RudderStack provides more granular gRPC-to-HTTP error code mapping."
+    },
+    "flow_control": {
+      "segment": "Flow control behavior is managed by Segment's internal pipeline infrastructure.",
+      "rudderstack": "Explicit flow control via pubsub.FlowControlSettings: FlowControlBlock behavior (blocks when limits exceeded), configurable MaxOutstandingMessages (default: 1000), configurable MaxOutstandingBytes (default: -1 unlimited). Additionally, NumGoroutines (default: 25), DelayThreshold (default: 10ms), CountThreshold (default: 64), and ByteThreshold (default: 10MB) control publisher batching.",
+      "parity_gap": "RudderStack exposes fine-grained flow control and batching configuration not available in Segment's Pub/Sub destination. This is an additive capability."
+    }
+  },
+  "producer_details": {
+    "constructor": "NewProducer",
+    "package": "services/streammanager/googlepubsub",
+    "interface": "common.StreamProducer",
+    "config_struct": {
+      "PubSubConfig": {
+        "description": "Unmarshalled from destination.Config via jsonrs.Marshal/Unmarshal",
+        "fields": {
+          "credentials": "Google Cloud Service Account JSON key string",
+          "projectId": "Google Cloud project ID — required (NewProducer returns error if empty)",
+          "eventToTopicMap": "Array of maps with 'to' key specifying topic names. A pubsub.Publisher is created per topic entry.",
+          "testConfig.endpoint": "Optional custom endpoint for testing environments"
+        }
+      }
+    },
+    "client_struct": {
+      "PubsubClient": {
+        "pbs": "pubsub.Client — underlying Google Cloud Pub/Sub client",
+        "topicMap": "map[string]*pubsub.Publisher — pre-built publisher map keyed by topic name from eventToTopicMap",
+        "opts": "common.Opts — shared options including Timeout duration"
+      }
+    },
+    "producer_struct": {
+      "GooglePubSubProducer": {
+        "client": "*PubsubClient — the Pub/Sub client wrapper",
+        "conf": "*config.Config — configuration reference",
+        "enableRetry": "Reloadable[bool] — toggle for retry on auth errors",
+        "retryInitialInterval": "Reloadable[time.Duration] — initial backoff interval",
+        "retryMaxInterval": "Reloadable[time.Duration] — maximum backoff interval",
+        "retryMaxElapsedTime": "Reloadable[time.Duration] — total retry time budget",
+        "retryMaxRetries": "Reloadable[int] — maximum number of retry attempts"
+      }
+    },
+    "produce_method_flow": [
+      "1. Parse incoming json.RawMessage via gjson.ParseBytes",
+      "2. Validate client is not nil (400 if nil)",
+      "3. Create context with timeout from common.Opts.Timeout",
+      "4. Extract 'message' field from parsed JSON (400 if missing)",
+      "5. Marshal 'message' value to JSON bytes via jsonrs.Marshal (400 if marshal fails)",
+      "6. Extract 'topicId' string (400 if missing, non-string, or empty)",
+      "7. Look up Publisher from topicMap by topicId (400 if not found)",
+      "8. Extract 'attributes' map from parsed JSON",
+      "9. Build pubsub.Message with Data and optional Attributes",
+      "10. Publish via topic.Publish(ctx, message).Get(ctx) — with optional retry for auth errors",
+      "11. Map gRPC errors to HTTP status codes via getError() (504 for DeadlineExceeded/context timeout)",
+      "12. Return (200, 'Success', 'Message publish with serverID<id>') on success"
+    ],
+    "success_response_format": {
+      "statusCode": 200,
+      "status": "Success",
+      "message": "Message publish with serverID<server_id>"
+    }
+  },
+  "parity_summary": {
+    "overall_parity_status": "High",
+    "critical_gaps": [
+      {
+        "gap": "Topic routing model",
+        "segment_behavior": "Single topic per destination configured in settings",
+        "rudderstack_behavior": "Multi-topic routing via eventToTopicMap array; topicId specified per event in Produce payload",
+        "impact": "RudderStack supports more flexible topic routing — a superset of Segment's model. A single-topic configuration can be achieved by using a single entry in eventToTopicMap.",
+        "mitigation": "Configure eventToTopicMap with a single entry to match Segment's single-topic behavior"
+      },
+      {
+        "gap": "Attribute mapping mechanism",
+        "segment_behavior": "Declarative attribute mapping configured in destination settings — event fields are mapped to Pub/Sub attributes at config time",
+        "rudderstack_behavior": "Attributes are pre-computed by the Transformer service and passed in the Produce input payload as a map. The stream manager copies them directly to pubsub.Message.Attributes without applying its own mapping logic.",
+        "impact": "The attribute mapping logic lives in different layers: Segment applies it in the destination connector, RudderStack applies it in the Transformer before the event reaches the stream manager. Functionally equivalent if the Transformer is configured to produce the same attributes.",
+        "mitigation": "Ensure RudderStack Transformer destination transform produces equivalent attribute mappings to Segment's destination settings"
+      }
+    ],
+    "non_critical_differences": [
+      {
+        "difference": "Additional envelope fields",
+        "description": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to event payloads in the message data",
+        "impact": "Pub/Sub subscribers must tolerate additional fields when processing events from RudderStack"
+      },
+      {
+        "difference": "SDK library identifier",
+        "description": "context.library.name is 'rudder-sdk-js' vs 'analytics.js'",
+        "impact": "Subscribers that branch on library name must handle both identifiers"
+      },
+      {
+        "difference": "Flow control configuration",
+        "description": "RudderStack exposes fine-grained publisher settings (NumGoroutines, DelayThreshold, CountThreshold, ByteThreshold, FlowControlSettings) not available in Segment's Pub/Sub destination",
+        "impact": "Additive capability — no negative parity impact; enables performance tuning for high-throughput scenarios"
+      },
+      {
+        "difference": "Authentication retry",
+        "description": "RudderStack has configurable retry logic specifically for OAuth2 authentication credential errors with exponential backoff",
+        "impact": "Additive reliability feature — no negative parity impact; helps with transient authentication issues"
+      },
+      {
+        "difference": "Test endpoint support",
+        "description": "RudderStack supports a testConfig.endpoint for integration testing with local Pub/Sub emulators using insecure credentials",
+        "impact": "Development and testing convenience — no production parity impact"
+      }
+    ],
+    "functional_equivalence": "Both platforms publish JSON event data to Google Cloud Pub/Sub topics using the same Publish API. The core message data (event JSON) and attributes are functionally equivalent. The primary architectural difference is the topic routing model (single vs multi-topic) and the attribute mapping layer (destination connector vs Transformer). RudderStack's implementation is a superset of Segment's capabilities, with additional flow control, retry, and multi-topic features."
+  },
+  "notes": "Google Pub/Sub shared stream destination. Segment slug: google-cloud-pubsub. RudderStack package: services/streammanager/googlepubsub/. Both platforms use the Google Cloud Pub/Sub Publish API to deliver JSON event data. RudderStack's producer receives topicId, message, and optional attributes via json.RawMessage in the Produce method, then publishes via pre-built topic Publishers created during NewProducer from the eventToTopicMap config. Key differences: (1) RudderStack supports multi-topic routing via eventToTopicMap while Segment uses single-topic per destination, (2) attribute mapping is handled by the Transformer service in RudderStack vs the destination connector in Segment, (3) RudderStack adds rudderId/originalTimestamp/sentAt/receivedAt envelope fields, (4) RudderStack provides configurable flow control settings and authentication retry logic. Overall parity is high — Pub/Sub subscribers receive functionally equivalent event data from both platforms."
+}
