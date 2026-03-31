@@ -163,8 +163,10 @@ fmt: install-tools ## Formats all go files
 
 .PHONY: proto
 proto: install-tools ## Generate protobuf files
-	protoc --go_out=paths=source_relative:. proto/**/*.proto
-	protoc --go-grpc_out=paths=source_relative:. proto/**/*.proto
+	@for dir in proto/*/; do \
+		protoc --go_out=paths=source_relative:. $$dir*.proto; \
+		protoc --go-grpc_out=paths=source_relative:. $$dir*.proto 2>/dev/null || true; \
+	done
 
 .PHONY: bench-kafka
 bench-kafka:

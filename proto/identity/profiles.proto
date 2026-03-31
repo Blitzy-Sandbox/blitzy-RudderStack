@@ -1,0 +1,150 @@
+syntax = "proto3";
+package proto;
+import "google/protobuf/timestamp.proto";
+
+option go_package = ".;proto";
+
+// ProfilesService defines the gRPC API for the Identity Resolution Profiles subsystem.
+// This service provides sub-200ms profile lookups by any identifier type, supporting
+// the real-time identity graph built in Sprint 6-8 (E-026 through E-030).
+//
+// All RPCs are unary (request-response). Paginated endpoints use the Pagination message
+// for cursor-based result traversal.
+service ProfilesService {
+  // E-027: Get a unified profile by identifier.
+  // Resolves a profile using any supported identifier type (user_id, email, anonymous_id, etc.)
+  // and optionally includes sub-resources (traits, external_ids, events, metadata).
+  rpc GetProfile(GetProfileRequest) returns (Profile);
+
+  // E-027: Get profile traits (key-value attributes).
+  // Returns the merged trait map for a resolved profile, with pagination support.
+  rpc GetProfileTraits(GetProfileTraitsRequest) returns (ProfileTraits);
+
+  // E-027: Get profile events (historical event stream).
+  // Returns events associated with a profile, filterable by event type and time range.
+  rpc GetProfileEvents(GetProfileEventsRequest) returns (ProfileEvents);
+
+  // E-027: Get profile external IDs (cross-device/cross-platform identifiers).
+  // Returns all external identifiers linked to a profile through identity resolution.
+  // Supports 12+ identifier types per E-028.
+  rpc GetProfileExternalIds(GetProfileExternalIdsRequest) returns (ProfileExternalIds);
+
+  // E-027: Get profile metadata (merge history, timestamps).
+  // Returns merge count, first/last seen timestamps, and workspace context.
+  rpc GetProfileMetadata(GetProfileMetadataRequest) returns (ProfileMetadata);
+}
+
+// Pagination provides cursor-based result traversal for list endpoints.
+// Follows the exact pattern established by proto/warehouse/warehouse.proto.
+message Pagination {
+  int32 total = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+// Profile is the unified profile entity produced by the real-time identity graph (E-026).
+// It aggregates traits, external identifiers, and metadata from all merged identity segments.
+message Profile {
+  string id = 1;                              // Unique segment/profile ID
+  string workspace_id = 2;                    // Workspace scope
+  ProfileTraits traits = 3;                   // Embedded traits (key-value attributes)
+  repeated ExternalId external_ids = 4;       // Associated cross-device/cross-platform identifiers
+  ProfileMetadata metadata = 5;               // Merge and timing metadata
+  google.protobuf.Timestamp created_at = 6;   // Profile creation timestamp
+  google.protobuf.Timestamp updated_at = 7;   // Last update timestamp
+}
+
+// ProfileTraits contains the merged key-value trait map for a profile.
+// Traits are aggregated from all identify calls across merged identity segments.
+message ProfileTraits {
+  map<string, string> traits = 1;             // Key-value trait pairs
+  google.protobuf.Timestamp updated_at = 2;   // Last trait update timestamp
+}
+
+// ProfileEvents is a paginated list of events associated with a profile.
+message ProfileEvents {
+  repeated ProfileEvent events = 1;           // Event records
+  Pagination pagination = 2;                  // Pagination metadata
+}
+
+// ProfileEvent represents an individual event record linked to a profile.
+// Covers all standard event types: track, identify, page, screen, group, alias.
+message ProfileEvent {
+  string id = 1;                              // Unique event ID
+  string type = 2;                            // Event type: track, identify, page, screen, group, alias
+  string event_name = 3;                      // Event name (for track events)
+  string properties = 4;                      // JSON-encoded event properties
+  google.protobuf.Timestamp timestamp = 5;    // Original event timestamp
+  google.protobuf.Timestamp received_at = 6;  // Server-side receive timestamp
+}
+
+// ExternalId represents a cross-device/cross-platform identifier linked to a profile.
+// E-028: Supports 12+ identifier types including user_id, email, anonymous_id,
+// ios.id, android.id, ios.idfa, android.aaid, ga_client_id, amp_id, braze_id,
+// mailchimp_id, and custom identifiers.
+message ExternalId {
+  string id = 1;                              // Unique record ID
+  string type = 2;                            // Identifier type (user_id, email, anonymous_id, ios.id, android.id, ios.idfa, android.aaid, ga_client_id, amp_id, braze_id, mailchimp_id, custom)
+  string value = 3;                           // The actual identifier value
+  string created_source = 4;                  // Source that created this identifier
+  google.protobuf.Timestamp created_at = 5;   // Creation timestamp
+  string encoding = 6;                        // Encoding type (none, md5, sha256)
+  float confidence = 7;                       // Confidence score for the identifier match (0.0–1.0)
+}
+
+// ProfileExternalIds is a paginated list of external identifiers linked to a profile.
+message ProfileExternalIds {
+  repeated ExternalId external_ids = 1;       // External identifier records
+  Pagination pagination = 2;                  // Pagination metadata
+}
+
+// ProfileMetadata contains merge history and timing information for a profile.
+message ProfileMetadata {
+  string id = 1;                              // Profile ID
+  string workspace_id = 2;                    // Workspace scope
+  int64 merge_count = 3;                      // Number of profile merges performed
+  google.protobuf.Timestamp first_seen = 4;   // Earliest event timestamp across all merged segments
+  google.protobuf.Timestamp last_seen = 5;    // Latest event timestamp across all merged segments
+}
+
+// GetProfileRequest looks up a unified profile by any supported identifier.
+// The include field allows selective embedding of sub-resources to minimize payload size.
+message GetProfileRequest {
+  string workspace_id = 1;                    // Workspace scope
+  string identifier_type = 2;                 // Identifier type for lookup (user_id, email, anonymous_id, etc.)
+  string identifier_value = 3;                // The actual identifier value to resolve
+  repeated string include = 4;                // Sub-resources to include: "traits", "external_ids", "events", "metadata"
+}
+
+// GetProfileTraitsRequest retrieves the trait map for a specific profile.
+message GetProfileTraitsRequest {
+  string workspace_id = 1;                    // Workspace scope
+  string profile_id = 2;                      // Target profile ID
+  int32 limit = 3;                            // Maximum number of traits to return
+  int32 offset = 4;                           // Offset for pagination
+}
+
+// GetProfileEventsRequest retrieves events for a profile with optional time-range filtering.
+message GetProfileEventsRequest {
+  string workspace_id = 1;                    // Workspace scope
+  string profile_id = 2;                      // Target profile ID
+  string event_type = 3;                      // Filter by event type (track, identify, page, screen, group, alias)
+  google.protobuf.Timestamp start_time = 4;   // Start of time range filter (inclusive)
+  google.protobuf.Timestamp end_time = 5;     // End of time range filter (exclusive)
+  int32 limit = 6;                            // Maximum number of events to return
+  int32 offset = 7;                           // Offset for pagination
+}
+
+// GetProfileExternalIdsRequest retrieves external identifiers for a profile.
+message GetProfileExternalIdsRequest {
+  string workspace_id = 1;                    // Workspace scope
+  string profile_id = 2;                      // Target profile ID
+  int32 limit = 3;                            // Maximum number of external IDs to return
+  int32 offset = 4;                           // Offset for pagination
+}
+
+// GetProfileMetadataRequest retrieves merge and timing metadata for a profile.
+message GetProfileMetadataRequest {
+  string workspace_id = 1;                    // Workspace scope
+  string profile_id = 2;                      // Target profile ID
+}
