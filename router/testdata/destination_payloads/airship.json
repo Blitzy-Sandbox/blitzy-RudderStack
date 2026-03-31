@@ -1,0 +1,330 @@
+{
+  "destination_type": "AIRSHIP",
+  "destination_tier": "cloud",
+  "category": "SMS & Push Notifications",
+  "segment_slug": "airship",
+  "segment_actions_slug": "actions-airship",
+  "rudderstack_docs": "https://www.rudderstack.com/docs/destinations/streaming-destinations/airship/",
+  "segment_docs": "https://segment.com/docs/connections/destinations/catalog/airship/",
+  "authentication": {
+    "method": "bearer_token",
+    "headers": {
+      "Authorization": "Bearer <app_key>:<app_secret>",
+      "X-UA-Appkey": "<app_key>",
+      "Content-Type": "application/json",
+      "Accept": "application/vnd.urbanairship+json; version=3"
+    },
+    "notes": "Both Segment and RudderStack use the Airship App Key and App Secret (or Master Secret) for authentication. Authentication is via Basic Auth (Base64 of appKey:appSecret) or Bearer token depending on the endpoint."
+  },
+  "event_types": ["track", "identify"],
+  "segment_reference_payloads": {
+    "track": {
+      "description": "Segment track calls are received by Airship as Custom Events via POST /api/custom-events. The event properties are automatically added as properties on the custom event.",
+      "api_endpoint": "POST https://go.urbanairship.com/api/custom-events",
+      "payload": [
+        {
+          "occurred": "2026-02-25T12:00:00",
+          "user": {
+            "named_user_id": "user_123"
+          },
+          "body": {
+            "name": "product_viewed",
+            "value": 49.99,
+            "transaction": "txn-abc-123",
+            "interaction_id": "https://example.com/products/sku-001",
+            "interaction_type": "url",
+            "properties": {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "category": "Electronics",
+              "price": 49.99,
+              "currency": "USD"
+            },
+            "session_id": "sess-abc-123"
+          }
+        }
+      ],
+      "notes": "Segment converts the event name to snake_case before sending. The userId from Segment maps to named_user_id in Airship. Track event properties are mapped to the body.properties object. Revenue-related properties map to body.value."
+    },
+    "identify": {
+      "description": "Segment identify calls set Airship tags (for boolean traits) and attributes (for non-boolean traits) on the named user. Tags are managed via the Named Users Tags API, and attributes via the Named Users Attributes API.",
+      "api_endpoints": {
+        "tags": "POST https://go.urbanairship.com/api/named_users/tags",
+        "attributes": "POST https://go.urbanairship.com/api/named_users/<named_user_id>/attributes"
+      },
+      "tags_payload": {
+        "audience": {
+          "named_user_id": "user_123"
+        },
+        "add": {
+          "segment-integration": ["likes_movies", "premium_member"]
+        },
+        "remove": {
+          "segment-integration": ["trial_user"]
+        }
+      },
+      "attributes_payload": [
+        {
+          "action": "set",
+          "key": "first_name",
+          "value": "John"
+        },
+        {
+          "action": "set",
+          "key": "last_name",
+          "value": "Doe"
+        },
+        {
+          "action": "set",
+          "key": "email",
+          "value": "john.doe@example.com"
+        },
+        {
+          "action": "set",
+          "key": "age",
+          "value": 30
+        },
+        {
+          "action": "set",
+          "key": "favorite_color",
+          "value": "purple"
+        }
+      ],
+      "notes": "Boolean traits (true/false) are sent as tags in the 'segment-integration' tag group. A true value creates a tag, a false value removes it. Non-boolean traits that are predefined in Airship are set as attributes. The userId maps to named_user_id. Segment maps reserved traits (firstName, lastName, email) to predefined Airship attributes."
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "track": {
+      "description": "RudderStack sends track events to Airship via the Custom Events API (POST /api/custom-events). The event name is automatically converted to snake_case.",
+      "api_endpoint": "POST https://go.urbanairship.com/api/custom-events",
+      "payload": [
+        {
+          "occurred": "2026-02-25T12:00:00",
+          "user": {
+            "named_user_id": "user_123"
+          },
+          "body": {
+            "name": "product_viewed",
+            "value": 49.99,
+            "transaction": "txn-abc-123",
+            "interaction_id": "https://example.com/products/sku-001",
+            "interaction_type": "url",
+            "properties": {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "category": "Electronics",
+              "price": 49.99,
+              "currency": "USD"
+            },
+            "session_id": "sess-abc-123"
+          }
+        }
+      ],
+      "notes": "RudderStack converts the event name (e.g., 'Product Viewed') to snake_case ('product_viewed') before sending to Airship. The userId from RudderStack maps to named_user_id. Event properties are mapped to body.properties. RudderStack maps some event properties to Airship-specific fields (value, transaction, interaction_id, interaction_type, session_id)."
+    },
+    "identify": {
+      "description": "RudderStack identify calls set Airship tags (for boolean traits) and attributes (for non-boolean traits) on the named user. Tags use the 'rudderstack-integration' tag group (different from Segment's 'segment-integration').",
+      "api_endpoints": {
+        "tags": "POST https://go.urbanairship.com/api/named_users/tags",
+        "attributes": "POST https://go.urbanairship.com/api/named_users/<named_user_id>/attributes"
+      },
+      "tags_payload": {
+        "audience": {
+          "named_user_id": "user_123"
+        },
+        "add": {
+          "rudderstack-integration": ["likes_movies", "premium_member"]
+        },
+        "remove": {
+          "rudderstack-integration": ["trial_user"]
+        }
+      },
+      "attributes_payload": [
+        {
+          "action": "set",
+          "key": "first_name",
+          "value": "John"
+        },
+        {
+          "action": "set",
+          "key": "last_name",
+          "value": "Doe"
+        },
+        {
+          "action": "set",
+          "key": "email",
+          "value": "john.doe@example.com"
+        },
+        {
+          "action": "set",
+          "key": "age",
+          "value": 30
+        },
+        {
+          "action": "set",
+          "key": "favorite_color",
+          "value": "purple"
+        }
+      ],
+      "notes": "RudderStack uses 'rudderstack-integration' tag group (vs Segment's 'segment-integration'). Boolean traits are sent as tags; non-boolean traits as attributes. RudderStack maps reserved traits (firstName→first_name, lastName→last_name, email→email) to predefined Airship attributes. The userId maps to named_user_id."
+    }
+  },
+  "field_mappings": {
+    "named_user_association": {
+      "segment_field": "userId",
+      "rudderstack_field": "userId",
+      "airship_field": "named_user_id",
+      "description": "Both Segment and RudderStack map userId to Airship's named_user_id. A named user must exist in Airship for the corresponding userId value. Airship auto-creates named user records on first encounter.",
+      "parity_status": "MATCH"
+    },
+    "tag_management": {
+      "segment_tag_group": "segment-integration",
+      "rudderstack_tag_group": "rudderstack-integration",
+      "segment_group_tag_group": "segment-integration-group",
+      "rudderstack_group_tag_group": "rudderstack-integration-group",
+      "description": "Boolean identify/group traits are sent as tags. Segment uses 'segment-integration' and 'segment-integration-group' tag groups; RudderStack uses 'rudderstack-integration' and 'rudderstack-integration-group'. True values add tags, false values remove tags. Non-boolean values are ignored for tags.",
+      "parity_status": "FUNCTIONAL_MATCH",
+      "gap_detail": "Different tag group names between Segment and RudderStack. The tag group must be pre-created in Airship. Functionally equivalent but not field-level identical."
+    },
+    "attribute_management": {
+      "segment_approach": "Non-boolean traits that match predefined Airship attributes are set as attributes via the Named Users Attributes API",
+      "rudderstack_approach": "Non-boolean traits are set as attributes. Reserved traits are mapped to predefined Airship attributes (firstName→first_name, lastName→last_name, email→email)",
+      "description": "Both platforms send non-boolean identify traits as Airship attributes. Attributes must be predefined in the Airship dashboard. Reserved Segment spec traits are mapped to Airship predefined attributes.",
+      "parity_status": "MATCH",
+      "reserved_trait_mappings": {
+        "firstName": "first_name",
+        "lastName": "last_name",
+        "email": "email",
+        "phone": "phone",
+        "city": "city",
+        "country": "country",
+        "region": "region",
+        "zip": "zip"
+      }
+    },
+    "event_tracking": {
+      "segment_approach": "Track calls map to Airship Custom Events via POST /api/custom-events. Event name is converted to snake_case. Properties are mapped to body.properties.",
+      "rudderstack_approach": "Track calls map to Airship Custom Events via POST /api/custom-events. Event name is converted to snake_case. Properties are mapped to body.properties.",
+      "description": "Both platforms send track events as Airship Custom Events. Event names are converted to snake_case (e.g., 'Product Clicked' → 'product_clicked'). Event properties are forwarded in the body.properties object.",
+      "parity_status": "MATCH",
+      "property_mappings": {
+        "timestamp": "occurred",
+        "userId": "user.named_user_id",
+        "event": "body.name (snake_cased)",
+        "properties.revenue": "body.value",
+        "properties.*": "body.properties.*",
+        "context.sessionId": "body.session_id"
+      }
+    },
+    "event_name_conversion": {
+      "description": "Both Segment and RudderStack convert event names to snake_case before sending to Airship (e.g., 'Product Viewed' → 'product_viewed', 'Order Completed' → 'order_completed').",
+      "parity_status": "MATCH"
+    },
+    "batch_support": {
+      "segment_approach": "Segment (Actions) supports batching up to 100 events per request to the Custom Events API",
+      "rudderstack_approach": "RudderStack sends events via the Router with configurable batching per destination",
+      "description": "Both platforms support batching events to the Airship Custom Events API. The API accepts an array of custom event objects.",
+      "parity_status": "FUNCTIONAL_MATCH",
+      "gap_detail": "Batching configuration and limits may differ. Segment Actions limits to 100 per batch."
+    }
+  },
+  "parity_summary": {
+    "overall_status": "HIGH_PARITY",
+    "track_parity": "MATCH",
+    "identify_parity": "FUNCTIONAL_MATCH",
+    "known_gaps": [
+      {
+        "gap_id": "AIRSHIP-001",
+        "severity": "LOW",
+        "description": "Tag group names differ: Segment uses 'segment-integration', RudderStack uses 'rudderstack-integration'. Both require pre-creation in Airship dashboard.",
+        "impact": "Migration requires creating the new tag group in Airship and potentially migrating existing tags."
+      },
+      {
+        "gap_id": "AIRSHIP-002",
+        "severity": "LOW",
+        "description": "RudderStack group calls use 'rudderstack-integration-group' tag group vs Segment's 'segment-integration-group'.",
+        "impact": "Same as AIRSHIP-001 — tag group name difference for group-level tags."
+      },
+      {
+        "gap_id": "AIRSHIP-003",
+        "severity": "INFO",
+        "description": "Segment has both classic and Actions-based Airship destinations. RudderStack has a single cloud mode integration. The Actions variant supports additional mapping configurations (e.g., Register And Associate for SMS/email channels).",
+        "impact": "RudderStack does not support the channel registration and association features available in Segment's Actions variant."
+      },
+      {
+        "gap_id": "AIRSHIP-004",
+        "severity": "INFO",
+        "description": "Segment's Actions variant supports additional actions: 'Register And Associate' for SMS/email channel registration, and 'Manage Tags' with configurable tag group override.",
+        "impact": "These advanced features are not available in RudderStack's Airship integration."
+      }
+    ],
+    "matching_features": [
+      "Named user identification (userId → named_user_id)",
+      "Custom event tracking (track → POST /api/custom-events)",
+      "Tag management for boolean traits (identify → tags API)",
+      "Attribute management for non-boolean traits (identify → attributes API)",
+      "Event name snake_case conversion",
+      "Revenue/value mapping from event properties",
+      "Reserved trait to predefined attribute mapping",
+      "Event property forwarding to custom event properties"
+    ]
+  },
+  "source_event_fixtures": {
+    "track_event": {
+      "type": "track",
+      "userId": "user_123",
+      "event": "Product Viewed",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "category": "Electronics",
+        "price": 49.99,
+        "currency": "USD",
+        "url": "https://example.com/products/sku-001"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.48.0"
+        },
+        "sessionId": "sess-abc-123",
+        "ip": "192.168.1.1",
+        "userAgent": "Mozilla/5.0"
+      },
+      "messageId": "msg-xyz-789",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    },
+    "identify_event": {
+      "type": "identify",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "traits": {
+        "firstName": "John",
+        "lastName": "Doe",
+        "email": "john.doe@example.com",
+        "phone": "+15551234567",
+        "age": 30,
+        "favorite_color": "purple",
+        "likes_movies": true,
+        "premium_member": true,
+        "trial_user": false
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.48.0"
+        },
+        "ip": "192.168.1.1",
+        "userAgent": "Mozilla/5.0"
+      },
+      "messageId": "msg-identify-456",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    }
+  },
+  "notes": "Airship is a shared cloud destination present in both RudderStack and Segment catalogs. Category: SMS & Push Notifications. Airship provides push messaging, SMS, email, and in-app messaging services. Both platforms use Airship's REST API (Custom Events API for track, Named Users Tags/Attributes API for identify). The key difference is the tag group naming convention: Segment uses 'segment-integration' while RudderStack uses 'rudderstack-integration'. Both require a named user to exist in Airship matching the userId. Segment has both classic and Actions-based variants; RudderStack supports cloud mode only. Payload-level parity is high for core track and identify functionality."
+}
