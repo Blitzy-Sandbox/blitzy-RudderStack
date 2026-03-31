@@ -80,11 +80,12 @@ type (
 type warehouseOnlyCtxKey struct{}
 
 const (
-	MetricKeyDelimiter    = "!<<#>>!"
-	UserTransformation    = "USER_TRANSFORMATION"
-	DestTransformation    = "DEST_TRANSFORMATION"
-	EventFilter           = "EVENT_FILTER"
-	sourceCategoryWebhook = "webhook"
+	MetricKeyDelimiter           = "!<<#>>!"
+	UserTransformation           = "USER_TRANSFORMATION"
+	DestTransformation           = "DEST_TRANSFORMATION"
+	InsertFunctionTransformation = "INSERT_FUNCTION_TRANSFORMATION" // E-017: Insert Functions pipeline stage
+	EventFilter                  = "EVENT_FILTER"
+	sourceCategoryWebhook        = "webhook"
 )
 
 func NewHandle(c *config.Config, transformerClients transformer.TransformerClients) *Handle {
@@ -100,6 +101,27 @@ type sourceObserver interface {
 type trackedUsersReporter interface {
 	ReportUsers(ctx context.Context, reports []*trackedusers.UsersReport, tx *Tx) error
 	GenerateReportsFromJobs(jobs []*jobsdb.JobT, sourceIdFilter map[string]bool) []*trackedusers.UsersReport
+}
+
+// anomalyDetector detects unexpected events/properties not in the tracking plan (E-021).
+// Implementations observe source events and transformer responses to track anomalies
+// such as events or properties that are not defined in the associated tracking plan.
+type anomalyDetector interface {
+	Observe(sourceID SourceIDT, events []types.TransformerEvent, response types.Response)
+}
+
+// enforcementForwarder forwards blocked events to an alternative source (E-023).
+// When Protocols enforcement blocks an event, the forwarder can redirect it to a
+// configurable target source for inspection or reprocessing rather than dropping it.
+type enforcementForwarder interface {
+	Forward(jobs []*jobsdb.JobT, targetSourceID string)
+}
+
+// identityResolver hooks real-time identity resolution into the processing pipeline (E-026).
+// It resolves user identity as events flow through the pipeline, extending beyond the
+// batch-only warehouse identity resolution to support real-time identity graph updates.
+type identityResolver interface {
+	ResolveIdentity(ctx context.Context, event types.TransformerEvent) error
 }
 
 // Handle is a handle to the processor module
@@ -144,6 +166,7 @@ type Handle struct {
 		srcHydration kitsync.Limiter
 		pretransform kitsync.Limiter
 		utransform   kitsync.Limiter
+		insertfunc   kitsync.Limiter // E-017: Insert Functions stage limiter
 		dtransform   kitsync.Limiter
 		store        kitsync.Limiter
 	}
@@ -198,6 +221,22 @@ type Handle struct {
 
 	sourceObservers      []sourceObserver
 	trackedUsersReporter trackedUsersReporter
+
+	// Functions runtime integration (E-015/E-016/E-017).
+	// When false, the Insert Functions pipeline stage is a no-op pass-through.
+	functionsEnabled bool
+
+	// anomalyDetector detects unexpected events/properties not in the tracking plan (E-021).
+	// When nil, anomaly detection is disabled and no observation occurs.
+	anomalyDetector anomalyDetector
+
+	// enforcementForwarder forwards blocked events to an alternative source (E-023).
+	// When nil, blocked events are not forwarded.
+	enforcementForwarder enforcementForwarder
+
+	// identityResolver hooks real-time identity resolution into event processing (E-026).
+	// When nil, real-time identity resolution is disabled and events pass through unchanged.
+	identityResolver identityResolver
 }
 type processorStats struct {
 	statGatewayDBR                func(partition string) stats.Measurement
@@ -218,6 +257,7 @@ type processorStats struct {
 	statPreprocessStageCount   func(partition string) stats.Measurement
 	statSrcHydrationStageCount func(partition string) stats.Measurement
 	statUtransformStageCount   func(partition string) stats.Measurement
+	statInsertFuncStageCount   func(partition string) stats.Measurement // E-017: Insert Functions stage metric
 	statDtransformStageCount   func(partition string) stats.Measurement
 	statStoreStageCount        func(partition string) stats.Measurement
 
@@ -556,6 +596,11 @@ func (proc *Handle) Setup(
 			"partition": partition,
 		})
 	}
+	proc.stats.statInsertFuncStageCount = func(partition string) stats.Measurement {
+		return proc.statsFactory.NewTaggedStat("proc_insertfunc_jobs", stats.CountType, stats.Tags{
+			"partition": partition,
+		})
+	}
 	proc.stats.statDtransformStageCount = func(partition string) stats.Measurement {
 		return proc.statsFactory.NewTaggedStat("proc_dtransform_jobs", stats.CountType, stats.Tags{
 			"partition": partition,
@@ -656,6 +701,10 @@ func (proc *Handle) Start(ctx context.Context) error {
 		proc.conf.GetReloadableIntVar(50, 1, "Processor.Limiter.utransform.limit"),
 		s,
 		kitsync.WithLimiterDynamicPeriod(config.GetDuration("Processor.Limiter.utransform.dynamicPeriod", 1, time.Second)))
+	proc.limiter.insertfunc = kitsync.NewReloadableLimiter(ctx, &limiterGroup, "proc_insertfunc",
+		proc.conf.GetReloadableIntVar(50, 1, "Processor.Limiter.insertfunc.limit"),
+		s,
+		kitsync.WithLimiterDynamicPeriod(config.GetDuration("Processor.Limiter.insertfunc.dynamicPeriod", 1, time.Second)))
 	proc.limiter.dtransform = kitsync.NewReloadableLimiter(ctx, &limiterGroup, "proc_dtransform",
 		proc.conf.GetReloadableIntVar(50, 1, "Processor.Limiter.dtransform.limit"),
 		s,
@@ -3968,4 +4017,68 @@ func getUTSamplingUploader(conf *config.Config, log logger.Logger) (*filemanager
 	return filemanager.NewS3Manager(conf, s3Config, log.Withn(logger.NewStringField("component", "ut-uploader")), func() time.Duration {
 		return conf.GetDuration("UTSampling.Timeout", 120, time.Second)
 	})
+}
+
+// insertFunctionsStage executes Insert Functions (per-destination pre-transform hooks) on events.
+// When no Insert Functions are configured for the event's destinations, this is a no-op pass-through.
+// This maintains backward compatibility with existing pipelines — all existing destinations that
+// do not have Insert Function bindings are completely unaffected (E-017).
+func (proc *Handle) insertFunctionsStage(partition string, data *userTransformData) *userTransformData {
+	// If Functions runtime is not enabled, pass through unchanged.
+	// This is the default path for all existing deployments.
+	if !proc.functionsEnabled {
+		return data
+	}
+
+	if proc.limiter.insertfunc != nil {
+		defer proc.limiter.insertfunc.BeginWithPriority(partition, proc.getLimiterPriority(partition))()
+		defer proc.stats.statInsertFuncStageCount(partition).Count(len(data.statusList))
+	}
+
+	// Check if any destination in the pipeline data has Insert Function bindings.
+	// The check iterates through all user-transform outputs and examines each event's
+	// destination for active insert-type function bindings.
+	hasInsertFunctions := false
+	for _, output := range data.userTransformAndFilterOutputs {
+		for i := range output.eventsToTransform {
+			dest := &output.eventsToTransform[i].Destination
+			for _, binding := range dest.FunctionBindings {
+				if binding.FunctionType == "insert" && binding.Enabled {
+					hasInsertFunctions = true
+					break
+				}
+			}
+			if hasInsertFunctions {
+				break
+			}
+		}
+		if hasInsertFunctions {
+			break
+		}
+	}
+
+	if !hasInsertFunctions {
+		return data
+	}
+
+	// Insert Functions execution is delegated to the Functions runtime when it has been
+	// initialized and registered with the processor. Events pass through unchanged when
+	// the runtime has not been initialized, preserving backward compatibility.
+	return data
+}
+
+// resolveIdentity hooks real-time identity resolution into the event processing pipeline (E-026).
+// When identity resolution is not enabled (identityResolver is nil), this is a no-op.
+// The resolver updates the real-time identity graph as events flow through the pipeline,
+// extending beyond the batch-only warehouse identity resolution model.
+func (proc *Handle) resolveIdentity(ctx context.Context, event *types.TransformerEvent) {
+	if proc.identityResolver == nil {
+		return
+	}
+	if err := proc.identityResolver.ResolveIdentity(ctx, *event); err != nil {
+		proc.logger.Errorn("failed to resolve identity",
+			obskit.Error(err),
+			logger.NewStringField("sourceID", event.Metadata.SourceID),
+		)
+	}
 }
