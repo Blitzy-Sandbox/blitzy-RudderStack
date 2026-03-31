@@ -1,0 +1,306 @@
+{
+  "destination_type": "ZENDESK",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "identify": {
+      "description": "Segment identify call mapped to Zendesk Users API — creates or updates a user via POST /api/v2/users/create_or_update",
+      "endpoint": "https://{subdomain}.zendesk.com/api/v2/users/create_or_update",
+      "method": "POST",
+      "auth": "Basic {email}/token:{api_token}",
+      "request_body": {
+        "user": {
+          "name": "Pikachu",
+          "email": "pikachu@pokemon.com",
+          "phone": "+15551234567",
+          "external_id": "user_123",
+          "organization_id": 6789,
+          "time_zone": "America/Los_Angeles",
+          "locale": "en-US",
+          "details": "Premium subscriber",
+          "notes": "Important customer",
+          "role": "end-user",
+          "verified": true,
+          "tags": ["vip", "early_adopter"],
+          "user_fields": {
+            "membership_level": "gold",
+            "signup_date": "2026-01-15T00:00:00Z"
+          }
+        }
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "traits": {
+          "name": "Pikachu",
+          "email": "pikachu@pokemon.com",
+          "phone": "+15551234567",
+          "organizationId": 6789,
+          "timezone": "America/Los_Angeles",
+          "locale": "en-US",
+          "details": "Premium subscriber",
+          "notes": "Important customer",
+          "tags": ["vip", "early_adopter"],
+          "membership_level": "gold",
+          "signup_date": "2026-01-15T00:00:00Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-abc-123"
+      }
+    },
+    "group": {
+      "description": "Segment group call mapped to Zendesk Organizations API — creates or updates an organization via POST /api/v2/organizations/create_or_update, then associates user via Organization Memberships API",
+      "organization_endpoint": "https://{subdomain}.zendesk.com/api/v2/organizations/create_or_update",
+      "membership_endpoint": "https://{subdomain}.zendesk.com/api/v2/organization_memberships",
+      "method": "POST",
+      "auth": "Basic {email}/token:{api_token}",
+      "organization_request_body": {
+        "organization": {
+          "name": "Acme Corp",
+          "external_id": "org_456",
+          "domain_names": ["acme.com", "acme.io"],
+          "details": "Enterprise customer",
+          "notes": "Signed annual contract",
+          "shared_tickets": true,
+          "shared_comments": true,
+          "tags": ["enterprise", "annual_contract"],
+          "organization_fields": {
+            "industry": "technology",
+            "employee_count": 500
+          }
+        }
+      },
+      "membership_request_body": {
+        "organization_membership": {
+          "user_id": 35436,
+          "organization_id": 12345
+        }
+      },
+      "source_event": {
+        "type": "group",
+        "userId": "user_123",
+        "groupId": "org_456",
+        "traits": {
+          "name": "Acme Corp",
+          "domain_names": ["acme.com", "acme.io"],
+          "details": "Enterprise customer",
+          "notes": "Signed annual contract",
+          "tags": ["enterprise", "annual_contract"],
+          "industry": "technology",
+          "employee_count": 500
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "messageId": "seg-msg-def-456"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "identify": {
+      "description": "RudderStack identify call mapped to Zendesk Users API — creates or updates a user via POST /api/v2/users/create_or_update",
+      "endpoint": "https://{subdomain}.zendesk.com/api/v2/users/create_or_update",
+      "method": "POST",
+      "auth": "Basic {email}/token:{api_token}",
+      "request_body": {
+        "user": {
+          "name": "Pikachu",
+          "email": "pikachu@pokemon.com",
+          "phone": "+15551234567",
+          "external_id": "user_123",
+          "organization_id": 6789,
+          "time_zone": "America/Los_Angeles",
+          "locale": "en-US",
+          "details": "Premium subscriber",
+          "notes": "Important customer",
+          "role": "end-user",
+          "verified": true,
+          "tags": ["vip", "early_adopter"],
+          "user_fields": {
+            "membership_level": "gold",
+            "signup_date": "2026-01-15T00:00:00Z"
+          }
+        }
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "traits": {
+          "name": "Pikachu",
+          "email": "pikachu@pokemon.com",
+          "phone": "+15551234567",
+          "organizationId": 6789,
+          "timezone": "America/Los_Angeles",
+          "locale": "en-US",
+          "details": "Premium subscriber",
+          "notes": "Important customer",
+          "tags": ["vip", "early_adopter"],
+          "membership_level": "gold",
+          "signup_date": "2026-01-15T00:00:00Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-xyz-789",
+        "rudderId": "rudder-uuid-abc-123"
+      }
+    },
+    "group": {
+      "description": "RudderStack group call mapped to Zendesk Organizations API — creates or updates an organization via POST /api/v2/organizations/create_or_update, optionally associates user to organization. Behavior controlled by 'Send Group Calls without User ID' setting.",
+      "organization_endpoint": "https://{subdomain}.zendesk.com/api/v2/organizations/create_or_update",
+      "membership_endpoint": "https://{subdomain}.zendesk.com/api/v2/organization_memberships",
+      "method": "POST",
+      "auth": "Basic {email}/token:{api_token}",
+      "organization_request_body": {
+        "organization": {
+          "name": "Acme Corp",
+          "external_id": "org_456",
+          "domain_names": ["acme.com", "acme.io"],
+          "details": "Enterprise customer",
+          "notes": "Signed annual contract",
+          "shared_tickets": true,
+          "shared_comments": true,
+          "tags": ["enterprise", "annual_contract"],
+          "organization_fields": {
+            "industry": "technology",
+            "employee_count": 500
+          }
+        }
+      },
+      "membership_request_body": {
+        "organization_membership": {
+          "user_id": 35436,
+          "organization_id": 12345
+        }
+      },
+      "source_event": {
+        "type": "group",
+        "userId": "user_123",
+        "groupId": "org_456",
+        "traits": {
+          "name": "Acme Corp",
+          "domain_names": ["acme.com", "acme.io"],
+          "details": "Enterprise customer",
+          "notes": "Signed annual contract",
+          "tags": ["enterprise", "annual_contract"],
+          "industry": "technology",
+          "employee_count": 500
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "traits": {
+            "email": "pikachu@pokemon.com"
+          }
+        },
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "originalTimestamp": "2026-02-25T12:05:00.000Z",
+        "sentAt": "2026-02-25T12:05:01.000Z",
+        "receivedAt": "2026-02-25T12:05:02.000Z",
+        "messageId": "rs-msg-uvw-012",
+        "rudderId": "rudder-uuid-def-456"
+      }
+    }
+  },
+  "event_types": ["identify", "group"],
+  "field_mappings": {
+    "identify_to_user": {
+      "description": "Maps Segment/RudderStack identify call traits to Zendesk User API fields",
+      "standard_fields": {
+        "traits.name": "user.name — Full name; Segment parses firstName/lastName from name; RudderStack concatenates firstName+lastName if name not provided",
+        "traits.firstName": "user.name — Combined with lastName to form full name if name trait not provided",
+        "traits.lastName": "user.name — Combined with firstName to form full name if name trait not provided",
+        "traits.email": "user.email — Primary email address; used as lookup key for user matching",
+        "traits.phone": "user.phone — Phone number",
+        "traits.organizationId": "user.organization_id — Zendesk organization numeric ID",
+        "traits.timezone": "user.time_zone — IANA timezone name (e.g. America/Los_Angeles)",
+        "traits.locale": "user.locale — Locale string (e.g. en-US)",
+        "traits.details": "user.details — Free text details field",
+        "traits.notes": "user.notes — Free text notes field",
+        "traits.tags": "user.tags — Array of tag strings",
+        "userId": "user.external_id — Segment/RudderStack userId maps to Zendesk external_id for user matching"
+      },
+      "custom_fields": {
+        "description": "Unmapped traits are sent as custom user_fields in Zendesk. Both Segment and RudderStack attempt to match traits to standard fields first, then fall back to user_fields.",
+        "format_conversion": "Segment converts camelCase and snake_case trait names to snake_case for Zendesk user_fields. RudderStack follows the same convention.",
+        "example": "traits.membership_level → user.user_fields.membership_level"
+      },
+      "verified_setting": {
+        "description": "Both Segment and RudderStack support a 'Create Users as Verified' destination setting. When enabled, user.verified is set to true, skipping Zendesk email verification.",
+        "segment_behavior": "Controlled via 'Create Users as Verified' toggle in Segment destination settings",
+        "rudderstack_behavior": "Controlled via 'Create users as verified' toggle in RudderStack dashboard settings"
+      },
+      "remove_from_organization": {
+        "description": "Both platforms support removing a user from an organization via identify call",
+        "segment_behavior": "Enable 'Enable Removing Users from Organizations' setting; pass company.id and company.remove=true in traits",
+        "rudderstack_behavior": "Enable 'Enable Removing Users from Organizations' setting; pass company.id and company.remove=true in traits"
+      }
+    },
+    "group_to_organization": {
+      "description": "Maps Segment/RudderStack group call traits to Zendesk Organization API fields, with optional user-to-organization membership association",
+      "standard_fields": {
+        "traits.name": "organization.name — Organization name (required)",
+        "traits.domain_names": "organization.domain_names — Array of domain name strings",
+        "traits.details": "organization.details — Free text details",
+        "traits.notes": "organization.notes — Free text notes",
+        "traits.shared_tickets": "organization.shared_tickets — Boolean for shared ticket access",
+        "traits.shared_comments": "organization.shared_comments — Boolean for shared comments",
+        "traits.tags": "organization.tags — Array of tag strings",
+        "groupId": "organization.external_id — Segment/RudderStack groupId maps to Zendesk external_id for organization matching"
+      },
+      "custom_fields": {
+        "description": "Unmapped group traits are sent as custom organization_fields in Zendesk",
+        "example": "traits.industry → organization.organization_fields.industry"
+      },
+      "user_association": {
+        "description": "When both userId and groupId are present, the user is associated with the organization after org create/update",
+        "segment_behavior": "Segment looks up the user and creates an organization_membership linking user to organization",
+        "rudderstack_behavior": "RudderStack finds the user by email from context.traits.email, then creates organization_membership. Controlled by 'Send Group Calls without User ID' dashboard setting.",
+        "lookup_strategy": "RudderStack: user found by email in context.traits; Segment: user found by userId/external_id"
+      }
+    },
+    "known_parity_gaps": {
+      "user_association_lookup": "RudderStack looks up user by email in context.traits for group-to-user association; Segment uses userId mapped to external_id — different lookup strategies may cause association mismatches if email is missing from context",
+      "group_without_userid": "RudderStack has 'Send Group Calls without User ID' setting to create/update org without user association; Segment does not have an equivalent toggle — group always attempts user association",
+      "custom_field_format": "Both convert trait names to snake_case for custom fields, but edge cases in camelCase-to-snake_case conversion may differ between platforms",
+      "envelope_fields": "RudderStack source events include additional fields: rudderId, originalTimestamp, sentAt, receivedAt — these are not sent to Zendesk but differ in the source event shape",
+      "context_library": "Different SDK library identifiers: Segment uses analytics.js; RudderStack uses rudder-sdk-js",
+      "sunshine_events": "Segment supports track calls via Zendesk Sunshine Events API for custom event tracking; RudderStack does not document Sunshine event support — track-to-Sunshine parity gap",
+      "track_user_lookup": "Segment maps track calls to Sunshine events using properties.email or userId as external_id with max 60 character limit; RudderStack Zendesk destination does not explicitly support track calls"
+    }
+  },
+  "destination_config": {
+    "required_settings": {
+      "email": "Email address used to log in to Zendesk account",
+      "api_token": "Zendesk API token for authentication",
+      "subdomain": "Zendesk subdomain (excluding .zendesk.com)"
+    },
+    "optional_settings": {
+      "create_users_as_verified": "Boolean — when true, creates users with verified=true to skip email verification",
+      "send_group_calls_without_userid": "Boolean (RudderStack-specific) — when true, creates/updates org without associating a user",
+      "enable_removing_users_from_organizations": "Boolean — when true, allows removing users from organizations via identify call with company.remove=true",
+      "source_name": "RudderStack-specific — events source name sent to Zendesk; defaults to 'Rudder'"
+    },
+    "auth_method": "HTTP Basic Auth with email/token:{api_token} format",
+    "base_url_template": "https://{subdomain}.zendesk.com/api/v2"
+  },
+  "notes": "Zendesk shared cloud destination. Category: CRM. Both Segment and RudderStack support identify (user create/update) and group (organization create/update with optional user association) calls to Zendesk. Segment additionally supports track calls via Zendesk Sunshine Events API for custom event tracking — this is a parity gap for RudderStack. Authentication uses HTTP Basic with email/token:{api_token}. Key differences: user lookup strategy for group-to-user association (email vs external_id), RudderStack-specific 'Send Group Calls without User ID' toggle, and RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) in source events. Segment slug: zendesk. Segment also accepts track calls mapped to Sunshine custom events."
+}
