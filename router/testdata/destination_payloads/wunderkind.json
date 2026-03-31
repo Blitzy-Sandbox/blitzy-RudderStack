@@ -1,0 +1,148 @@
+{
+  "destination_type": "WUNDERKIND",
+  "destination_tier": "stream",
+  "segment_reference_payload": null,
+  "rudderstack_expected_payload": {
+    "track": {
+      "lambda_invoke_input": {
+        "FunctionName": "wunderkind-events-processor",
+        "InvocationType": "RequestResponse",
+        "LogType": "Tail",
+        "Payload": "{\"type\":\"track\",\"event\":\"Product Viewed\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:00:00.000Z\",\"properties\":{\"product_id\":\"SKU-001\",\"name\":\"Premium Widget\",\"price\":49.99,\"category\":\"Electronics\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.50\",\"userAgent\":\"Mozilla/5.0\"},\"messageId\":\"msg-uuid-001\",\"rudderId\":\"rudder-uuid-001\",\"originalTimestamp\":\"2026-02-25T12:00:00.000Z\",\"sentAt\":\"2026-02-25T12:00:01.000Z\",\"receivedAt\":\"2026-02-25T12:00:02.000Z\"}"
+      },
+      "input_data": {
+        "payload": "{\"type\":\"track\",\"event\":\"Product Viewed\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:00:00.000Z\",\"properties\":{\"product_id\":\"SKU-001\",\"name\":\"Premium Widget\",\"price\":49.99,\"category\":\"Electronics\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.50\",\"userAgent\":\"Mozilla/5.0\"},\"messageId\":\"msg-uuid-001\",\"rudderId\":\"rudder-uuid-001\",\"originalTimestamp\":\"2026-02-25T12:00:00.000Z\",\"sentAt\":\"2026-02-25T12:00:01.000Z\",\"receivedAt\":\"2026-02-25T12:00:02.000Z\"}"
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message": "Event delivered to Wunderkind :: wunderkind-events-processor"
+      }
+    },
+    "identify": {
+      "lambda_invoke_input": {
+        "FunctionName": "wunderkind-events-processor",
+        "InvocationType": "RequestResponse",
+        "LogType": "Tail",
+        "Payload": "{\"type\":\"identify\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:01:00.000Z\",\"traits\":{\"email\":\"user@example.com\",\"name\":\"Jane Doe\",\"plan\":\"enterprise\",\"company\":\"Acme Corp\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.50\"},\"messageId\":\"msg-uuid-002\",\"rudderId\":\"rudder-uuid-002\",\"originalTimestamp\":\"2026-02-25T12:01:00.000Z\",\"sentAt\":\"2026-02-25T12:01:01.000Z\",\"receivedAt\":\"2026-02-25T12:01:02.000Z\"}"
+      },
+      "input_data": {
+        "payload": "{\"type\":\"identify\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:01:00.000Z\",\"traits\":{\"email\":\"user@example.com\",\"name\":\"Jane Doe\",\"plan\":\"enterprise\",\"company\":\"Acme Corp\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.50\"},\"messageId\":\"msg-uuid-002\",\"rudderId\":\"rudder-uuid-002\",\"originalTimestamp\":\"2026-02-25T12:01:00.000Z\",\"sentAt\":\"2026-02-25T12:01:01.000Z\",\"receivedAt\":\"2026-02-25T12:01:02.000Z\"}"
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message": "Event delivered to Wunderkind :: wunderkind-events-processor"
+      }
+    }
+  },
+  "destination_config": {
+    "lambda": "wunderkind-events-processor"
+  },
+  "environment_variables": {
+    "WUNDERKIND_REGION": "us-east-1",
+    "WUNDERKIND_IAM_ROLE_ARN": "arn:aws:iam::123456789012:role/WunderkindInvokeRole",
+    "WUNDERKIND_EXTERNAL_ID": "wunderkind-external-id-abc123",
+    "WUNDERKIND_LAMBDA": "wunderkind-events-processor"
+  },
+  "event_types": [
+    "track",
+    "identify"
+  ],
+  "field_mappings": {
+    "note": "No Segment equivalent. Documents RudderStack's Wunderkind Lambda-based payload format.",
+    "function_name": "Derived from WUNDERKIND_LAMBDA environment variable via config.GetString(WunderkindLambda); set on lambda.InvokeInput.FunctionName",
+    "invocation_type": "Always set to 'RequestResponse' (synchronous invocation); defined as constant InvocationType in wunderkind_utils.go",
+    "log_type": "Always set to 'Tail' to receive execution logs in the response",
+    "payload": "The inputData.Payload string field is passed directly as lambda.InvokeInput.Payload bytes; the event JSON is serialized as a string within the inputData wrapper struct",
+    "input_data_format": "Events are wrapped in an inputData struct with a single 'payload' field (JSON string); the Produce method unmarshals the incoming json.RawMessage into this struct before extracting the payload",
+    "destination_config_format": "The destinationConfig struct contains a 'lambda' field decoded via mapstructure.Decode from the destConfig map; currently used for metadata but the function name is sourced from environment variables",
+    "authentication": "AWS IAM role-based authentication configured via WUNDERKIND_REGION, WUNDERKIND_IAM_ROLE_ARN, and WUNDERKIND_EXTERNAL_ID environment variables; uses awsutil.SessionConfig with RoleBasedAuth=true",
+    "envelope_fields": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to every event payload within the stringified payload",
+    "error_handling": {
+      "invalid_json": "Returns HTTP 400 with '[Wunderkind] error while unmarshalling jsonData' message",
+      "empty_payload": "Returns HTTP 400 with '[Wunderkind] error :: Invalid payload' message",
+      "invalid_dest_config": "Returns HTTP 400 with '[Wunderkind] error while unmarshalling destConfig' message",
+      "aws_invocation_error": "Parsed via common.ParseAWSError into HTTP status code, status string, and message; logged with structured fields",
+      "function_error": "When Lambda returns FunctionError (e.g., 'Unhandled'), returns HTTP 400 with the Lambda response payload as the error message"
+    }
+  },
+  "producer_details": {
+    "constructor": "NewProducer",
+    "package": "services/streammanager/wunderkind",
+    "interface": "common.StreamProducer (via common.Producer)",
+    "config_struct": "destinationConfig",
+    "config_fields": {
+      "lambda": "Name of the Lambda function (from destination config map; decoded via mapstructure)"
+    },
+    "environment_config": {
+      "WUNDERKIND_REGION": "AWS region for Lambda client (e.g., us-east-1)",
+      "WUNDERKIND_IAM_ROLE_ARN": "IAM role ARN for cross-account Lambda invocation via STS AssumeRole",
+      "WUNDERKIND_EXTERNAL_ID": "External ID required for IAM role assumption (prevents confused deputy); must be non-empty when role-based auth is enabled",
+      "WUNDERKIND_LAMBDA": "Name or ARN of the target AWS Lambda function to invoke"
+    },
+    "aws_session_config": {
+      "Region": "From WUNDERKIND_REGION",
+      "IAMRoleARN": "From WUNDERKIND_IAM_ROLE_ARN",
+      "ExternalID": "From WUNDERKIND_EXTERNAL_ID",
+      "RoleBasedAuth": true,
+      "MaxIdleConnsPerHost": "Configurable via Router.WUNDERKIND.httpMaxIdleConnsPerHost or Router.WUNDERKIND.noOfWorkers or Router.noOfWorkers (default: 64)"
+    },
+    "lambda_client": "aws-sdk-go-v2/service/lambda (created via lambda.NewFromConfig)",
+    "invocation_config": {
+      "InvocationType": "RequestResponse",
+      "LogType": "Tail"
+    },
+    "success_response_format": {
+      "statusCode": 200,
+      "status": "Success",
+      "message": "Event delivered to Wunderkind :: <lambda_function_name>"
+    },
+    "error_response_patterns": [
+      {
+        "condition": "Invalid JSON input",
+        "statusCode": 400,
+        "status": "Failure",
+        "message_prefix": "[Wunderkind] error while unmarshalling jsonData :: "
+      },
+      {
+        "condition": "Empty payload",
+        "statusCode": 400,
+        "status": "Failure",
+        "message": "[Wunderkind] error :: Invalid payload"
+      },
+      {
+        "condition": "Invalid destination config",
+        "statusCode": 400,
+        "status": "Failure",
+        "message_prefix": "[Wunderkind] error while unmarshalling destConfig :: "
+      },
+      {
+        "condition": "AWS Lambda invocation error",
+        "statusCode": "Varies (parsed via common.ParseAWSError)",
+        "status": "Failure",
+        "message": "AWS SDK error message"
+      },
+      {
+        "condition": "Lambda FunctionError non-nil (e.g., Unhandled exception)",
+        "statusCode": 400,
+        "status": "Failure",
+        "message": "Lambda response payload (stringified)"
+      }
+    ],
+    "close_behavior": "No-op (returns nil); Lambda client does not maintain persistent connections requiring explicit cleanup",
+    "logger_scope": "streammanager.wunderkind",
+    "metrics": {
+      "note": "Uses standard streammanager metrics; no Wunderkind-specific custom metrics defined"
+    }
+  },
+  "parity_comparison": {
+    "segment_equivalent": null,
+    "segment_slug": null,
+    "segment_catalog_entry": false,
+    "coverage_status": "rudderstack_unique",
+    "parity_score": "N/A",
+    "gaps": []
+  },
+  "notes": "Wunderkind is RudderStack-unique. Uses AWS Lambda invocation via the aws-sdk-go-v2 Lambda client with synchronous RequestResponse invocation type. No Segment equivalent for comparison. The producer authenticates via IAM role assumption (STS AssumeRole) with an external ID for cross-account security. Events are wrapped in an inputData struct with a single 'payload' string field containing the serialized event JSON. The Lambda function name is sourced from the WUNDERKIND_LAMBDA environment variable rather than the destination config. When Lambda invocation succeeds but the function encounters an error (FunctionError is non-nil), the producer returns HTTP 400 with the Lambda error payload. The Close method is a no-op since the Lambda client manages its own HTTP connection pooling."
+}
