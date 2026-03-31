@@ -1,0 +1,460 @@
+{
+  "destination_type": "CONFLUENT_CLOUD",
+  "destination_tier": "stream",
+  "segment_reference_payload": null,
+  "rudderstack_expected_payload": {
+    "producer_package": "services/streammanager/kafka",
+    "producer_constructor": "NewProducerForConfluentCloud",
+    "producer_interface": "common.StreamProducer",
+    "underlying_protocol": "Apache Kafka (Confluent Cloud managed service)",
+    "description": "Confluent Cloud uses the shared Kafka producer package. The NewProducerForConfluentCloud constructor creates a SASL/PLAIN-over-TLS Kafka client authenticated with Confluent Cloud API key and secret credentials. Messages are produced using the standard Kafka wire protocol via the kafkaclient library.",
+    "connection": {
+      "method": "client.NewConfluentCloud",
+      "protocol": "Kafka wire protocol over TLS with SASL/PLAIN authentication",
+      "bootstrap_servers": "Confluent Cloud cluster bootstrap endpoint (e.g., pkc-xxxxx.region.cloud.confluent.cloud:9092)",
+      "authentication": {
+        "mechanism": "SASL/PLAIN",
+        "api_key": "Confluent Cloud API key (maps to SASL username)",
+        "api_secret": "Confluent Cloud API secret (maps to SASL password)"
+      },
+      "tls": {
+        "enabled": true,
+        "description": "TLS is always enabled for Confluent Cloud connections"
+      },
+      "dial_timeout": "10 seconds (configurable via Router.CONFLUENT_CLOUD.dialTimeout, Router.kafkaDialTimeout, Router.kafkaDialTimeoutInSec)",
+      "ping_on_create": true,
+      "ping_description": "Connection is verified via Ping after client creation, within the dial timeout context"
+    },
+    "destination_config": {
+      "topic": "Required. The Confluent Cloud topic name to produce messages to.",
+      "bootstrapServer": "Required. Comma-separated list of Confluent Cloud bootstrap server addresses.",
+      "apiKey": "Required. Confluent Cloud API key for SASL/PLAIN authentication.",
+      "apiSecret": "Required. Confluent Cloud API secret for SASL/PLAIN authentication."
+    },
+    "config_validation": {
+      "topic": "cannot be empty",
+      "bootstrapServer": "cannot be empty",
+      "apiKey": "cannot be empty",
+      "apiSecret": "cannot be empty"
+    },
+    "message_format": {
+      "structure": "Kafka message with topic, key, value, and timestamp",
+      "topic_resolution": "Per-event topic field from JSON payload takes precedence; falls back to destination config topic",
+      "key": "Derived from userId field in the event JSON payload (via gjson path 'userId')",
+      "value": "JSON-serialized message field from the event payload (via gjson path 'message')",
+      "timestamp": "Set to current server time at produce invocation (time.Now())",
+      "encoding": "JSON (no Avro support in Confluent Cloud config; Avro serialization is only available for standard Kafka destinations)"
+    },
+    "produce_method": {
+      "function": "ProducerManager.Produce",
+      "flow": [
+        "1. Validate producer is not nil (returns 400 if invalid)",
+        "2. Unmarshal destConfig to extract topic for fallback",
+        "3. Validate topic is not empty",
+        "4. Create timeout context from configured or default timeout (10 seconds)",
+        "5. Delegate to sendMessage which parses JSON, extracts message/userId/topic fields",
+        "6. Prepare Kafka message with prepareMessage(topic, key, value, timestamp)",
+        "7. Publish message via underlying Kafka producer"
+      ],
+      "error_handling": {
+        "nil_producer": "Returns HTTP 400 with 'Could not create producer'",
+        "invalid_config": "Returns HTTP 500 for retry on bad configuration",
+        "missing_topic": "Returns HTTP 500 with 'invalid destination configuration: no topic'",
+        "invalid_message": "Returns HTTP 400 with 'Invalid message' if message field is nil",
+        "publish_failure": "Returns HTTP 500 with publish error details for retry"
+      }
+    },
+    "timeout": {
+      "default_publish_timeout": "10 seconds",
+      "configurable": "via common.Opts.Timeout passed from Router destination config"
+    },
+    "metrics": {
+      "creation_time": "router.kafka.creation_time_confluent_cloud (Timer)",
+      "produce_time": "router.kafka.produce_time (Timer)",
+      "publish_time": "router.kafka.publish_time (Timer)",
+      "close_time": "router.kafka.close_producer_time (Timer)",
+      "missing_user_id": "router.kafka.missing_user_id (Counter)",
+      "missing_message": "router.kafka.missing_message (Counter)"
+    },
+    "sample_track_event": {
+      "input_json": {
+        "message": {
+          "type": "track",
+          "event": "Product Viewed",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.0.0"
+            },
+            "ip": "192.168.1.1",
+            "userAgent": "Mozilla/5.0"
+          },
+          "messageId": "msg-uuid-001",
+          "rudderId": "rudder-uuid-001",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-confluent-topic",
+        "key": "user_123",
+        "value": {
+          "type": "track",
+          "event": "Product Viewed",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.0.0"
+            },
+            "ip": "192.168.1.1",
+            "userAgent": "Mozilla/5.0"
+          },
+          "messageId": "msg-uuid-001",
+          "rudderId": "rudder-uuid-001",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    },
+    "sample_identify_event": {
+      "input_json": {
+        "message": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "traits": {
+            "email": "user@example.com",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "plan": "enterprise"
+          },
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.0.0"
+            },
+            "ip": "192.168.1.1"
+          },
+          "messageId": "msg-uuid-002",
+          "rudderId": "rudder-uuid-002",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-confluent-topic",
+        "key": "user_123",
+        "value": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "traits": {
+            "email": "user@example.com",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "plan": "enterprise"
+          },
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.0.0"
+            },
+            "ip": "192.168.1.1"
+          },
+          "messageId": "msg-uuid-002",
+          "rudderId": "rudder-uuid-002",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    },
+    "sample_page_event": {
+      "input_json": {
+        "message": {
+          "type": "page",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Home",
+          "properties": {
+            "url": "https://example.com/",
+            "path": "/",
+            "title": "Home Page",
+            "referrer": "https://google.com"
+          },
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.0.0"
+            },
+            "ip": "192.168.1.1"
+          },
+          "messageId": "msg-uuid-003",
+          "rudderId": "rudder-uuid-003",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-confluent-topic",
+        "key": "user_123",
+        "value": {
+          "type": "page",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Home",
+          "properties": {
+            "url": "https://example.com/",
+            "path": "/",
+            "title": "Home Page",
+            "referrer": "https://google.com"
+          },
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.0.0"
+            },
+            "ip": "192.168.1.1"
+          },
+          "messageId": "msg-uuid-003",
+          "rudderId": "rudder-uuid-003",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    },
+    "sample_screen_event": {
+      "input_json": {
+        "message": {
+          "type": "screen",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Dashboard",
+          "properties": {
+            "feed_type": "recommended",
+            "variant": "control"
+          },
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-android",
+              "version": "1.10.0"
+            },
+            "ip": "192.168.1.1",
+            "os": {
+              "name": "Android",
+              "version": "13"
+            }
+          },
+          "messageId": "msg-uuid-004",
+          "rudderId": "rudder-uuid-004",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-confluent-topic",
+        "key": "user_123",
+        "value": {
+          "type": "screen",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Dashboard",
+          "properties": {
+            "feed_type": "recommended",
+            "variant": "control"
+          },
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-android",
+              "version": "1.10.0"
+            },
+            "ip": "192.168.1.1",
+            "os": {
+              "name": "Android",
+              "version": "13"
+            }
+          },
+          "messageId": "msg-uuid-004",
+          "rudderId": "rudder-uuid-004",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    },
+    "sample_group_event": {
+      "input_json": {
+        "message": {
+          "type": "group",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "groupId": "group_789",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "plan": "enterprise",
+            "employees": 250
+          },
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.0.0"
+            },
+            "ip": "192.168.1.1"
+          },
+          "messageId": "msg-uuid-005",
+          "rudderId": "rudder-uuid-005",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-confluent-topic",
+        "key": "user_123",
+        "value": {
+          "type": "group",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "groupId": "group_789",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "plan": "enterprise",
+            "employees": 250
+          },
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.0.0"
+            },
+            "ip": "192.168.1.1"
+          },
+          "messageId": "msg-uuid-005",
+          "rudderId": "rudder-uuid-005",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    },
+    "sample_alias_event": {
+      "input_json": {
+        "message": {
+          "type": "alias",
+          "userId": "user_123",
+          "previousId": "old_user_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.0.0"
+            },
+            "ip": "192.168.1.1"
+          },
+          "messageId": "msg-uuid-006",
+          "rudderId": "rudder-uuid-006",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-confluent-topic",
+        "key": "user_123",
+        "value": {
+          "type": "alias",
+          "userId": "user_123",
+          "previousId": "old_user_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.0.0"
+            },
+            "ip": "192.168.1.1"
+          },
+          "messageId": "msg-uuid-006",
+          "rudderId": "rudder-uuid-006",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "note": "No direct Segment equivalent. Segment covers Confluent via generic Kafka. Uses shared Kafka producer.",
+    "producer_routing": "CONFLUENT_CLOUD destination name routes through streammanager.NewProducer switch to kafka.NewProducerForConfluentCloud",
+    "shared_kafka_package": "Confluent Cloud reuses the services/streammanager/kafka/ package with a Confluent-specific constructor; the underlying Produce/sendMessage/prepareMessage code path is identical to standard Kafka",
+    "authentication_difference": "Standard Kafka supports flexible TLS/SASL configuration; Confluent Cloud always uses SASL/PLAIN over TLS with API key/secret credentials via client.NewConfluentCloud",
+    "config_difference": "Standard Kafka uses hostname/port/SSL/SASL fields; Confluent Cloud uses bootstrapServer/apiKey/apiSecret — a simplified config surface",
+    "avro_support": "Confluent Cloud config does not include Avro serialization fields; messages are always JSON. Standard Kafka supports optional Avro serialization with schema registry",
+    "topic_resolution": "Per-event topic field in JSON payload takes precedence over the default topic from destination config",
+    "partition_key": "Derived from the userId field in the event JSON; serves as the Kafka message key for partition assignment",
+    "message_value": "The message field from the input JSON is extracted and re-serialized as the Kafka message value",
+    "timestamp_handling": "Kafka message timestamp is set to server time at produce invocation, not the event's original timestamp",
+    "envelope_fields": "RudderStack events include rudderId, originalTimestamp, sentAt, receivedAt — these are part of the message value passed through to Confluent Cloud"
+  },
+  "parity_status": "not_applicable",
+  "parity_coverage_percent": null,
+  "notes": "Confluent Cloud is a RudderStack-unique stream destination. There is no direct Segment Confluent Cloud destination; Segment covers Confluent Cloud via the generic Kafka destination (slug: actions-kafka). RudderStack implements Confluent Cloud as a dedicated destination type (CONFLUENT_CLOUD) with a specialized constructor (NewProducerForConfluentCloud) that uses SASL/PLAIN over TLS authentication with Confluent Cloud API key/secret credentials, but shares all message production logic with the standard Kafka producer. The Confluent Cloud producer is registered in the stream manager factory (services/streammanager/streammanager.go) and listed in the Custom Destination Manager's ObjectStreamDestinations array (router/customdestinationmanager/customdestinationmanager.go). Configuration requires: topic, bootstrapServer, apiKey, and apiSecret. The connection is validated via Ping on creation. Metrics are tracked under the router.kafka.creation_time_confluent_cloud timer. Since there is no direct Segment equivalent, payload parity comparison is not applicable — the fixture documents RudderStack's Confluent Cloud payload format for regression testing."
+}
