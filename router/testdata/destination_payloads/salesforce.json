@@ -1,0 +1,494 @@
+{
+  "destination_type": "SALESFORCE",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "identify": {
+      "description": "Segment identify call mapped to Salesforce REST API — creates or updates a Lead or Contact via sObject CRUD endpoints using OAuth 2.0 authentication. Object type (Lead vs Contact) is determined by destination settings.",
+      "lead_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Lead/",
+      "lead_upsert_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Lead/{ExternalIdField}/{ExternalIdValue}",
+      "contact_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Contact/",
+      "contact_upsert_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Contact/{ExternalIdField}/{ExternalIdValue}",
+      "method": "PATCH (upsert) or POST (create)",
+      "auth": "OAuth 2.0 Bearer Token — Authorization: Bearer {access_token}",
+      "lead_request_body": {
+        "FirstName": "Pikachu",
+        "LastName": "Trainer",
+        "Email": "pikachu@pokemon.com",
+        "Phone": "+15551234567",
+        "Company": "Kanto Inc",
+        "Title": "Pokemon Master",
+        "Street": "123 Pallet Town",
+        "City": "Pallet Town",
+        "State": "Kanto",
+        "PostalCode": "12345",
+        "Country": "JP",
+        "Website": "https://pokemon.com",
+        "Description": "Top Pokemon trainer",
+        "LeadSource": "Web",
+        "Industry": "Gaming",
+        "NumberOfEmployees": 500,
+        "Rating": "Hot",
+        "Custom_Field__c": "custom_value"
+      },
+      "contact_request_body": {
+        "FirstName": "Pikachu",
+        "LastName": "Trainer",
+        "Email": "pikachu@pokemon.com",
+        "Phone": "+15551234567",
+        "Title": "Pokemon Master",
+        "MailingStreet": "123 Pallet Town",
+        "MailingCity": "Pallet Town",
+        "MailingState": "Kanto",
+        "MailingPostalCode": "12345",
+        "MailingCountry": "JP",
+        "Description": "Top Pokemon trainer",
+        "Birthdate": "1996-02-27",
+        "Department": "Training",
+        "AccountId": "001XXXXXXXXXXXXXXX",
+        "Custom_Field__c": "custom_value"
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "traits": {
+          "firstName": "Pikachu",
+          "lastName": "Trainer",
+          "email": "pikachu@pokemon.com",
+          "phone": "+15551234567",
+          "company": "Kanto Inc",
+          "title": "Pokemon Master",
+          "address": {
+            "street": "123 Pallet Town",
+            "city": "Pallet Town",
+            "state": "Kanto",
+            "postalCode": "12345",
+            "country": "JP"
+          },
+          "website": "https://pokemon.com",
+          "description": "Top Pokemon trainer",
+          "industry": "Gaming",
+          "numberOfEmployees": 500,
+          "rating": "Hot",
+          "leadSource": "Web",
+          "birthday": "1996-02-27",
+          "department": "Training",
+          "Custom_Field__c": "custom_value"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "externalId": [
+            {
+              "type": "Salesforce-Lead",
+              "id": "00QXXXXXXXXXXXXXXX",
+              "identifierType": "LeadId"
+            }
+          ]
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-abc-123"
+      }
+    },
+    "group": {
+      "description": "Segment group call mapped to Salesforce Account sObject — creates or updates an Account via REST API. GroupId maps to an Account external ID or custom field for upsert matching.",
+      "account_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Account/",
+      "account_upsert_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Account/{ExternalIdField}/{ExternalIdValue}",
+      "method": "PATCH (upsert) or POST (create)",
+      "auth": "OAuth 2.0 Bearer Token — Authorization: Bearer {access_token}",
+      "account_request_body": {
+        "Name": "Kanto Inc",
+        "Website": "https://kanto.com",
+        "Industry": "Gaming",
+        "Phone": "+15559876543",
+        "Description": "Pokemon training company",
+        "NumberOfEmployees": 500,
+        "AnnualRevenue": 10000000,
+        "BillingStreet": "456 Viridian City",
+        "BillingCity": "Viridian City",
+        "BillingState": "Kanto",
+        "BillingPostalCode": "67890",
+        "BillingCountry": "JP",
+        "ShippingStreet": "456 Viridian City",
+        "ShippingCity": "Viridian City",
+        "ShippingState": "Kanto",
+        "ShippingPostalCode": "67890",
+        "ShippingCountry": "JP",
+        "Type": "Customer",
+        "Rating": "Hot",
+        "Ownership": "Private",
+        "Custom_Account_Field__c": "account_custom_value"
+      },
+      "source_event": {
+        "type": "group",
+        "userId": "user_123",
+        "groupId": "acct_456",
+        "traits": {
+          "name": "Kanto Inc",
+          "website": "https://kanto.com",
+          "industry": "Gaming",
+          "phone": "+15559876543",
+          "description": "Pokemon training company",
+          "numberOfEmployees": 500,
+          "annualRevenue": 10000000,
+          "address": {
+            "street": "456 Viridian City",
+            "city": "Viridian City",
+            "state": "Kanto",
+            "postalCode": "67890",
+            "country": "JP"
+          },
+          "type": "Customer",
+          "rating": "Hot",
+          "ownership": "Private",
+          "Custom_Account_Field__c": "account_custom_value"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "externalId": [
+            {
+              "type": "Salesforce-Account",
+              "id": "001XXXXXXXXXXXXXXX",
+              "identifierType": "AccountId"
+            }
+          ]
+        },
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "messageId": "seg-msg-def-456"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "identify": {
+      "description": "RudderStack identify call mapped to Salesforce REST API — routes to Lead or Contact sObject based on destination mapping configuration. Uses externalId array from context for upsert matching. Supports both production and sandbox Salesforce instances.",
+      "lead_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Lead/",
+      "lead_upsert_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Lead/{ExternalIdField}/{ExternalIdValue}",
+      "contact_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Contact/",
+      "contact_upsert_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Contact/{ExternalIdField}/{ExternalIdValue}",
+      "method": "PATCH (upsert) or POST (create)",
+      "auth": "OAuth 2.0 Bearer Token — Authorization: Bearer {access_token}",
+      "lead_request_body": {
+        "FirstName": "Pikachu",
+        "LastName": "Trainer",
+        "Email": "pikachu@pokemon.com",
+        "Phone": "+15551234567",
+        "Company": "Kanto Inc",
+        "Title": "Pokemon Master",
+        "Street": "123 Pallet Town",
+        "City": "Pallet Town",
+        "State": "Kanto",
+        "PostalCode": "12345",
+        "Country": "JP",
+        "Website": "https://pokemon.com",
+        "Description": "Top Pokemon trainer",
+        "LeadSource": "Web",
+        "Industry": "Gaming",
+        "NumberOfEmployees": 500,
+        "Rating": "Hot",
+        "Custom_Field__c": "custom_value"
+      },
+      "contact_request_body": {
+        "FirstName": "Pikachu",
+        "LastName": "Trainer",
+        "Email": "pikachu@pokemon.com",
+        "Phone": "+15551234567",
+        "Title": "Pokemon Master",
+        "MailingStreet": "123 Pallet Town",
+        "MailingCity": "Pallet Town",
+        "MailingState": "Kanto",
+        "MailingPostalCode": "12345",
+        "MailingCountry": "JP",
+        "Description": "Top Pokemon trainer",
+        "Birthdate": "1996-02-27",
+        "Department": "Training",
+        "AccountId": "001XXXXXXXXXXXXXXX",
+        "Custom_Field__c": "custom_value"
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "traits": {
+          "firstName": "Pikachu",
+          "lastName": "Trainer",
+          "email": "pikachu@pokemon.com",
+          "phone": "+15551234567",
+          "company": "Kanto Inc",
+          "title": "Pokemon Master",
+          "address": {
+            "street": "123 Pallet Town",
+            "city": "Pallet Town",
+            "state": "Kanto",
+            "postalCode": "12345",
+            "country": "JP"
+          },
+          "website": "https://pokemon.com",
+          "description": "Top Pokemon trainer",
+          "industry": "Gaming",
+          "numberOfEmployees": 500,
+          "rating": "Hot",
+          "leadSource": "Web",
+          "birthday": "1996-02-27",
+          "department": "Training",
+          "Custom_Field__c": "custom_value"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "externalId": [
+            {
+              "type": "Salesforce-Lead",
+              "id": "00QXXXXXXXXXXXXXXX",
+              "identifierType": "LeadId"
+            }
+          ]
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-xyz-789",
+        "rudderId": "rudder-uuid-abc-123"
+      }
+    },
+    "group": {
+      "description": "RudderStack group call mapped to Salesforce Account sObject — creates or updates an Account. Uses externalId array from context for upsert matching. Supports mapping groupId to Account external ID field for deduplication.",
+      "account_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Account/",
+      "account_upsert_endpoint": "https://{instance}.salesforce.com/services/data/v59.0/sobjects/Account/{ExternalIdField}/{ExternalIdValue}",
+      "method": "PATCH (upsert) or POST (create)",
+      "auth": "OAuth 2.0 Bearer Token — Authorization: Bearer {access_token}",
+      "account_request_body": {
+        "Name": "Kanto Inc",
+        "Website": "https://kanto.com",
+        "Industry": "Gaming",
+        "Phone": "+15559876543",
+        "Description": "Pokemon training company",
+        "NumberOfEmployees": 500,
+        "AnnualRevenue": 10000000,
+        "BillingStreet": "456 Viridian City",
+        "BillingCity": "Viridian City",
+        "BillingState": "Kanto",
+        "BillingPostalCode": "67890",
+        "BillingCountry": "JP",
+        "ShippingStreet": "456 Viridian City",
+        "ShippingCity": "Viridian City",
+        "ShippingState": "Kanto",
+        "ShippingPostalCode": "67890",
+        "ShippingCountry": "JP",
+        "Type": "Customer",
+        "Rating": "Hot",
+        "Ownership": "Private",
+        "Custom_Account_Field__c": "account_custom_value"
+      },
+      "source_event": {
+        "type": "group",
+        "userId": "user_123",
+        "groupId": "acct_456",
+        "traits": {
+          "name": "Kanto Inc",
+          "website": "https://kanto.com",
+          "industry": "Gaming",
+          "phone": "+15559876543",
+          "description": "Pokemon training company",
+          "numberOfEmployees": 500,
+          "annualRevenue": 10000000,
+          "address": {
+            "street": "456 Viridian City",
+            "city": "Viridian City",
+            "state": "Kanto",
+            "postalCode": "67890",
+            "country": "JP"
+          },
+          "type": "Customer",
+          "rating": "Hot",
+          "ownership": "Private",
+          "Custom_Account_Field__c": "account_custom_value"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "externalId": [
+            {
+              "type": "Salesforce-Account",
+              "id": "001XXXXXXXXXXXXXXX",
+              "identifierType": "AccountId"
+            }
+          ],
+          "traits": {
+            "email": "pikachu@pokemon.com"
+          }
+        },
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "originalTimestamp": "2026-02-25T12:05:00.000Z",
+        "sentAt": "2026-02-25T12:05:01.000Z",
+        "receivedAt": "2026-02-25T12:05:02.000Z",
+        "messageId": "rs-msg-uvw-012",
+        "rudderId": "rudder-uuid-def-456"
+      }
+    }
+  },
+  "event_types": [
+    "identify",
+    "group"
+  ],
+  "field_mappings": {
+    "identify_to_lead": {
+      "description": "Maps Segment/RudderStack identify call traits to Salesforce Lead sObject fields. Triggered when destination is configured to route identify calls to the Lead object, or when the externalId type is Salesforce-Lead.",
+      "standard_fields": {
+        "traits.firstName": "Lead.FirstName — First name of the lead",
+        "traits.lastName": "Lead.LastName — Last name of the lead (required for create)",
+        "traits.email": "Lead.Email — Email address; primary lookup key when no external ID provided",
+        "traits.phone": "Lead.Phone — Phone number",
+        "traits.company": "Lead.Company — Company name (required for Lead creation in Salesforce)",
+        "traits.title": "Lead.Title — Job title",
+        "traits.address.street": "Lead.Street — Street address",
+        "traits.address.city": "Lead.City — City",
+        "traits.address.state": "Lead.State — State or province",
+        "traits.address.postalCode": "Lead.PostalCode — Postal or ZIP code",
+        "traits.address.country": "Lead.Country — Country",
+        "traits.website": "Lead.Website — Company website URL",
+        "traits.description": "Lead.Description — Free-text description",
+        "traits.leadSource": "Lead.LeadSource — Source of the lead (e.g. Web, Partner, Advertisement)",
+        "traits.industry": "Lead.Industry — Industry classification",
+        "traits.numberOfEmployees": "Lead.NumberOfEmployees — Number of employees at lead company",
+        "traits.rating": "Lead.Rating — Lead quality rating (e.g. Hot, Warm, Cold)",
+        "userId": "Lead external ID field — Used for upsert matching when external ID mapping is configured"
+      },
+      "custom_fields": {
+        "description": "Traits matching Salesforce custom field API names (ending in __c) are mapped directly. Unmapped standard traits are ignored unless a custom field mapping is configured in the destination settings.",
+        "example": "traits.Custom_Field__c → Lead.Custom_Field__c",
+        "behavior": "Both Segment and RudderStack pass through custom field API names directly to the Salesforce sObject. The field must exist in the Salesforce org schema."
+      },
+      "external_id_upsert": {
+        "description": "Salesforce upsert uses an external ID field to match existing records. Both platforms support specifying the external ID via the context.externalId array.",
+        "segment_behavior": "Segment uses context.externalId array with type 'Salesforce-Lead' and identifierType to identify the external ID field name and the id value for upsert matching",
+        "rudderstack_behavior": "RudderStack uses the same context.externalId array pattern with type 'Salesforce-Lead'. The identifierType specifies the Salesforce field (e.g. LeadId, Email, or a custom external ID field) and id is the value.",
+        "upsert_endpoint_pattern": "PATCH /services/data/v59.0/sobjects/Lead/{identifierType}/{id}"
+      }
+    },
+    "identify_to_contact": {
+      "description": "Maps Segment/RudderStack identify call traits to Salesforce Contact sObject fields. Triggered when destination is configured to route identify calls to the Contact object, or when the externalId type is Salesforce-Contact.",
+      "standard_fields": {
+        "traits.firstName": "Contact.FirstName — First name of the contact",
+        "traits.lastName": "Contact.LastName — Last name of the contact (required for create)",
+        "traits.email": "Contact.Email — Email address; primary lookup key when no external ID provided",
+        "traits.phone": "Contact.Phone — Phone number",
+        "traits.title": "Contact.Title — Job title",
+        "traits.address.street": "Contact.MailingStreet — Mailing street address",
+        "traits.address.city": "Contact.MailingCity — Mailing city",
+        "traits.address.state": "Contact.MailingState — Mailing state or province",
+        "traits.address.postalCode": "Contact.MailingPostalCode — Mailing postal or ZIP code",
+        "traits.address.country": "Contact.MailingCountry — Mailing country",
+        "traits.description": "Contact.Description — Free-text description",
+        "traits.birthday": "Contact.Birthdate — Date of birth in YYYY-MM-DD format",
+        "traits.department": "Contact.Department — Department name",
+        "traits.accountId": "Contact.AccountId — Salesforce Account ID to associate the Contact with",
+        "userId": "Contact external ID field — Used for upsert matching when external ID mapping is configured"
+      },
+      "custom_fields": {
+        "description": "Same behavior as Lead custom fields — traits matching Salesforce custom field API names are mapped directly.",
+        "example": "traits.Custom_Field__c → Contact.Custom_Field__c"
+      },
+      "external_id_upsert": {
+        "description": "Same upsert mechanism as Lead but using Contact sObject.",
+        "segment_behavior": "Segment uses context.externalId array with type 'Salesforce-Contact'",
+        "rudderstack_behavior": "RudderStack uses the same context.externalId array pattern with type 'Salesforce-Contact'",
+        "upsert_endpoint_pattern": "PATCH /services/data/v59.0/sobjects/Contact/{identifierType}/{id}"
+      }
+    },
+    "lead_vs_contact_routing": {
+      "description": "Both Segment and RudderStack must determine whether an identify call should create/update a Lead or Contact. The routing decision is driven by destination configuration and the externalId type in the event context.",
+      "segment_behavior": "Segment Actions-based Salesforce destination allows configuring mappings per action (e.g. 'Lead Create', 'Contact Create'). Classic Segment destination routes based on the presence of context.externalId type: 'Salesforce-Lead' routes to Lead, 'Salesforce-Contact' routes to Contact. Default behavior routes to Lead if no externalId is provided.",
+      "rudderstack_behavior": "RudderStack routes based on context.externalId type: 'Salesforce-Lead' routes to Lead sObject, 'Salesforce-Contact' routes to Contact sObject. The destination mapping configuration in the RudderStack dashboard determines default object type. If no externalId is present, default routing applies based on settings.",
+      "parity_note": "Both platforms use the context.externalId type field for routing. Segment Actions variant provides more granular per-action configuration that classic Segment and RudderStack do not support."
+    },
+    "group_to_account": {
+      "description": "Maps Segment/RudderStack group call traits to Salesforce Account sObject fields. GroupId maps to an Account external ID or Salesforce record ID for upsert matching.",
+      "standard_fields": {
+        "traits.name": "Account.Name — Account name (required for create)",
+        "traits.website": "Account.Website — Company website URL",
+        "traits.industry": "Account.Industry — Industry classification",
+        "traits.phone": "Account.Phone — Main phone number",
+        "traits.description": "Account.Description — Free-text description",
+        "traits.numberOfEmployees": "Account.NumberOfEmployees — Number of employees",
+        "traits.annualRevenue": "Account.AnnualRevenue — Annual revenue in default currency",
+        "traits.address.street": "Account.BillingStreet — Billing street address; also maps to ShippingStreet if shipping address not separately provided",
+        "traits.address.city": "Account.BillingCity — Billing city; also maps to ShippingCity",
+        "traits.address.state": "Account.BillingState — Billing state; also maps to ShippingState",
+        "traits.address.postalCode": "Account.BillingPostalCode — Billing postal code; also maps to ShippingPostalCode",
+        "traits.address.country": "Account.BillingCountry — Billing country; also maps to ShippingCountry",
+        "traits.type": "Account.Type — Account type (e.g. Customer, Partner, Prospect)",
+        "traits.rating": "Account.Rating — Account rating (e.g. Hot, Warm, Cold)",
+        "traits.ownership": "Account.Ownership — Ownership type (e.g. Private, Public, Subsidiary)",
+        "groupId": "Account external ID field — Used for upsert matching when external ID mapping is configured"
+      },
+      "custom_fields": {
+        "description": "Same behavior as Lead/Contact — traits matching Salesforce custom field API names (ending in __c) are mapped directly to the Account sObject.",
+        "example": "traits.Custom_Account_Field__c → Account.Custom_Account_Field__c"
+      },
+      "external_id_upsert": {
+        "description": "Account upsert uses an external ID field from context.externalId array with type 'Salesforce-Account'.",
+        "segment_behavior": "Segment uses context.externalId with type 'Salesforce-Account' and the id value for upsert matching",
+        "rudderstack_behavior": "RudderStack uses the same context.externalId pattern with type 'Salesforce-Account'",
+        "upsert_endpoint_pattern": "PATCH /services/data/v59.0/sobjects/Account/{identifierType}/{id}"
+      }
+    },
+    "sandbox_mode": {
+      "description": "Salesforce provides sandbox environments for development and testing. Both platforms support routing API calls to a sandbox instance instead of production.",
+      "segment_behavior": "Segment allows configuring a sandbox instance URL in destination settings. The base URL switches from login.salesforce.com to test.salesforce.com for OAuth token requests.",
+      "rudderstack_behavior": "RudderStack supports a 'Use Sandbox' toggle in the destination dashboard settings. When enabled, OAuth token endpoint changes from https://login.salesforce.com/services/oauth2/token to https://test.salesforce.com/services/oauth2/token. The API base URL uses the sandbox instance URL returned in the OAuth response.",
+      "oauth_production_endpoint": "https://login.salesforce.com/services/oauth2/token",
+      "oauth_sandbox_endpoint": "https://test.salesforce.com/services/oauth2/token",
+      "parity_note": "Both platforms support sandbox mode via OAuth endpoint switching. Configuration mechanism differs (Segment uses instance URL, RudderStack uses a boolean toggle)."
+    },
+    "authentication": {
+      "description": "Salesforce API authentication uses OAuth 2.0. Both platforms implement the username-password flow or connected app flow to obtain an access token.",
+      "oauth_flow": "OAuth 2.0 Username-Password Flow — POST to /services/oauth2/token with grant_type=password, client_id, client_secret, username, password+security_token",
+      "segment_behavior": "Segment stores Salesforce OAuth credentials (client_id, client_secret, username, password, security_token) in destination settings. Access token is obtained and refreshed automatically. Segment Actions variant uses a connected app OAuth flow with refresh tokens.",
+      "rudderstack_behavior": "RudderStack stores OAuth credentials in destination settings. Access token is obtained via the username-password flow and cached. Token refresh is handled automatically when 401 responses are received. Instance URL from OAuth response is used as the API base URL.",
+      "token_refresh": "Both platforms handle automatic token refresh. RudderStack retries with a fresh token on HTTP 401. Segment pre-emptively refreshes tokens before expiration.",
+      "security_token": "Salesforce requires appending the security token to the password for API access from non-whitelisted IPs. Both platforms support this via the password+security_token concatenation in OAuth requests."
+    },
+    "known_parity_gaps": {
+      "actions_architecture": "Segment offers an Actions-based Salesforce destination (actions-salesforce) with configurable per-action mappings, event subscriptions, and multiple actions per connection. RudderStack uses a classic fixed-mapping approach with no equivalent to Actions-based subscriptions.",
+      "marketing_cloud": "Segment offers a separate Salesforce Marketing Cloud (Actions) destination (actions-salesforce-marketing-cloud) for SFMC Data Extensions, journeys, and email. RudderStack does not have a separate Marketing Cloud destination — this is a significant parity gap for email marketing use cases.",
+      "sobject_flexibility": "Segment Actions variant supports mapping to any Salesforce sObject (Lead, Contact, Account, Opportunity, Case, custom objects). RudderStack classic integration primarily supports Lead, Contact, and Account. Custom object support varies by implementation.",
+      "soql_query_lookup": "Segment can perform SOQL queries for record lookup before upsert to find matching records by arbitrary field criteria. RudderStack primarily uses external ID-based upsert which requires the external ID field to be indexed in Salesforce.",
+      "bulk_api": "Segment may use Salesforce Bulk API 2.0 for high-volume data operations. RudderStack uses the standard REST API for individual record operations, which may be slower for high-volume identify/group calls.",
+      "contact_account_association": "When creating a Contact via identify, automatic Account association differs. Segment Actions can look up the Account by name or custom field; RudderStack requires the AccountId to be explicitly provided in traits.",
+      "field_name_case": "Salesforce field API names are case-insensitive but convention is PascalCase. Both platforms send PascalCase field names, but trait-to-field mapping may differ for edge cases (e.g. traits.numberOfEmployees → NumberOfEmployees transformation).",
+      "envelope_fields": "RudderStack source events include additional fields: rudderId, originalTimestamp, sentAt, receivedAt — these are not sent to Salesforce but differ in the source event shape",
+      "context_library": "Different SDK library identifiers: Segment uses analytics.js; RudderStack uses rudder-sdk-js",
+      "rate_limiting": "Salesforce enforces API rate limits (typically 100,000 API calls per 24 hours per org for Enterprise Edition). Both platforms implement retry with backoff on 429 responses, but batching strategies may differ.",
+      "record_type_support": "Segment Actions supports specifying Salesforce Record Types for Lead/Contact/Account creation. RudderStack classic integration does not explicitly support Record Type selection in the standard trait mapping."
+    }
+  },
+  "destination_config": {
+    "required_settings": {
+      "client_id": "Salesforce Connected App OAuth Client ID (Consumer Key)",
+      "client_secret": "Salesforce Connected App OAuth Client Secret (Consumer Secret)",
+      "username": "Salesforce username for API access",
+      "password": "Salesforce password (appended with security token for non-whitelisted IPs)",
+      "security_token": "Salesforce security token — appended to password for OAuth authentication"
+    },
+    "optional_settings": {
+      "sandbox": "Boolean — when true, uses test.salesforce.com for OAuth token endpoint instead of login.salesforce.com. Default: false",
+      "map_to_object": "String — default Salesforce sObject for identify calls when no externalId type is present. Values: 'Lead' or 'Contact'. Default: 'Lead'",
+      "external_id_field": "String — default external ID field name for upsert matching (e.g. 'Email', 'External_Id__c'). Used when context.externalId is not provided.",
+      "api_version": "String — Salesforce REST API version (e.g. 'v59.0'). Default: latest supported version.",
+      "enable_group_to_account": "Boolean — when true, group calls are mapped to Account sObject. Default: true",
+      "custom_field_mappings": "Object — custom trait-to-Salesforce-field mappings for fields that do not follow the standard naming convention"
+    },
+    "auth_method": "OAuth 2.0 Username-Password Flow with client_id, client_secret, username, password+security_token",
+    "base_url_template": "https://{instance}.salesforce.com/services/data/v{version}/",
+    "sandbox_base_url": "Instance URL from sandbox OAuth response (typically https://{orgname}--{sandboxname}.sandbox.my.salesforce.com/)"
+  },
+  "notes": "Salesforce shared cloud destination. Category: CRM. Both Segment and RudderStack support identify (Lead/Contact create or upsert) and group (Account create or upsert) calls to Salesforce via the REST API with OAuth 2.0 authentication. Segment has two additional Salesforce variants not available in RudderStack: Salesforce (Actions) — actions-salesforce — with configurable per-action mappings supporting any sObject type, and Salesforce Marketing Cloud (Actions) — actions-salesforce-marketing-cloud — for Data Extensions and journeys. Key parity differences: RudderStack uses a classic fixed-mapping approach while Segment Actions allows flexible field mapping and event subscriptions; Segment supports SOQL query-based record lookup while RudderStack relies on external ID upsert; Segment supports Bulk API 2.0 for high-volume operations while RudderStack uses standard REST API. Both platforms support sandbox mode via OAuth endpoint switching, automatic token refresh, and the context.externalId array for upsert routing. RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) appear in source events but are not forwarded to Salesforce."
+}
