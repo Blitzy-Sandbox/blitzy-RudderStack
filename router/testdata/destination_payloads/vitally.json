@@ -1,0 +1,548 @@
+{
+  "destination_type": "VITALLY",
+  "destination_tier": "cloud",
+  "segment_slug": "vitally",
+  "category": "Customer Success",
+  "api_base_url": "https://{subdomain}.api.vitally.io/analytics/v1",
+  "event_types": ["track", "identify", "group"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment maps track calls to the Vitally Analytics API Track endpoint (POST /analytics/v1/track) to create product events. The event name maps to the Vitally event name, and all event properties are attached to the product event. Vitally uses track calls to track and analyze account engagement with the product, providing out-of-the-box analysis on events plus custom Success Metrics and Elements. Events are associated with the user specified by userId and, by default, with the account the user was most recently associated with via a group call.",
+      "api_endpoint": "POST https://{subdomain}.api.vitally.io/analytics/v1/track",
+      "headers": {
+        "Authorization": "Basic <BASE64_ENCODED_API_KEY>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "userId": "user_123",
+        "event": "Feature Activated",
+        "properties": {
+          "feature_name": "Slack Integration",
+          "feature_category": "integrations",
+          "accountId": "acct_456",
+          "plan": "enterprise",
+          "value": 150.00
+        },
+        "messageId": "seg-msg-abc-123",
+        "timestamp": "2026-02-25T12:00:00.000Z"
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Feature Activated",
+        "userId": "user_123",
+        "anonymousId": "anon_789",
+        "properties": {
+          "feature_name": "Slack Integration",
+          "feature_category": "integrations",
+          "accountId": "acct_456",
+          "plan": "enterprise",
+          "value": 150.00
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "traits": {
+            "email": "alex@initech.com",
+            "name": "Alex Keener"
+          },
+          "groupId": "acct_456",
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-abc-123"
+      }
+    },
+    "identify": {
+      "description": "Segment maps identify calls to the Vitally Analytics API User endpoint (POST /analytics/v1/user) to create or update users. The userId maps to the Vitally user ID, and all Segment traits are attached to the Vitally user profile. Key traits include name (sets user display name), email (sets user email), and avatar (sets user profile image). If the Group API is not used, Segment can associate users with accounts via identify traits by configuring Account ID trait and Account Name trait in the Vitally integration settings. Users without a parent account become orphan users whose track events may be dropped.",
+      "api_endpoint": "POST https://{subdomain}.api.vitally.io/analytics/v1/user",
+      "headers": {
+        "Authorization": "Basic <BASE64_ENCODED_API_KEY>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "userId": "user_123",
+        "traits": {
+          "name": "Alex Keener",
+          "email": "alex@initech.com",
+          "avatar": "https://example.com/avatars/alexkeener.webp",
+          "role": "Product Manager",
+          "department": "Engineering",
+          "createdAt": "2026-01-15T10:00:00.000Z",
+          "company": {
+            "id": "acct_456",
+            "name": "Initech"
+          },
+          "plan": "enterprise",
+          "lastSeenAt": "2026-02-25T12:00:00.000Z"
+        },
+        "messageId": "seg-msg-def-456",
+        "timestamp": "2026-02-25T12:00:00.000Z"
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_789",
+        "traits": {
+          "name": "Alex Keener",
+          "email": "alex@initech.com",
+          "avatar": "https://example.com/avatars/alexkeener.webp",
+          "role": "Product Manager",
+          "department": "Engineering",
+          "createdAt": "2026-01-15T10:00:00.000Z",
+          "company": {
+            "id": "acct_456",
+            "name": "Initech"
+          },
+          "plan": "enterprise",
+          "lastSeenAt": "2026-02-25T12:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-def-456"
+      }
+    },
+    "group": {
+      "description": "Segment maps group calls to the Vitally Analytics API Account endpoint (POST /analytics/v1/account) to create or update accounts. The groupId maps to the Vitally account ID. All group traits are attached to the Vitally account profile. The name trait is required and sets the account display name in Vitally. Using the Group API to create accounts is strongly recommended by Vitally, as it gives direct control over account data like industry, employee count, plan, and MRR. Any future traits added to group calls automatically sync to the account in Vitally.",
+      "api_endpoint": "POST https://{subdomain}.api.vitally.io/analytics/v1/account",
+      "headers": {
+        "Authorization": "Basic <BASE64_ENCODED_API_KEY>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "accountId": "acct_456",
+        "traits": {
+          "name": "Initech",
+          "industry": "Technology",
+          "employees": 329,
+          "plan": "enterprise",
+          "mrr": 2000,
+          "totalBilled": 24000,
+          "website": "https://initech.com",
+          "createdAt": "2025-06-01T00:00:00.000Z"
+        },
+        "messageId": "seg-msg-ghi-789",
+        "timestamp": "2026-02-25T12:00:00.000Z"
+      },
+      "source_event": {
+        "type": "group",
+        "userId": "user_123",
+        "anonymousId": "anon_789",
+        "groupId": "acct_456",
+        "traits": {
+          "name": "Initech",
+          "industry": "Technology",
+          "employees": 329,
+          "plan": "enterprise",
+          "mrr": 2000,
+          "totalBilled": 24000,
+          "website": "https://initech.com",
+          "createdAt": "2025-06-01T00:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-ghi-789"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack maps track calls to the Vitally Analytics API Track endpoint (POST /analytics/v1/track) to create product events. The event name maps directly to the Vitally event name and all event properties are passed through. Vitally imports the entire track object including event properties as product events. RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event. Account association can be configured via context.groupId, the Vitally integration's track property mapping, or through the user's most recent group call association.",
+      "api_endpoint": "POST https://{subdomain}.api.vitally.io/analytics/v1/track",
+      "headers": {
+        "Authorization": "Basic <BASE64_ENCODED_API_KEY>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "userId": "user_123",
+        "event": "Feature Activated",
+        "properties": {
+          "feature_name": "Slack Integration",
+          "feature_category": "integrations",
+          "accountId": "acct_456",
+          "plan": "enterprise",
+          "value": 150.00
+        },
+        "messageId": "rs-msg-xyz-001",
+        "timestamp": "2026-02-25T12:00:00.000Z"
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Feature Activated",
+        "userId": "user_123",
+        "anonymousId": "anon_789",
+        "properties": {
+          "feature_name": "Slack Integration",
+          "feature_category": "integrations",
+          "accountId": "acct_456",
+          "plan": "enterprise",
+          "value": 150.00
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "traits": {
+            "email": "alex@initech.com",
+            "name": "Alex Keener"
+          },
+          "groupId": "acct_456",
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-xyz-001",
+        "rudderId": "rudder-uuid-001"
+      }
+    },
+    "identify": {
+      "description": "RudderStack maps identify calls to the Vitally Analytics API User endpoint (POST /analytics/v1/user) to create or update users. The userId maps to the Vitally user ID and all RudderStack traits are attached to the Vitally user profile. Key traits include name, email, and avatar. Vitally uses identify call information to consolidate user profiles. Users can be associated with accounts via identify traits (company.id, company.name) when the Group API is not used. Users can be disassociated from a company by passing a company trait with remove: true. RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event.",
+      "api_endpoint": "POST https://{subdomain}.api.vitally.io/analytics/v1/user",
+      "headers": {
+        "Authorization": "Basic <BASE64_ENCODED_API_KEY>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "userId": "user_123",
+        "traits": {
+          "name": "Alex Keener",
+          "email": "alex@initech.com",
+          "avatar": "https://example.com/avatars/alexkeener.webp",
+          "role": "Product Manager",
+          "department": "Engineering",
+          "createdAt": "2026-01-15T10:00:00.000Z",
+          "company": {
+            "id": "acct_456",
+            "name": "Initech"
+          },
+          "plan": "enterprise",
+          "lastSeenAt": "2026-02-25T12:00:00.000Z"
+        },
+        "messageId": "rs-msg-xyz-002",
+        "timestamp": "2026-02-25T12:00:00.000Z"
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_789",
+        "traits": {
+          "name": "Alex Keener",
+          "email": "alex@initech.com",
+          "avatar": "https://example.com/avatars/alexkeener.webp",
+          "role": "Product Manager",
+          "department": "Engineering",
+          "createdAt": "2026-01-15T10:00:00.000Z",
+          "company": {
+            "id": "acct_456",
+            "name": "Initech"
+          },
+          "plan": "enterprise",
+          "lastSeenAt": "2026-02-25T12:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-xyz-002",
+        "rudderId": "rudder-uuid-002"
+      }
+    },
+    "group": {
+      "description": "RudderStack maps group calls to the Vitally Analytics API Account endpoint (POST /analytics/v1/account) to create or update accounts. The groupId maps to the Vitally account ID. The entire group object including all RudderStack traits is attached to the Vitally account profile. The name trait is required and sets the account display name. Using the Group API to create accounts is strongly recommended by Vitally. RudderStack sets the group trait name as the account name in the Vitally dashboard. Additionally, any future traits added to group calls automatically sync to the account. RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event.",
+      "api_endpoint": "POST https://{subdomain}.api.vitally.io/analytics/v1/account",
+      "headers": {
+        "Authorization": "Basic <BASE64_ENCODED_API_KEY>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "accountId": "acct_456",
+        "traits": {
+          "name": "Initech",
+          "industry": "Technology",
+          "employees": 329,
+          "plan": "enterprise",
+          "mrr": 2000,
+          "totalBilled": 24000,
+          "website": "https://initech.com",
+          "createdAt": "2025-06-01T00:00:00.000Z"
+        },
+        "messageId": "rs-msg-xyz-003",
+        "timestamp": "2026-02-25T12:00:00.000Z"
+      },
+      "source_event": {
+        "type": "group",
+        "userId": "user_123",
+        "anonymousId": "anon_789",
+        "groupId": "acct_456",
+        "traits": {
+          "name": "Initech",
+          "industry": "Technology",
+          "employees": 329,
+          "plan": "enterprise",
+          "mrr": 2000,
+          "totalBilled": 24000,
+          "website": "https://initech.com",
+          "createdAt": "2025-06-01T00:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-xyz-003",
+        "rudderId": "rudder-uuid-003"
+      }
+    }
+  },
+  "field_mappings": {
+    "user_identification": {
+      "vitally_field": "userId",
+      "segment_mapping": "Segment maps userId from the identify/track/group calls directly to Vitally's userId field. This is the primary identifier for users in Vitally and must be unique per user.",
+      "rudderstack_mapping": "RudderStack maps userId from the identify/track/group calls directly to Vitally's userId field. Identical mapping to Segment.",
+      "parity": "match",
+      "notes": "Vitally requires userId to be a stable, unique identifier for each user. Both platforms pass userId through directly without transformation."
+    },
+    "user_name": {
+      "vitally_field": "traits.name",
+      "segment_mapping": "Segment maps traits.name from identify calls to set the user display name in Vitally.",
+      "rudderstack_mapping": "RudderStack maps traits.name from identify calls to set the user display name in Vitally.",
+      "parity": "match",
+      "notes": "The name trait is displayed on the user's dashboard in Vitally and used for sorting and filtering."
+    },
+    "user_email": {
+      "vitally_field": "traits.email",
+      "segment_mapping": "Segment maps traits.email from identify calls to set the user's email in Vitally.",
+      "rudderstack_mapping": "RudderStack maps traits.email from identify calls to set the user's email in Vitally.",
+      "parity": "match",
+      "notes": "Email is used for user identification and communication in the Vitally dashboard."
+    },
+    "user_avatar": {
+      "vitally_field": "traits.avatar",
+      "segment_mapping": "Segment maps traits.avatar from identify calls to set the user's avatar image URL in Vitally.",
+      "rudderstack_mapping": "RudderStack maps traits.avatar from identify calls to set the user's avatar image URL in Vitally.",
+      "parity": "match",
+      "notes": "Avatar URL is displayed on the user profile in Vitally."
+    },
+    "account_id": {
+      "vitally_field": "accountId (group) / traits.company.id (identify)",
+      "segment_mapping": "Segment maps groupId from group calls to Vitally's accountId field for account creation/update. For identify calls, the Account ID trait (configurable in integration settings) maps the account association. Default fallback: user is associated with the account from their most recent group call.",
+      "rudderstack_mapping": "RudderStack maps groupId from group calls to Vitally's accountId field. For identify calls, traits.company.id can serve as the Account ID. Default fallback: same behavior as Segment — associates track events with the user's most recently grouped account.",
+      "parity": "match",
+      "notes": "The Account ID trait selected in the Vitally integration settings is critical for unifying account data across integrations (e.g., Stripe, HubSpot). If at all possible, use the unique database ID for accounts."
+    },
+    "account_name": {
+      "vitally_field": "traits.name (group)",
+      "segment_mapping": "Segment maps traits.name from group calls to set the account display name in Vitally. The name trait is required on group calls when using the Group API.",
+      "rudderstack_mapping": "RudderStack maps traits.name from group calls to set the account display name in Vitally. RudderStack sets the group trait name as the account name in the Vitally dashboard.",
+      "parity": "match",
+      "notes": "The name trait is required for group calls. Without a name trait, the account may appear without a display name in the Vitally dashboard."
+    },
+    "account_traits": {
+      "vitally_field": "traits.* (group)",
+      "segment_mapping": "Segment maps all group traits to Vitally account properties. Common traits include industry, employees, plan, mrr, totalBilled, website, and createdAt. All traits are accessible for sorting, filtering, rules, and automation in Vitally.",
+      "rudderstack_mapping": "RudderStack maps all group traits to Vitally account properties. The entire group object including all traits is attached to the Vitally account profile. Any future traits added to group calls automatically sync.",
+      "parity": "match",
+      "notes": "Account traits power Vitally's customer health scoring, segmentation, automation rules, and reporting dashboards."
+    },
+    "event_name": {
+      "vitally_field": "event",
+      "segment_mapping": "Segment maps the event name from track calls directly to Vitally's event field. Vitally recommends a consistent naming convention such as {feature}-{action}.",
+      "rudderstack_mapping": "RudderStack maps the event name from track calls directly to Vitally's event field. Event names are passed through without transformation.",
+      "parity": "match",
+      "notes": "Vitally allows filtering and ignoring irrelevant events in Settings > Events > Status. Users should ignore events not relevant to customer success analysis to keep the event list clean and improve data processing speed."
+    },
+    "event_properties": {
+      "vitally_field": "properties",
+      "segment_mapping": "Segment maps all track event properties to Vitally's properties object. All properties are attached to the product event in Vitally and can be used for analysis, Elements, Success Metrics, and Indicators.",
+      "rudderstack_mapping": "RudderStack maps all track event properties to Vitally's properties object. The entire track object including any event properties is imported.",
+      "parity": "match",
+      "notes": "Event properties should have consistent naming conventions. Properties like accountId can be used to associate events with accounts if context.groupId is not provided."
+    },
+    "event_timestamp": {
+      "vitally_field": "timestamp",
+      "segment_mapping": "Segment maps the event timestamp to Vitally's timestamp field in ISO 8601 format.",
+      "rudderstack_mapping": "RudderStack maps the event timestamp to Vitally's timestamp field in ISO 8601 format.",
+      "parity": "match",
+      "notes": "Timestamps must be in ISO 8601 format (e.g., 2026-02-25T12:00:00.000Z). Vitally uses the timestamp to order events chronologically."
+    },
+    "message_id": {
+      "vitally_field": "messageId",
+      "segment_mapping": "Segment passes messageId to Vitally for event deduplication. Vitally creates product events based on the messageId parameter — duplicate messageIds for the same event type may be ignored.",
+      "rudderstack_mapping": "RudderStack passes messageId to Vitally for event deduplication. Different UUID generation strategies may produce different messageId formats, but both serve the same deduplication purpose.",
+      "parity": "match",
+      "notes": "messageId is optional but recommended for event deduplication. If omitted, Vitally will create a new product event for each request."
+    },
+    "account_association_via_group": {
+      "vitally_field": "context.groupId / track properties",
+      "segment_mapping": "Segment associates track events with accounts using three methods: (1) context.groupId on the track call, (2) a configurable track property (e.g., properties.accountId) set up via Vitally support, (3) default association with the account from the user's most recent group call.",
+      "rudderstack_mapping": "RudderStack associates track events with accounts using the same three methods: (1) context.groupId, (2) a configurable track property, (3) default association with the most recently grouped account. Context.groupId is automatically set when the RudderStack SDK's group method is called.",
+      "parity": "match",
+      "notes": "Vitally is B2B-focused and requires account association for product events. Orphan users (without a parent account) will have their track events dropped."
+    },
+    "user_account_disassociation": {
+      "vitally_field": "traits.company.id + traits.company.remove",
+      "segment_mapping": "Segment supports disassociating a user from a company by passing identify call with traits.company = { id: <account_id>, remove: true }.",
+      "rudderstack_mapping": "RudderStack supports the same disassociation pattern: rudderanalytics.identify({ userId, traits: { company: { id: <account_id>, remove: true } } }).",
+      "parity": "match",
+      "notes": "This removes the user-account association in Vitally. The user and account records are not deleted — only the link between them is severed."
+    },
+    "custom_user_traits": {
+      "vitally_field": "traits.* (identify)",
+      "segment_mapping": "Segment maps all identify traits to Vitally user profile properties. Custom traits (beyond name, email, avatar) are displayed on the user's dashboard and can be used for sorting, filtering, and automation.",
+      "rudderstack_mapping": "RudderStack maps all identify traits to Vitally user profile properties in the same manner. All traits are accessible on the Vitally user dashboard.",
+      "parity": "match",
+      "notes": "Common custom traits include role, department, plan, createdAt, lastSeenAt, and any business-specific user attributes."
+    }
+  },
+  "authentication": {
+    "method": "Basic Auth",
+    "header": "Authorization: Basic <BASE64_ENCODED_API_KEY>",
+    "description": "Vitally's Analytics API uses HTTP Basic Authentication with the API key as the username and an empty password. The API key is Base64-encoded in the Authorization header. The API key is generated in the Vitally integration settings page.",
+    "segment_config": "API key is automatically configured when the Vitally integration is enabled via the one-click 'Enable with Segment' button in the Vitally integration settings. The key is stored in Segment's destination configuration.",
+    "rudderstack_config": "API key is configured in the RudderStack destination settings for Vitally. The key is obtained from the Vitally integration settings page (Settings > Integrations > RudderStack).",
+    "rate_limiting": {
+      "limit": "1000 requests/min",
+      "type": "sliding window",
+      "headers": ["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"]
+    },
+    "parity": "match"
+  },
+  "api_endpoints": {
+    "track": {
+      "method": "POST",
+      "path": "/analytics/v1/track",
+      "description": "Creates a product event in Vitally. Events are associated with the user specified by userId and linked to an account via group call association or explicit accountId property.",
+      "required_fields": ["userId", "event"],
+      "optional_fields": ["properties", "messageId", "timestamp"]
+    },
+    "user": {
+      "method": "POST",
+      "path": "/analytics/v1/user",
+      "description": "Creates or updates a user in Vitally based on the userId parameter. All traits are stored as user profile properties.",
+      "required_fields": ["userId"],
+      "optional_fields": ["traits", "messageId", "timestamp"],
+      "maps_from": "identify"
+    },
+    "account": {
+      "method": "POST",
+      "path": "/analytics/v1/account",
+      "description": "Creates or updates an account in Vitally based on the accountId parameter. All traits are stored as account profile properties.",
+      "required_fields": ["accountId"],
+      "optional_fields": ["traits", "messageId", "timestamp"],
+      "maps_from": "group"
+    },
+    "organization": {
+      "method": "POST",
+      "path": "/analytics/v1/organization",
+      "description": "Creates or updates an organization in Vitally based on the organizationId parameter. Only supported for Vitally accounts that have organizations enabled. Not directly mapped from standard Segment/RudderStack calls.",
+      "required_fields": ["organizationId"],
+      "optional_fields": ["traits", "messageId", "timestamp"],
+      "notes": "Organizations are a higher-level grouping above accounts. This endpoint is not directly used by Segment or RudderStack integrations."
+    },
+    "batch": {
+      "method": "POST",
+      "path": "/analytics/v1/batch",
+      "description": "Sends a batch of events, users, and accounts in a single request for more efficient data delivery. Recommended for server-side integrations sending high volumes of data.",
+      "notes": "Both Segment and RudderStack may use batching for efficient delivery."
+    },
+    "unlink": {
+      "method": "POST",
+      "path": "/analytics/v1/unlink",
+      "description": "Unlinks a user from an account in Vitally. Used when a user should no longer be associated with a particular account.",
+      "required_fields": ["userId", "accountId"],
+      "notes": "Not directly mapped from standard Segment/RudderStack calls. User disassociation is handled via identify calls with company.remove: true."
+    }
+  },
+  "parity_status": "match",
+  "known_gaps": [
+    {
+      "gap_id": "VT-001",
+      "field": "RudderStack envelope fields",
+      "description": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to the source event envelope. These additional fields are present in the source event processed by the Transformer but do not impact the final Vitally API payload — they are stripped during transformation before the API call.",
+      "severity": "informational",
+      "remediation": "No impact on destination payload. These fields are stripped by the Transformer before sending to Vitally."
+    },
+    {
+      "gap_id": "VT-002",
+      "field": "context.library",
+      "description": "Segment uses analytics.js as the library name; RudderStack uses rudder-sdk-js. This difference is present in the source event but does not propagate to the Vitally API payload. Vitally does not use or display the SDK library information.",
+      "severity": "informational",
+      "remediation": "No impact on destination payload — library metadata is not forwarded to the Vitally API."
+    },
+    {
+      "gap_id": "VT-003",
+      "field": "messageId format",
+      "description": "Segment and RudderStack use different UUID generation strategies for messageId. While the format differs, both serve the same purpose of event deduplication in Vitally. The messageId field is optional, and both platforms generate unique values.",
+      "severity": "informational",
+      "remediation": "No functional impact. Vitally uses messageId for deduplication regardless of format."
+    },
+    {
+      "gap_id": "VT-004",
+      "field": "One-click Segment integration",
+      "description": "Vitally offers a one-click 'Enable with Segment' button that automatically creates the destination in Segment. RudderStack integration requires manual API key copy-paste from Vitally settings to the RudderStack dashboard destination configuration.",
+      "severity": "low",
+      "remediation": "UX difference only. No impact on data parity or functionality. Both integrations use the same underlying Analytics API."
+    },
+    {
+      "gap_id": "VT-005",
+      "field": "Track property account association",
+      "description": "When using a track property (e.g., properties.accountId) to associate events with accounts instead of context.groupId, Vitally requires manual configuration by the Vitally support team to detect the custom property. This setup process is identical for both Segment and RudderStack integrations.",
+      "severity": "informational",
+      "remediation": "No parity gap. Both platforms support this feature identically. Vitally requires support intervention to configure the track property mapping."
+    },
+    {
+      "gap_id": "VT-006",
+      "field": "Historical data replay",
+      "description": "Vitally does not support extracting historical data from Segment or RudderStack. However, both platforms offer replay features (Segment: Replay for advanced tiers; RudderStack: advanced replay with source/date-range/destination filters) to re-send historical events to Vitally.",
+      "severity": "informational",
+      "remediation": "No parity gap. Both platforms can replay historical data to Vitally using their respective replay features."
+    },
+    {
+      "gap_id": "VT-007",
+      "field": "Segment Engage integration",
+      "description": "Segment can send computed traits and audiences generated by Engage to Vitally as user properties via identify calls. The property name is the snake_cased version of the audience name with a true/false value indicating membership. RudderStack does not have an equivalent Engage/Audiences feature in Phase 1.",
+      "severity": "medium",
+      "remediation": "Segment Engage/Audiences integration is explicitly out of scope for Phase 1 (deferred to Phase 2). RudderStack users can achieve similar results via User Transformations or external audience computation tools."
+    }
+  ],
+  "notes": "Vitally is a shared cloud destination in the Customer Success category. It is a B2B customer success platform that wraps unified customer data with powerful analytics, alerts, and workflows. The Vitally destination is maintained by Vitally and uses the Vitally Analytics API (https://{subdomain}.api.vitally.io/analytics/v1/). Both Segment and RudderStack integrate with Vitally using essentially identical API call patterns: identify→user create/update, group→account create/update, track→product event creation. The integration is delivered via the Router as a cloud REST destination, with event transformation handled by the external Transformer service (port 9090). Vitally strongly recommends using the Group API for account creation as it provides direct control over account data. The Account ID trait selected in Vitally settings is critical for data unification across multiple integrations (Stripe, HubSpot, Salesforce, etc.). Vitally is geared towards B2B companies and requires users to be associated with accounts — orphan users may have their track events dropped. Event status management (ignore/track) in Vitally settings helps keep data relevant and processing efficient. Rate limiting: 1000 requests/min sliding window. Overall payload parity between Segment and RudderStack for Vitally is high, with no functional differences in the data delivered to the Vitally API."
+}
