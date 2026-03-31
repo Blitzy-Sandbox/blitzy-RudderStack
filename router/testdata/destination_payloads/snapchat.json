@@ -1,0 +1,598 @@
+{
+  "destination_type": "SNAPCHAT",
+  "destination_tier": "cloud",
+  "category": "Advertising",
+  "segment_slug": "actions-snap-conversions",
+  "api_endpoint": "https://tr.snapchat.com/v3/{pixel_id}/events",
+  "api_version": "v3",
+  "event_types": ["track", "page"],
+  "authentication": {
+    "method": "access_token",
+    "query_param": "access_token",
+    "description": "Snapchat Conversions API v3 requires a static long-lived access token passed as a query parameter and a Pixel ID embedded in the URL path. The access token is generated in Snapchat Business Manager under Business Details > Conversions API Tokens."
+  },
+  "destination_config": {
+    "pixelId": "EXAMPLE_PIXEL_ID_1234567890",
+    "accessToken": "example-snap-access-token-abc123",
+    "hashUserData": true,
+    "eventConversionType": "WEB",
+    "snapAppId": "",
+    "deduplicationKey": "client_dedup_id"
+  },
+  "standard_events": [
+    "PAGE_VIEW",
+    "PURCHASE",
+    "ADD_CART",
+    "ADD_TO_WISHLIST",
+    "START_CHECKOUT",
+    "SEARCH",
+    "VIEW_CONTENT",
+    "SIGN_UP",
+    "ADD_BILLING",
+    "COMPLETE_TUTORIAL",
+    "INVITE",
+    "LOGIN",
+    "SHARE",
+    "RESERVE",
+    "ACHIEVEMENT_UNLOCKED",
+    "SPENT_CREDITS",
+    "RATE",
+    "SUBSCRIBE",
+    "LIST_VIEW",
+    "AD_CLICK",
+    "AD_VIEW",
+    "SAVE",
+    "CUSTOM_EVENT_1",
+    "CUSTOM_EVENT_2",
+    "CUSTOM_EVENT_3",
+    "CUSTOM_EVENT_4",
+    "CUSTOM_EVENT_5"
+  ],
+  "segment_reference_payloads": {
+    "track": {
+      "description": "Segment track call mapped to Snapchat Conversions API v3 for a Purchase (PURCHASE) event",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "order_id": "order-789",
+          "revenue": 99.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 2,
+              "category": "Widgets"
+            }
+          ]
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "page": {
+            "url": "https://example.com/checkout/complete?ScCid=7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+            "referrer": "https://example.com/cart"
+          },
+          "traits": {
+            "email": "user@example.com",
+            "phone": "+14155551234"
+          },
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "messageId": "seg-msg-abc-123"
+      },
+      "output_payload": {
+        "data": [
+          {
+            "event_name": "PURCHASE",
+            "event_time": 1740484800,
+            "action_source": "WEB",
+            "event_source_url": "https://example.com/checkout/complete?ScCid=7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+            "event_id": "seg-msg-abc-123",
+            "client_dedup_id": "seg-msg-abc-123",
+            "user_data": {
+              "em": ["hashed_sha256_of_user@example.com"],
+              "ph": ["hashed_sha256_of_+14155551234"],
+              "external_id": "hashed_sha256_of_user_123",
+              "ip_address": "203.0.113.50",
+              "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "sc_click_id": "7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+              "sc_cookie1": ""
+            },
+            "custom_data": {
+              "currency": "USD",
+              "value": "99.99",
+              "transaction_id": "order-789",
+              "num_items": 1,
+              "contents": [
+                {
+                  "id": "SKU-001",
+                  "content_category": "Widgets",
+                  "item_price": "49.99",
+                  "quantity": 2
+                }
+              ],
+              "item_ids": ["SKU-001"]
+            }
+          }
+        ]
+      }
+    },
+    "page": {
+      "description": "Segment page call mapped to Snapchat PAGE_VIEW event",
+      "input_event": {
+        "type": "page",
+        "name": "Product Detail",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T11:55:00.000Z",
+        "properties": {
+          "url": "https://example.com/products/premium-widget?ScCid=7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+          "title": "Premium Widget | Example Store",
+          "referrer": "https://www.snapchat.com/",
+          "path": "/products/premium-widget"
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "traits": {
+            "email": "user@example.com"
+          },
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "messageId": "seg-msg-def-456"
+      },
+      "output_payload": {
+        "data": [
+          {
+            "event_name": "PAGE_VIEW",
+            "event_time": 1740484500,
+            "action_source": "WEB",
+            "event_source_url": "https://example.com/products/premium-widget?ScCid=7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+            "event_id": "seg-msg-def-456",
+            "client_dedup_id": "seg-msg-def-456",
+            "user_data": {
+              "em": ["hashed_sha256_of_user@example.com"],
+              "external_id": "hashed_sha256_of_user_123",
+              "ip_address": "203.0.113.50",
+              "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "sc_click_id": "7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+              "sc_cookie1": ""
+            },
+            "custom_data": {}
+          }
+        ]
+      }
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "track": {
+      "description": "RudderStack track call mapped to Snapchat Conversions API v3 for a Purchase (PURCHASE) event",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "properties": {
+          "order_id": "order-789",
+          "revenue": 99.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 2,
+              "category": "Widgets"
+            }
+          ]
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "page": {
+            "url": "https://example.com/checkout/complete?ScCid=7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+            "referrer": "https://example.com/cart"
+          },
+          "traits": {
+            "email": "user@example.com",
+            "phone": "+14155551234"
+          },
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "messageId": "rs-msg-xyz-789",
+        "rudderId": "rudder-uuid-abc-123"
+      },
+      "output_payload": {
+        "data": [
+          {
+            "event_name": "PURCHASE",
+            "event_time": 1740484800,
+            "action_source": "WEB",
+            "event_source_url": "https://example.com/checkout/complete?ScCid=7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+            "event_id": "rs-msg-xyz-789",
+            "client_dedup_id": "rs-msg-xyz-789",
+            "user_data": {
+              "em": ["hashed_sha256_of_user@example.com"],
+              "ph": ["hashed_sha256_of_+14155551234"],
+              "external_id": "hashed_sha256_of_user_123",
+              "ip_address": "203.0.113.50",
+              "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "sc_click_id": "7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+              "sc_cookie1": ""
+            },
+            "custom_data": {
+              "currency": "USD",
+              "value": "99.99",
+              "transaction_id": "order-789",
+              "num_items": 1,
+              "contents": [
+                {
+                  "id": "SKU-001",
+                  "content_category": "Widgets",
+                  "item_price": "49.99",
+                  "quantity": 2
+                }
+              ],
+              "item_ids": ["SKU-001"]
+            }
+          }
+        ]
+      }
+    },
+    "page": {
+      "description": "RudderStack page call mapped to Snapchat PAGE_VIEW event",
+      "input_event": {
+        "type": "page",
+        "name": "Product Detail",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T11:55:00.000Z",
+        "originalTimestamp": "2026-02-25T11:55:00.000Z",
+        "sentAt": "2026-02-25T11:55:01.000Z",
+        "receivedAt": "2026-02-25T11:55:02.000Z",
+        "properties": {
+          "url": "https://example.com/products/premium-widget?ScCid=7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+          "title": "Premium Widget | Example Store",
+          "referrer": "https://www.snapchat.com/",
+          "path": "/products/premium-widget"
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "traits": {
+            "email": "user@example.com"
+          },
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "messageId": "rs-msg-pqr-012",
+        "rudderId": "rudder-uuid-def-456"
+      },
+      "output_payload": {
+        "data": [
+          {
+            "event_name": "PAGE_VIEW",
+            "event_time": 1740484500,
+            "action_source": "WEB",
+            "event_source_url": "https://example.com/products/premium-widget?ScCid=7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+            "event_id": "rs-msg-pqr-012",
+            "client_dedup_id": "rs-msg-pqr-012",
+            "user_data": {
+              "em": ["hashed_sha256_of_user@example.com"],
+              "external_id": "hashed_sha256_of_user_123",
+              "ip_address": "203.0.113.50",
+              "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "sc_click_id": "7b3a7917-a82a-47e8-9728-e1b3b045abb2",
+              "sc_cookie1": ""
+            },
+            "custom_data": {}
+          }
+        ]
+      }
+    }
+  },
+  "field_mappings": {
+    "pixel_id": {
+      "segment_source": "settings.pixelId from destination configuration",
+      "rudderstack_source": "destination config pixelId",
+      "snapchat_field": "URL path parameter: /v3/{pixel_id}/events",
+      "description": "Snapchat Pixel ID is embedded directly in the API endpoint URL path. Both platforms derive it from destination configuration. For WEB events, a Pixel ID is required; for MOBILE_APP events, a Snap App ID is used instead."
+    },
+    "access_token": {
+      "segment_source": "settings.accessToken from destination configuration",
+      "rudderstack_source": "destination config accessToken",
+      "snapchat_field": "Query parameter: ?access_token={token}",
+      "description": "Static long-lived access token passed as a URL query parameter. Generated in Snapchat Business Manager under Business Details > Conversions API Tokens."
+    },
+    "event_name_mapping": {
+      "description": "Maps Segment/RudderStack event names to Snapchat standard event names. Both platforms apply similar transformations via their Transformer services.",
+      "mappings": {
+        "Order Completed": "PURCHASE",
+        "Checkout Started": "START_CHECKOUT",
+        "Product Added": "ADD_CART",
+        "Product Added To Wishlist": "ADD_TO_WISHLIST",
+        "Payment Info Entered": "ADD_BILLING",
+        "Products Searched": "SEARCH",
+        "Product Viewed": "VIEW_CONTENT",
+        "Page Viewed": "PAGE_VIEW",
+        "Signed Up": "SIGN_UP",
+        "Login": "LOGIN",
+        "Share": "SHARE",
+        "Invite": "INVITE",
+        "Subscribe": "SUBSCRIBE",
+        "Product List Viewed": "LIST_VIEW",
+        "Promotion Clicked": "AD_CLICK",
+        "Promotion Viewed": "AD_VIEW",
+        "Product Saved": "SAVE",
+        "Tutorial Complete": "COMPLETE_TUTORIAL",
+        "Achievement Unlocked": "ACHIEVEMENT_UNLOCKED",
+        "Credits Spent": "SPENT_CREDITS",
+        "Product Reviewed": "RATE"
+      },
+      "custom_events": "Non-standard event names can be mapped to CUSTOM_EVENT_1 through CUSTOM_EVENT_5 (maximum 5 custom event types supported by Snapchat)"
+    },
+    "user_identification": {
+      "email": {
+        "segment_source": "context.traits.email or properties.email",
+        "rudderstack_source": "context.traits.email or properties.email",
+        "snapchat_field": "user_data.em",
+        "transform": "Lowercase, trim whitespace, SHA-256 hash. Snapchat accepts an array of hashed values.",
+        "description": "Email address is lowercased, trimmed, and SHA-256 hashed before sending to Snapchat. The em field is an array to support multiple email addresses."
+      },
+      "phone": {
+        "segment_source": "context.traits.phone or properties.phone",
+        "rudderstack_source": "context.traits.phone or properties.phone",
+        "snapchat_field": "user_data.ph",
+        "transform": "Remove all non-numeric characters except leading +, then SHA-256 hash. Snapchat accepts an array of hashed values.",
+        "description": "Phone number is normalized (remove spaces, dashes, parentheses) and SHA-256 hashed before sending to Snapchat. The ph field is an array to support multiple phone numbers."
+      },
+      "external_id": {
+        "segment_source": "userId or anonymousId",
+        "rudderstack_source": "userId or anonymousId",
+        "snapchat_field": "user_data.external_id",
+        "transform": "SHA-256 hash",
+        "description": "A unique user identifier (typically userId) is SHA-256 hashed and sent as external_id. Used for cross-platform user matching when Snap Pixel cookie is unavailable."
+      },
+      "sc_click_id": {
+        "segment_source": "Extracted from page URL query parameter 'ScCid' or context.integrations.Snapchat.scClickId",
+        "rudderstack_source": "Extracted from page URL query parameter 'ScCid' or context.integrations.Snapchat.scClickId",
+        "snapchat_field": "user_data.sc_click_id",
+        "transform": "Passed as-is (no hashing)",
+        "description": "Snapchat Click ID (ScCid) is extracted from the ad landing page URL and forwarded for ad attribution. When a user swipes on a Snap ad, the ScCid parameter is appended to the destination URL. Can also be sent via event_source_url for automatic extraction."
+      },
+      "sc_cookie1": {
+        "segment_source": "context.integrations.Snapchat.scCookie1 or _scid cookie value",
+        "rudderstack_source": "context.integrations.Snapchat.scCookie1 or _scid cookie value",
+        "snapchat_field": "user_data.sc_cookie1",
+        "transform": "Passed as-is (no hashing)",
+        "description": "Snap Pixel first-party cookie identifier (_scid). Used to associate server-side events with Snap Pixel browser events for improved matching. If Snap Pixel is implemented on the site, this cookie is set automatically."
+      },
+      "ip_address": {
+        "segment_source": "context.ip",
+        "rudderstack_source": "context.ip",
+        "snapchat_field": "user_data.ip_address",
+        "transform": "Passed as-is (supports IPv4 and IPv6)",
+        "description": "Client IP address forwarded for geo-targeting and user matching."
+      },
+      "user_agent": {
+        "segment_source": "context.userAgent",
+        "rudderstack_source": "context.userAgent",
+        "snapchat_field": "user_data.user_agent",
+        "transform": "Passed as-is",
+        "description": "Browser user agent string forwarded for device identification and matching."
+      }
+    },
+    "event_properties": {
+      "currency": {
+        "segment_source": "properties.currency",
+        "rudderstack_source": "properties.currency",
+        "snapchat_field": "custom_data.currency",
+        "description": "ISO-4217 currency code. Required for PURCHASE events."
+      },
+      "value": {
+        "segment_source": "properties.revenue or properties.value or properties.total",
+        "rudderstack_source": "properties.revenue or properties.value or properties.total",
+        "snapchat_field": "custom_data.value",
+        "description": "Monetary value of the event as a string. Required for PURCHASE events. Segment and RudderStack both map revenue/value/total to Snapchat value."
+      },
+      "transaction_id": {
+        "segment_source": "properties.order_id or properties.orderId",
+        "rudderstack_source": "properties.order_id or properties.orderId",
+        "snapchat_field": "custom_data.transaction_id",
+        "description": "Order or transaction identifier. Also used as a deduplication key with a 30-day window for PURCHASE events."
+      },
+      "contents": {
+        "segment_source": "properties.products[] mapped to contents[]",
+        "rudderstack_source": "properties.products[] mapped to contents[]",
+        "snapchat_field": "custom_data.contents[]",
+        "description": "Product array mapped from Segment spec products to Snapchat contents format. Used for custom conversions value and ROAS reporting.",
+        "item_mappings": {
+          "product_id": "id",
+          "category": "content_category",
+          "price": "item_price (as string)",
+          "quantity": "quantity",
+          "name": "Not directly mapped in Snapchat contents; use item_ids for identification"
+        }
+      },
+      "item_ids": {
+        "segment_source": "Derived from properties.products[].product_id",
+        "rudderstack_source": "Derived from properties.products[].product_id",
+        "snapchat_field": "custom_data.item_ids",
+        "description": "Array of product IDs from the products array. Provides a flat list of SKU/product identifiers."
+      },
+      "num_items": {
+        "segment_source": "Derived from properties.products.length",
+        "rudderstack_source": "Derived from properties.products.length",
+        "snapchat_field": "custom_data.num_items",
+        "description": "Count of distinct items in the event."
+      },
+      "search_string": {
+        "segment_source": "properties.query",
+        "rudderstack_source": "properties.query",
+        "snapchat_field": "custom_data.search_string",
+        "description": "Search query string for SEARCH events."
+      },
+      "description": {
+        "segment_source": "properties.description",
+        "rudderstack_source": "properties.description",
+        "snapchat_field": "custom_data.description",
+        "description": "A freeform text description for additional context."
+      },
+      "event_tag": {
+        "segment_source": "properties.eventTag or context.integrations.Snapchat.eventTag",
+        "rudderstack_source": "properties.eventTag or context.integrations.Snapchat.eventTag",
+        "snapchat_field": "custom_data.event_tag",
+        "description": "Custom label to tag events for additional segmentation in Snapchat Ads Manager."
+      },
+      "brands": {
+        "segment_source": "properties.brand or derived from properties.products[].brand",
+        "rudderstack_source": "properties.brand or derived from properties.products[].brand",
+        "snapchat_field": "custom_data.brands",
+        "description": "Brands associated with item_ids in the conversion event."
+      },
+      "level": {
+        "segment_source": "properties.level",
+        "rudderstack_source": "properties.level",
+        "snapchat_field": "custom_data.level",
+        "description": "Level reached in a game or app (for gaming/app events)."
+      }
+    },
+    "event_metadata": {
+      "event_name": {
+        "segment_source": "Derived from event type mapping (track event name → Snapchat standard event name)",
+        "rudderstack_source": "Derived from event type mapping (track event name → Snapchat standard event name)",
+        "snapchat_field": "event_name",
+        "description": "Snapchat standard event name in UPPER_SNAKE_CASE format (e.g., PURCHASE, PAGE_VIEW, ADD_CART)."
+      },
+      "event_time": {
+        "segment_source": "timestamp (ISO 8601 converted to Unix epoch seconds)",
+        "rudderstack_source": "timestamp (ISO 8601 converted to Unix epoch seconds)",
+        "snapchat_field": "event_time",
+        "description": "Event timestamp as Unix epoch seconds (integer). Both platforms must convert ISO 8601 timestamp to epoch seconds. Events can be up to 37 days old to be eligible for attribution."
+      },
+      "event_id": {
+        "segment_source": "messageId",
+        "rudderstack_source": "messageId",
+        "snapchat_field": "event_id",
+        "description": "Unique event identifier used for deduplication between Snap Pixel and CAPI events. Deduplication occurs on event_id and timestamp within a 48-hour window."
+      },
+      "client_dedup_id": {
+        "segment_source": "messageId",
+        "rudderstack_source": "messageId",
+        "snapchat_field": "client_dedup_id",
+        "description": "Client-side deduplication ID. Provides a 48-hour deduplication window. Should match across all integrations (Snap Pixel, third party, or direct CAPI calls)."
+      },
+      "action_source": {
+        "segment_source": "Defaults to 'WEB'; derived from event context (mobile → 'MOBILE_APP', offline → 'OFFLINE')",
+        "rudderstack_source": "Defaults to 'WEB'; configurable per destination settings (eventConversionType)",
+        "snapchat_field": "action_source",
+        "description": "Supported values: WEB, MOBILE_APP, OFFLINE. Determines the event channel type. WEB requires a Pixel ID, MOBILE_APP requires a Snap App ID."
+      },
+      "event_source_url": {
+        "segment_source": "context.page.url or properties.url",
+        "rudderstack_source": "context.page.url or properties.url",
+        "snapchat_field": "event_source_url",
+        "description": "Full page URL where the event occurred. Snapchat can automatically extract the ScCid (Click ID) from this URL if present as a query parameter."
+      }
+    }
+  },
+  "parity_assessment": {
+    "status": "needs_verification",
+    "overall_parity": "high",
+    "known_differences": [
+      {
+        "field": "context.library",
+        "description": "Segment uses 'analytics.js'; RudderStack uses 'rudder-sdk-js'. This field is in the input event and does not affect the Snapchat output payload.",
+        "severity": "none",
+        "impact": "No impact — library metadata is not forwarded to Snapchat."
+      },
+      {
+        "field": "RudderStack envelope fields",
+        "description": "RudderStack input events include additional fields: rudderId, originalTimestamp, sentAt, receivedAt. These are RudderStack-specific envelope fields not present in Segment events.",
+        "severity": "none",
+        "impact": "No impact — these envelope fields are not forwarded to Snapchat."
+      },
+      {
+        "field": "messageId format",
+        "description": "Segment and RudderStack generate messageId values using different UUID strategies. Both are used as event_id and client_dedup_id for Snapchat deduplication.",
+        "severity": "low",
+        "impact": "Minimal — only affects deduplication key format, not functionality. Deduplication still works within each platform."
+      },
+      {
+        "field": "ScCid extraction",
+        "description": "Both platforms should extract the Snapchat Click ID (ScCid) from the page URL query parameter. Verify URL parsing handles edge cases identically (encoded characters, missing parameter, case sensitivity).",
+        "severity": "low",
+        "impact": "Could affect ad attribution if Click ID extraction logic differs between platforms."
+      },
+      {
+        "field": "PII hashing normalization",
+        "description": "Both platforms should SHA-256 hash email (lowercase, trim), phone (strip non-numeric except leading +), and external_id. Verify normalization steps are identical before hashing.",
+        "severity": "medium",
+        "impact": "Different normalization produces different hashes, affecting Snapchat user matching rates. Snapchat requires lowercase hex SHA-256 format."
+      },
+      {
+        "field": "event_time format",
+        "description": "Snapchat CAPI v3 requires event_time as Unix epoch seconds (integer). Both platforms must convert ISO 8601 timestamps. Verify timezone handling and rounding behavior are consistent.",
+        "severity": "medium",
+        "impact": "Incorrect timestamps affect event attribution windows and deduplication."
+      },
+      {
+        "field": "event name mapping completeness",
+        "description": "Verify that the Transformer service maps Segment spec event names to Snapchat standard event names identically between Segment and RudderStack. Snapchat only supports 22 standard events plus 5 custom events.",
+        "severity": "medium",
+        "impact": "Different event name mappings cause events to be categorized differently in Snapchat Ads Manager."
+      },
+      {
+        "field": "custom_data.value type",
+        "description": "Snapchat CAPI expects value as a string type. Verify both platforms convert numeric revenue values to strings consistently.",
+        "severity": "low",
+        "impact": "Type mismatch could cause validation failures or incorrect ROAS reporting."
+      },
+      {
+        "field": "sc_cookie1 forwarding",
+        "description": "Snap Pixel sets a _scid first-party cookie. Both platforms must extract and forward this cookie value for improved matching. Verify cookie extraction methods are consistent.",
+        "severity": "low",
+        "impact": "Missing sc_cookie1 reduces matching performance but events are still processed."
+      }
+    ],
+    "validation_requirements": [
+      "Verify pixel_id is correctly embedded in the API URL path from destination config",
+      "Verify access_token is correctly passed as a query parameter",
+      "Verify all standard event name mappings match Segment's Snapchat destination",
+      "Verify PII fields (email, phone, external_id) are SHA-256 hashed with identical normalization (lowercase hex format)",
+      "Verify ScCid (Click ID) extraction from URL query parameters matches Segment behavior",
+      "Verify sc_cookie1 (_scid) cookie value forwarding matches Segment behavior",
+      "Verify contents[] array mapping from products[] is field-for-field identical",
+      "Verify event_time is converted from ISO 8601 to Unix epoch seconds correctly",
+      "Verify event_id and client_dedup_id use messageId consistently for deduplication",
+      "Verify action_source (WEB/MOBILE_APP/OFFLINE) is set correctly based on event context",
+      "Verify event_source_url is forwarded to allow automatic Click ID extraction",
+      "Verify custom_data.value is sent as a string type",
+      "Verify transaction_id is forwarded from order_id for 30-day PURCHASE deduplication",
+      "Verify non-standard events are mapped to CUSTOM_EVENT_1 through CUSTOM_EVENT_5",
+      "Verify batch request format wraps events in a top-level data array"
+    ]
+  },
+  "notes": "Snapchat is a shared cloud destination in the Advertising category. Segment has an Actions-based variant (actions-snap-conversions). RudderStack delivers Snapchat via the Router as a cloud REST destination. The Snapchat Conversions API v3 endpoint (https://tr.snapchat.com/v3/{pixel_id}/events) requires a Pixel ID in the URL path and an access_token as a query parameter. User data fields (em, ph, external_id) must be normalized and SHA-256 hashed (lowercase hex) before transmission. Snapchat supports event deduplication via client_dedup_id (48-hour window) and transaction_id (30-day window for PURCHASE events). Events are sent in a top-level data array supporting batch requests (up to 2000 events per batch). Key parity focus areas: event name mapping consistency (UPPER_SNAKE_CASE format), PII normalization and hashing, ScCid (Click ID) forwarding, sc_cookie1 cookie forwarding, event_time epoch conversion, contents/products array field mapping, and value type handling (string vs number). Snapchat CAPI v2 was deprecated in early 2025; v3 is the current supported version."
+}
