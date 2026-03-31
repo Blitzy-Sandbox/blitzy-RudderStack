@@ -1,0 +1,781 @@
+{
+  "destination_type": "GOOGLE_ADS",
+  "destination_tier": "cloud",
+  "category": "Advertising",
+  "segment_slug": "actions-google-enhanced-conversions",
+  "api_endpoint": "https://googleads.googleapis.com/v16/customers/{customerId}:uploadClickConversions",
+  "api_version": "v16",
+  "event_types": ["track", "page"],
+  "authentication": {
+    "method": "oauth2",
+    "grant_type": "refresh_token",
+    "description": "Google Ads API requires OAuth 2.0 authentication with a developer token, customer ID, and optional login-customer-id for MCC (Manager) accounts. A refresh token is used to obtain short-lived access tokens for API calls."
+  },
+  "destination_config": {
+    "customerId": "123-456-7890",
+    "conversionAction": "customers/1234567890/conversionActions/9876543210",
+    "developerToken": "EXAMPLE_DEVELOPER_TOKEN",
+    "oauthClientId": "example-client-id.apps.googleusercontent.com",
+    "oauthClientSecret": "example-client-secret",
+    "refreshToken": "example-refresh-token",
+    "loginCustomerId": "",
+    "subAccount": false,
+    "hashUserIdentifiers": true,
+    "enableEnhancedConversions": true,
+    "defaultCurrencyCode": "USD",
+    "conversionEnvironment": "UNSPECIFIED"
+  },
+  "standard_events": [
+    "Purchase",
+    "Add to Cart",
+    "Begin Checkout",
+    "Page View",
+    "Lead",
+    "Sign Up",
+    "Subscribe",
+    "Contact",
+    "Download",
+    "Submit Lead Form",
+    "Book Appointment",
+    "Request Quote",
+    "Get Directions",
+    "Outbound Click",
+    "View Item",
+    "View Item List",
+    "Add Payment Info",
+    "Add to Wishlist",
+    "Search"
+  ],
+  "segment_reference_payloads": {
+    "track": {
+      "description": "Segment track call mapped to Google Ads Offline Conversion Upload via the Enhanced Conversions API for an Order Completed (Purchase) event with GCLID-based attribution and hashed user identifiers.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "order_id": "order-789",
+          "revenue": 99.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 2,
+              "category": "Widgets"
+            }
+          ],
+          "gclid": "EAIaIQobChMI_example_gclid_value_123",
+          "gbraid": "",
+          "wbraid": ""
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "page": {
+            "url": "https://example.com/checkout/complete?gclid=EAIaIQobChMI_example_gclid_value_123",
+            "referrer": "https://www.google.com/"
+          },
+          "traits": {
+            "email": "user@example.com",
+            "phone": "+14155551234",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "address": {
+              "street": "123 Main St",
+              "city": "San Francisco",
+              "state": "CA",
+              "postalCode": "94105",
+              "country": "US"
+            }
+          },
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "messageId": "seg-msg-abc-123"
+      },
+      "output_payload": {
+        "method": "POST",
+        "url": "https://googleads.googleapis.com/v16/customers/1234567890:uploadClickConversions",
+        "headers": {
+          "Authorization": "Bearer ya29.example-access-token",
+          "developer-token": "EXAMPLE_DEVELOPER_TOKEN",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "conversions": [
+            {
+              "conversionAction": "customers/1234567890/conversionActions/9876543210",
+              "gclid": "EAIaIQobChMI_example_gclid_value_123",
+              "conversionDateTime": "2026-02-25 12:00:00+00:00",
+              "conversionValue": 99.99,
+              "currencyCode": "USD",
+              "orderId": "order-789",
+              "conversionEnvironment": "UNSPECIFIED",
+              "userIdentifiers": [
+                {
+                  "hashedEmail": "hashed_sha256_normalized_user@example.com"
+                },
+                {
+                  "hashedPhoneNumber": "hashed_sha256_normalized_+14155551234"
+                },
+                {
+                  "addressInfo": {
+                    "hashedFirstName": "hashed_sha256_normalized_jane",
+                    "hashedLastName": "hashed_sha256_normalized_doe",
+                    "hashedStreetAddress": "hashed_sha256_normalized_123 main st",
+                    "city": "San Francisco",
+                    "state": "CA",
+                    "postalCode": "94105",
+                    "countryCode": "US"
+                  }
+                }
+              ]
+            }
+          ],
+          "partialFailure": true
+        }
+      }
+    },
+    "track_remarketing": {
+      "description": "Segment track call used to add a user to a Google Ads Customer Match remarketing list via the OfflineUserDataJob API for audience targeting.",
+      "input_event": {
+        "type": "track",
+        "event": "Audience Entered",
+        "userId": "user_456",
+        "anonymousId": "anon_789",
+        "timestamp": "2026-02-25T14:30:00.000Z",
+        "properties": {
+          "audience_name": "High Value Customers",
+          "audience_key": "high_value_customers"
+        },
+        "context": {
+          "traits": {
+            "email": "vip@example.com",
+            "phone": "+14155559876",
+            "firstName": "John",
+            "lastName": "Smith",
+            "address": {
+              "city": "New York",
+              "state": "NY",
+              "postalCode": "10001",
+              "country": "US"
+            }
+          },
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "messageId": "seg-msg-rem-456"
+      },
+      "output_payload": {
+        "method": "POST",
+        "url": "https://googleads.googleapis.com/v16/customers/1234567890/offlineUserDataJobs",
+        "headers": {
+          "Authorization": "Bearer ya29.example-access-token",
+          "developer-token": "EXAMPLE_DEVELOPER_TOKEN",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "type": "CUSTOMER_MATCH_USER_LIST",
+          "customerMatchUserListMetadata": {
+            "userList": "customers/1234567890/userLists/5555555555"
+          },
+          "operations": [
+            {
+              "create": {
+                "userIdentifiers": [
+                  {
+                    "hashedEmail": "hashed_sha256_normalized_vip@example.com"
+                  },
+                  {
+                    "hashedPhoneNumber": "hashed_sha256_normalized_+14155559876"
+                  },
+                  {
+                    "addressInfo": {
+                      "hashedFirstName": "hashed_sha256_normalized_john",
+                      "hashedLastName": "hashed_sha256_normalized_smith",
+                      "city": "New York",
+                      "state": "NY",
+                      "postalCode": "10001",
+                      "countryCode": "US"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "page": {
+      "description": "Segment page call mapped to a Google Ads PageView conversion event, typically used for tracking website visits originating from Google Ads campaigns via GCLID attribution.",
+      "input_event": {
+        "type": "page",
+        "name": "Product Detail",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T11:55:00.000Z",
+        "properties": {
+          "url": "https://example.com/products/premium-widget?gclid=EAIaIQobChMI_example_gclid_value_456",
+          "title": "Premium Widget | Example Store",
+          "referrer": "https://www.google.com/",
+          "path": "/products/premium-widget"
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "traits": {
+            "email": "user@example.com"
+          },
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "messageId": "seg-msg-page-789"
+      },
+      "output_payload": {
+        "method": "POST",
+        "url": "https://googleads.googleapis.com/v16/customers/1234567890:uploadClickConversions",
+        "headers": {
+          "Authorization": "Bearer ya29.example-access-token",
+          "developer-token": "EXAMPLE_DEVELOPER_TOKEN",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "conversions": [
+            {
+              "conversionAction": "customers/1234567890/conversionActions/1111111111",
+              "gclid": "EAIaIQobChMI_example_gclid_value_456",
+              "conversionDateTime": "2026-02-25 11:55:00+00:00",
+              "conversionValue": 0,
+              "currencyCode": "USD",
+              "conversionEnvironment": "UNSPECIFIED",
+              "userIdentifiers": [
+                {
+                  "hashedEmail": "hashed_sha256_normalized_user@example.com"
+                }
+              ]
+            }
+          ],
+          "partialFailure": true
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "track": {
+      "description": "RudderStack track call mapped to Google Ads Offline Conversion Upload via the Enhanced Conversions API for an Order Completed (Purchase) event with GCLID-based attribution and hashed user identifiers.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "properties": {
+          "order_id": "order-789",
+          "revenue": 99.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 2,
+              "category": "Widgets"
+            }
+          ],
+          "gclid": "EAIaIQobChMI_example_gclid_value_123",
+          "gbraid": "",
+          "wbraid": ""
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "page": {
+            "url": "https://example.com/checkout/complete?gclid=EAIaIQobChMI_example_gclid_value_123",
+            "referrer": "https://www.google.com/"
+          },
+          "traits": {
+            "email": "user@example.com",
+            "phone": "+14155551234",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "address": {
+              "street": "123 Main St",
+              "city": "San Francisco",
+              "state": "CA",
+              "postalCode": "94105",
+              "country": "US"
+            }
+          },
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "messageId": "rs-msg-xyz-789",
+        "rudderId": "rudder-uuid-abc-123"
+      },
+      "output_payload": {
+        "method": "POST",
+        "url": "https://googleads.googleapis.com/v16/customers/1234567890:uploadClickConversions",
+        "headers": {
+          "Authorization": "Bearer ya29.example-access-token",
+          "developer-token": "EXAMPLE_DEVELOPER_TOKEN",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "conversions": [
+            {
+              "conversionAction": "customers/1234567890/conversionActions/9876543210",
+              "gclid": "EAIaIQobChMI_example_gclid_value_123",
+              "conversionDateTime": "2026-02-25 12:00:00+00:00",
+              "conversionValue": 99.99,
+              "currencyCode": "USD",
+              "orderId": "order-789",
+              "conversionEnvironment": "UNSPECIFIED",
+              "userIdentifiers": [
+                {
+                  "hashedEmail": "hashed_sha256_normalized_user@example.com"
+                },
+                {
+                  "hashedPhoneNumber": "hashed_sha256_normalized_+14155551234"
+                },
+                {
+                  "addressInfo": {
+                    "hashedFirstName": "hashed_sha256_normalized_jane",
+                    "hashedLastName": "hashed_sha256_normalized_doe",
+                    "hashedStreetAddress": "hashed_sha256_normalized_123 main st",
+                    "city": "San Francisco",
+                    "state": "CA",
+                    "postalCode": "94105",
+                    "countryCode": "US"
+                  }
+                }
+              ]
+            }
+          ],
+          "partialFailure": true
+        }
+      }
+    },
+    "track_remarketing": {
+      "description": "RudderStack track call used to add a user to a Google Ads Customer Match remarketing list via the OfflineUserDataJob API for audience targeting.",
+      "input_event": {
+        "type": "track",
+        "event": "Audience Entered",
+        "userId": "user_456",
+        "anonymousId": "anon_789",
+        "timestamp": "2026-02-25T14:30:00.000Z",
+        "originalTimestamp": "2026-02-25T14:30:00.000Z",
+        "sentAt": "2026-02-25T14:30:01.000Z",
+        "receivedAt": "2026-02-25T14:30:02.000Z",
+        "properties": {
+          "audience_name": "High Value Customers",
+          "audience_key": "high_value_customers"
+        },
+        "context": {
+          "traits": {
+            "email": "vip@example.com",
+            "phone": "+14155559876",
+            "firstName": "John",
+            "lastName": "Smith",
+            "address": {
+              "city": "New York",
+              "state": "NY",
+              "postalCode": "10001",
+              "country": "US"
+            }
+          },
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "messageId": "rs-msg-rem-456",
+        "rudderId": "rudder-uuid-rem-456"
+      },
+      "output_payload": {
+        "method": "POST",
+        "url": "https://googleads.googleapis.com/v16/customers/1234567890/offlineUserDataJobs",
+        "headers": {
+          "Authorization": "Bearer ya29.example-access-token",
+          "developer-token": "EXAMPLE_DEVELOPER_TOKEN",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "type": "CUSTOMER_MATCH_USER_LIST",
+          "customerMatchUserListMetadata": {
+            "userList": "customers/1234567890/userLists/5555555555"
+          },
+          "operations": [
+            {
+              "create": {
+                "userIdentifiers": [
+                  {
+                    "hashedEmail": "hashed_sha256_normalized_vip@example.com"
+                  },
+                  {
+                    "hashedPhoneNumber": "hashed_sha256_normalized_+14155559876"
+                  },
+                  {
+                    "addressInfo": {
+                      "hashedFirstName": "hashed_sha256_normalized_john",
+                      "hashedLastName": "hashed_sha256_normalized_smith",
+                      "city": "New York",
+                      "state": "NY",
+                      "postalCode": "10001",
+                      "countryCode": "US"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "page": {
+      "description": "RudderStack page call mapped to a Google Ads PageView conversion event, typically used for tracking website visits originating from Google Ads campaigns via GCLID attribution.",
+      "input_event": {
+        "type": "page",
+        "name": "Product Detail",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T11:55:00.000Z",
+        "originalTimestamp": "2026-02-25T11:55:00.000Z",
+        "sentAt": "2026-02-25T11:55:01.000Z",
+        "receivedAt": "2026-02-25T11:55:02.000Z",
+        "properties": {
+          "url": "https://example.com/products/premium-widget?gclid=EAIaIQobChMI_example_gclid_value_456",
+          "title": "Premium Widget | Example Store",
+          "referrer": "https://www.google.com/",
+          "path": "/products/premium-widget"
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "traits": {
+            "email": "user@example.com"
+          },
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "messageId": "rs-msg-page-012",
+        "rudderId": "rudder-uuid-page-012"
+      },
+      "output_payload": {
+        "method": "POST",
+        "url": "https://googleads.googleapis.com/v16/customers/1234567890:uploadClickConversions",
+        "headers": {
+          "Authorization": "Bearer ya29.example-access-token",
+          "developer-token": "EXAMPLE_DEVELOPER_TOKEN",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "conversions": [
+            {
+              "conversionAction": "customers/1234567890/conversionActions/1111111111",
+              "gclid": "EAIaIQobChMI_example_gclid_value_456",
+              "conversionDateTime": "2026-02-25 11:55:00+00:00",
+              "conversionValue": 0,
+              "currencyCode": "USD",
+              "conversionEnvironment": "UNSPECIFIED",
+              "userIdentifiers": [
+                {
+                  "hashedEmail": "hashed_sha256_normalized_user@example.com"
+                }
+              ]
+            }
+          ],
+          "partialFailure": true
+        }
+      }
+    }
+  },
+  "field_mappings": {
+    "conversion_action": {
+      "segment_source": "Destination settings conversionAction — resource name of the conversion action in Google Ads",
+      "rudderstack_source": "Destination config conversionAction — resource name of the conversion action in Google Ads",
+      "google_ads_field": "conversions[].conversionAction",
+      "description": "The Google Ads conversion action resource name (format: customers/{customerId}/conversionActions/{conversionActionId}). Both platforms derive this from destination configuration. Different events may map to different conversion actions based on event-to-action mapping rules."
+    },
+    "gclid_handling": {
+      "description": "Google Click ID (GCLID) is the primary attribution mechanism for Google Ads offline conversion tracking. It links a conversion event back to the specific ad click that initiated the user journey.",
+      "gclid": {
+        "segment_source": "properties.gclid or extracted from context.page.url query parameter 'gclid'",
+        "rudderstack_source": "properties.gclid or extracted from context.page.url query parameter 'gclid'",
+        "google_ads_field": "conversions[].gclid",
+        "transform": "Passed as-is (no hashing or modification)",
+        "description": "Google Click ID for Search and Shopping ads. Required for click-through conversion attribution. Mutually exclusive with gbraid/wbraid at the conversion level."
+      },
+      "gbraid": {
+        "segment_source": "properties.gbraid or extracted from context.page.url query parameter 'gbraid'",
+        "rudderstack_source": "properties.gbraid or extracted from context.page.url query parameter 'gbraid'",
+        "google_ads_field": "conversions[].gbraid",
+        "transform": "Passed as-is",
+        "description": "Google App campaign attribution identifier used for iOS 14+ campaigns where GCLID is unavailable due to Apple App Tracking Transparency (ATT). Mutually exclusive with gclid."
+      },
+      "wbraid": {
+        "segment_source": "properties.wbraid or extracted from context.page.url query parameter 'wbraid'",
+        "rudderstack_source": "properties.wbraid or extracted from context.page.url query parameter 'wbraid'",
+        "google_ads_field": "conversions[].wbraid",
+        "transform": "Passed as-is",
+        "description": "Web-to-app attribution identifier for measuring web conversions from iOS 14+ campaigns. Mutually exclusive with gclid."
+      },
+      "click_id_priority": "gclid > gbraid > wbraid — only one click identifier should be sent per conversion. GCLID is preferred when available."
+    },
+    "conversion_tracking": {
+      "conversion_date_time": {
+        "segment_source": "timestamp (ISO 8601 converted to Google Ads format: yyyy-MM-dd HH:mm:ss+HH:mm)",
+        "rudderstack_source": "timestamp (ISO 8601 converted to Google Ads format: yyyy-MM-dd HH:mm:ss+HH:mm)",
+        "google_ads_field": "conversions[].conversionDateTime",
+        "transform": "Convert ISO 8601 timestamp to Google Ads format: 'yyyy-MM-dd HH:mm:ss+HH:mm'",
+        "description": "Conversion timestamp in the Google Ads required format. Must include timezone offset. Both platforms must apply the same timestamp format conversion from ISO 8601."
+      },
+      "conversion_value": {
+        "segment_source": "properties.revenue or properties.value or properties.total",
+        "rudderstack_source": "properties.revenue or properties.value or properties.total",
+        "google_ads_field": "conversions[].conversionValue",
+        "transform": "Numeric value; defaults to 0 if not provided",
+        "description": "Monetary value of the conversion. Both platforms extract from revenue/value/total properties. Required for value-based bidding strategies in Google Ads."
+      },
+      "currency_code": {
+        "segment_source": "properties.currency or default from destination settings",
+        "rudderstack_source": "properties.currency or default from destination config",
+        "google_ads_field": "conversions[].currencyCode",
+        "transform": "ISO-4217 three-letter currency code (uppercase)",
+        "description": "Currency code for the conversion value. Defaults to destination-level configuration if not provided per-event."
+      },
+      "order_id": {
+        "segment_source": "properties.order_id or properties.orderId",
+        "rudderstack_source": "properties.order_id or properties.orderId",
+        "google_ads_field": "conversions[].orderId",
+        "transform": "Passed as-is (string)",
+        "description": "Order ID used for conversion deduplication in Google Ads. If the same orderId is uploaded multiple times for the same conversionAction, Google Ads counts it as a single conversion."
+      },
+      "conversion_environment": {
+        "segment_source": "Destination settings conversionEnvironment",
+        "rudderstack_source": "Destination config conversionEnvironment",
+        "google_ads_field": "conversions[].conversionEnvironment",
+        "transform": "Enum: UNSPECIFIED, APP, WEB",
+        "description": "Specifies the environment where the conversion occurred. Defaults to UNSPECIFIED."
+      },
+      "partial_failure": {
+        "segment_source": "Always set to true",
+        "rudderstack_source": "Always set to true",
+        "google_ads_field": "partialFailure",
+        "description": "When true, operations that fail individually do not cause the entire request to fail. Both platforms should set this to true for reliable batch upload."
+      }
+    },
+    "user_identification": {
+      "description": "Enhanced Conversions use hashed first-party user data to improve conversion attribution. All PII fields must be SHA-256 hashed after normalization (lowercase, trimming whitespace) before transmission.",
+      "email": {
+        "segment_source": "context.traits.email or properties.email",
+        "rudderstack_source": "context.traits.email or properties.email",
+        "google_ads_field": "conversions[].userIdentifiers[].hashedEmail",
+        "transform": "Lowercase, trim whitespace, remove dots from gmail local part, SHA-256 hash",
+        "description": "Email address is normalized (lowercased, trimmed) and SHA-256 hashed. Google Ads requires pre-hashed values for Enhanced Conversions."
+      },
+      "phone_number": {
+        "segment_source": "context.traits.phone or properties.phone",
+        "rudderstack_source": "context.traits.phone or properties.phone",
+        "google_ads_field": "conversions[].userIdentifiers[].hashedPhoneNumber",
+        "transform": "Convert to E.164 format, SHA-256 hash",
+        "description": "Phone number is normalized to E.164 format (with country code prefix) and SHA-256 hashed before sending to Google Ads."
+      },
+      "first_name": {
+        "segment_source": "context.traits.firstName or context.traits.first_name",
+        "rudderstack_source": "context.traits.firstName or context.traits.first_name",
+        "google_ads_field": "conversions[].userIdentifiers[].addressInfo.hashedFirstName",
+        "transform": "Lowercase, trim whitespace, SHA-256 hash",
+        "description": "First name is lowercased, trimmed, and SHA-256 hashed as part of address-based user identification."
+      },
+      "last_name": {
+        "segment_source": "context.traits.lastName or context.traits.last_name",
+        "rudderstack_source": "context.traits.lastName or context.traits.last_name",
+        "google_ads_field": "conversions[].userIdentifiers[].addressInfo.hashedLastName",
+        "transform": "Lowercase, trim whitespace, SHA-256 hash",
+        "description": "Last name is lowercased, trimmed, and SHA-256 hashed as part of address-based user identification."
+      },
+      "street_address": {
+        "segment_source": "context.traits.address.street or context.traits.address.streetAddress",
+        "rudderstack_source": "context.traits.address.street or context.traits.address.streetAddress",
+        "google_ads_field": "conversions[].userIdentifiers[].addressInfo.hashedStreetAddress",
+        "transform": "Lowercase, trim whitespace, SHA-256 hash",
+        "description": "Street address is lowercased, trimmed, and SHA-256 hashed."
+      },
+      "city": {
+        "segment_source": "context.traits.address.city",
+        "rudderstack_source": "context.traits.address.city",
+        "google_ads_field": "conversions[].userIdentifiers[].addressInfo.city",
+        "transform": "Passed as-is (not hashed)",
+        "description": "City name is sent in plain text as part of address-based user identification."
+      },
+      "state": {
+        "segment_source": "context.traits.address.state",
+        "rudderstack_source": "context.traits.address.state",
+        "google_ads_field": "conversions[].userIdentifiers[].addressInfo.state",
+        "transform": "Passed as-is (not hashed)",
+        "description": "State or province code sent in plain text."
+      },
+      "postal_code": {
+        "segment_source": "context.traits.address.postalCode or context.traits.address.zip",
+        "rudderstack_source": "context.traits.address.postalCode or context.traits.address.zip",
+        "google_ads_field": "conversions[].userIdentifiers[].addressInfo.postalCode",
+        "transform": "Passed as-is (not hashed)",
+        "description": "Postal/ZIP code sent in plain text."
+      },
+      "country": {
+        "segment_source": "context.traits.address.country",
+        "rudderstack_source": "context.traits.address.country",
+        "google_ads_field": "conversions[].userIdentifiers[].addressInfo.countryCode",
+        "transform": "ISO-3166-1 alpha-2 two-letter country code (uppercase)",
+        "description": "Country code in ISO 3166-1 alpha-2 format. Mapped from traits.address.country."
+      }
+    },
+    "remarketing_list_mapping": {
+      "description": "Customer Match / Remarketing list uploads use the OfflineUserDataJob API to add or remove users from audience lists in Google Ads for retargeting campaigns.",
+      "user_list": {
+        "segment_source": "Destination settings userListId — resource name of the Customer Match user list",
+        "rudderstack_source": "Destination config userListId — resource name of the Customer Match user list",
+        "google_ads_field": "customerMatchUserListMetadata.userList",
+        "description": "Resource name of the Customer Match user list (format: customers/{customerId}/userLists/{userListId}). Configured per destination."
+      },
+      "operation_type": {
+        "segment_source": "Derived from event type: track 'Audience Entered' → create; track 'Audience Exited' → remove",
+        "rudderstack_source": "Derived from event type: track 'Audience Entered' → create; track 'Audience Exited' → remove",
+        "google_ads_field": "operations[].create or operations[].remove",
+        "description": "The operation type determines whether users are added to or removed from the audience list."
+      },
+      "user_identifiers": {
+        "description": "Same hashing and normalization rules as Enhanced Conversions user identifiers apply. Customer Match supports hashedEmail, hashedPhoneNumber, and addressInfo.",
+        "transform": "Same SHA-256 hashing with normalization as conversion user identifiers"
+      }
+    },
+    "event_name_mapping": {
+      "description": "Maps Segment/RudderStack standard event names to Google Ads conversion action names. The mapping is typically configured at the destination level, not hardcoded.",
+      "mappings": {
+        "Order Completed": "Purchase",
+        "Product Added": "Add to Cart",
+        "Checkout Started": "Begin Checkout",
+        "Product Viewed": "View Item",
+        "Product List Viewed": "View Item List",
+        "Products Searched": "Search",
+        "Payment Info Entered": "Add Payment Info",
+        "Product Added To Wishlist": "Add to Wishlist",
+        "Signed Up": "Sign Up",
+        "Form Submitted": "Submit Lead Form",
+        "Lead Generated": "Lead",
+        "Page Viewed": "Page View"
+      },
+      "custom_events": "Non-standard event names can be mapped to custom conversion actions configured in Google Ads Manager via the destination configuration mapping."
+    },
+    "event_metadata": {
+      "customer_id": {
+        "segment_source": "Destination settings customerId",
+        "rudderstack_source": "Destination config customerId",
+        "google_ads_field": "URL path parameter: /customers/{customerId}",
+        "transform": "Remove dashes from the formatted customer ID (e.g., '123-456-7890' → '1234567890')",
+        "description": "Google Ads customer ID used in the API URL path. Must be numeric without dashes."
+      },
+      "developer_token": {
+        "segment_source": "Destination settings developerToken",
+        "rudderstack_source": "Destination config developerToken",
+        "google_ads_field": "HTTP header: developer-token",
+        "description": "Developer token for API access, sent as an HTTP header."
+      },
+      "login_customer_id": {
+        "segment_source": "Destination settings loginCustomerId (optional, for MCC accounts)",
+        "rudderstack_source": "Destination config loginCustomerId (optional, for MCC accounts)",
+        "google_ads_field": "HTTP header: login-customer-id",
+        "description": "Manager account (MCC) customer ID. Required only when making API calls on behalf of a sub-account through a manager account."
+      }
+    }
+  },
+  "parity_assessment": {
+    "status": "needs_verification",
+    "overall_parity": "medium",
+    "known_differences": [
+      {
+        "field": "context.library",
+        "description": "Segment uses 'analytics.js'; RudderStack uses 'rudder-sdk-js'. This field is in the input event and does not affect the Google Ads output payload.",
+        "severity": "none",
+        "impact": "No impact — library metadata is not forwarded to Google Ads."
+      },
+      {
+        "field": "RudderStack envelope fields",
+        "description": "RudderStack input events include additional fields: rudderId, originalTimestamp, sentAt, receivedAt. These are RudderStack-specific envelope fields not present in Segment events.",
+        "severity": "none",
+        "impact": "No impact — these envelope fields are not forwarded to Google Ads."
+      },
+      {
+        "field": "messageId format",
+        "description": "Segment and RudderStack generate messageId values using different UUID strategies. messageId is not directly sent to Google Ads but may be used internally for deduplication.",
+        "severity": "low",
+        "impact": "Minimal — Google Ads uses orderId for deduplication, not messageId."
+      },
+      {
+        "field": "GCLID extraction",
+        "description": "Both platforms extract GCLID from properties.gclid or from the page URL query parameter. Verify that URL parsing logic handles edge cases identically (encoded characters, missing parameter, fragment vs query).",
+        "severity": "medium",
+        "impact": "Missing or incorrect GCLID would break conversion attribution entirely. This is the most critical parity field."
+      },
+      {
+        "field": "conversionDateTime format",
+        "description": "Google Ads requires timestamps in 'yyyy-MM-dd HH:mm:ss+HH:mm' format. Both platforms must convert ISO 8601 timestamps identically. Verify timezone handling, especially for UTC offsets.",
+        "severity": "medium",
+        "impact": "Incorrect timestamp format causes the Google Ads API to reject the conversion upload."
+      },
+      {
+        "field": "PII hashing normalization",
+        "description": "Both platforms should SHA-256 hash email, phone, firstName, lastName, and streetAddress. Verify identical normalization steps: lowercasing, whitespace trimming, E.164 phone formatting, and gmail dot-stripping.",
+        "severity": "high",
+        "impact": "Different normalization produces different hashes, reducing Enhanced Conversion match rates and reporting accuracy."
+      },
+      {
+        "field": "revenue field priority",
+        "description": "Both platforms should map properties.revenue, properties.value, or properties.total to conversionValue. Verify the priority/fallback order is identical.",
+        "severity": "medium",
+        "impact": "Different revenue field priority could cause incorrect conversion values, affecting value-based bidding strategies."
+      },
+      {
+        "field": "Segment Actions architecture",
+        "description": "Segment's Google Ads Enhanced Conversions destination uses the Actions-based architecture with configurable field mappings and event subscriptions. RudderStack uses a fixed Transformer-based mapping. The underlying Google Ads API calls should be equivalent, but Segment's Actions allow more user customization.",
+        "severity": "low",
+        "impact": "Functional parity in default configuration, but Segment users with custom action mappings may see different behavior."
+      }
+    ],
+    "validation_requirements": [
+      "Verify conversionAction resource name is correctly derived from destination configuration",
+      "Verify GCLID extraction from properties.gclid and from page URL query parameter 'gclid' matches Segment behavior",
+      "Verify gbraid and wbraid extraction for iOS 14+ attribution matches Segment behavior",
+      "Verify conversionDateTime format conversion from ISO 8601 to Google Ads format ('yyyy-MM-dd HH:mm:ss+HH:mm') handles timezones correctly",
+      "Verify conversionValue correctly maps from properties.revenue / properties.value / properties.total with identical fallback priority",
+      "Verify currencyCode defaults to destination-level configuration when not provided per-event",
+      "Verify orderId is forwarded for deduplication when available",
+      "Verify PII fields (email, phone, firstName, lastName, streetAddress) are SHA-256 hashed with identical normalization (lowercase, trim, E.164 phone, gmail dot-stripping)",
+      "Verify addressInfo fields (city, state, postalCode, countryCode) are sent in plain text (not hashed)",
+      "Verify Customer Match remarketing list uploads use correct OfflineUserDataJob API format",
+      "Verify customer ID is formatted without dashes in the API URL path",
+      "Verify login-customer-id header is sent only when configured for MCC accounts",
+      "Verify partialFailure is set to true in all conversion upload requests",
+      "Verify conversionEnvironment enum value is correctly passed (UNSPECIFIED, APP, WEB)",
+      "Verify custom (non-standard) event names are mapped to configured conversion actions"
+    ]
+  },
+  "notes": "Google Ads is a shared cloud destination in the Advertising category. RudderStack delivers Google Ads via the Router as a cloud REST destination using the Google Ads API v16 (Conversion Upload and Customer Match endpoints). Segment has an Actions-based variant (actions-google-enhanced-conversions) with configurable field mappings. The primary integration pattern is offline conversion tracking via the uploadClickConversions endpoint, which requires GCLID-based attribution and supports Enhanced Conversions with hashed first-party user data. A secondary integration pattern supports Customer Match remarketing list uploads via the OfflineUserDataJob API for audience retargeting. Key parity focus areas: GCLID/gbraid/wbraid extraction and forwarding, conversion timestamp format conversion, PII normalization and SHA-256 hashing for Enhanced Conversions, conversion value and currency mapping, and order ID deduplication. The Google Ads Conversion API is the most critical advertising integration for attributing offline conversions to Google Ads campaigns."
+}
