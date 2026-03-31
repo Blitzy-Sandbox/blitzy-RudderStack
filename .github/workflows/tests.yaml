@@ -210,7 +210,7 @@ jobs:
       - run: go version
       - run: go mod download # Not required, used to segregate module download vs test times
       - name: tests
-        run: make test exclude="/rudder-server/(cluster|jobsdb|integration_test|processor|regulation-worker|router|services|suppression-backup-service|warehouse)"
+        run: make test exclude="/rudder-server/(cluster|functions|identity|integration_test|jobsdb|processor|protocols|regulation-worker|router|services|suppression-backup-service|warehouse)"
         env:
           RSERVER_PROCESSOR_ENABLE_CONCURRENT_STORE: "true"
           DOCKERHUB_REGISTRY_MIRROR: 422074288268.dkr.ecr.us-east-1.amazonaws.com/docker-hub
@@ -233,9 +233,14 @@ jobs:
       matrix:
         package:
           - cluster
+          - functions
+          - identity
           - jobsdb
           - integration_test/backendconfigunavailability
+          - integration_test/destination_parity
           - integration_test/docker_test
+          - integration_test/functions
+          - integration_test/identity
           - integration_test/multi_tenant_test
           - integration_test/partitionmigration
           - integration_test/reporting_dropped_events
@@ -250,11 +255,15 @@ jobs:
           - integration_test/transformer_contract
           - integration_test/sdk_compatibility
           - processor
+          - protocols
           - regulation-worker
           - router
           - services
-          - services/rsources
+          - services/alerting
           - services/dedup
+          - services/monitoring
+          - services/profiling
+          - services/rsources
           - suppression-backup-service
           - warehouse
         include:
@@ -262,6 +271,12 @@ jobs:
             exclude: services/rsources
           - package: services
             exclude: services/dedup
+          - package: services
+            exclude: services/alerting
+          - package: services
+            exclude: services/monitoring
+          - package: services
+            exclude: services/profiling
           - package: warehouse
             race: true
     steps:
