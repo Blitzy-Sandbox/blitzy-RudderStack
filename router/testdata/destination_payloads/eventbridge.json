@@ -1,0 +1,312 @@
+{
+  "destination_type": "EVENTBRIDGE",
+  "destination_tier": "stream",
+  "segment_reference_payload": {
+    "destination_slug": "amazon-eventbridge",
+    "destination_name": "Amazon EventBridge",
+    "description": "Segment's Amazon EventBridge destination sends events to a specified AWS EventBridge event bus using the PutEvents API. The event bus name, detail-type, and source are configured in the Segment destination settings. Each Segment event is mapped to a single PutEventsRequestEntry with the full event JSON as the Detail field.",
+    "alternate_slugs": ["amazon-eventbridge-actions"],
+    "supported_call_types": ["track", "identify", "page", "screen", "group", "alias"],
+    "integration_method": "AWS EventBridge PutEvents API via AWS SDK",
+    "authentication": {
+      "method": "AWS IAM",
+      "config_fields": {
+        "region": "AWS region where the event bus is deployed",
+        "roleAddress": "IAM Role ARN for cross-account event bus access",
+        "externalId": "External ID for STS AssumeRole (confused deputy protection)"
+      }
+    },
+    "eventbridge_config": {
+      "event_bus_name": "Configured in Segment destination settings; defaults to the default event bus if not specified",
+      "detail_type": "Derived from event type mapping in Segment settings (e.g., 'track', 'identify', or custom detail-type string)",
+      "source": "Segment uses a source identifier derived from the Segment workspace and source slug, typically 'segment.<source-slug>'",
+      "payload_format": "Full Segment event object serialized as JSON string in the Detail field of PutEventsRequestEntry"
+    },
+    "sample_track_event": {
+      "EventBusName": "segment-events-bus",
+      "Source": "segment.my-web-source",
+      "DetailType": "track",
+      "Detail": "{\"type\":\"track\",\"event\":\"Product Viewed\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:00:00.000Z\",\"properties\":{\"product_id\":\"SKU-001\",\"name\":\"Premium Widget\",\"price\":49.99,\"category\":\"Widgets\",\"currency\":\"USD\"},\"context\":{\"library\":{\"name\":\"analytics.js\",\"version\":\"2.1.0\"},\"ip\":\"203.0.113.42\",\"userAgent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)\"},\"messageId\":\"msg-seg-eb-001\"}"
+    },
+    "sample_identify_event": {
+      "EventBusName": "segment-events-bus",
+      "Source": "segment.my-web-source",
+      "DetailType": "identify",
+      "Detail": "{\"type\":\"identify\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:01:00.000Z\",\"traits\":{\"email\":\"user@example.com\",\"name\":\"Jane Doe\",\"plan\":\"premium\",\"company\":\"Acme Corp\"},\"context\":{\"library\":{\"name\":\"analytics.js\",\"version\":\"2.1.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-seg-eb-002\"}"
+    },
+    "sample_page_event": {
+      "EventBusName": "segment-events-bus",
+      "Source": "segment.my-web-source",
+      "DetailType": "page",
+      "Detail": "{\"type\":\"page\",\"name\":\"Home\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:02:00.000Z\",\"properties\":{\"title\":\"Home | Acme Corp\",\"url\":\"https://www.example.com/\",\"path\":\"/\",\"referrer\":\"https://www.google.com/\"},\"context\":{\"library\":{\"name\":\"analytics.js\",\"version\":\"2.1.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-seg-eb-003\"}"
+    },
+    "sample_screen_event": {
+      "EventBusName": "segment-events-bus",
+      "Source": "segment.my-web-source",
+      "DetailType": "screen",
+      "Detail": "{\"type\":\"screen\",\"name\":\"Dashboard\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:03:00.000Z\",\"properties\":{\"section\":\"main\",\"feed_type\":\"personalized\"},\"context\":{\"library\":{\"name\":\"analytics-ios\",\"version\":\"4.1.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-seg-eb-004\"}"
+    },
+    "sample_group_event": {
+      "EventBusName": "segment-events-bus",
+      "Source": "segment.my-web-source",
+      "DetailType": "group",
+      "Detail": "{\"type\":\"group\",\"userId\":\"user_123\",\"groupId\":\"group-789\",\"timestamp\":\"2026-02-25T12:04:00.000Z\",\"traits\":{\"name\":\"Acme Corp\",\"industry\":\"Technology\",\"employees\":250,\"plan\":\"enterprise\"},\"context\":{\"library\":{\"name\":\"analytics.js\",\"version\":\"2.1.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-seg-eb-005\"}"
+    },
+    "sample_alias_event": {
+      "EventBusName": "segment-events-bus",
+      "Source": "segment.my-web-source",
+      "DetailType": "alias",
+      "Detail": "{\"type\":\"alias\",\"userId\":\"user_123\",\"previousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:05:00.000Z\",\"context\":{\"library\":{\"name\":\"analytics.js\",\"version\":\"2.1.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-seg-eb-006\"}"
+    },
+    "put_events_input_format": {
+      "description": "Segment maps each event to a single PutEventsRequestEntry in the PutEventsInput.Entries array",
+      "entry_fields": {
+        "EventBusName": "From Segment destination settings; name or ARN of the target event bus",
+        "Source": "Segment-derived source identifier, typically 'segment.<source-slug>'",
+        "DetailType": "Mapped from the Segment event type (track, identify, page, screen, group, alias) or a custom detail-type configured in settings",
+        "Detail": "Full Segment event JSON serialized as a string",
+        "Time": "Derived from event timestamp or current time if not present",
+        "Resources": "Optional; typically empty array"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "producer_package": "services/streammanager/eventbridge",
+    "producer_constructor": "eventbridge.NewProducer",
+    "producer_interface": "common.StreamProducer (Produce, Close)",
+    "description": "RudderStack's EventBridge producer sends events to AWS EventBridge using the PutEvents API. The jsonData passed to Produce() is expected to be a JSON-serialized PutEventsRequestEntry object. The producer unmarshals this into a types.PutEventsRequestEntry, wraps it in a PutEventsInput with a single entry, and calls client.PutEvents(). The event bus name, detail-type, and source are set by the Transformer service based on destination config before reaching the producer.",
+    "connection": {
+      "aws_session_config": "Built via awsutils.NewSessionConfigForDestination(destination, timeout, 'eventbridge')",
+      "max_idle_conns": "Configurable via Router.EVENTBRIDGE.httpMaxIdleConnsPerHost (default 64)",
+      "aws_config": "Created via awsutil.CreateAWSConfig using session config",
+      "client_creation": "eventbridge.NewFromConfig(awsConfig)"
+    },
+    "destination_config": {
+      "region": "AWS region for EventBridge endpoint",
+      "eventBusName": "Name or ARN of the target EventBridge event bus",
+      "detailType": "Detail-type string applied to all events sent to this destination",
+      "roleARN": "IAM Role ARN for cross-account access (optional)",
+      "externalID": "External ID for STS AssumeRole (optional)"
+    },
+    "input_data_format": {
+      "description": "The Transformer service pre-formats the event data as a PutEventsRequestEntry JSON object. The producer receives this as json.RawMessage and unmarshals it directly into types.PutEventsRequestEntry.",
+      "expected_json_shape": {
+        "EventBusName": "string — target event bus name or ARN",
+        "Source": "string — event source identifier",
+        "DetailType": "string — detail-type for event routing rules",
+        "Detail": "string — JSON-encoded event payload",
+        "Time": "string (RFC3339) — event timestamp (optional)",
+        "Resources": "[]string — related AWS resource ARNs (optional)"
+      }
+    },
+    "track": {
+      "EventBusName": "rudder-events-bus",
+      "Source": "rudderstack.my-web-source",
+      "DetailType": "track",
+      "Detail": "{\"type\":\"track\",\"event\":\"Product Viewed\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:00:00.000Z\",\"properties\":{\"product_id\":\"SKU-001\",\"name\":\"Premium Widget\",\"price\":49.99,\"category\":\"Widgets\",\"currency\":\"USD\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\",\"userAgent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)\"},\"messageId\":\"msg-rs-eb-001\",\"rudderId\":\"rudder-uuid-eb-001\",\"originalTimestamp\":\"2026-02-25T12:00:00.000Z\",\"sentAt\":\"2026-02-25T12:00:01.000Z\",\"receivedAt\":\"2026-02-25T12:00:02.000Z\"}",
+      "Time": "2026-02-25T12:00:00Z",
+      "Resources": []
+    },
+    "identify": {
+      "EventBusName": "rudder-events-bus",
+      "Source": "rudderstack.my-web-source",
+      "DetailType": "identify",
+      "Detail": "{\"type\":\"identify\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:01:00.000Z\",\"traits\":{\"email\":\"user@example.com\",\"name\":\"Jane Doe\",\"plan\":\"premium\",\"company\":\"Acme Corp\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-eb-002\",\"rudderId\":\"rudder-uuid-eb-002\",\"originalTimestamp\":\"2026-02-25T12:01:00.000Z\",\"sentAt\":\"2026-02-25T12:01:01.000Z\",\"receivedAt\":\"2026-02-25T12:01:02.000Z\"}",
+      "Time": "2026-02-25T12:01:00Z",
+      "Resources": []
+    },
+    "page": {
+      "EventBusName": "rudder-events-bus",
+      "Source": "rudderstack.my-web-source",
+      "DetailType": "page",
+      "Detail": "{\"type\":\"page\",\"name\":\"Home\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:02:00.000Z\",\"properties\":{\"title\":\"Home | Acme Corp\",\"url\":\"https://www.example.com/\",\"path\":\"/\",\"referrer\":\"https://www.google.com/\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-eb-003\",\"rudderId\":\"rudder-uuid-eb-003\",\"originalTimestamp\":\"2026-02-25T12:02:00.000Z\",\"sentAt\":\"2026-02-25T12:02:01.000Z\",\"receivedAt\":\"2026-02-25T12:02:02.000Z\"}",
+      "Time": "2026-02-25T12:02:00Z",
+      "Resources": []
+    },
+    "screen": {
+      "EventBusName": "rudder-events-bus",
+      "Source": "rudderstack.my-web-source",
+      "DetailType": "screen",
+      "Detail": "{\"type\":\"screen\",\"name\":\"Dashboard\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:03:00.000Z\",\"properties\":{\"section\":\"main\",\"feed_type\":\"personalized\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-ios\",\"version\":\"2.8.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-eb-004\",\"rudderId\":\"rudder-uuid-eb-004\",\"originalTimestamp\":\"2026-02-25T12:03:00.000Z\",\"sentAt\":\"2026-02-25T12:03:01.000Z\",\"receivedAt\":\"2026-02-25T12:03:02.000Z\"}",
+      "Time": "2026-02-25T12:03:00Z",
+      "Resources": []
+    },
+    "group": {
+      "EventBusName": "rudder-events-bus",
+      "Source": "rudderstack.my-web-source",
+      "DetailType": "group",
+      "Detail": "{\"type\":\"group\",\"userId\":\"user_123\",\"groupId\":\"group-789\",\"timestamp\":\"2026-02-25T12:04:00.000Z\",\"traits\":{\"name\":\"Acme Corp\",\"industry\":\"Technology\",\"employees\":250,\"plan\":\"enterprise\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-eb-005\",\"rudderId\":\"rudder-uuid-eb-005\",\"originalTimestamp\":\"2026-02-25T12:04:00.000Z\",\"sentAt\":\"2026-02-25T12:04:01.000Z\",\"receivedAt\":\"2026-02-25T12:04:02.000Z\"}",
+      "Time": "2026-02-25T12:04:00Z",
+      "Resources": []
+    },
+    "alias": {
+      "EventBusName": "rudder-events-bus",
+      "Source": "rudderstack.my-web-source",
+      "DetailType": "alias",
+      "Detail": "{\"type\":\"alias\",\"userId\":\"user_123\",\"previousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:05:00.000Z\",\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-eb-006\",\"rudderId\":\"rudder-uuid-eb-006\",\"originalTimestamp\":\"2026-02-25T12:05:00.000Z\",\"sentAt\":\"2026-02-25T12:05:01.000Z\",\"receivedAt\":\"2026-02-25T12:05:02.000Z\"}",
+      "Time": "2026-02-25T12:05:00Z",
+      "Resources": []
+    },
+    "error_responses": {
+      "nil_client": {
+        "status_code": 400,
+        "resp_status": "Could not create producer for EventBridge",
+        "response_message": "Could not create producer for EventBridge"
+      },
+      "unmarshal_failure": {
+        "status_code": 400,
+        "resp_status": "[EventBridge] Failed to create eventbridge event",
+        "response_message": "Underlying JSON unmarshal error message"
+      },
+      "put_events_api_error": {
+        "status_code": "Derived from common.ParseAWSError(err)",
+        "resp_status": "AWS error code",
+        "response_message": "AWS error message"
+      },
+      "entry_level_error": {
+        "description": "When PutEvents returns nil error but the entry itself has ErrorCode and ErrorMessage (e.g., missing Detail, DetailType, or Source)",
+        "status_code": 400,
+        "resp_status": "ErrorCode from PutEventsResultEntry",
+        "response_message": "ErrorMessage from PutEventsResultEntry"
+      },
+      "unexpected_entries_count": {
+        "description": "PutEventsOutput.Entries count is not exactly 1 (since only one entry is sent)",
+        "status_code": 400,
+        "resp_status": "Failed to send event to eventbridge",
+        "response_message": "Failed to send event to eventbridge"
+      },
+      "success": {
+        "status_code": 200,
+        "resp_status": "Success",
+        "response_message": "Successfully sent event to eventbridge,with eventID: <event-id>"
+      }
+    }
+  },
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "field_mappings": {
+    "event_bus_name": {
+      "segment": "Configured in Segment destination settings as the event bus name or ARN; falls back to the default event bus",
+      "rudderstack": "Configured in RudderStack destination config as 'eventBusName'; passed through via the Transformer as the EventBusName field of the PutEventsRequestEntry JSON",
+      "parity_impact": "Functionally equivalent — both resolve to an EventBridge event bus via PutEvents API. Configuration source differs (Segment settings vs RudderStack destination config)"
+    },
+    "source": {
+      "segment": "Derived from the Segment workspace and source slug, typically formatted as 'segment.<source-slug>' (e.g., 'segment.my-web-source')",
+      "rudderstack": "Set by the RudderStack Transformer based on destination configuration, typically formatted as 'rudderstack.<source-slug>' or a custom source string configured in destination settings",
+      "parity_impact": "Source naming convention differs. EventBridge rules that filter on Source must be updated when migrating between platforms"
+    },
+    "detail_type": {
+      "segment": "Mapped from the Segment event type ('track', 'identify', 'page', etc.) or a custom detail-type string configured in destination settings",
+      "rudderstack": "Set by the RudderStack Transformer based on the event type or a custom detail-type from destination config; passed as the DetailType field of PutEventsRequestEntry",
+      "parity_impact": "Functionally equivalent when both use the event type as detail-type. Custom detail-type mappings may differ based on platform configuration"
+    },
+    "detail_payload": {
+      "segment": "Full Segment event JSON serialized as a string. Contains type, event, userId, anonymousId, timestamp, properties/traits, context (library: analytics.js), and messageId",
+      "rudderstack": "Full RudderStack event JSON serialized as a string. Contains the same core fields plus additional RudderStack envelope fields: rudderId, originalTimestamp, sentAt, receivedAt. Context library uses 'rudder-sdk-js' or equivalent SDK identifier",
+      "parity_impact": "RudderStack Detail payloads contain additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt). EventBridge consumers parsing the Detail JSON must tolerate these extra fields for cross-platform compatibility"
+    },
+    "time_field": {
+      "segment": "Derived from the event timestamp or current server time when the event is processed",
+      "rudderstack": "Derived from the event timestamp; set as the Time field of PutEventsRequestEntry when the Transformer includes it",
+      "parity_impact": "Functionally equivalent — both set the Time field from the event timestamp"
+    },
+    "resources_field": {
+      "segment": "Typically empty or not set",
+      "rudderstack": "Typically empty array; can be configured to include related AWS resource ARNs",
+      "parity_impact": "No significant parity impact — both typically leave this empty"
+    },
+    "context_library": {
+      "segment": "analytics.js, analytics-ios, analytics-android, etc. — Segment SDK identifiers",
+      "rudderstack": "rudder-sdk-js, rudder-sdk-ios, rudder-sdk-android, etc. — RudderStack SDK identifiers",
+      "parity_impact": "SDK library names differ. EventBridge consumers that parse event Detail and filter or process based on context.library values must be updated"
+    },
+    "envelope_fields": {
+      "segment": "Standard Segment fields: type, event, userId, anonymousId, timestamp, properties/traits, context, messageId",
+      "rudderstack": "Standard fields plus RudderStack-specific: rudderId, originalTimestamp, sentAt, receivedAt. The messageId uses a different UUID generation strategy",
+      "parity_impact": "RudderStack events include four additional envelope fields in the Detail JSON. EventBridge rules and downstream Lambda targets should use tolerant JSON parsing"
+    },
+    "authentication": {
+      "segment": "AWS IAM via role ARN configured in Segment destination settings; STS AssumeRole with optional external ID for cross-account access",
+      "rudderstack": "AWS IAM via awsutils.NewSessionConfigForDestination; supports IAM role ARN, access key/secret key, and STS AssumeRole with external ID",
+      "parity_impact": "Both support IAM role-based authentication. RudderStack additionally supports direct access key authentication. Cross-account EventBridge access works identically via STS AssumeRole on both platforms"
+    }
+  },
+  "producer_details": {
+    "constructor": "eventbridge.NewProducer(destination *backendconfig.DestinationT, o common.Opts) (common.Producer, error)",
+    "package": "services/streammanager/eventbridge",
+    "interface": "common.StreamProducer with methods: Produce(jsonData json.RawMessage, _ any) (int, string, string) and Close() error",
+    "config_structs": {
+      "EventBridgeProducer": {
+        "fields": {
+          "client": "EventBridgeClient interface"
+        },
+        "description": "Wraps an EventBridgeClient for event delivery"
+      },
+      "EventBridgeClient": {
+        "description": "Interface wrapping the AWS EventBridge PutEvents method",
+        "methods": {
+          "PutEvents": "PutEvents(ctx context.Context, input *eventbridge.PutEventsInput, opts ...func(*eventbridge.Options)) (*eventbridge.PutEventsOutput, error)"
+        }
+      }
+    },
+    "aws_session_config": {
+      "service_name": "eventbridge",
+      "max_idle_conns_config_keys": [
+        "Router.EVENTBRIDGE.httpMaxIdleConnsPerHost",
+        "Router.EVENTBRIDGE.noOfWorkers",
+        "Router.noOfWorkers"
+      ],
+      "default_max_idle_conns": 64
+    },
+    "produce_flow": {
+      "step_1": "Validate client is not nil (return 400 if nil)",
+      "step_2": "Unmarshal jsonData into types.PutEventsRequestEntry (return 400 on unmarshal error)",
+      "step_3": "Wrap entry in []types.PutEventsRequestEntry and create PutEventsInput",
+      "step_4": "Call client.PutEvents(context.Background(), &requestInput)",
+      "step_5": "On AWS API error: parse via common.ParseAWSError, log, return status code and error details",
+      "step_6": "Validate PutEventsOutput.Entries has exactly 1 entry (return 400 if not)",
+      "step_7": "Check entry-level ErrorCode and ErrorMessage (return 400 if present — indicates missing Detail/DetailType/Source)",
+      "step_8": "Return 200 with success message including EventId if present"
+    },
+    "success_response_format": {
+      "status_code": 200,
+      "resp_status": "Success",
+      "response_message": "Successfully sent event to eventbridge,with eventID: <eventID>"
+    }
+  },
+  "parity_summary": {
+    "overall_parity_status": "Needs Verification",
+    "critical_gaps": [
+      {
+        "gap": "Source naming convention",
+        "description": "Segment uses 'segment.<source-slug>' while RudderStack uses 'rudderstack.<source-slug>' or a custom source string. EventBridge rules filtering on Source field must be updated when migrating.",
+        "severity": "medium",
+        "remediation": "Ensure RudderStack Transformer supports configurable Source field to match Segment's naming convention for migration scenarios"
+      },
+      {
+        "gap": "Detail payload envelope fields",
+        "description": "RudderStack adds rudderId, originalTimestamp, sentAt, and receivedAt to the Detail JSON. Downstream EventBridge targets (Lambda, SQS, etc.) that parse the Detail must tolerate these additional fields.",
+        "severity": "medium",
+        "remediation": "Document additional fields for consumers; consider an option to omit RudderStack-specific envelope fields for strict parity mode"
+      }
+    ],
+    "non_critical_differences": [
+      {
+        "difference": "Context library name",
+        "description": "Segment SDK names (analytics.js) vs RudderStack SDK names (rudder-sdk-js) in context.library.name within the Detail JSON",
+        "impact": "EventBridge targets filtering on library name in Detail must update filters"
+      },
+      {
+        "difference": "Message ID format",
+        "description": "Different UUID generation strategies for messageId between Segment and RudderStack",
+        "impact": "No functional impact unless downstream consumers use messageId for deduplication with cross-platform correlation"
+      },
+      {
+        "difference": "Event bus name source",
+        "description": "Both platforms configure the event bus name via destination settings, but the configuration UI and backend config structure differ",
+        "impact": "No functional impact on the PutEvents API call — both resolve to the same EventBridge API parameter"
+      }
+    ],
+    "functional_equivalence": "Both platforms deliver events to AWS EventBridge via the PutEvents API using identical AWS SDK mechanisms. The core PutEventsRequestEntry fields (EventBusName, Source, DetailType, Detail, Time) are functionally equivalent. The primary parity differences are in the Source naming convention, additional RudderStack envelope fields within the Detail JSON, and context.library SDK identifiers. EventBridge routing rules and downstream consumers must be evaluated for compatibility during platform migration."
+  },
+  "notes": "EventBridge shared stream destination. Segment slugs: amazon-eventbridge, amazon-eventbridge-actions. RudderStack package: services/streammanager/eventbridge/. Both platforms use the AWS EventBridge PutEvents API to deliver events as PutEventsRequestEntry objects. RudderStack's producer receives pre-formatted PutEventsRequestEntry JSON from the Transformer service and directly unmarshals and sends it via the AWS SDK. The producer validates exactly one entry in the PutEventsOutput.Entries response, checks for entry-level errors (which occur when Detail, DetailType, or Source are missing), and returns the EventId on success. Key parity gaps: Source naming convention (segment.* vs rudderstack.*), additional RudderStack envelope fields in the Detail JSON (rudderId, originalTimestamp, sentAt, receivedAt), and SDK library name differences in context."
+}
