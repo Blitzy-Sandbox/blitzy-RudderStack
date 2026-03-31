@@ -1,0 +1,205 @@
+{
+  "destination_type": "MSSQL",
+  "destination_tier": "warehouse",
+  "segment_reference_payload": null,
+  "rudderstack_expected_payload": {
+    "loading_method": "Bulk CopyIn",
+    "driver": "go-mssqldb",
+    "connection": {
+      "protocol": "sqlserver",
+      "tls_support": true,
+      "tls_options": {
+        "encrypt": true,
+        "trust_server_certificate": false
+      },
+      "port": 1433,
+      "connection_timeout": "configurable via SetConnectionTimeout"
+    },
+    "staging": {
+      "staging_table_type": "permanent",
+      "staging_table_reason": "SQL Server scopes temp tables to session; permanent staging tables ensure visibility across operations",
+      "staging_file_format": "gzipped CSV",
+      "staging_file_source": "S3 or MinIO object storage via loadFileDownloader"
+    },
+    "schema_management": {
+      "schema_creation": "CREATE SCHEMA IF NOT EXISTS",
+      "table_creation": "CREATE TABLE with Rudder-to-MSSQL type mapping",
+      "column_addition": "ALTER TABLE ADD with dedup guards",
+      "type_mapping": {
+        "int": "bigint",
+        "float": "float",
+        "string": "nvarchar",
+        "boolean": "bit",
+        "datetime": "datetimeoffset",
+        "text": "nvarchar(MAX)",
+        "json": "nvarchar(MAX)"
+      },
+      "varchar_length": {
+        "default": 8000,
+        "max": "MAX",
+        "truncation": "values exceeding configured length are truncated"
+      }
+    },
+    "bulk_copy": {
+      "method": "go-mssqldb CopyIn streaming",
+      "description": "Rows are streamed via CopyIn API from decompressed gzipped CSV records into the staging table",
+      "encoding": {
+        "ucs2_support": true,
+        "diacritic_handling": "strings containing diacritics are re-encoded to UCS-2 via str2ucs2 for SQL Server bulk load compatibility"
+      },
+      "null_handling": "empty strings are trimmed to nil",
+      "type_coercion": "ProcessColumnValue coerces int, float, bool, datetime values; strings are clamped to configured varchar length"
+    },
+    "deduplication": {
+      "strategy": "ROW_NUMBER() OVER (PARTITION BY primary_key ORDER BY received_at DESC)",
+      "description": "Only the freshest row per primary key is inserted from the staging table into the final table",
+      "primary_key_map": "configurable per table (e.g., id for tracks, user_id for identifies)",
+      "delete_before_insert": true,
+      "delete_method": "transactional DELETE of overlapping rows via per-table primary keys"
+    },
+    "identity_merge": {
+      "union_staging_tables": true,
+      "description": "loadUserTables maintains union staging tables for identity streams, deduplicates existing rows, and refreshes identities atomically"
+    },
+    "cleanup": {
+      "drop_staging_tables": true,
+      "drop_dangling_staging_tables": true,
+      "close_connection": true
+    },
+    "sample_track_event": {
+      "table": "tracks",
+      "columns": {
+        "id": "msg-uuid-001",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "event": "Product Viewed",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "product_id": "SKU-001",
+        "product_name": "Premium Widget",
+        "price": 49.99,
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_identify_event": {
+      "table": "identifies",
+      "columns": {
+        "id": "msg-uuid-002",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "email": "user@example.com",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_page_event": {
+      "table": "pages",
+      "columns": {
+        "id": "msg-uuid-003",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "name": "Home",
+        "url": "https://example.com/",
+        "path": "/",
+        "title": "Home Page",
+        "referrer": "https://google.com",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_screen_event": {
+      "table": "screens",
+      "columns": {
+        "id": "msg-uuid-004",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "name": "Dashboard",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_group_event": {
+      "table": "groups",
+      "columns": {
+        "id": "msg-uuid-005",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "group_id": "group_789",
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "plan": "enterprise",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_alias_event": {
+      "table": "aliases",
+      "columns": {
+        "id": "msg-uuid-006",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "previous_id": "old_user_456",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "note": "RudderStack-unique. No Segment equivalent.",
+    "loading_method": "Bulk CopyIn via go-mssqldb driver; no Segment MSSQL destination exists for comparison",
+    "column_naming": "RudderStack uses snake_case column names (e.g., context_library_name, original_timestamp, received_at)",
+    "type_system": "Rudder types are mapped to MSSQL types: int→bigint, float→float, string→nvarchar, boolean→bit, datetime→datetimeoffset",
+    "staging_strategy": "Permanent staging tables with gzipped CSV file download from object storage; deduplication via ROW_NUMBER windowing",
+    "tls_encryption": "TLS support with configurable encrypt and trust_server_certificate options",
+    "encoding_notes": "Diacritic characters are re-encoded to UCS-2 for SQL Server bulk load compatibility",
+    "varchar_handling": "Default varchar length is 8000; MAX available for text/json columns; values exceeding limit are truncated"
+  },
+  "parity_status": "not_applicable",
+  "parity_coverage_percent": null,
+  "notes": "MSSQL is RudderStack-unique warehouse destination. There is no Segment MSSQL destination, so payload parity comparison is not applicable. RudderStack loads data via Bulk CopyIn using the go-mssqldb driver with TLS support, permanent staging tables, gzipped CSV file download from object storage, deduplication via ROW_NUMBER() windowing, and UCS-2 encoding for diacritic characters. The warehouse integration is located at warehouse/integrations/mssql/. ClickHouse is the only other RudderStack-unique warehouse destination."
+}
