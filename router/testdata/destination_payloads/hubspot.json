@@ -1,0 +1,665 @@
+{
+  "destination_type": "HUBSPOT",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "identify": {
+      "description": "Segment identify call maps to HubSpot Contacts API v3 — creates or updates a contact",
+      "endpoint": "POST https://api.hubapi.com/crm/v3/objects/contacts",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "properties": {
+          "email": "john.doe@example.com",
+          "firstname": "John",
+          "lastname": "Doe",
+          "phone": "+1-555-0123",
+          "company": "Acme Corp",
+          "jobtitle": "Senior Engineer",
+          "lifecyclestage": "lead",
+          "address": "123 Main St",
+          "city": "San Francisco",
+          "state": "CA",
+          "zip": "94105",
+          "country": "United States",
+          "website": "https://www.acme.com",
+          "hs_language": "en",
+          "numemployees": "51-200"
+        }
+      },
+      "update_endpoint": "PATCH https://api.hubapi.com/crm/v3/objects/contacts/{contactId}",
+      "update_request_body": {
+        "properties": {
+          "firstname": "John",
+          "lastname": "Doe",
+          "phone": "+1-555-0123",
+          "jobtitle": "Staff Engineer",
+          "lifecyclestage": "customer"
+        }
+      },
+      "upsert_endpoint": "POST https://api.hubapi.com/crm/v3/objects/contacts/batch/upsert",
+      "upsert_request_body": {
+        "inputs": [
+          {
+            "idProperty": "email",
+            "id": "john.doe@example.com",
+            "properties": {
+              "email": "john.doe@example.com",
+              "firstname": "John",
+              "lastname": "Doe",
+              "phone": "+1-555-0123",
+              "company": "Acme Corp",
+              "jobtitle": "Senior Engineer",
+              "lifecyclestage": "lead"
+            }
+          }
+        ]
+      },
+      "response_example": {
+        "id": "12345",
+        "properties": {
+          "createdate": "2026-02-25T12:00:00.000Z",
+          "email": "john.doe@example.com",
+          "firstname": "John",
+          "hs_object_id": "12345",
+          "lastmodifieddate": "2026-02-25T12:00:00.000Z",
+          "lastname": "Doe"
+        },
+        "createdAt": "2026-02-25T12:00:00.000Z",
+        "updatedAt": "2026-02-25T12:00:00.000Z",
+        "archived": false
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "traits": {
+          "email": "john.doe@example.com",
+          "firstName": "John",
+          "lastName": "Doe",
+          "phone": "+1-555-0123",
+          "company": {
+            "name": "Acme Corp",
+            "employee_count": "51-200"
+          },
+          "title": "Senior Engineer",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "United States"
+          }
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-identify-001"
+      }
+    },
+    "track": {
+      "description": "Segment track call maps to HubSpot Custom Behavioral Events API v3 — sends event occurrence",
+      "endpoint": "POST https://api.hubapi.com/events/v3/send",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "eventName": "pe12345_product_viewed",
+        "objectId": "12345",
+        "occurredAt": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "hs_page_title": "Product Page",
+          "hs_page_url": "https://www.acme.com/products/premium-widget",
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": "49.99",
+          "currency": "USD",
+          "category": "Widgets"
+        }
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets",
+          "url": "https://www.acme.com/products/premium-widget"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "title": "Product Page",
+            "url": "https://www.acme.com/products/premium-widget"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-track-001"
+      }
+    },
+    "track_deal": {
+      "description": "Segment track call with revenue event maps to HubSpot Deals API v3 — creates a deal object",
+      "endpoint": "POST https://api.hubapi.com/crm/v3/objects/deals",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "properties": {
+          "dealname": "Order Completed - Premium Widget",
+          "dealstage": "closedwon",
+          "amount": "49.99",
+          "closedate": "2026-02-25T12:00:00.000Z",
+          "pipeline": "default",
+          "hs_priority": "medium"
+        },
+        "associations": [
+          {
+            "to": {
+              "id": "12345"
+            },
+            "types": [
+              {
+                "associationCategory": "HUBSPOT_DEFINED",
+                "associationTypeId": 3
+              }
+            ]
+          }
+        ]
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "properties": {
+          "order_id": "ORD-99001",
+          "total": 49.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 1
+            }
+          ]
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-track-deal-001"
+      }
+    },
+    "page": {
+      "description": "Segment page call maps to HubSpot page view tracking via tracking code or events API",
+      "endpoint": "POST https://api.hubapi.com/events/v3/send",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "eventName": "e_visited_page",
+        "email": "john.doe@example.com",
+        "occurredAt": "2026-02-25T12:00:05.000Z",
+        "properties": {
+          "hs_page_title": "Pricing - Acme Corp",
+          "hs_page_url": "https://www.acme.com/pricing",
+          "hs_page_referrer": "https://www.google.com",
+          "hs_page_content_type": "landing-page"
+        }
+      },
+      "source_event": {
+        "type": "page",
+        "name": "Pricing",
+        "userId": "user_123",
+        "properties": {
+          "title": "Pricing - Acme Corp",
+          "url": "https://www.acme.com/pricing",
+          "path": "/pricing",
+          "referrer": "https://www.google.com"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "title": "Pricing - Acme Corp",
+            "url": "https://www.acme.com/pricing",
+            "path": "/pricing",
+            "referrer": "https://www.google.com"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:05.000Z",
+        "messageId": "seg-msg-page-001"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "identify": {
+      "description": "RudderStack identify call maps to HubSpot Contacts API v3 — creates or updates a contact",
+      "endpoint": "POST https://api.hubapi.com/crm/v3/objects/contacts",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "properties": {
+          "email": "john.doe@example.com",
+          "firstname": "John",
+          "lastname": "Doe",
+          "phone": "+1-555-0123",
+          "company": "Acme Corp",
+          "jobtitle": "Senior Engineer",
+          "lifecyclestage": "lead",
+          "address": "123 Main St",
+          "city": "San Francisco",
+          "state": "CA",
+          "zip": "94105",
+          "country": "United States",
+          "website": "https://www.acme.com",
+          "hs_language": "en",
+          "numemployees": "51-200"
+        }
+      },
+      "update_endpoint": "PATCH https://api.hubapi.com/crm/v3/objects/contacts/{contactId}",
+      "update_request_body": {
+        "properties": {
+          "firstname": "John",
+          "lastname": "Doe",
+          "phone": "+1-555-0123",
+          "jobtitle": "Staff Engineer",
+          "lifecyclestage": "customer"
+        }
+      },
+      "upsert_endpoint": "POST https://api.hubapi.com/crm/v3/objects/contacts/batch/upsert",
+      "upsert_request_body": {
+        "inputs": [
+          {
+            "idProperty": "email",
+            "id": "john.doe@example.com",
+            "properties": {
+              "email": "john.doe@example.com",
+              "firstname": "John",
+              "lastname": "Doe",
+              "phone": "+1-555-0123",
+              "company": "Acme Corp",
+              "jobtitle": "Senior Engineer",
+              "lifecyclestage": "lead"
+            }
+          }
+        ]
+      },
+      "response_example": {
+        "id": "12345",
+        "properties": {
+          "createdate": "2026-02-25T12:00:00.000Z",
+          "email": "john.doe@example.com",
+          "firstname": "John",
+          "hs_object_id": "12345",
+          "lastmodifieddate": "2026-02-25T12:00:00.000Z",
+          "lastname": "Doe"
+        },
+        "createdAt": "2026-02-25T12:00:00.000Z",
+        "updatedAt": "2026-02-25T12:00:00.000Z",
+        "archived": false
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "traits": {
+          "email": "john.doe@example.com",
+          "firstName": "John",
+          "lastName": "Doe",
+          "phone": "+1-555-0123",
+          "company": {
+            "name": "Acme Corp",
+            "employee_count": "51-200"
+          },
+          "title": "Senior Engineer",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "United States"
+          }
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-identify-001",
+        "rudderId": "rudder-uuid-identify-001"
+      }
+    },
+    "track": {
+      "description": "RudderStack track call maps to HubSpot Custom Behavioral Events API v3 — sends event occurrence",
+      "endpoint": "POST https://api.hubapi.com/events/v3/send",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "eventName": "pe12345_product_viewed",
+        "objectId": "12345",
+        "occurredAt": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "hs_page_title": "Product Page",
+          "hs_page_url": "https://www.acme.com/products/premium-widget",
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": "49.99",
+          "currency": "USD",
+          "category": "Widgets"
+        }
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets",
+          "url": "https://www.acme.com/products/premium-widget"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "title": "Product Page",
+            "url": "https://www.acme.com/products/premium-widget"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-track-001",
+        "rudderId": "rudder-uuid-track-001"
+      }
+    },
+    "track_deal": {
+      "description": "RudderStack track call with revenue event maps to HubSpot Deals API v3 — creates a deal object",
+      "endpoint": "POST https://api.hubapi.com/crm/v3/objects/deals",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "properties": {
+          "dealname": "Order Completed - Premium Widget",
+          "dealstage": "closedwon",
+          "amount": "49.99",
+          "closedate": "2026-02-25T12:00:00.000Z",
+          "pipeline": "default",
+          "hs_priority": "medium"
+        },
+        "associations": [
+          {
+            "to": {
+              "id": "12345"
+            },
+            "types": [
+              {
+                "associationCategory": "HUBSPOT_DEFINED",
+                "associationTypeId": 3
+              }
+            ]
+          }
+        ]
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "properties": {
+          "order_id": "ORD-99001",
+          "total": 49.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 1
+            }
+          ]
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-track-deal-001",
+        "rudderId": "rudder-uuid-track-deal-001"
+      }
+    },
+    "page": {
+      "description": "RudderStack page call maps to HubSpot page view tracking via events API",
+      "endpoint": "POST https://api.hubapi.com/events/v3/send",
+      "auth": {
+        "method": "Bearer token",
+        "header": "Authorization: Bearer {access_token}"
+      },
+      "request_body": {
+        "eventName": "e_visited_page",
+        "email": "john.doe@example.com",
+        "occurredAt": "2026-02-25T12:00:05.000Z",
+        "properties": {
+          "hs_page_title": "Pricing - Acme Corp",
+          "hs_page_url": "https://www.acme.com/pricing",
+          "hs_page_referrer": "https://www.google.com",
+          "hs_page_content_type": "landing-page"
+        }
+      },
+      "source_event": {
+        "type": "page",
+        "name": "Pricing",
+        "userId": "user_123",
+        "properties": {
+          "title": "Pricing - Acme Corp",
+          "url": "https://www.acme.com/pricing",
+          "path": "/pricing",
+          "referrer": "https://www.google.com"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "title": "Pricing - Acme Corp",
+            "url": "https://www.acme.com/pricing",
+            "path": "/pricing",
+            "referrer": "https://www.google.com"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:05.000Z",
+        "originalTimestamp": "2026-02-25T12:00:05.000Z",
+        "sentAt": "2026-02-25T12:00:06.000Z",
+        "receivedAt": "2026-02-25T12:00:07.000Z",
+        "messageId": "rs-msg-page-001",
+        "rudderId": "rudder-uuid-page-001"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page"
+  ],
+  "field_mappings": {
+    "identify_to_contact": {
+      "description": "Maps Segment/RudderStack identify traits to HubSpot Contact properties via Contacts API v3",
+      "endpoint": "POST /crm/v3/objects/contacts (create) or PATCH /crm/v3/objects/contacts/{contactId} (update)",
+      "trait_to_property_mapping": {
+        "traits.email": "properties.email",
+        "traits.firstName": "properties.firstname",
+        "traits.lastName": "properties.lastname",
+        "traits.phone": "properties.phone",
+        "traits.company.name": "properties.company",
+        "traits.title": "properties.jobtitle",
+        "traits.address.street": "properties.address",
+        "traits.address.city": "properties.city",
+        "traits.address.state": "properties.state",
+        "traits.address.postalCode": "properties.zip",
+        "traits.address.country": "properties.country",
+        "traits.website": "properties.website"
+      },
+      "dedup_strategy": "Email address is the primary dedup key in HubSpot. The Contacts API automatically de-duplicates on email. For upsert operations use batch/upsert with idProperty=email.",
+      "lifecycle_stage_mapping": {
+        "description": "HubSpot lifecycle stages track the contact's position in the marketing/sales funnel",
+        "segment_trait": "traits.lifecycleStage or traits.lifecycle_stage",
+        "hubspot_property": "properties.lifecyclestage",
+        "valid_values": [
+          "subscriber",
+          "lead",
+          "marketingqualifiedlead",
+          "salesqualifiedlead",
+          "opportunity",
+          "customer",
+          "evangelist",
+          "other"
+        ],
+        "note": "Lifecycle stage values are case-sensitive lowercase in HubSpot API v3. Custom lifecycle stages can be retrieved via GET /crm/v3/properties/0-1/lifecyclestage."
+      }
+    },
+    "track_to_event": {
+      "description": "Maps Segment/RudderStack track events to HubSpot Custom Behavioral Events via Events API v3",
+      "endpoint": "POST /events/v3/send",
+      "event_name_mapping": {
+        "strategy": "Segment event name is mapped to a pre-defined HubSpot custom event internal name (e.g., pe{portalId}_{snake_case_event_name})",
+        "segment_field": "event",
+        "hubspot_field": "eventName",
+        "transformation": "Event name must match a pre-defined custom event in HubSpot. Typically converted to snake_case with portal-specific prefix.",
+        "example": {
+          "segment_event": "Product Viewed",
+          "hubspot_eventName": "pe12345_product_viewed"
+        }
+      },
+      "property_mapping": {
+        "properties.*": "properties.* (passed through as custom event properties)",
+        "userId": "Used to resolve contact via objectId lookup",
+        "timestamp": "occurredAt (ISO 8601 format)",
+        "context.page.title": "properties.hs_page_title",
+        "context.page.url": "properties.hs_page_url"
+      },
+      "contact_resolution": "Contact is identified by objectId (HubSpot contact record ID), email, or utk cookie. If using userId, a lookup to resolve the HubSpot contact ID is required."
+    },
+    "track_to_deal": {
+      "description": "Maps Segment/RudderStack track revenue events to HubSpot Deals via CRM Deals API v3",
+      "endpoint": "POST /crm/v3/objects/deals",
+      "applicable_events": [
+        "Order Completed",
+        "Checkout Completed",
+        "Payment Received"
+      ],
+      "property_mapping": {
+        "event": "properties.dealname (prefixed with event name)",
+        "properties.total or properties.revenue": "properties.amount",
+        "properties.currency": "properties.hs_currency",
+        "timestamp": "properties.closedate",
+        "properties.order_id": "properties.hs_deal_id (custom property)"
+      },
+      "deal_stage_mapping": {
+        "default_stage": "closedwon",
+        "pipeline": "default",
+        "note": "Deal stage and pipeline must be pre-configured in HubSpot. Deal is associated with the contact via CRM Associations API (associationTypeId=3 for deal-to-contact)."
+      }
+    },
+    "page_to_event": {
+      "description": "Maps Segment/RudderStack page calls to HubSpot page view tracking via Events API v3",
+      "endpoint": "POST /events/v3/send",
+      "property_mapping": {
+        "name": "Used in eventName context (e_visited_page)",
+        "properties.title": "properties.hs_page_title",
+        "properties.url": "properties.hs_page_url",
+        "properties.referrer": "properties.hs_page_referrer",
+        "properties.path": "properties.hs_page_url (combined with base URL)",
+        "userId": "Used to resolve contact via email lookup",
+        "timestamp": "occurredAt"
+      },
+      "note": "HubSpot natively tracks page views via its tracking code (hubspot.js). Server-side page events require sending via the custom events API with the e_visited_page event type or a custom-defined page tracking event."
+    }
+  },
+  "parity_gaps": {
+    "event_name_mapping": {
+      "severity": "medium",
+      "description": "HubSpot requires pre-defined custom events with portal-specific internal names (pe{portalId}_{name}). Both Segment and RudderStack must map free-form event names to registered HubSpot event definitions. The mapping strategy must be consistent."
+    },
+    "contact_resolution_for_events": {
+      "severity": "medium",
+      "description": "HubSpot events API requires identifying contacts by objectId, email, or utk. Neither Segment nor RudderStack userId maps directly — a contact lookup step is needed to resolve userId to HubSpot contact ID or email."
+    },
+    "lifecycle_stage_direction": {
+      "severity": "low",
+      "description": "HubSpot enforces unidirectional lifecycle stage progression by default (cannot move backwards without clearing first). Both platforms must handle this constraint identically."
+    },
+    "deal_creation_trigger": {
+      "severity": "low",
+      "description": "Deal creation from track events is a connector-specific behavior. Both platforms should use the same revenue event names to trigger deal creation, with consistent deal property mapping."
+    },
+    "context_library_fields": {
+      "severity": "informational",
+      "description": "Segment source events have context.library.name='analytics.js'; RudderStack source events have context.library.name='rudder-sdk-js'. These are SDK-level differences and do not affect the HubSpot destination payload."
+    },
+    "rudderstack_envelope_fields": {
+      "severity": "informational",
+      "description": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to source events. These fields are stripped before sending to HubSpot API and do not affect destination payload parity."
+    },
+    "segment_variants": {
+      "severity": "informational",
+      "description": "Segment offers 3 HubSpot variants: Classic (server-side), Cloud Mode (Actions), and Web (Actions). The Actions variants use configurable field mappings with event subscriptions. RudderStack uses a single cloud connector with fixed mapping logic via the Transformer service."
+    }
+  },
+  "authentication": {
+    "method": "OAuth 2.0 Bearer Token",
+    "token_endpoint": "https://api.hubapi.com/oauth/v1/token",
+    "scopes_required": [
+      "crm.objects.contacts.read",
+      "crm.objects.contacts.write",
+      "crm.objects.deals.read",
+      "crm.objects.deals.write",
+      "analytics.behavioral_events.send"
+    ],
+    "rate_limits": {
+      "oauth_apps": "100 requests per 10 seconds per account",
+      "private_apps": "200 requests per 10 seconds per account",
+      "burst": "Burst requests may trigger 429 Too Many Requests"
+    },
+    "note": "Both Segment and RudderStack use OAuth 2.0 for HubSpot API access. API key authentication is deprecated as of November 2022."
+  },
+  "notes": "HubSpot shared cloud destination. Categories: CRM, Analytics, Email Marketing. Segment has 3 variants: Classic (legacy server-side), Cloud Mode (Actions with configurable mappings), and Web (Actions device-mode). RudderStack supports HubSpot as a cloud destination via the Router with Transformer-based payload mapping. Key HubSpot API v3 endpoints used: Contacts (/crm/v3/objects/contacts), Deals (/crm/v3/objects/deals), Custom Events (/events/v3/send). Primary dedup key is email address. Lifecycle stage values are case-sensitive lowercase. Custom behavioral events require Enterprise subscription in HubSpot. The payload parity validation should compare the final HTTP request sent to HubSpot API endpoints, ensuring identical field mapping, data type conversion, and API endpoint selection for both platforms."
+}
