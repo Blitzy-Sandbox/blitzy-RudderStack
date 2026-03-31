@@ -1,0 +1,307 @@
+{
+  "destination_type": "ONESIGNAL",
+  "destination_tier": "cloud",
+  "category": "SMS & Push Notifications",
+  "segment_slug": "onesignal",
+  "segment_new_slug": "onesignal-new",
+  "rudderstack_docs": "https://www.rudderstack.com/docs/destinations/streaming-destinations/onesignal/",
+  "segment_docs": "https://segment.com/docs/connections/destinations/catalog/onesignal-new/",
+  "authentication": {
+    "method": "rest_api_key",
+    "headers": {
+      "Authorization": "Basic <rest_api_key>",
+      "Content-Type": "application/json"
+    },
+    "notes": "Both Segment and RudderStack authenticate with OneSignal using the REST API Key. Segment uses the OneSignal OAuth flow to connect via the OneSignal dashboard. RudderStack requires the OneSignal App ID and REST API Key to be configured in the RudderStack dashboard. The REST API Key is sent as a Basic Authorization header."
+  },
+  "event_types": ["track", "identify"],
+  "segment_reference_payloads": {
+    "track": {
+      "description": "Segment track calls update OneSignal Data Tags on the user record identified by the External User ID (mapped from userId). OneSignal stores Track properties as Data Tags but drops the event name. For example, a track call with event 'Add to Cart' and properties {brand: 'Rayban'} only stores the tag 'brand=Rayban'. To retain the event name, users must manually prepend it to property keys (e.g., 'Add_to_Cart_brand').",
+      "api_endpoint": "PUT https://onesignal.com/api/v1/apps/{app_id}/users/{external_user_id}",
+      "payload": {
+        "tags": {
+          "product_name": "Premium Widget",
+          "brand": "Acme Corp",
+          "category": "Electronics",
+          "price": "49.99",
+          "currency": "USD"
+        }
+      },
+      "notes": "Segment sends Track event properties as flat key-value Data Tags to OneSignal via the Edit Tags with External User ID endpoint. The event name itself is dropped by OneSignal — only the properties are stored as tags. Tag values must be strings; numeric values are stringified. Nested objects and arrays are not supported by OneSignal and are dropped. The external_user_id path parameter is the Segment userId."
+    },
+    "identify": {
+      "description": "Segment identify calls set Data Tags on the user record in OneSignal via the External User ID. The userId is mapped to OneSignal's External User ID. All identify traits are sent as Data Tags (key-value pairs). OneSignal does not directly store email and phone as native properties; instead, they are sent as tags or require separate player/subscription records.",
+      "api_endpoint": "PUT https://onesignal.com/api/v1/apps/{app_id}/users/{external_user_id}",
+      "payload": {
+        "tags": {
+          "firstName": "John",
+          "lastName": "Doe",
+          "email": "john.doe@example.com",
+          "phone": "+15551234567",
+          "age": "30",
+          "plan": "premium",
+          "favorite_color": "purple"
+        }
+      },
+      "notes": "Segment sends all Identify traits as Data Tags to OneSignal. The userId maps to OneSignal's External User ID used in the API path. OneSignal does not store email and phone as first-class properties; to update email/phone in OneSignal, a separate player record with the email address or phone number must be created and mapped to the External User ID. Tag values are stringified. OneSignal plans may cap the number of incoming Data Tags."
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "track": {
+      "description": "RudderStack track calls update OneSignal Data Tags on the user record identified by the external user ID (mapped from userId). RudderStack sends only the properties listed in the Allowed Property List dashboard setting as tags. In the User Model (recommended), RudderStack uses the OneSignal User API to update tags via external_user_id. In the Device Model (deprecated), it uses the Edit Tags with External User ID endpoint.",
+      "api_endpoint_user_model": "PATCH https://api.onesignal.com/apps/{app_id}/users/by/external_id/{external_id}",
+      "api_endpoint_device_model": "PUT https://onesignal.com/api/v1/apps/{app_id}/users/{external_user_id}",
+      "payload_user_model": {
+        "properties": {
+          "tags": {
+            "product_name": "Premium Widget",
+            "brand": "Acme Corp",
+            "category": "Electronics",
+            "price": "49.99",
+            "currency": "USD"
+          }
+        }
+      },
+      "payload_device_model": {
+        "tags": {
+          "product_name": "Premium Widget",
+          "brand": "Acme Corp",
+          "category": "Electronics",
+          "price": "49.99",
+          "currency": "USD"
+        }
+      },
+      "notes": "RudderStack sends track event properties as Data Tags. Only properties listed in the Allowed Property List dashboard setting are included. Key-value pairs must be of String data type only. The event name is not stored by OneSignal. All devices with the particular external_user_id are updated simultaneously. Users can delete a tag by providing an empty string as its value. RudderStack supports both User Model (recommended, uses PATCH endpoint) and Device Model (deprecated, uses PUT endpoint)."
+    },
+    "identify": {
+      "description": "RudderStack identify calls create or update a device/user in OneSignal. In the User Model, RudderStack creates a user with subscriptions and maps traits to tags. In the Device Model, RudderStack maps to the Add Device (POST /players) or Edit Device (PUT /players/{id}) endpoint, setting device properties, tags, and the external_user_id.",
+      "api_endpoint_user_model": "POST https://api.onesignal.com/apps/{app_id}/users",
+      "api_endpoint_device_model_create": "POST https://onesignal.com/api/v1/players",
+      "api_endpoint_device_model_update": "PUT https://onesignal.com/api/v1/players/{player_id}",
+      "payload_user_model": {
+        "identity": {
+          "external_id": "user_123"
+        },
+        "properties": {
+          "tags": {
+            "firstName": "John",
+            "lastName": "Doe",
+            "email": "john.doe@example.com",
+            "phone": "+15551234567",
+            "age": "30",
+            "plan": "premium",
+            "favorite_color": "purple"
+          },
+          "language": "en",
+          "timezone_id": "America/New_York",
+          "country": "US"
+        },
+        "subscriptions": [
+          {
+            "type": "ChromeWeb_Push",
+            "token": "anon-id-abc-123",
+            "enabled": true
+          }
+        ]
+      },
+      "payload_device_model": {
+        "app_id": "<onesignal_app_id>",
+        "device_type": 5,
+        "identifier": "anon-id-abc-123",
+        "language": "en",
+        "timezone": -18000,
+        "device_model": "Chrome",
+        "device_os": "Windows 10",
+        "external_user_id": "user_123",
+        "tags": {
+          "firstName": "John",
+          "lastName": "Doe",
+          "email": "john.doe@example.com",
+          "phone": "+15551234567",
+          "age": "30",
+          "plan": "premium",
+          "favorite_color": "purple"
+        }
+      },
+      "notes": "RudderStack maps userId to external_user_id (Device Model) or identity.external_id (User Model). All string-typed key-value pairs from traits are mapped to the tags object as-is. Non-string values are stringified. RudderStack checks the browser name in deviceTypeMapping and maps it to OneSignal's device_type property (e.g., Chrome→5, Firefox→8, Safari→7). It also sets the anonymousId as the identifier depending on the browser name. For push notifications, the context.device.token is recommended. RudderStack supports adding devices via email or phone number when the corresponding dashboard toggle is enabled."
+    }
+  },
+  "field_mappings": {
+    "player_id_mapping": {
+      "segment_field": "N/A (managed internally by OneSignal)",
+      "rudderstack_field": "externalId[type='playerId'].id",
+      "onesignal_field": "id (player_id / subscription_id)",
+      "description": "OneSignal assigns a unique player ID (also called subscription ID) to each device/subscription record. Segment does not directly expose player IDs — it relies on External User ID for targeting. RudderStack allows specifying a playerId via the externalId array in the event context to update an existing device. If playerId is provided, RudderStack updates the device with that player ID; otherwise, a new device is created.",
+      "parity_status": "FUNCTIONAL_MATCH",
+      "gap_detail": "Segment uses a higher-level External User ID abstraction and does not expose player-level targeting. RudderStack supports direct player ID targeting via externalId, providing finer-grained device control."
+    },
+    "tag_mapping": {
+      "segment_approach": "Track properties are stored as Data Tags (event name is dropped). Identify traits are stored as Data Tags. Tag values must be strings.",
+      "rudderstack_approach": "Track properties listed in the Allowed Property List are stored as Data Tags. Identify traits (string key-value pairs) are stored as tags. Tag values must be strings.",
+      "onesignal_field": "tags",
+      "description": "Both Segment and RudderStack map event properties and user traits to OneSignal Data Tags. Tags are key-value string pairs used for user segmentation and personalized messaging. Nested objects and arrays are not supported by OneSignal. Segment automatically sends all track properties as tags, while RudderStack sends only properties from the configurable Allowed Property List.",
+      "parity_status": "FUNCTIONAL_MATCH",
+      "gap_detail": "Segment sends all track properties as tags by default, while RudderStack requires properties to be explicitly added to the Allowed Property List in the dashboard. This means RudderStack provides more control over which properties become tags, but requires additional configuration."
+    },
+    "external_user_id": {
+      "segment_field": "userId",
+      "rudderstack_field": "userId",
+      "onesignal_field": "external_user_id (Device Model) / identity.external_id (User Model)",
+      "description": "Both Segment and RudderStack map the userId to OneSignal's External User ID. This is the primary cross-device identity key in OneSignal, linking multiple device/subscription records to a single user. The external user ID must be set for track calls to update tags across all of a user's devices simultaneously.",
+      "parity_status": "MATCH"
+    },
+    "device_type_mapping": {
+      "segment_approach": "Managed by OneSignal SDK integration; Segment does not send device_type directly.",
+      "rudderstack_approach": "RudderStack checks context.device.type or browser name and maps to OneSignal device_type integer: iOS=0, Android=1, Amazon=2, WindowsPhone(MPNS)=3, ChromeApp=4, ChromeWeb=5, WindowsPhone(WNS)=6, Safari=7, Firefox=8, macOS=9, Huawei=10, SMS=11, Email=14.",
+      "onesignal_field": "device_type",
+      "description": "OneSignal uses a numeric device_type to identify the subscription channel. Segment's integration relies on the OneSignal SDK to manage device registration and type. RudderStack's server-side integration explicitly maps the device type from the event context, allowing server-side device registration without the OneSignal SDK.",
+      "parity_status": "FUNCTIONAL_MATCH",
+      "gap_detail": "Segment relies on the OneSignal SDK for device registration, while RudderStack supports server-side device registration with explicit device_type mapping."
+    },
+    "subscription_management": {
+      "segment_approach": "OneSignal SDK handles subscription creation. Segment sends traits and events after subscription exists.",
+      "rudderstack_approach": "RudderStack supports creating subscriptions via identify calls. User Model sends subscription objects with type, token, and enabled status. Device Model uses device_type and identifier fields.",
+      "onesignal_field": "subscriptions (User Model) / identifier + device_type (Device Model)",
+      "description": "Segment's integration is primarily designed for tag and event management after a device is already registered via the OneSignal SDK. RudderStack supports both approaches: server-side device/subscription creation via identify calls, and tag management via track calls.",
+      "parity_status": "RUDDERSTACK_ADVANTAGE",
+      "gap_detail": "RudderStack supports server-side device creation and subscription management that Segment's cloud-mode integration does not directly provide."
+    },
+    "email_phone_handling": {
+      "segment_approach": "OneSignal does not store email and phone as native properties from Segment. Separate player records must be created for email/phone channels and linked via External User ID.",
+      "rudderstack_approach": "RudderStack supports adding devices via email or phone number when the corresponding dashboard toggles are enabled ('Toggle on to add a device using email' / 'Toggle on to add a device using phone number'). These create separate subscription records linked to the user.",
+      "onesignal_field": "email / phone_number (subscription-level)",
+      "description": "Email and phone are subscription-level properties in OneSignal, not user-level traits. Both platforms require creating separate subscription records for email/SMS channels. RudderStack provides dashboard toggles to automate email/phone subscription creation from identify events.",
+      "parity_status": "FUNCTIONAL_MATCH",
+      "gap_detail": "RudderStack provides explicit dashboard toggles for email/phone device creation. Segment requires manual configuration through the OneSignal dashboard."
+    }
+  },
+  "parity_summary": {
+    "overall_status": "HIGH_PARITY",
+    "track_parity": "FUNCTIONAL_MATCH",
+    "identify_parity": "FUNCTIONAL_MATCH",
+    "known_gaps": [
+      {
+        "gap_id": "ONESIGNAL-001",
+        "severity": "LOW",
+        "description": "Segment sends all track properties as Data Tags by default. RudderStack requires properties to be explicitly added to the Allowed Property List in the dashboard before they are sent as tags.",
+        "impact": "RudderStack users must configure the Allowed Property List to match properties they want sent as tags. This provides more control but requires additional setup."
+      },
+      {
+        "gap_id": "ONESIGNAL-002",
+        "severity": "LOW",
+        "description": "Segment drops the event name from track calls — only properties are stored as tags. Users must manually prepend event names to property keys to retain them. Both platforms exhibit this behavior as it is a OneSignal API constraint.",
+        "impact": "No platform difference — this is a OneSignal-imposed limitation. Users on either platform must use the same workaround."
+      },
+      {
+        "gap_id": "ONESIGNAL-003",
+        "severity": "INFO",
+        "description": "Segment has both classic ('onesignal') and new ('onesignal-new') destination variants. The new variant uses OneSignal's updated OAuth-based authentication. RudderStack supports both User Model (recommended) and Device Model (deprecated) API approaches.",
+        "impact": "Different destination variant naming between platforms. No functional impact on payload parity."
+      },
+      {
+        "gap_id": "ONESIGNAL-004",
+        "severity": "INFO",
+        "description": "RudderStack supports server-side device creation via identify calls with explicit device_type mapping. Segment's cloud-mode integration relies on the OneSignal SDK for initial device registration.",
+        "impact": "RudderStack provides additional server-side device management capabilities not available in Segment's cloud-mode integration."
+      },
+      {
+        "gap_id": "ONESIGNAL-005",
+        "severity": "LOW",
+        "description": "OneSignal plans may cap incoming Data Tags. Once the tag limit is reached, user traits and properties will not update. This affects both platforms equally.",
+        "impact": "Users on both platforms must be aware of their OneSignal plan's Data Tag limits. High-volume trait updates may be silently dropped."
+      },
+      {
+        "gap_id": "ONESIGNAL-006",
+        "severity": "INFO",
+        "description": "RudderStack supports group calls that group devices with tags having the same groupId. Segment's OneSignal integration does not document group call support for the newer destination.",
+        "impact": "RudderStack users can leverage group calls for device grouping in OneSignal. Segment users would need to use track/identify calls to achieve similar functionality."
+      }
+    ],
+    "matching_features": [
+      "External User ID mapping (userId → external_user_id)",
+      "Data Tag management for user traits (identify → tags)",
+      "Data Tag management for event properties (track → tags)",
+      "String-only tag value enforcement",
+      "Nested object/array rejection (OneSignal constraint)",
+      "Cross-device tag updates via external_user_id",
+      "Tag deletion via empty string values",
+      "Email and phone subscription creation support",
+      "REST API Key authentication"
+    ]
+  },
+  "source_event_fixtures": {
+    "track_event": {
+      "type": "track",
+      "userId": "user_123",
+      "event": "Product Viewed",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "product_name": "Premium Widget",
+        "brand": "Acme Corp",
+        "category": "Electronics",
+        "price": 49.99,
+        "currency": "USD"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.48.0"
+        },
+        "ip": "192.168.1.1",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0"
+      },
+      "messageId": "msg-track-onesignal-001",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    },
+    "identify_event": {
+      "type": "identify",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "traits": {
+        "firstName": "John",
+        "lastName": "Doe",
+        "email": "john.doe@example.com",
+        "phone": "+15551234567",
+        "age": 30,
+        "plan": "premium",
+        "favorite_color": "purple"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.48.0"
+        },
+        "device": {
+          "type": "web",
+          "token": "device-push-token-abc123"
+        },
+        "browser": {
+          "name": "Chrome",
+          "version": "121.0.0.0"
+        },
+        "os": {
+          "name": "Windows",
+          "version": "10"
+        },
+        "ip": "192.168.1.1",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0",
+        "locale": "en-US",
+        "timezone": "America/New_York"
+      },
+      "integrations": {
+        "one_signal": {
+          "deviceType": "5",
+          "identifier": "device-push-token-abc123"
+        }
+      },
+      "messageId": "msg-identify-onesignal-001",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    }
+  },
+  "notes": "OneSignal is a shared cloud destination present in both RudderStack and Segment catalogs. Category: SMS & Push Notifications. OneSignal is the market leader in customer engagement via multi-channel messaging across Web and Mobile Push, In-App Messages, SMS, and Email. Both platforms use OneSignal's REST API to manage user tags and device records. The primary integration pattern for both platforms is: (1) userId maps to OneSignal's External User ID for cross-device identity; (2) Identify traits and Track properties are sent as Data Tags (flat string key-value pairs); (3) OneSignal does not natively store email/phone as user-level properties — these require separate subscription records. Segment has both a classic ('onesignal') and newer ('onesignal-new') destination variant. RudderStack supports both User Model (recommended, using OneSignal's newer User API) and Device Model (deprecated, using the legacy Players API). Payload-level parity is high — the core data flow (traits→tags, userId→external_user_id) is functionally equivalent. Key differences are in configuration approach (Segment auto-sends all properties; RudderStack uses Allowed Property List) and server-side device management (RudderStack supports direct device creation; Segment relies on OneSignal SDK)."
+}
