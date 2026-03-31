@@ -1,0 +1,502 @@
+{
+  "destination_type": "DATALAKE",
+  "destination_tier": "warehouse",
+  "description": "Datalake (S3/GCS/Azure) warehouse destination. RudderStack stores events as Parquet files on object storage (S3, GCS, Azure Blob) and manages table schemas via AWS Glue Data Catalog or a local PostgreSQL-backed schema repository. Unlike traditional warehouse integrations, Datalake is schema-management-only — it does NOT load data into SQL tables. Events are written as Parquet files to the object store by the warehouse upload pipeline, and Datalake ensures the external table schema in Glue (or local metadata) stays in sync. Segment equivalent: Segment Data Lakes (S3-based Parquet export with Glue catalog integration).",
+  "variants": {
+    "S3_DATALAKE": {
+      "description": "Amazon S3 storage backend with optional AWS Glue Data Catalog for schema management",
+      "object_storage": "S3",
+      "schema_repository": ["glue", "local"],
+      "internal_name": "s3_datalake"
+    },
+    "GCS_DATALAKE": {
+      "description": "Google Cloud Storage backend with local schema repository",
+      "object_storage": "GCS",
+      "schema_repository": ["local"],
+      "internal_name": "gcs_datalake"
+    },
+    "AZURE_DATALAKE": {
+      "description": "Azure Blob Storage backend with local schema repository",
+      "object_storage": "Azure Blob",
+      "schema_repository": ["local"],
+      "internal_name": "azure_datalake"
+    }
+  },
+  "segment_reference_payload": {
+    "product_name": "Segment Data Lakes",
+    "loading_method": "parquet_export_to_object_storage",
+    "description": "Segment Data Lakes writes event data as Parquet files to Amazon S3, organized by source, event type, and time partition. AWS Glue Data Catalog provides the external table schema, enabling query engines like Amazon Athena and Redshift Spectrum to read the data directly.",
+    "connection": {
+      "storage": "s3",
+      "bucket": "segment-datalake-example",
+      "region": "us-east-1",
+      "iam_role_arn": "arn:aws:iam::123456789012:role/SegmentDataLakeRole",
+      "glue_catalog": {
+        "enabled": true,
+        "database_name": "segment_datalake",
+        "region": "us-east-1"
+      }
+    },
+    "export_format": {
+      "file_format": "parquet",
+      "compression": "snappy",
+      "row_group_size": "128MB"
+    },
+    "partition_strategy": {
+      "method": "hive_style",
+      "keys": ["received_at"],
+      "granularity": "day",
+      "path_format": "s3://<bucket>/<source_id>/<event_type>/day=YYYY-MM-DD/"
+    },
+    "table_schema": {
+      "tracks": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "event": "STRING",
+        "event_text": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "context_user_agent": "STRING",
+        "context_locale": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "identifies": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "email": "STRING",
+        "name": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "pages": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "name": "STRING",
+        "path": "STRING",
+        "url": "STRING",
+        "title": "STRING",
+        "referrer": "STRING",
+        "search": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "screens": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "name": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "groups": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "group_id": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "aliases": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "previous_id": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "users": {
+        "id": "STRING",
+        "email": "STRING",
+        "name": "STRING",
+        "context_ip": "STRING",
+        "received_at": "TIMESTAMP"
+      }
+    },
+    "glue_table_properties": {
+      "table_type": "EXTERNAL_TABLE",
+      "serde": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+      "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+      "output_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+    },
+    "merge_strategy": {
+      "method": "append_only",
+      "description": "Segment Data Lakes is append-only; no SQL MERGE or deduplication at write time. Deduplication is handled at query time via Athena/Spectrum."
+    },
+    "sample_track_event": {
+      "id": "msg-seg-001",
+      "user_id": "user_123",
+      "anonymous_id": "anon_456",
+      "event": "Product Viewed",
+      "event_text": "Product Viewed",
+      "context_ip": "192.168.1.1",
+      "context_library_name": "analytics.js",
+      "context_library_version": "2.1.0",
+      "context_user_agent": "Mozilla/5.0",
+      "context_locale": "en-US",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "sent_at": "2026-02-25T12:00:01.000Z",
+      "received_at": "2026-02-25T12:00:02.000Z",
+      "original_timestamp": "2026-02-25T12:00:00.000Z",
+      "uuid_ts": "2026-02-25T12:00:02.000Z",
+      "product_id": "SKU-001",
+      "product_name": "Premium Widget",
+      "price": 49.99
+    }
+  },
+  "rudderstack_expected_payload": {
+    "loading_method": "schema_management_only_parquet_export",
+    "description": "RudderStack Datalake is a schema-management-only integration. The warehouse upload pipeline writes Parquet files to the configured object store (S3, GCS, or Azure Blob), and the Datalake integration manages external table schemas in AWS Glue Data Catalog or a local PostgreSQL-backed repository. LoadTable is a no-op — data is already on the object store; the integration only ensures schema consistency.",
+    "connection": {
+      "s3_datalake": {
+        "region": "us-east-1",
+        "bucketName": "rudder-datalake-example",
+        "accessKeyID": "AKIAEXAMPLE",
+        "accessKey": "secretKeyExample",
+        "prefix": "optional-path-prefix",
+        "useGlue": true,
+        "enableSSE": false
+      },
+      "gcs_datalake": {
+        "bucketName": "rudder-datalake-gcs-example",
+        "prefix": "optional-path-prefix",
+        "credentials": "gcp_service_account_json"
+      },
+      "azure_datalake": {
+        "containerName": "rudder-datalake-azure-example",
+        "prefix": "optional-path-prefix",
+        "accountName": "storageaccountexample",
+        "accountKey": "azureAccountKeyExample"
+      },
+      "schema_repository_selection": {
+        "logic": "UseGlue(warehouse) returns true when destination config has useGlue=true AND destination has AWS region set; otherwise falls back to local schema repository",
+        "glue": "S3_DATALAKE only; requires useGlue=true and valid AWS region",
+        "local": "All variants; PostgreSQL-backed schema stored via uploader GetLocalSchema/UpdateLocalSchema"
+      }
+    },
+    "data_type_mappings": {
+      "rudder_to_glue": {
+        "boolean": "boolean",
+        "int": "bigint",
+        "bigint": "bigint",
+        "float": "double",
+        "string": "varchar(65535)",
+        "datetime": "timestamp"
+      },
+      "glue_to_rudder": {
+        "boolean": "boolean",
+        "bigint": "int",
+        "double": "float",
+        "varchar(512)": "string",
+        "varchar(65535)": "string",
+        "timestamp": "datetime",
+        "string": "string"
+      },
+      "supported_array_types": [
+        "array(boolean)",
+        "array(datetime)",
+        "array(float)",
+        "array(int)",
+        "array(string)"
+      ]
+    },
+    "table_schema": {
+      "tracks": {
+        "id": "varchar(65535)",
+        "user_id": "varchar(65535)",
+        "anonymous_id": "varchar(65535)",
+        "event": "varchar(65535)",
+        "event_text": "varchar(65535)",
+        "context_ip": "varchar(65535)",
+        "context_library_name": "varchar(65535)",
+        "context_library_version": "varchar(65535)",
+        "context_user_agent": "varchar(65535)",
+        "context_locale": "varchar(65535)",
+        "timestamp": "timestamp",
+        "sent_at": "timestamp",
+        "received_at": "timestamp",
+        "original_timestamp": "timestamp",
+        "uuid_ts": "timestamp"
+      },
+      "identifies": {
+        "id": "varchar(65535)",
+        "user_id": "varchar(65535)",
+        "anonymous_id": "varchar(65535)",
+        "email": "varchar(65535)",
+        "name": "varchar(65535)",
+        "context_ip": "varchar(65535)",
+        "context_library_name": "varchar(65535)",
+        "context_library_version": "varchar(65535)",
+        "timestamp": "timestamp",
+        "sent_at": "timestamp",
+        "received_at": "timestamp",
+        "original_timestamp": "timestamp",
+        "uuid_ts": "timestamp"
+      },
+      "pages": {
+        "id": "varchar(65535)",
+        "user_id": "varchar(65535)",
+        "anonymous_id": "varchar(65535)",
+        "name": "varchar(65535)",
+        "path": "varchar(65535)",
+        "url": "varchar(65535)",
+        "title": "varchar(65535)",
+        "referrer": "varchar(65535)",
+        "search": "varchar(65535)",
+        "context_ip": "varchar(65535)",
+        "context_library_name": "varchar(65535)",
+        "context_library_version": "varchar(65535)",
+        "timestamp": "timestamp",
+        "sent_at": "timestamp",
+        "received_at": "timestamp",
+        "original_timestamp": "timestamp",
+        "uuid_ts": "timestamp"
+      },
+      "screens": {
+        "id": "varchar(65535)",
+        "user_id": "varchar(65535)",
+        "anonymous_id": "varchar(65535)",
+        "name": "varchar(65535)",
+        "context_ip": "varchar(65535)",
+        "context_library_name": "varchar(65535)",
+        "context_library_version": "varchar(65535)",
+        "timestamp": "timestamp",
+        "sent_at": "timestamp",
+        "received_at": "timestamp",
+        "original_timestamp": "timestamp",
+        "uuid_ts": "timestamp"
+      },
+      "groups": {
+        "id": "varchar(65535)",
+        "user_id": "varchar(65535)",
+        "anonymous_id": "varchar(65535)",
+        "group_id": "varchar(65535)",
+        "context_ip": "varchar(65535)",
+        "context_library_name": "varchar(65535)",
+        "context_library_version": "varchar(65535)",
+        "timestamp": "timestamp",
+        "sent_at": "timestamp",
+        "received_at": "timestamp",
+        "original_timestamp": "timestamp",
+        "uuid_ts": "timestamp"
+      },
+      "aliases": {
+        "id": "varchar(65535)",
+        "user_id": "varchar(65535)",
+        "anonymous_id": "varchar(65535)",
+        "previous_id": "varchar(65535)",
+        "context_ip": "varchar(65535)",
+        "context_library_name": "varchar(65535)",
+        "context_library_version": "varchar(65535)",
+        "timestamp": "timestamp",
+        "sent_at": "timestamp",
+        "received_at": "timestamp",
+        "original_timestamp": "timestamp",
+        "uuid_ts": "timestamp"
+      },
+      "users": {
+        "id": "varchar(65535)",
+        "email": "varchar(65535)",
+        "name": "varchar(65535)",
+        "context_ip": "varchar(65535)",
+        "received_at": "timestamp"
+      }
+    },
+    "glue_catalog_properties": {
+      "table_type": "EXTERNAL_TABLE",
+      "serde_name": "ParquetHiveSerDe",
+      "serde_serialization_lib": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+      "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+      "output_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+      "database_creation": "Glue CreateDatabase with AlreadyExistsException handled",
+      "table_creation": "Glue CreateTable with partition keys and storage descriptor; AlreadyExistsException handled",
+      "column_operations": "Glue UpdateTable with full column list including new/altered columns"
+    },
+    "partition_config": {
+      "enabled": true,
+      "description": "Datalake is a TimeWindowDestination. Parquet files are stored in time-partitioned folder paths on the object store. When using Glue, partition columns are registered in the Glue table definition and refreshed after each load.",
+      "default_time_window_format": "2006/01/02/15",
+      "custom_time_window_layout": {
+        "supported": true,
+        "config_key": "timeWindowLayout",
+        "example": "dt=2006-01-02",
+        "description": "Custom partition layout overrides the default year/month/day/hour hierarchy. The layout string is parsed to extract partition column name and format via regex."
+      },
+      "partition_folder_regex": ".*/(?P<name>.*)=(?P<value>.*)$",
+      "partition_window_regex": "^(?P<name>.*)=(?P<value>.*)$",
+      "partition_column_type": "date",
+      "refresh_partitions": "After each table load, Glue partitions are refreshed from load file locations by extracting partition values from folder paths and calling Glue BatchCreatePartition"
+    },
+    "merge_strategy": {
+      "method": "append_only",
+      "description": "Datalake is append-only. LoadTable is a no-op (returns empty stats without writing data). The warehouse upload pipeline writes Parquet files to the object store, and the Datalake integration only manages schema. No SQL MERGE, no deduplication at write time.",
+      "load_table_behavior": "No-op: logs 'Skipping load for table' and returns empty LoadTableStats",
+      "load_user_tables_behavior": "No-op: returns nil error entries for identifies and users tables to mark them as succeeded without loading",
+      "delete_by": "Not implemented",
+      "identity_merge_rules": "Not implemented (skipped)"
+    },
+    "object_storage_paths": {
+      "s3_location_format": "s3://<bucket>/<prefix>/rudder-datalake/<namespace>/<tableName>",
+      "folder_name_config": "WAREHOUSE_DATALAKE_FOLDER_NAME (default: rudder-datalake)",
+      "prefix_handling": "Optional s3prefix from destination config prepended to path"
+    },
+    "load_file_format": {
+      "primary": "parquet",
+      "description": "Events are exported as Parquet files. Glue tables use ParquetHiveSerDe for serialization/deserialization. Parquet provides columnar storage with efficient compression for analytical query patterns."
+    },
+    "users_table_handling": {
+      "identifies_table": "Schema managed; load is a no-op (marked as succeeded)",
+      "users_table": "Schema managed only if table schema exists in upload; load is a no-op (marked as succeeded)",
+      "identity_merge_rules_table": "Not supported (skipped)",
+      "identity_mappings_table": "Not supported (skipped)"
+    },
+    "sample_track_event": {
+      "id": "msg-rs-001",
+      "user_id": "user_123",
+      "anonymous_id": "anon_456",
+      "event": "Product Viewed",
+      "event_text": "Product Viewed",
+      "context_ip": "192.168.1.1",
+      "context_library_name": "rudder-sdk-js",
+      "context_library_version": "2.48.0",
+      "context_user_agent": "Mozilla/5.0",
+      "context_locale": "en-US",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "sent_at": "2026-02-25T12:00:01.000Z",
+      "received_at": "2026-02-25T12:00:02.000Z",
+      "original_timestamp": "2026-02-25T12:00:00.000Z",
+      "uuid_ts": "2026-02-25T12:00:02.000Z",
+      "product_id": "SKU-001",
+      "product_name": "Premium Widget",
+      "price": 49.99
+    },
+    "sample_parquet_path": "s3://rudder-datalake-example/optional-path-prefix/rudder-datalake/my_namespace/tracks/2026/02/25/12/part-00000.parquet"
+  },
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "field_mappings": {
+    "export_format": {
+      "description": "Both Segment and RudderStack export events as Parquet files to object storage. Parquet provides columnar storage with efficient compression for analytical workloads.",
+      "segment": "Parquet with Snappy compression to S3; files organized by source, event type, and day partition",
+      "rudderstack": "Parquet with ParquetHiveSerDe serialization; files organized by namespace, table name, and configurable time window partitions (default: year/month/day/hour)"
+    },
+    "schema_repository": {
+      "description": "Both platforms use AWS Glue Data Catalog for external table metadata management. RudderStack additionally supports a local PostgreSQL-backed schema repository as a fallback when Glue is not configured.",
+      "segment": "AWS Glue Data Catalog (required); creates database and external tables with Parquet SerDe",
+      "rudderstack": "AWS Glue Data Catalog (when useGlue=true and AWS region set) OR local PostgreSQL-backed schema repository; Glue creates EXTERNAL_TABLE entries with ParquetHiveSerDe; local repository stores schema metadata in PostgreSQL via uploader interface"
+    },
+    "partitioning_strategy": {
+      "description": "Both platforms partition data by time for efficient querying. Segment uses day-level partitions. RudderStack defaults to year/month/day/hour hierarchy with support for custom partition layouts.",
+      "segment": "Hive-style partitions by day (day=YYYY-MM-DD); fixed partition key from received_at",
+      "rudderstack": "Time-window based partitions; default format '2006/01/02/15' (year/month/day/hour); custom layout via timeWindowLayout config (e.g., 'dt=2006-01-02' for day-only partitions); partition columns registered in Glue with type 'date'; partitions refreshed via Glue BatchCreatePartition after each upload"
+    },
+    "storage_backends": {
+      "description": "Segment Data Lakes supports S3 only. RudderStack Datalake supports S3, GCS, and Azure Blob Storage, providing multi-cloud flexibility.",
+      "segment": "Amazon S3 only",
+      "rudderstack": "Amazon S3 (S3_DATALAKE), Google Cloud Storage (GCS_DATALAKE), Azure Blob Storage (AZURE_DATALAKE); each variant maps to its respective object storage provider via ObjectStorageMap"
+    },
+    "authentication": {
+      "description": "Segment uses IAM role-based authentication for S3 and Glue access. RudderStack supports access key/secret key pairs for S3 and Glue, plus provider-specific credentials for GCS and Azure.",
+      "segment": "IAM role ARN with cross-account trust policy for S3 and Glue access",
+      "rudderstack": "S3: accessKeyID + accessKey with AWS session config for both S3 and Glue client; GCS: service account credentials; Azure: account name + account key"
+    },
+    "data_loading_behavior": {
+      "description": "A critical architectural difference. Segment Data Lakes writes and deduplicates at query time. RudderStack Datalake is schema-management-only — LoadTable is a no-op because data is already written to the object store by the warehouse upload pipeline.",
+      "segment": "Append-only writes to S3; deduplication at query time via Athena/Spectrum",
+      "rudderstack": "Schema-management-only: LoadTable logs 'Skipping load' and returns empty stats; LoadUserTables returns nil errors to mark identifies/users as succeeded; the warehouse upload pipeline writes Parquet files to object storage independently; Datalake integration ensures Glue/local schema stays in sync"
+    },
+    "column_naming": {
+      "description": "Both platforms flatten nested event properties into snake_case column names for the Parquet schema.",
+      "segment": "Flattened snake_case columns (e.g., context_library_name)",
+      "rudderstack": "Flattened snake_case columns (e.g., context_library_name); column naming handled by rudder-transformer"
+    },
+    "data_type_handling": {
+      "description": "RudderStack explicitly maps between Rudder types and Glue catalog types using a bidirectional type mapping. String columns use varchar(65535) in the Glue catalog. Array types are also supported.",
+      "segment": "Standard Parquet/Glue type inference",
+      "rudderstack": "Explicit bidirectional type mapping: boolean→boolean, int→bigint, float→double, string→varchar(65535), datetime→timestamp; reverse mapping for schema discovery; supports array types: array(boolean), array(datetime), array(float), array(int), array(string)"
+    },
+    "context_library": {
+      "description": "Different SDK library identifiers in the context field.",
+      "segment": "context_library_name: analytics.js",
+      "rudderstack": "context_library_name: rudder-sdk-js"
+    },
+    "envelope_fields": {
+      "description": "Core envelope fields are identical across both platforms. The Parquet file schema includes standard event metadata columns.",
+      "segment": "Standard fields: id, timestamp, sent_at, received_at, original_timestamp, uuid_ts",
+      "rudderstack": "Same standard fields: id, timestamp, sent_at, received_at, original_timestamp, uuid_ts; additional event properties flattened as extra columns"
+    },
+    "error_classification": {
+      "description": "RudderStack classifies Datalake errors into permission categories for structured error handling and retry logic.",
+      "rudderstack_error_types": [
+        "PermissionError: AccessDeniedException: Insufficient Lake Formation permission — Required Create Database on Catalog",
+        "PermissionError: User is not authorized to perform action on resource"
+      ]
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "needs_verification",
+    "schema_compatibility": "high",
+    "merge_behavior_parity": "high",
+    "export_format_parity": "high",
+    "known_gaps": [
+      "Segment Data Lakes supports S3 only; RudderStack supports S3, GCS, and Azure Blob providing multi-cloud flexibility",
+      "Segment uses IAM role-based auth; RudderStack uses access key/secret key pairs (no IAM role assumption)",
+      "RudderStack default partition granularity is year/month/day/hour; Segment uses day-only partitions",
+      "RudderStack supports custom partition layouts via timeWindowLayout config; Segment uses a fixed partition scheme",
+      "RudderStack Datalake is schema-management-only (LoadTable is no-op); Segment Data Lakes manages both schema and data writes",
+      "RudderStack local schema repository (non-Glue fallback) has no equivalent in Segment Data Lakes",
+      "RudderStack supports array types (array(boolean), array(int), etc.) in Glue schema; Segment array type support may differ",
+      "RudderStack uses varchar(65535) for string columns in Glue; Segment may use different string type widths",
+      "Different SDK library name in context fields (rudder-sdk-js vs analytics.js)",
+      "RudderStack identity merge rules and identity mappings are not supported in Datalake (skipped); Segment behavior for identity in Data Lakes may differ"
+    ],
+    "rudderstack_unique_features": [
+      "Multi-cloud support: S3, GCS, and Azure Blob storage backends",
+      "Dual schema repository: AWS Glue Data Catalog or local PostgreSQL-backed fallback",
+      "Configurable time-window partition layouts (year/month/day/hour or custom)",
+      "Glue partition auto-refresh after each upload via BatchCreatePartition",
+      "Schema-management-only architecture separating data write from schema management",
+      "Bidirectional type mapping with array type support (array(boolean), array(datetime), array(float), array(int), array(string))",
+      "Structured error classification for Lake Formation permission errors",
+      "Thread-safe local schema repository with mutex-protected read-modify-write pattern",
+      "Configurable folder name via WAREHOUSE_DATALAKE_FOLDER_NAME (default: rudder-datalake)"
+    ]
+  },
+  "notes": "Datalake supports S3, GCS, and Azure Blob. RudderStack internal names: S3_DATALAKE, GCS_DATALAKE, AZURE_DATALAKE. Package: warehouse/integrations/datalake/. Schema management via Glue (S3 only, when useGlue=true) or local PostgreSQL repository. Parquet/JSON export with ParquetHiveSerDe in Glue catalog. Time-window partitioning (default: 2006/01/02/15). LoadTable is a no-op — schema management only. Segment equivalent: Segment Data Lakes (S3-based Parquet export with Glue catalog). Integration testing requires TEST_S3_DATALAKE_CREDENTIALS environment variable."
+}
