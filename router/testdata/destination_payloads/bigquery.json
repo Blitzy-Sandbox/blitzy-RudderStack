@@ -1,0 +1,615 @@
+{
+  "destination_type": "BIGQUERY",
+  "destination_tier": "warehouse",
+  "segment_reference_payload": {
+    "description": "Segment BigQuery warehouse destination uses GCS staging followed by BigQuery Load Jobs or direct Streaming Inserts. Events are loaded into per-type tables within a configurable dataset. Segment flattens nested objects into dot-separated column names and does not create dedup views.",
+    "loading_method": {
+      "primary": "GCS staging → BigQuery Load Job (WRITE_APPEND)",
+      "alternative": "BigQuery Streaming Insert API (insertAll)"
+    },
+    "dataset_naming": "<source_slug>",
+    "table_naming_convention": "snake_case, per event type (e.g., tracks, identifies, pages, screens, groups, aliases)",
+    "column_naming_convention": "snake_case with dot-separated nested flattening (e.g., context.library.name → context_library_name)",
+    "dedup_strategy": "No server-side dedup views; relies on downstream query deduplication or MERGE statements during sync",
+    "track": {
+      "table": "tracks",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "event": "STRING",
+        "event_text": "STRING",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "context_ip": "STRING",
+        "context_user_agent": "STRING",
+        "context_page_url": "STRING",
+        "context_page_referrer": "STRING",
+        "context_locale": "STRING"
+      },
+      "sample_row": {
+        "id": "msg-seg-bq-001",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "event": "Product Viewed",
+        "event_text": "Product Viewed",
+        "anonymous_id": "anon-seg-456",
+        "user_id": "user_123",
+        "context_library_name": "analytics.js",
+        "context_library_version": "2.1.0",
+        "context_ip": "203.0.113.50",
+        "context_user_agent": "Mozilla/5.0",
+        "context_page_url": "https://example.com/products/widget",
+        "context_page_referrer": "https://example.com/",
+        "context_locale": "en-US"
+      },
+      "custom_properties_table": "product_viewed",
+      "custom_properties_sample": {
+        "id": "msg-seg-bq-001",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "anonymous_id": "anon-seg-456",
+        "user_id": "user_123",
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "currency": "USD",
+        "category": "Widgets"
+      }
+    },
+    "identify": {
+      "table": "identifies",
+      "users_table": "users",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "email": "STRING",
+        "first_name": "STRING",
+        "last_name": "STRING",
+        "phone": "STRING",
+        "plan": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "context_ip": "STRING"
+      },
+      "sample_row": {
+        "id": "msg-seg-bq-002",
+        "received_at": "2026-02-25T12:01:02.000Z",
+        "sent_at": "2026-02-25T12:01:01.000Z",
+        "timestamp": "2026-02-25T12:01:00.000Z",
+        "original_timestamp": "2026-02-25T12:01:00.000Z",
+        "anonymous_id": "anon-seg-456",
+        "user_id": "user_123",
+        "email": "user@example.com",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "phone": "+1-555-0100",
+        "plan": "premium",
+        "context_library_name": "analytics.js",
+        "context_library_version": "2.1.0",
+        "context_ip": "203.0.113.50"
+      }
+    },
+    "page": {
+      "table": "pages",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "name": "STRING",
+        "path": "STRING",
+        "url": "STRING",
+        "referrer": "STRING",
+        "title": "STRING",
+        "search": "STRING",
+        "context_library_name": "STRING",
+        "context_ip": "STRING"
+      },
+      "sample_row": {
+        "id": "msg-seg-bq-003",
+        "received_at": "2026-02-25T12:02:02.000Z",
+        "sent_at": "2026-02-25T12:02:01.000Z",
+        "timestamp": "2026-02-25T12:02:00.000Z",
+        "original_timestamp": "2026-02-25T12:02:00.000Z",
+        "anonymous_id": "anon-seg-456",
+        "user_id": "user_123",
+        "name": "Products",
+        "path": "/products/widget",
+        "url": "https://example.com/products/widget",
+        "referrer": "https://example.com/",
+        "title": "Premium Widget - Example Store",
+        "search": "",
+        "context_library_name": "analytics.js",
+        "context_ip": "203.0.113.50"
+      }
+    },
+    "screen": {
+      "table": "screens",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "name": "STRING",
+        "context_library_name": "STRING",
+        "context_ip": "STRING",
+        "context_os_name": "STRING",
+        "context_device_model": "STRING"
+      },
+      "sample_row": {
+        "id": "msg-seg-bq-004",
+        "received_at": "2026-02-25T12:03:02.000Z",
+        "sent_at": "2026-02-25T12:03:01.000Z",
+        "timestamp": "2026-02-25T12:03:00.000Z",
+        "original_timestamp": "2026-02-25T12:03:00.000Z",
+        "anonymous_id": "anon-seg-789",
+        "user_id": "user_456",
+        "name": "Dashboard",
+        "context_library_name": "analytics-ios",
+        "context_ip": "198.51.100.42",
+        "context_os_name": "iOS",
+        "context_device_model": "iPhone 15"
+      }
+    },
+    "group": {
+      "table": "groups",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "group_id": "STRING",
+        "name": "STRING",
+        "industry": "STRING",
+        "plan": "STRING",
+        "employees": "INTEGER",
+        "context_library_name": "STRING",
+        "context_ip": "STRING"
+      },
+      "sample_row": {
+        "id": "msg-seg-bq-005",
+        "received_at": "2026-02-25T12:04:02.000Z",
+        "sent_at": "2026-02-25T12:04:01.000Z",
+        "timestamp": "2026-02-25T12:04:00.000Z",
+        "original_timestamp": "2026-02-25T12:04:00.000Z",
+        "anonymous_id": "anon-seg-456",
+        "user_id": "user_123",
+        "group_id": "org_789",
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "plan": "enterprise",
+        "employees": 500,
+        "context_library_name": "analytics.js",
+        "context_ip": "203.0.113.50"
+      }
+    },
+    "alias": {
+      "table": "aliases",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "previous_id": "STRING",
+        "context_library_name": "STRING",
+        "context_ip": "STRING"
+      },
+      "sample_row": {
+        "id": "msg-seg-bq-006",
+        "received_at": "2026-02-25T12:05:02.000Z",
+        "sent_at": "2026-02-25T12:05:01.000Z",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "original_timestamp": "2026-02-25T12:05:00.000Z",
+        "anonymous_id": "anon-seg-456",
+        "user_id": "user_123",
+        "previous_id": "anon-seg-456",
+        "context_library_name": "analytics.js",
+        "context_ip": "203.0.113.50"
+      }
+    },
+    "nested_field_handling": "Segment flattens nested JSON objects into dot-separated column names (e.g., context.library.name becomes context_library_name). Arrays are typically stored as JSON strings.",
+    "partition_strategy": "Ingestion-time partitioning by default; configurable per-source"
+  },
+  "rudderstack_expected_payload": {
+    "description": "RudderStack BigQuery warehouse destination uses GCS staging followed by BigQuery Load Jobs. It creates dedup views (<table>_view) for each table using ROW_NUMBER() windowing. Loading is managed by the warehouse service with a 7-state upload state machine. Column names use lowercase snake_case. BQSTREAM (separate stream connector) provides direct Streaming Inserts as an alternative path.",
+    "loading_method": {
+      "primary": "GCS staging → BigQuery Load Job (loadTableByAppend)",
+      "alternative": "BQSTREAM stream connector for real-time Streaming Inserts (separate destination type)"
+    },
+    "dataset_naming": "<namespace> (derived from source name, lowercased, sanitized)",
+    "table_naming_convention": "snake_case, per event type (tracks, identifies, pages, screens, groups, aliases, users, rudder_discards, rudder_identity_merge_rules, rudder_identity_mappings)",
+    "column_naming_convention": "lowercase snake_case with underscore-separated nested flattening (e.g., context.library.name → context_library_name). ToProviderCase for BQ returns string as-is (no case conversion).",
+    "dedup_strategy": "Creates <table>_view dedup views using: SELECT * EXCEPT(__row_number) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY <partition_key> ORDER BY loaded_at DESC) AS __row_number FROM <table> WHERE <partition_filter> BETWEEN <60_day_window>) WHERE __row_number = 1",
+    "dedup_partition_keys": {
+      "users": "id",
+      "identifies": "id",
+      "tracks": "id",
+      "pages": "id",
+      "screens": "id",
+      "groups": "id",
+      "aliases": "id",
+      "rudder_discards": "row_id, column_name, table_name",
+      "rudder_identity_merge_rules": "merge_property_1_type, merge_property_1_value, merge_property_2_type, merge_property_2_value",
+      "rudder_identity_mappings": "merge_property_type, merge_property_value"
+    },
+    "data_type_mappings": {
+      "boolean": "BOOLEAN",
+      "int": "INTEGER",
+      "float": "FLOAT",
+      "string": "STRING",
+      "datetime": "TIMESTAMP"
+    },
+    "track": {
+      "table": "tracks",
+      "view": "tracks_view",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "event": "STRING",
+        "event_text": "STRING",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "context_ip": "STRING",
+        "context_user_agent": "STRING",
+        "context_page_url": "STRING",
+        "context_page_referrer": "STRING",
+        "context_locale": "STRING",
+        "uuid_ts": "TIMESTAMP",
+        "loaded_at": "TIMESTAMP"
+      },
+      "sample_row": {
+        "id": "msg-rs-bq-001",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "event": "Product Viewed",
+        "event_text": "Product Viewed",
+        "anonymous_id": "anon-rs-456",
+        "user_id": "user_123",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.x.x",
+        "context_ip": "203.0.113.50",
+        "context_user_agent": "Mozilla/5.0",
+        "context_page_url": "https://example.com/products/widget",
+        "context_page_referrer": "https://example.com/",
+        "context_locale": "en-US",
+        "uuid_ts": "2026-02-25T12:00:03.000Z",
+        "loaded_at": "2026-02-25T12:00:05.000Z"
+      },
+      "custom_properties_table": "product_viewed",
+      "custom_properties_view": "product_viewed_view",
+      "custom_properties_sample": {
+        "id": "msg-rs-bq-001",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "anonymous_id": "anon-rs-456",
+        "user_id": "user_123",
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "currency": "USD",
+        "category": "Widgets",
+        "uuid_ts": "2026-02-25T12:00:03.000Z",
+        "loaded_at": "2026-02-25T12:00:05.000Z"
+      }
+    },
+    "identify": {
+      "table": "identifies",
+      "view": "identifies_view",
+      "users_table": "users",
+      "users_view": "users_view",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "email": "STRING",
+        "first_name": "STRING",
+        "last_name": "STRING",
+        "phone": "STRING",
+        "plan": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "context_ip": "STRING",
+        "uuid_ts": "TIMESTAMP",
+        "loaded_at": "TIMESTAMP"
+      },
+      "users_dedup_note": "users table id column is derived from identifies.user_id. The user_id column is removed from the users table. Users table is loaded via staging table with FIRST_VALUE dedup query.",
+      "sample_row": {
+        "id": "msg-rs-bq-002",
+        "received_at": "2026-02-25T12:01:02.000Z",
+        "sent_at": "2026-02-25T12:01:01.000Z",
+        "timestamp": "2026-02-25T12:01:00.000Z",
+        "original_timestamp": "2026-02-25T12:01:00.000Z",
+        "anonymous_id": "anon-rs-456",
+        "user_id": "user_123",
+        "email": "user@example.com",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "phone": "+1-555-0100",
+        "plan": "premium",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.x.x",
+        "context_ip": "203.0.113.50",
+        "uuid_ts": "2026-02-25T12:01:03.000Z",
+        "loaded_at": "2026-02-25T12:01:05.000Z"
+      }
+    },
+    "page": {
+      "table": "pages",
+      "view": "pages_view",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "name": "STRING",
+        "path": "STRING",
+        "url": "STRING",
+        "referrer": "STRING",
+        "title": "STRING",
+        "search": "STRING",
+        "context_library_name": "STRING",
+        "context_ip": "STRING",
+        "uuid_ts": "TIMESTAMP",
+        "loaded_at": "TIMESTAMP"
+      },
+      "sample_row": {
+        "id": "msg-rs-bq-003",
+        "received_at": "2026-02-25T12:02:02.000Z",
+        "sent_at": "2026-02-25T12:02:01.000Z",
+        "timestamp": "2026-02-25T12:02:00.000Z",
+        "original_timestamp": "2026-02-25T12:02:00.000Z",
+        "anonymous_id": "anon-rs-456",
+        "user_id": "user_123",
+        "name": "Products",
+        "path": "/products/widget",
+        "url": "https://example.com/products/widget",
+        "referrer": "https://example.com/",
+        "title": "Premium Widget - Example Store",
+        "search": "",
+        "context_library_name": "rudder-sdk-js",
+        "context_ip": "203.0.113.50",
+        "uuid_ts": "2026-02-25T12:02:03.000Z",
+        "loaded_at": "2026-02-25T12:02:05.000Z"
+      }
+    },
+    "screen": {
+      "table": "screens",
+      "view": "screens_view",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "name": "STRING",
+        "context_library_name": "STRING",
+        "context_ip": "STRING",
+        "context_os_name": "STRING",
+        "context_device_model": "STRING",
+        "uuid_ts": "TIMESTAMP",
+        "loaded_at": "TIMESTAMP"
+      },
+      "sample_row": {
+        "id": "msg-rs-bq-004",
+        "received_at": "2026-02-25T12:03:02.000Z",
+        "sent_at": "2026-02-25T12:03:01.000Z",
+        "timestamp": "2026-02-25T12:03:00.000Z",
+        "original_timestamp": "2026-02-25T12:03:00.000Z",
+        "anonymous_id": "anon-rs-789",
+        "user_id": "user_456",
+        "name": "Dashboard",
+        "context_library_name": "rudder-sdk-ios",
+        "context_ip": "198.51.100.42",
+        "context_os_name": "iOS",
+        "context_device_model": "iPhone 15",
+        "uuid_ts": "2026-02-25T12:03:03.000Z",
+        "loaded_at": "2026-02-25T12:03:05.000Z"
+      }
+    },
+    "group": {
+      "table": "groups",
+      "view": "groups_view",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "group_id": "STRING",
+        "name": "STRING",
+        "industry": "STRING",
+        "plan": "STRING",
+        "employees": "INTEGER",
+        "context_library_name": "STRING",
+        "context_ip": "STRING",
+        "uuid_ts": "TIMESTAMP",
+        "loaded_at": "TIMESTAMP"
+      },
+      "sample_row": {
+        "id": "msg-rs-bq-005",
+        "received_at": "2026-02-25T12:04:02.000Z",
+        "sent_at": "2026-02-25T12:04:01.000Z",
+        "timestamp": "2026-02-25T12:04:00.000Z",
+        "original_timestamp": "2026-02-25T12:04:00.000Z",
+        "anonymous_id": "anon-rs-456",
+        "user_id": "user_123",
+        "group_id": "org_789",
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "plan": "enterprise",
+        "employees": 500,
+        "context_library_name": "rudder-sdk-js",
+        "context_ip": "203.0.113.50",
+        "uuid_ts": "2026-02-25T12:04:03.000Z",
+        "loaded_at": "2026-02-25T12:04:05.000Z"
+      }
+    },
+    "alias": {
+      "table": "aliases",
+      "view": "aliases_view",
+      "columns": {
+        "id": "STRING",
+        "received_at": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "timestamp": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "anonymous_id": "STRING",
+        "user_id": "STRING",
+        "previous_id": "STRING",
+        "context_library_name": "STRING",
+        "context_ip": "STRING",
+        "uuid_ts": "TIMESTAMP",
+        "loaded_at": "TIMESTAMP"
+      },
+      "sample_row": {
+        "id": "msg-rs-bq-006",
+        "received_at": "2026-02-25T12:05:02.000Z",
+        "sent_at": "2026-02-25T12:05:01.000Z",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "original_timestamp": "2026-02-25T12:05:00.000Z",
+        "anonymous_id": "anon-rs-456",
+        "user_id": "user_123",
+        "previous_id": "anon-rs-456",
+        "context_library_name": "rudder-sdk-js",
+        "context_ip": "203.0.113.50",
+        "uuid_ts": "2026-02-25T12:05:03.000Z",
+        "loaded_at": "2026-02-25T12:05:05.000Z"
+      }
+    },
+    "system_tables": {
+      "rudder_discards": {
+        "description": "Stores events that could not be loaded into their target table due to schema mismatches",
+        "columns": {
+          "row_id": "STRING",
+          "column_name": "STRING",
+          "column_value": "STRING",
+          "table_name": "STRING",
+          "received_at": "TIMESTAMP",
+          "uuid_ts": "TIMESTAMP",
+          "loaded_at": "TIMESTAMP"
+        },
+        "dedup_key": "row_id, column_name, table_name"
+      },
+      "rudder_identity_merge_rules": {
+        "description": "Identity resolution merge rules for warehouse identity resolution",
+        "columns": {
+          "merge_property_1_type": "STRING",
+          "merge_property_1_value": "STRING",
+          "merge_property_2_type": "STRING",
+          "merge_property_2_value": "STRING"
+        },
+        "dedup_key": "merge_property_1_type, merge_property_1_value, merge_property_2_type, merge_property_2_value"
+      },
+      "rudder_identity_mappings": {
+        "description": "Identity resolution mappings between merge property types and values",
+        "columns": {
+          "merge_property_type": "STRING",
+          "merge_property_value": "STRING",
+          "rudder_id": "STRING",
+          "updated_at": "TIMESTAMP"
+        },
+        "dedup_key": "merge_property_type, merge_property_value"
+      }
+    },
+    "nested_field_handling": "RudderStack flattens nested JSON objects into underscore-separated column names (e.g., context.library.name → context_library_name). Deeply nested objects beyond two levels are stored as JSON STRING columns. Arrays are serialized as JSON strings.",
+    "partition_strategy": {
+      "default": "Ingestion-time partitioning (DAY granularity) using _PARTITIONTIME pseudo-column",
+      "custom": "Configurable column-based partitioning (e.g., received_at with HOUR/DAY/MONTH/YEAR granularity) when Warehouse.bigquery.customPartitionsEnabled is true",
+      "supported_types": ["HOUR", "DAY", "MONTH", "YEAR"],
+      "allowed_columns": ["received_at", "timestamp", "original_timestamp", "sent_at", "loaded_at", "_PARTITIONTIME"]
+    }
+  },
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "field_mappings": {
+    "table_schema_naming": {
+      "description": "Both platforms use lowercase snake_case table and column names for BigQuery. RudderStack's ToProviderCase for BQ returns names unchanged (lowercase). Segment uses dot-separated nested flattening.",
+      "segment_dataset": "<source_slug>",
+      "rudderstack_dataset": "<namespace> (from source name, lowercased, special chars replaced with underscores)",
+      "table_names_shared": ["tracks", "identifies", "users", "pages", "screens", "groups", "aliases"],
+      "rudderstack_additional_tables": ["rudder_discards", "rudder_identity_merge_rules", "rudder_identity_mappings"],
+      "custom_event_tables": "Both platforms create per-event-name tables for track events (e.g., 'Product Viewed' → product_viewed)"
+    },
+    "dedup_view_strategy": {
+      "description": "RudderStack creates <table>_view for each event table using ROW_NUMBER() windowed dedup. Segment does not create server-side dedup views.",
+      "rudderstack_views": ["tracks_view", "identifies_view", "users_view", "pages_view", "screens_view", "groups_view", "aliases_view"],
+      "rudderstack_dedup_query_pattern": "SELECT * EXCEPT(__row_number) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY {partition_key} ORDER BY loaded_at DESC) AS __row_number FROM `{project}.{dataset}.{table}` WHERE {partition_filter} BETWEEN TIMESTAMP_TRUNC(TIMESTAMP_MICROS(UNIX_MICROS(CURRENT_TIMESTAMP()) - 60*60*24*60*1000000), {granularity}, 'UTC') AND TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), {granularity}, 'UTC')) WHERE __row_number = 1",
+      "dedup_window": "60 days (60 * 60 * 24 * 60 * 1000000 microseconds)",
+      "segment_approach": "No server-side dedup views; downstream queries must handle deduplication",
+      "parity_gap": "RudderStack provides built-in dedup views which Segment does not. Users migrating from Segment need to be aware that RudderStack queries should use _view tables for deduplicated results."
+    },
+    "nested_field_handling": {
+      "description": "Both platforms flatten nested JSON objects to columnar format, but depth handling differs.",
+      "segment_approach": "Flattens all nested objects recursively into dot-separated column names. Arrays stored as JSON strings.",
+      "rudderstack_approach": "Flattens nested objects into underscore-separated column names (same end result). Deeply nested objects beyond configurable depth stored as JSON STRING. Arrays serialized as JSON strings.",
+      "parity_gap": "Column names produced are equivalent (context_library_name) but handling of deeply nested objects and arrays may differ in edge cases."
+    },
+    "rudderstack_additional_columns": {
+      "uuid_ts": "RudderStack adds uuid_ts (TIMESTAMP) to all event tables — timestamp of when the event was assigned a UUID during processing",
+      "loaded_at": "RudderStack adds loaded_at (TIMESTAMP) to event tables and rudder_discards — timestamp of when the row was loaded into BigQuery",
+      "rudder_id": "Present in identity mapping tables for warehouse identity resolution"
+    },
+    "context_library_difference": {
+      "segment": "context_library_name = 'analytics.js' (or analytics-ios, analytics-android, etc.)",
+      "rudderstack": "context_library_name = 'rudder-sdk-js' (or rudder-sdk-ios, rudder-sdk-android, etc.)"
+    },
+    "message_id_field": {
+      "segment": "id column derived from messageId",
+      "rudderstack": "id column derived from messageId (generated by SDK or server)"
+    },
+    "users_table_special_handling": {
+      "description": "Both platforms maintain a users table derived from identify events. RudderStack uses FIRST_VALUE dedup via staging table during LoadUserTables.",
+      "segment": "users table populated from identifies; id is user_id",
+      "rudderstack": "users(id) maps to identifies(user_id); user_id column is removed from users table; LoadUserTables creates staging table with FIRST_VALUE dedup"
+    },
+    "bqstream_alternative": {
+      "description": "RudderStack offers BQSTREAM as a separate stream destination type for real-time Streaming Inserts to BigQuery. This is a RudderStack-unique capability not available in Segment.",
+      "destination_type": "BQSTREAM",
+      "loading_method": "BigQuery Streaming Insert API via services/streammanager/bqstream/",
+      "format": "GenericRecord (map[string]bigquery.Value) inserted via Inserter.Put()",
+      "config_fields": ["projectId", "datasetId", "tableId", "credentialsJSON"]
+    }
+  },
+  "notes": "BigQuery shared warehouse destination. Key parity gaps: (1) Table schema naming — both use snake_case but RudderStack adds rudder_discards, rudder_identity_merge_rules, rudder_identity_mappings system tables; (2) Dedup view strategy — RudderStack creates <table>_view dedup views using ROW_NUMBER() OVER with 60-day window, Segment has no server-side dedup views; (3) Nested field handling — both flatten nested objects to underscore-separated columns but depth limits and array handling may differ; (4) Additional columns — RudderStack adds uuid_ts and loaded_at to all tables; (5) Users table — RudderStack removes user_id from users table and uses id = identifies.user_id with FIRST_VALUE staging dedup; (6) BQSTREAM — RudderStack-unique stream connector for real-time BigQuery Streaming Inserts (separate destination type). Segment handles BigQuery exclusively as a warehouse sync destination. RudderStack source: warehouse/integrations/bigquery/ and services/streammanager/bqstream/."
+}
