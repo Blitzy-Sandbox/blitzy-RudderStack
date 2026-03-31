@@ -139,6 +139,89 @@ func (rt *Handle) pipelineDelayStats(partition string, first, last *jobsdb.JobT)
 	stats.Default.NewTaggedStat("pipeline_delay_max_seconds", stats.GaugeType, stats.Tags{"destType": rt.destType, "partition": partition, "module": "router"}).Gauge(firstJobDelay)
 }
 
+// recordDeliverySuccess records a successful delivery event for the given destination.
+// Used by the Delivery Dashboard (E-036) for per-destination success rate monitoring.
+func (rt *Handle) recordDeliverySuccess(destinationID, destinationName, workspaceID string) {
+	stats.Default.NewTaggedStat("rudder_destination_delivery_success_total", stats.CountType, stats.Tags{
+		"destType":      rt.destType,
+		"destinationId": destinationID,
+		"destination":   destinationName,
+		"workspaceId":   workspaceID,
+		"module":        "router",
+	}).Increment()
+}
+
+// recordDeliveryFailure records a failed delivery event for the given destination.
+// Used by the Delivery Dashboard (E-036) for per-destination failure rate monitoring.
+func (rt *Handle) recordDeliveryFailure(destinationID, destinationName, workspaceID, errorCode string) {
+	stats.Default.NewTaggedStat("rudder_destination_delivery_failure_total", stats.CountType, stats.Tags{
+		"destType":      rt.destType,
+		"destinationId": destinationID,
+		"destination":   destinationName,
+		"workspaceId":   workspaceID,
+		"errorCode":     errorCode,
+		"module":        "router",
+	}).Increment()
+}
+
+// recordDeliveryLatency records the delivery latency for the given destination.
+// Used by the Delivery Dashboard (E-036) for per-destination latency percentile tracking (p50/p95/p99).
+func (rt *Handle) recordDeliveryLatency(destinationID, destinationName, workspaceID string, latency time.Duration) {
+	stats.Default.NewTaggedStat("rudder_destination_delivery_latency_seconds", stats.HistogramType, stats.Tags{
+		"destType":      rt.destType,
+		"destinationId": destinationID,
+		"destination":   destinationName,
+		"workspaceId":   workspaceID,
+		"module":        "router",
+	}).Observe(latency.Seconds())
+}
+
+// recordDeliveryThroughput records the delivery throughput gauge for the given destination.
+// Used by the Delivery Dashboard (E-036) for per-destination and aggregate throughput monitoring.
+func (rt *Handle) recordDeliveryThroughput(destinationID, destinationName, workspaceID string, eventCount int) {
+	stats.Default.NewTaggedStat("rudder_destination_delivery_throughput", stats.GaugeType, stats.Tags{
+		"destType":      rt.destType,
+		"destinationId": destinationID,
+		"destination":   destinationName,
+		"workspaceId":   workspaceID,
+		"module":        "router",
+	}).Gauge(eventCount)
+}
+
+// recordRetryCount records a retry event for the given destination.
+// Used by the Delivery Dashboard (E-036) for tracking delivery retry frequency per destination.
+func (rt *Handle) recordRetryCount(destinationID, destinationName, workspaceID string) {
+	stats.Default.NewTaggedStat("rudder_destination_retry_count_total", stats.CountType, stats.Tags{
+		"destType":      rt.destType,
+		"destinationId": destinationID,
+		"destination":   destinationName,
+		"workspaceId":   workspaceID,
+		"module":        "router",
+	}).Increment()
+}
+
+// recordCircuitBreakerState records the circuit breaker state for the given destination.
+// Used by the Delivery Dashboard (E-036) for monitoring circuit breaker transitions.
+// State values: "closed" (0), "half-open" (1), "open" (2).
+func (rt *Handle) recordCircuitBreakerState(destinationID, destinationName, workspaceID, state string) {
+	stateValue := 0
+	switch state {
+	case "closed":
+		stateValue = 0
+	case "half-open":
+		stateValue = 1
+	case "open":
+		stateValue = 2
+	}
+	stats.Default.NewTaggedStat("rudder_destination_circuit_breaker_state", stats.GaugeType, stats.Tags{
+		"destType":      rt.destType,
+		"destinationId": destinationID,
+		"destination":   destinationName,
+		"workspaceId":   workspaceID,
+		"module":        "router",
+	}).Gauge(stateValue)
+}
+
 // eventOrderDebugInfo provides some debug information for the given orderKey in case of a panic.
 // Top 100 job statuses for the given orderKey are returned.
 func (rt *Handle) eventOrderDebugInfo(orderKey eventorder.BarrierKey) (res string) {

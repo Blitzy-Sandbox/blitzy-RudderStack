@@ -499,6 +499,26 @@ func (rt *Handle) commitStatusList(workerJobStatuses *[]workerJobStatus) {
 			completedJobsList = append(completedJobsList, workerJobStatus.job)
 		}
 
+		// Delivery Dashboard Metrics (E-036): record per-destination delivery outcomes
+		destinationName := ""
+		rt.destinationsMapMu.RLock()
+		if dest, ok := rt.destinationsMap[parameters.DestinationID]; ok {
+			destinationName = dest.Destination.Name
+		}
+		rt.destinationsMapMu.RUnlock()
+
+		switch workerJobStatus.status.JobState {
+		case jobsdb.Succeeded.State, jobsdb.Filtered.State:
+			rt.recordDeliverySuccess(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId)
+		case jobsdb.Failed.State:
+			rt.recordDeliveryFailure(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId, workerJobStatus.status.ErrorCode)
+			if workerJobStatus.status.AttemptNum > 1 {
+				rt.recordRetryCount(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId)
+			}
+		case jobsdb.Aborted.State:
+			rt.recordDeliveryFailure(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId, workerJobStatus.status.ErrorCode)
+		}
+
 		// REPORTING - ROUTER - END
 
 		statusList = append(statusList, workerJobStatus.status)
@@ -572,6 +592,19 @@ func (rt *Handle) commitStatusList(workerJobStatuses *[]workerJobStatus) {
 			panic(err)
 		}
 		routerutils.UpdateProcessedEventsMetrics(stats.Default, module, rt.destType, statusList, jobIDConnectionDetailsMap)
+	}
+
+	// Delivery Dashboard: Aggregate throughput tracking (E-036)
+	if len(statusList) > 0 {
+		successCount := 0
+		for _, s := range statusList {
+			if s.JobState == jobsdb.Succeeded.State {
+				successCount++
+			}
+		}
+		if successCount > 0 {
+			rt.recordDeliveryThroughput("", "", "", successCount)
+		}
 	}
 
 	if rt.guaranteeUserEventOrder {
