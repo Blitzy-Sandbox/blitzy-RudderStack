@@ -1,0 +1,535 @@
+{
+  "destination_type": "AZURE_SYNAPSE",
+  "destination_tier": "warehouse",
+  "segment_reference_payload": {
+    "loading_method": "azure_blob_staging_copy_into",
+    "connection": {
+      "server": "synapse-workspace-example.sql.azuresynapse.net",
+      "port": 1433,
+      "database": "segment_dwh",
+      "schema": "segment_events",
+      "authentication": {
+        "method": "sql_authentication",
+        "username": "segment_user",
+        "password": "***"
+      },
+      "encryption": "true",
+      "trust_server_certificate": true
+    },
+    "staging": {
+      "type": "azure_blob_storage",
+      "container": "segment-staging",
+      "account": "segmentstorage",
+      "format": "CSV",
+      "compression": "gzip"
+    },
+    "table_schema": {
+      "tracks": {
+        "id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "anonymous_id": "VARCHAR(512)",
+        "event": "VARCHAR(512)",
+        "event_text": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "context_user_agent": "VARCHAR(512)",
+        "context_locale": "VARCHAR(512)",
+        "timestamp": "DATETIMEOFFSET",
+        "sent_at": "DATETIMEOFFSET",
+        "received_at": "DATETIMEOFFSET",
+        "original_timestamp": "DATETIMEOFFSET",
+        "uuid_ts": "DATETIMEOFFSET"
+      },
+      "identifies": {
+        "id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "anonymous_id": "VARCHAR(512)",
+        "email": "VARCHAR(512)",
+        "name": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "timestamp": "DATETIMEOFFSET",
+        "sent_at": "DATETIMEOFFSET",
+        "received_at": "DATETIMEOFFSET",
+        "original_timestamp": "DATETIMEOFFSET",
+        "uuid_ts": "DATETIMEOFFSET"
+      },
+      "pages": {
+        "id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "anonymous_id": "VARCHAR(512)",
+        "name": "VARCHAR(512)",
+        "path": "VARCHAR(512)",
+        "url": "VARCHAR(512)",
+        "title": "VARCHAR(512)",
+        "referrer": "VARCHAR(512)",
+        "search": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "timestamp": "DATETIMEOFFSET",
+        "sent_at": "DATETIMEOFFSET",
+        "received_at": "DATETIMEOFFSET",
+        "original_timestamp": "DATETIMEOFFSET",
+        "uuid_ts": "DATETIMEOFFSET"
+      },
+      "screens": {
+        "id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "anonymous_id": "VARCHAR(512)",
+        "name": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "timestamp": "DATETIMEOFFSET",
+        "sent_at": "DATETIMEOFFSET",
+        "received_at": "DATETIMEOFFSET",
+        "original_timestamp": "DATETIMEOFFSET",
+        "uuid_ts": "DATETIMEOFFSET"
+      },
+      "groups": {
+        "id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "anonymous_id": "VARCHAR(512)",
+        "group_id": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "timestamp": "DATETIMEOFFSET",
+        "sent_at": "DATETIMEOFFSET",
+        "received_at": "DATETIMEOFFSET",
+        "original_timestamp": "DATETIMEOFFSET",
+        "uuid_ts": "DATETIMEOFFSET"
+      },
+      "aliases": {
+        "id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "anonymous_id": "VARCHAR(512)",
+        "previous_id": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "timestamp": "DATETIMEOFFSET",
+        "sent_at": "DATETIMEOFFSET",
+        "received_at": "DATETIMEOFFSET",
+        "original_timestamp": "DATETIMEOFFSET",
+        "uuid_ts": "DATETIMEOFFSET"
+      },
+      "users": {
+        "id": "VARCHAR(512)",
+        "email": "VARCHAR(512)",
+        "name": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)",
+        "received_at": "DATETIMEOFFSET"
+      }
+    },
+    "merge_strategy": {
+      "method": "DELETE_INSERT",
+      "merge_key": "id",
+      "deduplication": "ROW_NUMBER() OVER (PARTITION BY id ORDER BY received_at DESC)",
+      "on_match": "DELETE existing rows with matching id, INSERT new deduplicated rows"
+    },
+    "sample_track_event": {
+      "id": "msg-seg-001",
+      "user_id": "user_123",
+      "anonymous_id": "anon_456",
+      "event": "Product Viewed",
+      "event_text": "Product Viewed",
+      "context_ip": "192.168.1.1",
+      "context_library_name": "analytics.js",
+      "context_library_version": "2.1.0",
+      "context_user_agent": "Mozilla/5.0",
+      "context_locale": "en-US",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "sent_at": "2026-02-25T12:00:01.000Z",
+      "received_at": "2026-02-25T12:00:02.000Z",
+      "original_timestamp": "2026-02-25T12:00:00.000Z",
+      "uuid_ts": "2026-02-25T12:00:02.000Z",
+      "product_id": "SKU-001",
+      "product_name": "Premium Widget",
+      "price": 49.99
+    }
+  },
+  "rudderstack_expected_payload": {
+    "loading_method": "mssql_bulk_copy_with_staging_tables",
+    "connection": {
+      "protocol": "sqlserver",
+      "host": "synapse-workspace-example.sql.azuresynapse.net",
+      "port": 1433,
+      "database": "rudder_dwh",
+      "schema": "rudder_events",
+      "authentication": {
+        "method": "sql_authentication",
+        "user": "rudder_user",
+        "password": "***",
+        "ssl_mode": "true"
+      },
+      "dsn_format": "sqlserver://user:password@host:port?database=dbname&encrypt=sslMode&TrustServerCertificate=true&dial+timeout=seconds",
+      "trust_server_certificate": true,
+      "connection_timeout": {
+        "configurable": true,
+        "config_key": "Warehouse.azure_synapse.connectTimeout",
+        "default": "0 (no timeout)"
+      },
+      "sql_middleware": {
+        "enabled": true,
+        "stats_collection": true,
+        "slow_query_threshold": {
+          "config_key": "Warehouse.azure_synapse.slowQueryThreshold",
+          "default": "5m"
+        },
+        "credential_redaction": true
+      }
+    },
+    "staging": {
+      "type": "azure_blob_storage",
+      "object_storage_determination": "warehouseutils.ObjectStorageType(AzureSynapse, dest.Config, useRudderStorage)",
+      "supports_rudder_storage": true,
+      "format": "CSV",
+      "compression": "gzip",
+      "download_workers": {
+        "config_key": "Warehouse.azure_synapse.numWorkersDownloadLoadFiles",
+        "default": 1
+      }
+    },
+    "data_type_mappings": {
+      "rudder_to_azure_synapse": {
+        "int": "bigint",
+        "float": "decimal(28,10)",
+        "string": "varchar(512)",
+        "datetime": "datetimeoffset",
+        "boolean": "bit",
+        "json": "jsonb"
+      },
+      "azure_synapse_to_rudder": {
+        "integer": "int",
+        "smallint": "int",
+        "bigint": "int",
+        "tinyint": "int",
+        "double precision": "float",
+        "numeric": "float",
+        "decimal": "float",
+        "real": "float",
+        "float": "float",
+        "text": "string",
+        "varchar": "string",
+        "nvarchar": "string",
+        "ntext": "string",
+        "nchar": "string",
+        "char": "string",
+        "datetimeoffset": "datetime",
+        "date": "datetime",
+        "datetime2": "datetime",
+        "timestamp with time zone": "datetime",
+        "timestamp": "datetime",
+        "jsonb": "json",
+        "bit": "boolean"
+      }
+    },
+    "varchar_handling": {
+      "default_length": 512,
+      "max_length_sentinel": -1,
+      "max_length_meaning": "varchar(max) — unlimited length",
+      "truncation_behavior": "Values longer than max(varchar_length, 512) are truncated; varchar(max) values are never truncated",
+      "diacritic_support": {
+        "enabled": true,
+        "encoding": "UCS-2",
+        "method": "str2ucs2 converts diacritic strings to UCS-2 byte arrays for proper storage",
+        "detection": "hasDiacritics checks if any rune requires more than 1 byte in UTF-8"
+      },
+      "length_determination": "INFORMATION_SCHEMA.COLUMNS CHARACTER_MAXIMUM_LENGTH per string-type column",
+      "string_column_types": ["text", "varchar", "nvarchar", "ntext", "nchar", "char"]
+    },
+    "table_schema": {
+      "tracks": {
+        "id": "varchar(512)",
+        "user_id": "varchar(512)",
+        "anonymous_id": "varchar(512)",
+        "event": "varchar(512)",
+        "event_text": "varchar(512)",
+        "context_ip": "varchar(512)",
+        "context_library_name": "varchar(512)",
+        "context_library_version": "varchar(512)",
+        "context_user_agent": "varchar(512)",
+        "context_locale": "varchar(512)",
+        "timestamp": "datetimeoffset",
+        "sent_at": "datetimeoffset",
+        "received_at": "datetimeoffset",
+        "original_timestamp": "datetimeoffset",
+        "uuid_ts": "datetimeoffset"
+      },
+      "identifies": {
+        "id": "varchar(512)",
+        "user_id": "varchar(512)",
+        "anonymous_id": "varchar(512)",
+        "email": "varchar(512)",
+        "name": "varchar(512)",
+        "context_ip": "varchar(512)",
+        "context_library_name": "varchar(512)",
+        "context_library_version": "varchar(512)",
+        "timestamp": "datetimeoffset",
+        "sent_at": "datetimeoffset",
+        "received_at": "datetimeoffset",
+        "original_timestamp": "datetimeoffset",
+        "uuid_ts": "datetimeoffset"
+      },
+      "pages": {
+        "id": "varchar(512)",
+        "user_id": "varchar(512)",
+        "anonymous_id": "varchar(512)",
+        "name": "varchar(512)",
+        "path": "varchar(512)",
+        "url": "varchar(512)",
+        "title": "varchar(512)",
+        "referrer": "varchar(512)",
+        "search": "varchar(512)",
+        "context_ip": "varchar(512)",
+        "context_library_name": "varchar(512)",
+        "context_library_version": "varchar(512)",
+        "timestamp": "datetimeoffset",
+        "sent_at": "datetimeoffset",
+        "received_at": "datetimeoffset",
+        "original_timestamp": "datetimeoffset",
+        "uuid_ts": "datetimeoffset"
+      },
+      "screens": {
+        "id": "varchar(512)",
+        "user_id": "varchar(512)",
+        "anonymous_id": "varchar(512)",
+        "name": "varchar(512)",
+        "context_ip": "varchar(512)",
+        "context_library_name": "varchar(512)",
+        "context_library_version": "varchar(512)",
+        "timestamp": "datetimeoffset",
+        "sent_at": "datetimeoffset",
+        "received_at": "datetimeoffset",
+        "original_timestamp": "datetimeoffset",
+        "uuid_ts": "datetimeoffset"
+      },
+      "groups": {
+        "id": "varchar(512)",
+        "user_id": "varchar(512)",
+        "anonymous_id": "varchar(512)",
+        "group_id": "varchar(512)",
+        "context_ip": "varchar(512)",
+        "context_library_name": "varchar(512)",
+        "context_library_version": "varchar(512)",
+        "timestamp": "datetimeoffset",
+        "sent_at": "datetimeoffset",
+        "received_at": "datetimeoffset",
+        "original_timestamp": "datetimeoffset",
+        "uuid_ts": "datetimeoffset"
+      },
+      "aliases": {
+        "id": "varchar(512)",
+        "user_id": "varchar(512)",
+        "anonymous_id": "varchar(512)",
+        "previous_id": "varchar(512)",
+        "context_ip": "varchar(512)",
+        "context_library_name": "varchar(512)",
+        "context_library_version": "varchar(512)",
+        "timestamp": "datetimeoffset",
+        "sent_at": "datetimeoffset",
+        "received_at": "datetimeoffset",
+        "original_timestamp": "datetimeoffset",
+        "uuid_ts": "datetimeoffset"
+      },
+      "users": {
+        "id": "varchar(512)",
+        "email": "varchar(512)",
+        "name": "varchar(512)",
+        "context_ip": "varchar(512)",
+        "received_at": "datetimeoffset"
+      }
+    },
+    "primary_keys": {
+      "users": "id",
+      "identifies": "id",
+      "discards": "row_id",
+      "default": "id"
+    },
+    "partition_keys": {
+      "users": "id",
+      "identifies": "id",
+      "discards": "row_id, column_name, table_name",
+      "default": "id"
+    },
+    "merge_strategy": {
+      "method": "DELETE_INSERT_WITH_STAGING",
+      "merge_key": "id",
+      "deduplication": "ROW_NUMBER() OVER (PARTITION BY <partition_key> ORDER BY received_at DESC) AS _rudder_staging_row_number WHERE _rudder_staging_row_number = 1",
+      "staging_table_creation": "SELECT TOP 0 * INTO namespace.staging FROM namespace.main",
+      "staging_table_prefix": "rudder_staging_azure_synapse_",
+      "table_name_limit": 127,
+      "bulk_load_method": "mssql.CopyIn with BulkOptions{CheckConstraints: false}",
+      "delete_step": "DELETE FROM main FROM staging AS _source WHERE _source.pk = main.pk",
+      "insert_step": "INSERT INTO main (cols) SELECT cols FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY pk ORDER BY received_at DESC) AS rn FROM staging) WHERE rn = 1",
+      "transaction_isolation": "Default SQL Server transaction isolation for DELETE and INSERT steps",
+      "extra_columns_handling": "Columns in warehouse but not in upload are appended as NULL values to maintain CopyIn column count alignment"
+    },
+    "users_table_handling": {
+      "deduplication_method": "CASE_SUBQUERY",
+      "dedup_expression": "CASE WHEN (EXISTS(SELECT 1)) THEN (SELECT TOP 1 col FROM union_staging WHERE x.id = union_staging.id AND col IS NOT NULL ORDER BY received_at DESC) END AS col",
+      "first_value_note": "FIRST_VALUE with IGNORE NULLS is only supported in Azure SQL Edge, not in Azure Synapse Analytics; hence the CASE subquery workaround is used",
+      "identifies_union": "SELECT INTO union_staging FROM (SELECT id, cols FROM users WHERE id IN (SELECT user_id FROM identifies_staging) UNION SELECT user_id, cols FROM identifies_staging)",
+      "ignored_columns_in_dedup": ["id"],
+      "flow": [
+        "1. Load identifies into identifies staging table",
+        "2. Create union staging table: UNION of existing users rows (matched by user_id from identifies) and new identifies rows",
+        "3. Create users staging table: SELECT DISTINCT with CASE subquery dedup from union staging",
+        "4. BEGIN TRANSACTION",
+        "5. DELETE FROM users WHERE id IN staging",
+        "6. INSERT INTO users FROM staging",
+        "7. COMMIT TRANSACTION",
+        "8. DROP all staging tables"
+      ]
+    },
+    "staging_flow": {
+      "step_1": "SELECT TOP 0 * INTO namespace.rudder_staging_azure_synapse_<table> FROM namespace.<table>",
+      "step_2": "BEGIN TRANSACTION",
+      "step_3": "mssql.CopyIn(namespace.staging, BulkOptions{CheckConstraints: false}, columns...) — Bulk insert gzipped CSV records into staging table",
+      "step_4": "DELETE FROM namespace.<table> FROM namespace.staging AS _source WHERE _source.id = namespace.<table>.id",
+      "step_5": "INSERT INTO namespace.<table> (cols) SELECT cols FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY received_at DESC) AS _rudder_staging_row_number FROM namespace.staging) WHERE _rudder_staging_row_number = 1",
+      "step_6": "COMMIT TRANSACTION",
+      "step_7": "DROP TABLE namespace.staging (IF OBJECT_ID EXISTS)"
+    },
+    "schema_operations": {
+      "create_schema": "IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = N'namespace') EXEC('CREATE SCHEMA [namespace]')",
+      "create_table": "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'namespace.table') AND type = N'U') CREATE TABLE namespace.table (columns)",
+      "drop_table": "DROP TABLE namespace.table",
+      "add_columns": "ALTER TABLE namespace.table ADD col1 type1, col2 type2 (with IF NOT EXISTS guard for single-column adds)",
+      "fetch_schema": "SELECT table_name, column_name, data_type FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema = namespace AND table_name NOT LIKE staging_prefix",
+      "drop_staging": "IF OBJECT_ID('namespace.staging', 'U') IS NOT NULL DROP TABLE namespace.staging",
+      "dangling_cleanup": "SELECT table_name FROM information_schema.tables WHERE table_schema = namespace AND table_name LIKE staging_prefix%; DROP each found"
+    },
+    "column_value_processing": {
+      "int": "strconv.Atoi(value)",
+      "float": "strconv.ParseFloat(value, 64)",
+      "datetime": "time.Parse(time.RFC3339, value)",
+      "boolean": "strconv.ParseBool(value)",
+      "string": "Truncate to max(varchar_length, 512); if hasDiacritics, convert to UCS-2 byte array then truncate",
+      "nil_handling": "Empty/whitespace-only values are converted to nil",
+      "mismatch_handling": "Type conversion errors result in nil value with warning log"
+    },
+    "sample_track_event": {
+      "id": "msg-rs-001",
+      "user_id": "user_123",
+      "anonymous_id": "anon_456",
+      "event": "Product Viewed",
+      "event_text": "Product Viewed",
+      "context_ip": "192.168.1.1",
+      "context_library_name": "rudder-sdk-js",
+      "context_library_version": "2.48.0",
+      "context_user_agent": "Mozilla/5.0",
+      "context_locale": "en-US",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "sent_at": "2026-02-25T12:00:01.000Z",
+      "received_at": "2026-02-25T12:00:02.000Z",
+      "original_timestamp": "2026-02-25T12:00:00.000Z",
+      "uuid_ts": "2026-02-25T12:00:02.000Z",
+      "product_id": "SKU-001",
+      "product_name": "Premium Widget",
+      "price": 49.99
+    }
+  },
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "field_mappings": {
+    "loading_method": {
+      "description": "Both platforms load data into Azure Synapse Analytics using Azure Blob staging. Segment uses COPY INTO from Azure Blob Storage; RudderStack uses the go-mssqldb BulkCopy (mssql.CopyIn) driver-level bulk insert after downloading gzipped CSV files from object storage.",
+      "segment": "Azure Blob staging → T-SQL COPY INTO command for bulk loading",
+      "rudderstack": "Object storage download (gzipped CSV) → mssql.CopyIn driver-level BulkCopy with BulkOptions{CheckConstraints: false} into staging table → DELETE/INSERT dedup into final table"
+    },
+    "connection_protocol": {
+      "description": "Both use the SQL Server TDS protocol. RudderStack explicitly constructs the DSN with encrypt, TrustServerCertificate, and configurable dial timeout parameters.",
+      "segment": "SQL Server connection with Azure AD or SQL authentication",
+      "rudderstack": "sqlserver:// DSN via go-mssqldb driver; configurable host/port/database/user/password/sslMode; encrypt and TrustServerCertificate=true; configurable dial timeout in seconds"
+    },
+    "column_naming": {
+      "description": "Both platforms flatten nested event properties into snake_case column names for warehouse tables. Column naming is handled by the transformer service.",
+      "segment": "Flattened snake_case columns (e.g., context_library_name, context_user_agent)",
+      "rudderstack": "Flattened snake_case columns (e.g., context_library_name, context_user_agent); column naming handled by rudder-transformer service"
+    },
+    "data_type_handling": {
+      "description": "RudderStack uses explicit bidirectional type mapping between Rudder types and Azure Synapse SQL types. String types default to varchar(512) with configurable max lengths per column. Segment likely uses similar mappings but exact implementation may vary.",
+      "segment": "Standard Azure Synapse type inference with varchar for strings, datetimeoffset for timestamps",
+      "rudderstack": "Explicit mapping: int→bigint, float→decimal(28,10), string→varchar(512), datetime→datetimeoffset, boolean→bit, json→jsonb; reverse mapping supports 17 Azure Synapse types back to 6 Rudder types; unmapped types counted via WHCounterStat for diagnostics"
+    },
+    "varchar_length_management": {
+      "description": "RudderStack dynamically queries INFORMATION_SCHEMA.COLUMNS to determine the CHARACTER_MAXIMUM_LENGTH for each varchar column and enforces truncation. varchar(max) columns (sentinel value -1) allow unlimited length. Values are truncated to max(column_length, 512).",
+      "segment": "Standard varchar column sizing",
+      "rudderstack": "Dynamic varchar length discovery via INFORMATION_SCHEMA; default 512 chars; max sentinel=-1 for varchar(max); truncation to max(column_length, 512); diacritic-safe UCS-2 encoding for non-ASCII strings"
+    },
+    "deduplication_strategy": {
+      "description": "Both platforms use ROW_NUMBER window function for deduplication. RudderStack partitions by primary key and orders by received_at DESC, keeping only the most recent row (row_number = 1).",
+      "segment": "ROW_NUMBER() OVER (PARTITION BY id ORDER BY received_at DESC) for dedup during merge",
+      "rudderstack": "ROW_NUMBER() OVER (PARTITION BY <partition_key> ORDER BY received_at DESC) AS _rudder_staging_row_number; INSERT WHERE _rudder_staging_row_number = 1; partition keys: id for most tables, row_id+column_name+table_name for discards"
+    },
+    "staging_table_approach": {
+      "description": "RudderStack uses a staging table pattern: create empty clone via SELECT TOP 0, bulk load, delete matching records from main, insert deduplicated records from staging, drop staging. Staging tables use provider-specific prefix and are limited to 127 characters.",
+      "segment": "Direct or staging-based loading approach for Azure Synapse",
+      "rudderstack": "Staging table lifecycle: CREATE via SELECT TOP 0 * INTO → BulkCopy load → DELETE matching from main → INSERT deduplicated from staging → DROP staging; staging prefix: rudder_staging_azure_synapse_; max table name: 127 chars; dangling staging table cleanup on connection close"
+    },
+    "users_table_dedup": {
+      "description": "RudderStack uses a multi-step approach for users table dedup because Azure Synapse does not support FIRST_VALUE with IGNORE NULLS (only available in Azure SQL Edge). A CASE subquery with correlated TOP 1 is used instead.",
+      "segment": "Standard users table merge with deduplication",
+      "rudderstack": "UNION of existing users and new identifies → CASE subquery dedup (SELECT TOP 1 col WHERE col IS NOT NULL ORDER BY received_at DESC) → DELETE/INSERT into users table within transaction; FIRST_VALUE IGNORE NULLS not available in Azure Synapse"
+    },
+    "context_library": {
+      "description": "Different SDK library identifiers in the context field.",
+      "segment": "context_library_name: analytics.js",
+      "rudderstack": "context_library_name: rudder-sdk-js"
+    },
+    "envelope_fields": {
+      "description": "Both platforms store standard warehouse envelope fields. No additional auto-generated columns (unlike Delta Lake which has event_date).",
+      "segment": "Standard fields: id, timestamp, sent_at, received_at, original_timestamp, uuid_ts",
+      "rudderstack": "Same standard fields: id, timestamp, sent_at, received_at, original_timestamp, uuid_ts; no auto-generated partition columns"
+    },
+    "error_handling": {
+      "description": "RudderStack maps Azure Synapse errors into structured job error categories for the warehouse upload state machine observability.",
+      "rudderstack_error_types": [
+        "Connection timeout: context.DeadlineExceeded mapped to connection timeout error",
+        "Column count mismatch: mssql CopyIn column count validation",
+        "Type conversion errors: logged as warnings with nil fallback",
+        "Transaction errors: automatic rollback on commit failure"
+      ]
+    },
+    "azure_blob_staging": {
+      "description": "RudderStack uses configurable object storage for staging files. Azure Blob Storage is the primary staging mechanism for Azure Synapse destinations, with support for RudderStack-managed storage as an alternative.",
+      "segment": "Azure Blob Storage staging with COPY INTO",
+      "rudderstack": "Object storage type determined by warehouseutils.ObjectStorageType(); supports Azure Blob Storage and RudderStack-managed storage (useRudderStorage); staging files are gzipped CSV downloaded by configurable worker pool"
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "needs_verification",
+    "schema_compatibility": "high",
+    "merge_behavior_parity": "medium",
+    "known_gaps": [
+      "RudderStack uses mssql.CopyIn driver-level BulkCopy; Segment may use T-SQL COPY INTO command — different bulk loading mechanisms",
+      "RudderStack defaults string columns to varchar(512); Segment varchar sizing may differ",
+      "RudderStack maps float to decimal(28,10) for high precision; Segment may use float or real types",
+      "RudderStack uses CASE subquery workaround for users table dedup; Segment may use different dedup approach",
+      "RudderStack has dynamic varchar length discovery via INFORMATION_SCHEMA; Segment approach may be static",
+      "RudderStack supports diacritic-safe UCS-2 encoding for varchar columns; Segment diacritic handling unknown",
+      "RudderStack maps json type to jsonb; Azure Synapse jsonb support may vary by version",
+      "RudderStack staging table names are limited to 127 characters; Segment may have different limits",
+      "Different SDK library name in context fields (rudder-sdk-js vs analytics.js)",
+      "RudderStack has configurable slow query threshold monitoring (default 5 minutes); Segment monitoring unknown",
+      "RudderStack uses sqlmw middleware for stats/logging/credential redaction; Segment observability approach may differ"
+    ],
+    "rudderstack_unique_features": [
+      "Dynamic varchar length discovery via INFORMATION_SCHEMA CHARACTER_MAXIMUM_LENGTH",
+      "Diacritic-safe UCS-2 encoding for proper storage of non-ASCII characters in varchar columns",
+      "Configurable number of download workers for parallel load file retrieval",
+      "SQL middleware with stats collection, slow query threshold monitoring, and credential redaction",
+      "Dangling staging table cleanup on connection close",
+      "Configurable connection timeout via Warehouse.azure_synapse.connectTimeout",
+      "RudderStack-managed storage option (useRudderStorage) alongside Azure Blob Storage",
+      "Structured error classification for warehouse upload state machine",
+      "CASE subquery dedup for users table (workaround for Azure Synapse FIRST_VALUE limitation)",
+      "Extra column nil-padding to maintain CopyIn column count alignment when schema evolves"
+    ]
+  },
+  "notes": "Azure Synapse Analytics shared warehouse destination. RudderStack internal name: AZURE_SYNAPSE. Provider constant: warehouseutils.AzureSynapse. Package: warehouse/integrations/azure-synapse/. Both platforms load data into Azure Synapse using Azure Blob staging with CSV format. Key architectural difference: RudderStack uses the go-mssqldb driver's BulkCopy (mssql.CopyIn) mechanism for staging table loading rather than T-SQL COPY INTO, providing tighter driver-level integration. The staging table pattern (SELECT TOP 0 clone → BulkCopy → DELETE/INSERT dedup → DROP) provides schema evolution handling and load isolation. VARCHAR columns default to 512 characters with dynamic length discovery from INFORMATION_SCHEMA. Diacritic characters are handled via UCS-2 encoding for safe storage. The users table uses a CASE subquery dedup workaround because FIRST_VALUE with IGNORE NULLS is not supported in Azure Synapse (only Azure SQL Edge). Connection uses the sqlserver:// DSN protocol with configurable encryption and TrustServerCertificate. Integration testing requires Azure Synapse credentials and the SLOW=1 flag. Driver: go-mssqldb via sqlmw middleware wrapper."
+}
