@@ -25,7 +25,7 @@
     "rudderstack_throttling": "Configurable via Router throttling settings (GCRA algorithm with per-destination cost parameters)",
     "segment_throttling": "Standard Segment delivery rate limits apply; retries with exponential backoff on 429 or 5xx responses"
   },
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track": {
       "description": "Segment Webhooks destination forwards the complete track event payload as-is in the JSON request body. The full event object including type, event name, userId, properties, context, and metadata is sent to the configured URL with configured headers.",
       "input_event": {
@@ -497,7 +497,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track": {
       "description": "RudderStack Webhooks destination forwards the complete track event payload as-is to the configured URL. The payload includes standard Segment Spec fields plus RudderStack-specific envelope fields (rudderId, originalTimestamp, sentAt, receivedAt). The Transformer service handles the passthrough mapping, adding content-type and configured custom headers.",
       "input_event": {

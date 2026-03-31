@@ -3,7 +3,7 @@
   "destination_tier": "cloud",
   "category": "Attribution",
   "event_types": ["track"],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track_standard_event": {
       "description": "Segment maps track events to Singular's S2S EVENT API (https://s2s.singular.net/api/v1/evt). The event name is mapped to the 'n' parameter, device identifiers are extracted from context.device, and event properties are serialized as JSON into the 'e' (attributes) parameter. Segment uses platform-specific device IDs (IDFA for iOS, GAID/AIFA for Android) alongside the app identifier.",
       "input_event": {
@@ -215,7 +215,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track_standard_event": {
       "description": "RudderStack maps track events to Singular's S2S EVENT API via the Transformer service. The mapping follows the same Singular API format as Segment. RudderStack extracts device identifiers from context.device, maps the event name to 'n', serializes event properties into the 'e' parameter, and includes RudderStack-specific envelope fields in the source event. The Transformer handles the conversion from RudderStack event format to Singular query parameters.",
       "input_event": {

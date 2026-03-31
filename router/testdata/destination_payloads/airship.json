@@ -17,7 +17,7 @@
     "notes": "Both Segment and RudderStack use the Airship App Key and App Secret (or Master Secret) for authentication. Authentication is via Basic Auth (Base64 of appKey:appSecret) or Bearer token depending on the endpoint."
   },
   "event_types": ["track", "identify"],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track": {
       "description": "Segment track calls are received by Airship as Custom Events via POST /api/custom-events. The event properties are automatically added as properties on the custom event.",
       "api_endpoint": "POST https://go.urbanairship.com/api/custom-events",
@@ -93,7 +93,7 @@
       "notes": "Boolean traits (true/false) are sent as tags in the 'segment-integration' tag group. A true value creates a tag, a false value removes it. Non-boolean traits that are predefined in Airship are set as attributes. The userId maps to named_user_id. Segment maps reserved traits (firstName, lastName, email) to predefined Airship attributes."
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track": {
       "description": "RudderStack sends track events to Airship via the Custom Events API (POST /api/custom-events). The event name is automatically converted to snake_case.",
       "api_endpoint": "POST https://go.urbanairship.com/api/custom-events",

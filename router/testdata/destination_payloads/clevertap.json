@@ -16,7 +16,7 @@
     "notes": "Both Segment and RudderStack authenticate with CleverTap using two custom HTTP headers: X-CleverTap-Account-Id (the CleverTap Account ID) and X-CleverTap-Passcode (the Account Passcode). Credentials are obtained from the CleverTap dashboard under Settings > Passcode. CleverTap supports multiple account-level passcodes for better security when integrating with different partners. The API endpoint URL is region-specific and includes a data center identifier (e.g., in1, us1, eu1, sg1, mec1, aps3). Concurrent requests are limited to 15 per account."
   },
   "event_types": ["track", "identify", "page", "screen"],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track": {
       "description": "Segment track calls are sent to CleverTap's Upload Events API. The event name maps to the evtName field. Event properties are mapped to the evtData object. The userId is mapped to the identity field for user identification. Timestamps are converted to Unix epoch seconds for the ts field. CleverTap supports String, Integer, Long, Double, Float, Boolean, Date, and JSON Array data types in event properties. A maximum of 1000 event records can be sent per API call.",
       "api_endpoint": "POST https://{region}.api.clevertap.com/1/upload",
@@ -109,7 +109,7 @@
       "notes": "Segment maps screen calls to CleverTap events using the same Upload Events API as track and page calls. The screen name and category are used to construct the evtName. Screen properties are sent in evtData. This mapping is primarily relevant for mobile applications using the Segment mobile SDKs. The same 512-byte property value limit and 120-character event key limit apply."
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track": {
       "description": "RudderStack track calls are transformed by the RudderStack Transformer service and sent to CleverTap's Upload Events API. The event name maps to evtName. Event properties are mapped to evtData. The userId is mapped to the identity field. RudderStack's transformer handles timestamp conversion to Unix epoch seconds and maps context fields to CleverTap-specific fields.",
       "api_endpoint": "POST https://{region}.api.clevertap.com/1/upload",

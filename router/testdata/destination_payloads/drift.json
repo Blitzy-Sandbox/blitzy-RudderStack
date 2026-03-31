@@ -14,7 +14,7 @@
     "default": "600 requests/minute",
     "notes": "Rate limits and usage caps are returned in response headers"
   },
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "identify": {
       "description": "Segment maps identify calls to Drift contact create/update via the Contacts API. userId maps to externalId, traits map to contact attributes.",
       "input_event": {
@@ -119,7 +119,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "identify": {
       "description": "RudderStack maps identify calls to Drift contact create/update via the Contacts API, following the same pattern as Segment. userId maps to externalId, traits map to contact attributes. RudderStack adds envelope fields to the source event.",
       "input_event": {

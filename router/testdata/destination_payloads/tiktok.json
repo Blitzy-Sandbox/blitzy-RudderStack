@@ -34,7 +34,7 @@
     "Subscribe",
     "PageView"
   ],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track": {
       "description": "Segment track call mapped to TikTok Events API for a Purchase (CompletePayment) event",
       "input_event": {
@@ -170,7 +170,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track": {
       "description": "RudderStack track call mapped to TikTok Events API for a Purchase (CompletePayment) event",
       "input_event": {

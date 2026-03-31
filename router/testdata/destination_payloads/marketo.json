@@ -2,7 +2,7 @@
   "destination_type": "MARKETO",
   "destination_tier": "cloud",
   "event_types": ["track", "identify"],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "identify": {
       "description": "Segment maps identify calls to the Marketo Sync Leads REST API endpoint POST /rest/v1/leads.json with action 'createOrUpdate'. Traits from the identify call are mapped to Marketo lead fields: email→email, firstName→firstName, lastName→lastName, company→company, phone→phone, title→title, and custom traits to custom lead fields. The email field serves as the default dedup key (lookupField). Segment batches up to 300 lead records per API call as supported by the Marketo Sync Leads endpoint.",
       "api_endpoint": "POST https://{munchkin_id}.mktorest.com/rest/v1/leads.json",
@@ -174,7 +174,7 @@
       "notes": "Segment maps track event names to Marketo custom activity types via a pre-configured activityTypeId mapping. The leadId is resolved by looking up the lead in Marketo using the userId or email from context.traits. Custom activity attributes are created as name/value pairs where the apiName must match a pre-registered custom activity attribute in the Marketo instance. All attribute values are sent as strings. The activityDate is taken from the event timestamp. Marketo custom activities are write-once (immutable) historical records."
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "identify": {
       "description": "RudderStack maps identify calls to the Marketo Sync Leads REST API endpoint POST /rest/v1/leads.json with action 'createOrUpdate'. Traits from the identify call are mapped to Marketo lead fields following the same field mapping as Segment: email→email, firstName→firstName, lastName→lastName, company→company, phone→phone, title→title, and custom traits to custom lead fields. The email field serves as the default dedup key. RudderStack batches lead records per the Marketo 300-record limit. The Transformer service handles field mapping and batching logic.",
       "api_endpoint": "POST https://{munchkin_id}.mktorest.com/rest/v1/leads.json",

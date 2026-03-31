@@ -15,7 +15,7 @@
     "notes": "Both Segment and RudderStack authenticate with MoEngage using Basic Authentication. The credentials are a Base64-encoded string of DATA_API_ID:DATA_API_KEY (also referred to as Workspace ID and API Key). The Data API ID is the same as the MoEngage Workspace ID. Credentials are obtained from the MoEngage Dashboard under Settings > Account > APIs. The API endpoint URL includes a data center identifier (e.g., api-01, api-02, api-03) that varies per client workspace."
   },
   "event_types": ["track", "identify", "page"],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track": {
       "description": "Segment track calls are sent to MoEngage's Create Event API. The event name maps to the action field within the actions array. Event properties are mapped to the attributes object within each action. The userId is mapped to customer_id for user identification. Timestamps are converted to Unix epoch seconds for the user_time and current_time fields. MoEngage supports String, Integer, Long, Double, Float, Boolean, Date, GeoLocation, JSON Object, and JSON Array data types in event attributes.",
       "api_endpoint": "POST https://api-0X.moengage.com/v1/event/{app_id}",
@@ -96,7 +96,7 @@
       "notes": "Segment maps page calls to MoEngage event tracking. The event action name is constructed as 'Viewed {name} page' (or 'Viewed {category} {name} page' if category is present). Page properties such as url, path, title, referrer, and search are sent as event attributes. Since MoEngage does not have a native page view concept, page calls are indistinguishable from track calls at the MoEngage API level. Timestamps follow the same Unix epoch second conversion as track events."
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track": {
       "description": "RudderStack track calls are transformed and sent to MoEngage's Create Event API. The event name maps to the action field. Event properties are mapped to the attributes object. The userId is mapped to customer_id. RudderStack's transformer handles timestamp conversion to Unix epoch seconds and maps context fields to MoEngage platform-specific fields. When MoEngage Identity Resolution is enabled, RudderStack sends user_identifiers instead of customer_id.",
       "api_endpoint": "POST https://api-0X.moengage.com/v1/event/{app_id}",

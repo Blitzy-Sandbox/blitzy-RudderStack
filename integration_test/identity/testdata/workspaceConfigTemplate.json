@@ -14,12 +14,19 @@
       "deleted": false,
       "createdAt": "2021-08-27T06:33:00.305Z",
       "updatedAt": "2021-08-27T06:33:00.305Z",
-      "identityResolutionEnabled": true,
-      "identityResolutionConfig": {
-        "blockedValues": ["null", "anonymous", "-1"],
-        "defaultLimit": 5,
-        "defaultLimitWindow": "monthly",
-        "redisCacheAddr": "{{.redisAddr}}"
+      "identityResolution": {
+        "enabled": true,
+        "blockedValues": [
+          {"matchType": "exact", "value": "null"},
+          {"matchType": "exact", "value": "anonymous"},
+          {"matchType": "exact", "value": "-1"}
+        ],
+        "identifierLimits": {
+          "email": {"period": "monthly", "maxCount": 5},
+          "user_id": {"period": "monthly", "maxCount": 5},
+          "anonymous_id": {"period": "monthly", "maxCount": 5}
+        },
+        "identifierPriority": ["user_id", "email", "anonymous_id"]
       },
       "destinations": [
         {

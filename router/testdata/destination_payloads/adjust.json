@@ -3,7 +3,7 @@
   "destination_tier": "cloud",
   "category": "Attribution",
   "event_types": ["track"],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track_standard_event": {
       "description": "Standard track event mapped to an Adjust custom event token via settings. Adjust S2S API requires all events to be pre-mapped to 6-character event tokens in the destination settings; unmapped event names are silently dropped and never forwarded.",
       "input_event": {
@@ -255,7 +255,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track_standard_event": {
       "description": "RudderStack track event for Adjust with standard event token mapping. The RudderStack payload wraps the event in the standard envelope with additional SDK metadata fields (rudderId, originalTimestamp, sentAt, receivedAt).",
       "input_event": {

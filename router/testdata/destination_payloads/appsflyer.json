@@ -3,7 +3,7 @@
   "destination_tier": "cloud",
   "category": "Attribution",
   "event_types": ["track", "identify"],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track_standard_event": {
       "description": "Segment maps track events to AppsFlyer's S2S In-App Events API (POST https://api2.appsflyer.com/inappevent/<app_id>). The event name is mapped to 'eventName', event properties are JSON-stringified into 'eventValue', device identifiers (IDFA for iOS, advertising_id for Android) are extracted from context.device, and the AppsFlyer device ID (appsflyer_id) is derived from context.device.id or an integration-specific field. The Segment Transformer handles the conversion from Segment spec fields to AppsFlyer's S2S API body format.",
       "input_event": {
@@ -381,7 +381,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track_standard_event": {
       "description": "RudderStack maps track events to AppsFlyer's S2S In-App Events API via the Transformer service. The mapping follows the same AppsFlyer API format as Segment. RudderStack extracts device identifiers from context.device, maps the event name to 'eventName', serializes event properties into 'eventValue' as a JSON string, and derives the appsflyer_id from integrations.AppsFlyer.appsFlyerId or externalId. RudderStack-specific envelope fields (rudderId, sentAt, receivedAt) are present in the source event but are NOT forwarded to AppsFlyer's API.",
       "input_event": {

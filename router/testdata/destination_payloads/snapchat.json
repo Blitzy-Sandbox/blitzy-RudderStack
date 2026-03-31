@@ -48,7 +48,7 @@
     "CUSTOM_EVENT_4",
     "CUSTOM_EVENT_5"
   ],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track": {
       "description": "Segment track call mapped to Snapchat Conversions API v3 for a Purchase (PURCHASE) event",
       "input_event": {
@@ -176,7 +176,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track": {
       "description": "RudderStack track call mapped to Snapchat Conversions API v3 for a Purchase (PURCHASE) event",
       "input_event": {

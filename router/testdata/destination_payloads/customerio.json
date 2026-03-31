@@ -24,7 +24,7 @@
     "parity": "MATCH"
   },
   "event_types": ["track", "identify", "page", "screen"],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "identify": {
       "description": "Segment maps identify calls to the Customer.io Track API v1 PUT /api/v1/customers/{identifier} endpoint. The userId becomes the customer identifier in the URL path. Traits are sent as top-level customer attributes. The email trait is treated as a special field for Customer.io's messaging capabilities. The created_at field is converted from ISO-8601 to a Unix timestamp.",
       "api_endpoint": "PUT https://track.customer.io/api/v1/customers/{identifier}",
@@ -116,7 +116,7 @@
       "notes": "Segment sends screen calls as Customer.io events with type 'screen'. This enables mobile app screen tracking within Customer.io for campaign targeting based on screens viewed."
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "identify": {
       "description": "RudderStack maps identify calls to the Customer.io Track API v1 PUT /api/v1/customers/{identifier} endpoint. The userId is used as the customer identifier in the URL path. Traits from the identify call are mapped as top-level customer attributes. RudderStack converts trait names from camelCase to snake_case for known reserved fields.",
       "api_endpoint": "PUT https://track.customer.io/api/v1/customers/{identifier}",

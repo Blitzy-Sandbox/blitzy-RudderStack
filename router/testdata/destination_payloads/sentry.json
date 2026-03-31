@@ -43,7 +43,7 @@
     "x_sentry_rate_limits": "Response header X-Sentry-Rate-Limits provides per-category rate limit details (error, transaction, attachment, session)",
     "notes": "SDKs must honor 429 responses and back off for the duration specified in Retry-After. Dropped events during rate limiting are not retried."
   },
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "identify": {
       "description": "Segment maps identify calls to Sentry.setUser() in device mode. The userId is mapped to the user id field, and traits are passed as user context properties. Sentry's setUser accepts id, email, username, and ip_address as standard fields; additional traits are stored as custom user data.",
       "input_event": {
@@ -201,7 +201,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "identify": {
       "description": "RudderStack maps identify calls to Sentry.setUser() in device mode, following the same pattern as Segment. RudderStack maps userId to the Sentry user id field. All traits are passed through to setUser. RudderStack adds standard envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event.",
       "input_event": {

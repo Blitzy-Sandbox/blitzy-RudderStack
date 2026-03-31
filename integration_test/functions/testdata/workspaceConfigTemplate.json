@@ -35,12 +35,13 @@
               "id": "23VJjP3bbHMzUhWjI7bvNL5S9xx"
             }
           ],
-          "functionsConfig": {
-            "enabled": true,
-            "type": "destination",
-            "functionId": "fn-dest-integration-001",
-            "functionName": "Test Destination Function"
-          },
+          "functionBindings": [
+            {
+              "functionId": "fn-dest-integration-001",
+              "functionType": "destination",
+              "enabled": true
+            }
+          ],
           "destinationDefinition": {
             "config": {
               "destConfig": {
@@ -109,12 +110,13 @@
               "id": "23VJjP3bbHMzUhWjI7bvNL5S9xx"
             }
           ],
-          "functionsConfig": {
-            "enabled": true,
-            "type": "insert",
-            "functionId": "fn-insert-integration-001",
-            "functionName": "Test Insert Function"
-          },
+          "functionBindings": [
+            {
+              "functionId": "fn-insert-integration-001",
+              "functionType": "insert",
+              "enabled": true
+            }
+          ],
           "destinationDefinition": {
             "config": {
               "destConfig": {
@@ -187,12 +189,7 @@
       "deleted": false,
       "createdAt": "2021-08-27T06:33:00.305Z",
       "updatedAt": "2021-08-27T06:33:00.305Z",
-      "functionsConfig": {
-        "enabled": true,
-        "type": "source",
-        "functionId": "fn-source-integration-001",
-        "functionName": "Test Source Function"
-      },
+      "sourceFunctionId": "fn-source-integration-001",
       "destinations": [
         {
           "config": {

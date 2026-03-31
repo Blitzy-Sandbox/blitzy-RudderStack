@@ -46,7 +46,7 @@
     "Add to Wishlist",
     "Search"
   ],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track": {
       "description": "Segment track call mapped to Google Ads Offline Conversion Upload via the Enhanced Conversions API for an Order Completed (Purchase) event with GCLID-based attribution and hashed user identifiers.",
       "input_event": {
@@ -270,7 +270,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track": {
       "description": "RudderStack track call mapped to Google Ads Offline Conversion Upload via the Enhanced Conversions API for an Order Completed (Purchase) event with GCLID-based attribution and hashed user identifiers.",
       "input_event": {

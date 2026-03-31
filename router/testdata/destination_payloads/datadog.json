@@ -36,7 +36,7 @@
     "metrics": "Standard Datadog API rate limits apply; custom metrics count toward billing",
     "notes": "Rate limits vary by Datadog plan and endpoint. Compression (gzip/deflate/zstd) is recommended for log payloads."
   },
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track_to_logs": {
       "description": "Segment maps track events to Datadog Logs API entries. The event name becomes the log message, event properties are mapped to log attributes, and user/context information is added as tags. The ddsource is set to 'segment' and the service is derived from destination settings.",
       "input_event": {
@@ -214,7 +214,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track_to_logs": {
       "description": "RudderStack maps track events to Datadog Logs API entries via the Transformer service. The event name becomes the log message, properties are flattened into log attributes, and user identity plus context data are added as tags. The ddsource is set to 'rudderstack' and additional RudderStack envelope fields are included.",
       "input_event": {

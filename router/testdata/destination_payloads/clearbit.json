@@ -36,7 +36,7 @@
       "required_params": ["email"]
     }
   },
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "identify": {
       "description": "Segment's Clearbit Enrichment integration listens for identify events, extracts the email from traits, calls the Clearbit Combined Enrichment API, and writes enriched person and company data back as traits on the user profile. Clearbit enrichment data appears as nested traits prefixed with clearbit_company.* and clearbit_person.* in downstream destinations.",
       "input_event": {
@@ -261,7 +261,7 @@
       }
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "identify": {
       "description": "RudderStack maps identify calls to the Clearbit Combined Enrichment API, following the same pattern as Segment. The email from traits is used to call the Clearbit API, and enriched person/company data is written back as traits. RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event.",
       "input_event": {

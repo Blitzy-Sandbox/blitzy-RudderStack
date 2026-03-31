@@ -15,7 +15,7 @@
     "notes": "Both Segment and RudderStack authenticate with OneSignal using the REST API Key. Segment uses the OneSignal OAuth flow to connect via the OneSignal dashboard. RudderStack requires the OneSignal App ID and REST API Key to be configured in the RudderStack dashboard. The REST API Key is sent as a Basic Authorization header."
   },
   "event_types": ["track", "identify"],
-  "segment_reference_payloads": {
+  "segment_reference_payload": {
     "track": {
       "description": "Segment track calls update OneSignal Data Tags on the user record identified by the External User ID (mapped from userId). OneSignal stores Track properties as Data Tags but drops the event name. For example, a track call with event 'Add to Cart' and properties {brand: 'Rayban'} only stores the tag 'brand=Rayban'. To retain the event name, users must manually prepend it to property keys (e.g., 'Add_to_Cart_brand').",
       "api_endpoint": "PUT https://onesignal.com/api/v1/apps/{app_id}/users/{external_user_id}",
@@ -47,7 +47,7 @@
       "notes": "Segment sends all Identify traits as Data Tags to OneSignal. The userId maps to OneSignal's External User ID used in the API path. OneSignal does not store email and phone as first-class properties; to update email/phone in OneSignal, a separate player record with the email address or phone number must be created and mapped to the External User ID. Tag values are stringified. OneSignal plans may cap the number of incoming Data Tags."
     }
   },
-  "rudderstack_expected_payloads": {
+  "rudderstack_expected_payload": {
     "track": {
       "description": "RudderStack track calls update OneSignal Data Tags on the user record identified by the external user ID (mapped from userId). RudderStack sends only the properties listed in the Allowed Property List dashboard setting as tags. In the User Model (recommended), RudderStack uses the OneSignal User API to update tags via external_user_id. In the Device Model (deprecated), it uses the Edit Tags with External User ID endpoint.",
       "api_endpoint_user_model": "PATCH https://api.onesignal.com/apps/{app_id}/users/by/external_id/{external_id}",

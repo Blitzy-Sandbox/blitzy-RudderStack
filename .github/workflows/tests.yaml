@@ -237,10 +237,10 @@ jobs:
           - identity
           - jobsdb
           - integration_test/backendconfigunavailability
-          - integration_test/destination_parity
+          # - integration_test/destination_parity  # Deferred: no Go test files yet
           - integration_test/docker_test
-          - integration_test/functions
-          - integration_test/identity
+          # - integration_test/functions  # Deferred: no Go test files yet
+          # - integration_test/identity  # Deferred: no Go test files yet
           - integration_test/multi_tenant_test
           - integration_test/partitionmigration
           - integration_test/reporting_dropped_events
@@ -255,7 +255,7 @@ jobs:
           - integration_test/transformer_contract
           - integration_test/sdk_compatibility
           - processor
-          - protocols
+          # - protocols  # Deferred: no Go test files yet
           - regulation-worker
           - router
           - services
