@@ -1,0 +1,543 @@
+{
+  "destination_type": "BRANCH",
+  "destination_tier": "cloud",
+  "segment_slug": "branch-metrics",
+  "categories": ["Attribution", "Deep Linking"],
+  "api_endpoint": "https://api2.branch.io/v2/event/standard",
+  "custom_event_endpoint": "https://api2.branch.io/v2/event/custom",
+  "event_types": ["track", "identify"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment track event mapped to Branch v2 Event API. Standard commerce events (Order Completed, Product Added, etc.) are mapped to Branch standard events (PURCHASE, ADD_TO_CART, etc.) via POST /v2/event/standard. Non-standard events are sent as custom events via POST /v2/event/custom.",
+      "endpoint": "POST /v2/event/standard",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "PURCHASE",
+        "customer_event_alias": "Order Completed",
+        "user_data": {
+          "os": "Android",
+          "os_version": "13",
+          "environment": "FULL_APP",
+          "aaid": "97987bca-ae59-4c7d-94ba-ee4f19ab8c21",
+          "android_id": "a12300000000",
+          "limit_ad_tracking": false,
+          "developer_identity": "user_123",
+          "country": "US",
+          "language": "en",
+          "ip": "192.168.1.1",
+          "user_agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7)",
+          "brand": "Google",
+          "app_version": "3.2.1",
+          "model": "Pixel 7",
+          "screen_dpi": 420,
+          "screen_height": 2400,
+          "screen_width": 1080
+        },
+        "event_data": {
+          "transaction_id": "txn-abc-123",
+          "currency": "USD",
+          "revenue": 180.20,
+          "shipping": 10.50,
+          "tax": 13.50,
+          "coupon": "SAVE20",
+          "affiliation": "web_store",
+          "description": "Order completed by user"
+        },
+        "custom_data": {
+          "order_id": "ord-456",
+          "payment_method": "credit_card"
+        },
+        "content_items": [
+          {
+            "$content_schema": "COMMERCE_PRODUCT",
+            "$og_title": "Premium Widget",
+            "$canonical_identifier": "SKU-001",
+            "$price": 49.99,
+            "$quantity": 2,
+            "$sku": "SKU-001",
+            "$product_name": "Premium Widget",
+            "$product_brand": "WidgetCo",
+            "$product_category": "Electronics",
+            "$product_variant": "Blue"
+          }
+        ],
+        "metadata": {},
+        "branch_key": "key_live_XXXXXXXXXXXX"
+      }
+    },
+    "track_custom": {
+      "description": "Segment track events that do not map to a Branch standard event are sent as custom events via POST /v2/event/custom.",
+      "endpoint": "POST /v2/event/custom",
+      "body": {
+        "name": "Video Played",
+        "user_data": {
+          "os": "iOS",
+          "os_version": "17.2",
+          "environment": "FULL_APP",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "idfv": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+          "limit_ad_tracking": false,
+          "developer_identity": "user_123",
+          "country": "US",
+          "language": "en",
+          "ip": "192.168.1.1",
+          "brand": "Apple",
+          "app_version": "3.2.1",
+          "model": "iPhone 15"
+        },
+        "custom_data": {
+          "video_id": "vid-789",
+          "video_title": "Product Demo",
+          "duration": 120,
+          "category": "tutorial"
+        },
+        "metadata": {},
+        "branch_key": "key_live_XXXXXXXXXXXX"
+      }
+    },
+    "identify": {
+      "description": "Segment identify events map userId to Branch developer_identity. Traits are sent as user profile data. The identify call itself does not map to a standalone Branch API call; instead, the developer_identity from identify is used to enrich subsequent track events.",
+      "mapping_behavior": "userId is stored and attached to subsequent Branch events as user_data.developer_identity. Traits such as email, name, and phone are not natively consumed by Branch standard events but may be passed in custom_data.",
+      "body": null
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack track event transformed by the Transformer service and sent to Branch v2 Event API. Standard commerce event mapping follows the same Segment-to-Branch event name translation. Device context is extracted from context.device and context.os.",
+      "endpoint": "POST /v2/event/standard",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "PURCHASE",
+        "customer_event_alias": "Order Completed",
+        "user_data": {
+          "os": "Android",
+          "os_version": "13",
+          "environment": "FULL_APP",
+          "aaid": "97987bca-ae59-4c7d-94ba-ee4f19ab8c21",
+          "android_id": "a12300000000",
+          "limit_ad_tracking": false,
+          "developer_identity": "user_123",
+          "country": "US",
+          "language": "en",
+          "ip": "192.168.1.1",
+          "user_agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7)",
+          "brand": "Google",
+          "app_version": "3.2.1",
+          "model": "Pixel 7",
+          "screen_dpi": 420,
+          "screen_height": 2400,
+          "screen_width": 1080
+        },
+        "event_data": {
+          "transaction_id": "txn-abc-123",
+          "currency": "USD",
+          "revenue": 180.20,
+          "shipping": 10.50,
+          "tax": 13.50,
+          "coupon": "SAVE20",
+          "affiliation": "web_store",
+          "description": "Order completed by user"
+        },
+        "custom_data": {
+          "order_id": "ord-456",
+          "payment_method": "credit_card"
+        },
+        "content_items": [
+          {
+            "$content_schema": "COMMERCE_PRODUCT",
+            "$og_title": "Premium Widget",
+            "$canonical_identifier": "SKU-001",
+            "$price": 49.99,
+            "$quantity": 2,
+            "$sku": "SKU-001",
+            "$product_name": "Premium Widget",
+            "$product_brand": "WidgetCo",
+            "$product_category": "Electronics",
+            "$product_variant": "Blue"
+          }
+        ],
+        "metadata": {},
+        "branch_key": "key_live_XXXXXXXXXXXX"
+      }
+    },
+    "track_custom": {
+      "description": "RudderStack track events that do not match a standard Branch event name are sent as custom events via POST /v2/event/custom. The Transformer maps event properties to custom_data.",
+      "endpoint": "POST /v2/event/custom",
+      "body": {
+        "name": "Video Played",
+        "user_data": {
+          "os": "iOS",
+          "os_version": "17.2",
+          "environment": "FULL_APP",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "idfv": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+          "limit_ad_tracking": false,
+          "developer_identity": "user_123",
+          "country": "US",
+          "language": "en",
+          "ip": "192.168.1.1",
+          "brand": "Apple",
+          "app_version": "3.2.1",
+          "model": "iPhone 15"
+        },
+        "custom_data": {
+          "video_id": "vid-789",
+          "video_title": "Product Demo",
+          "duration": 120,
+          "category": "tutorial"
+        },
+        "metadata": {},
+        "branch_key": "key_live_XXXXXXXXXXXX"
+      }
+    },
+    "identify": {
+      "description": "RudderStack identify events map userId to developer_identity for subsequent Branch events. The Transformer stores the identity association and enriches future track events with the resolved developer_identity.",
+      "mapping_behavior": "userId from identify is persisted and used as user_data.developer_identity in subsequent Branch event API calls. Traits are forwarded as custom_data where applicable.",
+      "body": null
+    }
+  },
+  "field_mappings": {
+    "event_name_mapping": {
+      "description": "Both Segment and RudderStack map Segment Spec event names to Branch standard event names. Non-matching events are routed to the custom event endpoint.",
+      "standard_event_map": {
+        "Order Completed": "PURCHASE",
+        "Product Added": "ADD_TO_CART",
+        "Product Added to Wishlist": "ADD_TO_WISHLIST",
+        "Product Viewed": "VIEW_ITEM",
+        "Products Searched": "SEARCH",
+        "Checkout Started": "INITIATE_PURCHASE",
+        "Payment Info Entered": "ADD_PAYMENT_INFO",
+        "Promotion Viewed": "VIEW_AD",
+        "Promotion Clicked": "CLICK_AD",
+        "Product List Viewed": "VIEW_ITEMS",
+        "Product Shared": "SHARE",
+        "Cart Shared": "SHARE",
+        "Signed Up": "COMPLETE_REGISTRATION",
+        "Application Installed": "INSTALL",
+        "Application Opened": "OPEN"
+      },
+      "parity_status": "needs_verification",
+      "known_gaps": "Event name mapping may differ slightly between Segment and RudderStack Transformer configurations. Custom event names are passed through as-is to the /v2/event/custom endpoint."
+    },
+    "user_identification": {
+      "description": "Device identification is critical for Branch attribution. Both platforms must extract device identifiers from the event context.",
+      "mappings": {
+        "userId": {
+          "branch_field": "user_data.developer_identity",
+          "segment_source": "userId",
+          "rudderstack_source": "userId",
+          "parity": "equivalent"
+        },
+        "advertising_id_android": {
+          "branch_field": "user_data.aaid",
+          "segment_source": "context.device.advertisingId (when context.os.name=Android)",
+          "rudderstack_source": "context.device.advertisingId (when context.os.name=Android)",
+          "parity": "equivalent"
+        },
+        "advertising_id_ios": {
+          "branch_field": "user_data.idfa",
+          "segment_source": "context.device.advertisingId (when context.os.name=iOS)",
+          "rudderstack_source": "context.device.advertisingId (when context.os.name=iOS)",
+          "parity": "equivalent"
+        },
+        "idfv": {
+          "branch_field": "user_data.idfv",
+          "segment_source": "context.device.id (iOS fallback)",
+          "rudderstack_source": "context.device.id (iOS fallback)",
+          "parity": "needs_verification"
+        },
+        "android_id": {
+          "branch_field": "user_data.android_id",
+          "segment_source": "context.device.id (Android fallback)",
+          "rudderstack_source": "context.device.id (Android fallback)",
+          "parity": "needs_verification"
+        },
+        "anonymous_id": {
+          "branch_field": "not_mapped",
+          "segment_source": "anonymousId",
+          "rudderstack_source": "anonymousId",
+          "notes": "Branch does not natively map anonymous ID. It may be passed in custom_data but is not used for attribution.",
+          "parity": "equivalent"
+        },
+        "browser_fingerprint_id": {
+          "branch_field": "user_data.browser_fingerprint_id",
+          "segment_source": "properties.browser_fingerprint_id or integrations.Branch.browser_fingerprint_id",
+          "rudderstack_source": "properties.browser_fingerprint_id or integrations.Branch.browser_fingerprint_id",
+          "notes": "Required for web event attribution. Must be collected via Branch Web SDK and passed explicitly.",
+          "parity": "needs_verification"
+        }
+      },
+      "required_identifiers": "Branch requires at least one of: developer_identity, browser_fingerprint_id, iOS IDFA/IDFV, or Android GAID/android_id"
+    },
+    "device_context": {
+      "description": "Device metadata extracted from the event context object and mapped to Branch user_data fields.",
+      "mappings": {
+        "os": {
+          "branch_field": "user_data.os",
+          "segment_source": "context.os.name",
+          "rudderstack_source": "context.os.name",
+          "parity": "equivalent"
+        },
+        "os_version": {
+          "branch_field": "user_data.os_version",
+          "segment_source": "context.os.version",
+          "rudderstack_source": "context.os.version",
+          "parity": "equivalent"
+        },
+        "model": {
+          "branch_field": "user_data.model",
+          "segment_source": "context.device.model",
+          "rudderstack_source": "context.device.model",
+          "parity": "equivalent"
+        },
+        "brand": {
+          "branch_field": "user_data.brand",
+          "segment_source": "context.device.manufacturer",
+          "rudderstack_source": "context.device.manufacturer",
+          "parity": "needs_verification"
+        },
+        "screen_dpi": {
+          "branch_field": "user_data.screen_dpi",
+          "segment_source": "context.screen.density",
+          "rudderstack_source": "context.screen.density",
+          "parity": "needs_verification"
+        },
+        "screen_height": {
+          "branch_field": "user_data.screen_height",
+          "segment_source": "context.screen.height",
+          "rudderstack_source": "context.screen.height",
+          "parity": "equivalent"
+        },
+        "screen_width": {
+          "branch_field": "user_data.screen_width",
+          "segment_source": "context.screen.width",
+          "rudderstack_source": "context.screen.width",
+          "parity": "equivalent"
+        },
+        "ip": {
+          "branch_field": "user_data.ip or X-IP-Override header",
+          "segment_source": "context.ip",
+          "rudderstack_source": "context.ip or request_ip",
+          "notes": "Server-to-server calls must set IP via X-IP-Override header for accurate geo attribution.",
+          "parity": "needs_verification"
+        },
+        "user_agent": {
+          "branch_field": "user_data.user_agent",
+          "segment_source": "context.userAgent",
+          "rudderstack_source": "context.userAgent",
+          "parity": "equivalent"
+        },
+        "country": {
+          "branch_field": "user_data.country",
+          "segment_source": "context.locale (derived)",
+          "rudderstack_source": "context.locale (derived)",
+          "parity": "needs_verification"
+        },
+        "language": {
+          "branch_field": "user_data.language",
+          "segment_source": "context.locale (derived)",
+          "rudderstack_source": "context.locale (derived)",
+          "parity": "needs_verification"
+        },
+        "app_version": {
+          "branch_field": "user_data.app_version",
+          "segment_source": "context.app.version",
+          "rudderstack_source": "context.app.version",
+          "parity": "equivalent"
+        },
+        "limit_ad_tracking": {
+          "branch_field": "user_data.limit_ad_tracking",
+          "segment_source": "context.device.adTrackingEnabled (inverted)",
+          "rudderstack_source": "context.device.adTrackingEnabled (inverted)",
+          "notes": "Branch uses limit_ad_tracking=true to opt out; Segment uses adTrackingEnabled=false. The boolean is inverted.",
+          "parity": "needs_verification"
+        },
+        "environment": {
+          "branch_field": "user_data.environment",
+          "segment_source": "derived from context (FULL_APP for mobile, WEB_BROWSER for web)",
+          "rudderstack_source": "derived from context (FULL_APP for mobile, WEB_BROWSER for web)",
+          "parity": "needs_verification"
+        }
+      }
+    },
+    "commerce_event_data": {
+      "description": "Commerce event properties mapped to Branch event_data fields for standard commerce events.",
+      "mappings": {
+        "revenue": {
+          "branch_field": "event_data.revenue",
+          "segment_source": "properties.revenue or properties.total",
+          "rudderstack_source": "properties.revenue or properties.total",
+          "parity": "equivalent"
+        },
+        "currency": {
+          "branch_field": "event_data.currency",
+          "segment_source": "properties.currency",
+          "rudderstack_source": "properties.currency",
+          "parity": "equivalent"
+        },
+        "transaction_id": {
+          "branch_field": "event_data.transaction_id",
+          "segment_source": "properties.order_id",
+          "rudderstack_source": "properties.order_id",
+          "parity": "equivalent"
+        },
+        "shipping": {
+          "branch_field": "event_data.shipping",
+          "segment_source": "properties.shipping",
+          "rudderstack_source": "properties.shipping",
+          "parity": "equivalent"
+        },
+        "tax": {
+          "branch_field": "event_data.tax",
+          "segment_source": "properties.tax",
+          "rudderstack_source": "properties.tax",
+          "parity": "equivalent"
+        },
+        "coupon": {
+          "branch_field": "event_data.coupon",
+          "segment_source": "properties.coupon",
+          "rudderstack_source": "properties.coupon",
+          "parity": "equivalent"
+        },
+        "affiliation": {
+          "branch_field": "event_data.affiliation",
+          "segment_source": "properties.affiliation",
+          "rudderstack_source": "properties.affiliation",
+          "parity": "equivalent"
+        },
+        "description": {
+          "branch_field": "event_data.description",
+          "segment_source": "properties.description (if present)",
+          "rudderstack_source": "properties.description (if present)",
+          "parity": "equivalent"
+        }
+      }
+    },
+    "content_items": {
+      "description": "Product/content data from Segment Spec products array mapped to Branch content_items array.",
+      "mappings": {
+        "product_id": {
+          "branch_field": "$canonical_identifier",
+          "segment_source": "properties.products[].product_id",
+          "rudderstack_source": "properties.products[].product_id",
+          "parity": "equivalent"
+        },
+        "sku": {
+          "branch_field": "$sku",
+          "segment_source": "properties.products[].sku",
+          "rudderstack_source": "properties.products[].sku",
+          "parity": "equivalent"
+        },
+        "name": {
+          "branch_field": "$product_name or $og_title",
+          "segment_source": "properties.products[].name",
+          "rudderstack_source": "properties.products[].name",
+          "parity": "needs_verification"
+        },
+        "price": {
+          "branch_field": "$price",
+          "segment_source": "properties.products[].price",
+          "rudderstack_source": "properties.products[].price",
+          "parity": "equivalent"
+        },
+        "quantity": {
+          "branch_field": "$quantity",
+          "segment_source": "properties.products[].quantity",
+          "rudderstack_source": "properties.products[].quantity",
+          "parity": "equivalent"
+        },
+        "brand": {
+          "branch_field": "$product_brand",
+          "segment_source": "properties.products[].brand",
+          "rudderstack_source": "properties.products[].brand",
+          "parity": "equivalent"
+        },
+        "category": {
+          "branch_field": "$product_category",
+          "segment_source": "properties.products[].category",
+          "rudderstack_source": "properties.products[].category",
+          "parity": "equivalent"
+        },
+        "variant": {
+          "branch_field": "$product_variant",
+          "segment_source": "properties.products[].variant",
+          "rudderstack_source": "properties.products[].variant",
+          "parity": "equivalent"
+        }
+      }
+    },
+    "deep_link_data": {
+      "description": "Branch-specific deep link metadata that may be passed via Segment/RudderStack integrations object.",
+      "mappings": {
+        "branch_key": {
+          "branch_field": "branch_key",
+          "segment_source": "destination config (Branch Key setting)",
+          "rudderstack_source": "destination config (Branch Key setting)",
+          "parity": "equivalent"
+        },
+        "customer_event_alias": {
+          "branch_field": "customer_event_alias",
+          "segment_source": "derived from original event name when mapped to standard event",
+          "rudderstack_source": "derived from original event name when mapped to standard event",
+          "parity": "needs_verification"
+        }
+      }
+    },
+    "dma_compliance": {
+      "description": "EU Digital Markets Act compliance fields for consent management.",
+      "mappings": {
+        "dma_eea": {
+          "branch_field": "user_data.dma_eea",
+          "segment_source": "context.consent.dma_eea or integrations.Branch.dma_eea",
+          "rudderstack_source": "context.consent.dma_eea or integrations.Branch.dma_eea",
+          "parity": "needs_verification"
+        },
+        "dma_ad_personalization": {
+          "branch_field": "user_data.dma_ad_personalization",
+          "segment_source": "context.consent.dma_ad_personalization or integrations.Branch.dma_ad_personalization",
+          "rudderstack_source": "context.consent.dma_ad_personalization or integrations.Branch.dma_ad_personalization",
+          "parity": "needs_verification"
+        },
+        "dma_ad_user_data": {
+          "branch_field": "user_data.dma_ad_user_data",
+          "segment_source": "context.consent.dma_ad_user_data or integrations.Branch.dma_ad_user_data",
+          "rudderstack_source": "context.consent.dma_ad_user_data or integrations.Branch.dma_ad_user_data",
+          "parity": "needs_verification"
+        }
+      }
+    },
+    "envelope_differences": {
+      "description": "Additional RudderStack envelope fields not present in Segment payloads. These are stripped during transformation and do not appear in the Branch API request.",
+      "rudderstack_only_fields": [
+        "rudderId",
+        "originalTimestamp",
+        "sentAt",
+        "receivedAt"
+      ],
+      "notes": "RudderStack envelope fields are internal to the RudderStack pipeline and are removed by the Transformer before sending to Branch. The final Branch API payload should be identical between Segment and RudderStack."
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "needs_verification",
+    "estimated_parity": "high",
+    "rationale": "Branch destination payloads are generated by the external Transformer service which performs the Segment Spec to Branch API mapping. Both Segment and RudderStack use the same Branch v2 Event API endpoints. The transformation logic should produce equivalent payloads given identical input events.",
+    "verification_required": [
+      "Standard event name mapping completeness",
+      "Device identifier extraction from context (IDFA vs GAID fallback logic)",
+      "limit_ad_tracking boolean inversion from adTrackingEnabled",
+      "brand field mapping (context.device.manufacturer vs context.device.brand)",
+      "Screen DPI mapping from context.screen.density",
+      "Country and language derivation from context.locale",
+      "Browser fingerprint passthrough for web events",
+      "DMA compliance field forwarding",
+      "IP address handling (body field vs X-IP-Override header)",
+      "customer_event_alias derivation when standard event mapping is applied",
+      "Environment field derivation (FULL_APP vs WEB_BROWSER)"
+    ]
+  },
+  "notes": "Branch is a shared cloud destination present in both RudderStack and Segment catalogs. Categories: Attribution, Deep Linking. Branch uses the v2 Event API (api2.branch.io) with separate endpoints for standard events (POST /v2/event/standard) and custom events (POST /v2/event/custom). Device identification is critical for attribution — at least one of developer_identity, browser_fingerprint_id, iOS IDFA/IDFV, or Android GAID/android_id must be present. RudderStack maps userId to developer_identity and extracts device identifiers from context.device. Anonymous ID is not natively used by Branch for attribution. The Transformer service handles the event-to-Branch payload mapping. Segment equivalent slug: branch-metrics. Key parity verification areas: event name mapping, device identifier extraction, DMA consent fields, and IP address handling for server-to-server calls."
+}
