@@ -36,6 +36,7 @@ import (
 	sourcedebugger "github.com/rudderlabs/rudder-server/services/debugger/source"
 	transformationdebugger "github.com/rudderlabs/rudder-server/services/debugger/transformation"
 	"github.com/rudderlabs/rudder-server/services/fileuploader"
+	"github.com/rudderlabs/rudder-server/services/monitoring"
 	"github.com/rudderlabs/rudder-server/services/rmetrics"
 	"github.com/rudderlabs/rudder-server/services/transformer"
 	"github.com/rudderlabs/rudder-server/services/transientsource"
@@ -390,12 +391,24 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 		return drainConfigManager.CleanupRoutine(ctx)
 	}))
 	streamMsgValidator := stream.NewMessageValidator()
+
+	// Create and start the monitoring dashboard service (E-036).
+	// Only requires config and logger — no database dependency.
+	monitoringDashboard := monitoring.NewDashboardService(config, a.log)
+	if err := monitoringDashboard.Start(ctx); err != nil {
+		return fmt.Errorf("monitoring dashboard start: %v", err)
+	}
+	defer monitoringDashboard.Stop()
+	monitoringMux := http.NewServeMux()
+	monitoringMux.HandleFunc("/dashboard", monitoringDashboard.DashboardHandler)
+
 	gw := gateway.Handle{}
 	err = gw.Setup(ctx, config, logger.NewLogger().Child("gateway"), statsFactory, a.app, backendconfig.DefaultBackendConfig,
 		gwWODB, rateLimiter, a.versionHandler, rsourcesService, transformerFeaturesService, sourceHandle,
 		streamMsgValidator, gateway.WithInternalHttpHandlers(
 			map[string]http.Handler{
-				"/drain": drainConfigManager.DrainConfigHttpHandler(),
+				"/drain":         drainConfigManager.DrainConfigHttpHandler(),
+				"/v1/monitoring": monitoringMux,
 			},
 		))
 	if err != nil {

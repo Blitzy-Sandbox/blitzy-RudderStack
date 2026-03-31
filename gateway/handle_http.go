@@ -228,7 +228,7 @@ func (gw *Handle) callType(callType string, delegate http.HandlerFunc) http.Hand
 // Used by webProtocolsHandler, webProfilesHandler, webMonitoringHandler —
 // these handler factory methods are defined but awaiting route mounting in
 // handle_lifecycle.go (future checkpoint).
-func requireBearerAuth(delegate http.HandlerFunc) http.HandlerFunc { //nolint:unused // transitively unused until routes are mounted in handle_lifecycle.go
+func requireBearerAuth(delegate http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {

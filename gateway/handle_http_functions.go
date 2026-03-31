@@ -25,7 +25,7 @@ import (
 // stripped from the request context forwarded to the Functions runtime and
 // persisted in the jobs database. This prevents credentials, session tokens,
 // and authentication headers from leaking into event storage.
-var sensitiveHeaders = map[string]struct{}{ //nolint:unused // transitively unused until routes are mounted in handle_lifecycle.go
+var sensitiveHeaders = map[string]struct{}{
 	"Authorization":   {},
 	"Cookie":          {},
 	"Set-Cookie":      {},

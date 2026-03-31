@@ -39,7 +39,7 @@ func isDryRunReplay(r *http.Request) bool {
 //	endDate       → <prefix>replayDateRange.endDate     (string)
 //	destFilter    → <prefix>replayDestinationFilter     (string)
 //	dryRunStr     → <prefix>replayDryRun                (bool true, only when dryRunStr == "true")
-func injectReplayFilters(body []byte, prefix, sourceFilter, startDate, endDate, destFilter, dryRunStr string) []byte { //nolint:unused // transitively unused until routes are mounted in handle_lifecycle.go
+func injectReplayFilters(body []byte, prefix, sourceFilter, startDate, endDate, destFilter, dryRunStr string) []byte {
 	if sourceFilter != "" {
 		if modified, err := sjson.SetBytes(body, prefix+"replaySourceFilter", sourceFilter); err == nil {
 			body = modified

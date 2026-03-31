@@ -625,6 +625,38 @@ func (gw *Handle) StartWebHandler(ctx context.Context) error {
 
 			r.Get("/jobs/status", gw.whProxy.ServeHTTP)
 		})
+
+		// Source Functions webhook endpoint (E-015). The explicit route for
+		// /functions/source is registered before the /functions mount so that
+		// chi's trie-based router resolves the more-specific path first.
+		r.Post("/functions/source", gw.webSourceFunctionsHandler())
+
+		// Functions management CRUD API (E-018). Bearer token authentication
+		// is enforced at the gateway level; the internal handler performs
+		// additional authorization. When no internal handler is wired the
+		// endpoint returns HTTP 503 Service Unavailable.
+		r.Mount("/functions", requireBearerAuth(withContentType(
+			"application/json; charset=utf-8",
+			func(w http.ResponseWriter, req *http.Request) {
+				if handler, ok := gw.internalHttpHandlers["/v1/functions"]; ok {
+					handler.ServeHTTP(w, req)
+					return
+				}
+				http.Error(w, "Functions API not configured", http.StatusServiceUnavailable)
+			},
+		)))
+
+		// Protocols / Tracking Plan management API (E-024)
+		r.Mount("/protocols", gw.webProtocolsHandler())
+
+		// Profiles REST API (E-027)
+		r.Mount("/profiles", gw.webProfilesHandler())
+
+		// Monitoring dashboard API (E-036)
+		r.Mount("/monitoring", gw.webMonitoringHandler())
+
+		// Advanced replay with source/date-range/destination filtering and dry-run (E-038)
+		r.Post("/replay", gw.webAdvancedReplayHandler())
 	})
 
 	srvMux.Get("/health", withContentType("application/json; charset=utf-8", app.LivenessHandler(gw.jobsDB)))
