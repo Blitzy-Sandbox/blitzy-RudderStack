@@ -1,0 +1,313 @@
+{
+  "destination_type": "CLICKHOUSE",
+  "destination_tier": "warehouse",
+  "segment_reference_payload": null,
+  "rudderstack_expected_payload": {
+    "loading_method": "Bulk INSERT",
+    "driver": "clickhouse-go (github.com/ClickHouse/clickhouse-go)",
+    "connection": {
+      "protocol": "tcp",
+      "tls_support": true,
+      "tls_options": {
+        "secure": "configurable",
+        "skip_verify": "configurable",
+        "tls_config": "custom CA certificate via registerTLSConfig when PEM data is provided"
+      },
+      "port": 9000,
+      "connection_timeout": "configurable via SetConnectionTimeout",
+      "read_timeout": "300 seconds (default)",
+      "write_timeout": "1800 seconds (default)"
+    },
+    "staging": {
+      "staging_file_format": "gzipped CSV",
+      "staging_file_source": "S3 or MinIO object storage via loadFileDownloader",
+      "s3_copy_engine": "optional UseS3CopyEngineForLoading for bulk S3 ingestion, enabled per workspace via s3EngineEnabledWorkspaceIDs",
+      "num_workers_download": 8,
+      "random_load_delay": "configurable per-workspace jitter to spread load across cluster nodes"
+    },
+    "table_engines": {
+      "event_tables": {
+        "engine": "ReplacingMergeTree",
+        "cluster_engine": "ReplicatedReplacingMergeTree",
+        "description": "Removes duplicate entries with the same sorting key value, keeping the latest version",
+        "sort_key": "(received_at, id)",
+        "partition_by": "toDate(received_at)"
+      },
+      "user_tables": {
+        "engine": "AggregatingMergeTree",
+        "cluster_engine": "ReplicatedAggregatingMergeTree",
+        "description": "Aggregation logic before merging records with same user id; replaces user properties with the latest non-null values via SimpleAggregateFunction(anyLast, ...)",
+        "sort_key": "(id)",
+        "partition_by": "toDate(received_at)"
+      },
+      "discard_tables": {
+        "engine": "ReplacingMergeTree",
+        "sort_key": "(received_at)"
+      },
+      "staging_tables": {
+        "engine": "ReplacingMergeTree",
+        "sort_key": "(id)"
+      }
+    },
+    "cluster_replication": {
+      "enabled": "configurable via destination config cluster setting",
+      "cluster_clause": "ON CLUSTER <cluster_name>",
+      "zookeeper_path": "/clickhouse/{cluster}/tables/<uuid>/{database}/{table}",
+      "replica_macro": "{replica}",
+      "distributed_tables": "cluster mode creates distributed views over replicated local tables"
+    },
+    "schema_management": {
+      "schema_creation": "CREATE DATABASE IF NOT EXISTS via CreateSchema",
+      "table_creation": "CREATE TABLE IF NOT EXISTS with engine-specific DDL",
+      "column_addition": "ALTER TABLE ADD COLUMN",
+      "type_mapping": {
+        "int": "Int64",
+        "array(int)": "Array(Int64)",
+        "float": "Float64",
+        "array(float)": "Array(Float64)",
+        "string": "String",
+        "array(string)": "Array(String)",
+        "datetime": "DateTime",
+        "array(datetime)": "Array(DateTime)",
+        "boolean": "UInt8",
+        "array(boolean)": "Array(UInt8)"
+      },
+      "specific_column_types": {
+        "event": "LowCardinality(String)",
+        "event_text": "LowCardinality(String)"
+      },
+      "nullable_handling": {
+        "configurable": true,
+        "disable_nullable": "When disableNullable is true, columns use base types with default values instead of Nullable wrappers",
+        "default_values": {
+          "int": 0,
+          "float": 0.0,
+          "boolean": 0,
+          "datetime": "1970-01-01T00:00:00Z"
+        }
+      },
+      "user_table_aggregation": {
+        "column_wrapper": "SimpleAggregateFunction(anyLast, Nullable(<type>))",
+        "description": "User table columns use SimpleAggregateFunction to merge latest non-null values during background merges"
+      }
+    },
+    "bulk_insert": {
+      "method": "Prepared INSERT statement via clickhouse-go driver",
+      "description": "Rows are streamed via prepared INSERT statements from decompressed gzipped CSV records into the target table within a transaction",
+      "block_size": "1000000 (default)",
+      "pool_size": "100 (default)",
+      "compression": "configurable via Warehouse.clickhouse.compress",
+      "null_handling": "empty strings are trimmed to nil; type coercion applied per column",
+      "type_coercion": "typecastDataFromType coerces int, float, bool, datetime, and array values; castStringToArray handles JSON array parsing",
+      "exec_timeout": "600 seconds (default, per-statement execution timeout)",
+      "commit_timeout": "600 seconds (default, per-transaction commit timeout)",
+      "retry": {
+        "max_retries": 3,
+        "strategy": "backoff/retry with configurable loadTableFailureRetries"
+      }
+    },
+    "deduplication": {
+      "strategy": "ReplacingMergeTree engine handles deduplication during background merges by sorting key",
+      "description": "ClickHouse natively deduplicates rows with the same sorting key values during background merge operations, keeping the latest version based on insertion order",
+      "event_sort_key": "(received_at, id)",
+      "user_sort_key": "(id)"
+    },
+    "identity_merge": {
+      "union_staging_tables": true,
+      "description": "LoadUserTables maintains union staging tables for identity streams, deduplicates existing rows, and refreshes identities atomically"
+    },
+    "cleanup": {
+      "drop_staging_tables": true,
+      "drop_dangling_staging_tables": true,
+      "close_connection": true
+    },
+    "observability": {
+      "metrics": [
+        "warehouse.clickhouse.numRowsLoadFile",
+        "warehouse.clickhouse.downloadLoadFilesTime",
+        "warehouse.clickhouse.syncLoadFileTime",
+        "warehouse.clickhouse.commitTime",
+        "warehouse.clickhouse.failedRetries",
+        "warehouse.clickhouse.execTimeouts",
+        "warehouse.clickhouse.commitTimeouts"
+      ],
+      "metric_tags": ["workspaceId", "destination", "destType", "source", "identifier", "tableName"],
+      "slow_query_threshold": "5 minutes (default)"
+    },
+    "sample_track_event": {
+      "table": "tracks",
+      "engine": "ReplacingMergeTree",
+      "sort_key": "(received_at, id)",
+      "partition_by": "toDate(received_at)",
+      "columns": {
+        "id": "msg-uuid-001",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "event": "Product Viewed",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "product_id": "SKU-001",
+        "product_name": "Premium Widget",
+        "price": 49.99,
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_identify_event": {
+      "table": "identifies",
+      "engine": "ReplacingMergeTree",
+      "sort_key": "(received_at, id)",
+      "partition_by": "toDate(received_at)",
+      "columns": {
+        "id": "msg-uuid-002",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "email": "user@example.com",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_users_event": {
+      "table": "users",
+      "engine": "AggregatingMergeTree",
+      "sort_key": "(id)",
+      "partition_by": "toDate(received_at)",
+      "column_type_note": "User columns wrapped in SimpleAggregateFunction(anyLast, Nullable(<type>)) for last-value aggregation during merges",
+      "columns": {
+        "id": "user_123",
+        "anonymous_id": "anon_456",
+        "email": "user@example.com",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_page_event": {
+      "table": "pages",
+      "engine": "ReplacingMergeTree",
+      "sort_key": "(received_at, id)",
+      "partition_by": "toDate(received_at)",
+      "columns": {
+        "id": "msg-uuid-003",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "name": "Home",
+        "url": "https://example.com/",
+        "path": "/",
+        "title": "Home Page",
+        "referrer": "https://google.com",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_screen_event": {
+      "table": "screens",
+      "engine": "ReplacingMergeTree",
+      "sort_key": "(received_at, id)",
+      "partition_by": "toDate(received_at)",
+      "columns": {
+        "id": "msg-uuid-004",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "name": "Dashboard",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_group_event": {
+      "table": "groups",
+      "engine": "ReplacingMergeTree",
+      "sort_key": "(received_at, id)",
+      "partition_by": "toDate(received_at)",
+      "columns": {
+        "id": "msg-uuid-005",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "group_id": "group_789",
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "plan": "enterprise",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "sample_alias_event": {
+      "table": "aliases",
+      "engine": "ReplacingMergeTree",
+      "sort_key": "(received_at, id)",
+      "partition_by": "toDate(received_at)",
+      "columns": {
+        "id": "msg-uuid-006",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "previous_id": "old_user_456",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.0.0",
+        "context_ip": "192.168.1.1",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "uuid_ts": "2026-02-25T12:00:02.000Z"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "note": "RudderStack-unique. No Segment equivalent for comparison.",
+    "loading_method": "Bulk INSERT via clickhouse-go driver; no Segment ClickHouse destination exists for comparison",
+    "column_naming": "RudderStack uses snake_case column names (e.g., context_library_name, original_timestamp, received_at)",
+    "type_system": "Rudder types are mapped to ClickHouse types: int→Int64, float→Float64, string→String, datetime→DateTime, boolean→UInt8 (ClickHouse has no native bool type)",
+    "special_columns": "event and event_text columns use LowCardinality(String) for optimized cardinality storage",
+    "table_engine_strategy": "Event tables use ReplacingMergeTree for deduplication; user tables use AggregatingMergeTree with SimpleAggregateFunction(anyLast, ...) for last-value merge semantics",
+    "cluster_replication": "When cluster setting is configured, engines are prefixed with Replicated (e.g., ReplicatedReplacingMergeTree) with ZooKeeper path-based coordination",
+    "partitioning": "All tables partitioned by toDate(received_at) for efficient date-range pruning",
+    "nullable_handling": "Configurable via disableNullable: when disabled, columns use base types with default sentinel values (0 for int/bool, 0.0 for float, 1970-01-01 for datetime) instead of Nullable wrappers",
+    "staging_strategy": "Gzipped CSV file download from object storage with optional S3 COPY engine for bulk ingestion; deduplication handled natively by ReplacingMergeTree engine during background merges",
+    "array_support": "ClickHouse supports native array types: Array(Int64), Array(Float64), Array(String), Array(DateTime), Array(UInt8) mapped from Rudder array types"
+  },
+  "parity_status": "not_applicable",
+  "parity_coverage_percent": null,
+  "notes": "ClickHouse is a RudderStack-unique warehouse destination. There is no Segment ClickHouse destination, so payload parity comparison is not applicable. RudderStack loads data via Bulk INSERT using the clickhouse-go driver with configurable TLS support, gzipped CSV file download from object storage (with optional S3 COPY engine for bulk ingestion), ReplacingMergeTree engine for event table deduplication, AggregatingMergeTree engine for user table last-value merge semantics, cluster replication via Replicated engine variants with ZooKeeper coordination, LowCardinality(String) optimization for event columns, configurable nullable handling, native array type support, and comprehensive observability metrics. The warehouse integration is located at warehouse/integrations/clickhouse/. MSSQL is the only other RudderStack-unique warehouse destination."
+}
