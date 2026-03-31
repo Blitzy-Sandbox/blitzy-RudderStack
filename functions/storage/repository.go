@@ -143,14 +143,18 @@ func (r *Repository) Create(ctx context.Context, fn *Function) error {
 	return nil
 }
 
-// Get retrieves a function by its primary key ID.
-// Returns ErrFunctionNotFound if no row exists with the given ID.
-func (r *Repository) Get(ctx context.Context, id string) (*Function, error) {
+// Get retrieves a function by its primary key ID scoped to a workspace.
+// The workspaceID filter provides defense-in-depth multi-tenant isolation,
+// ensuring callers can only access functions within their own workspace
+// (consistent with protocols/storage which scopes all operations by workspace).
+// Returns ErrFunctionNotFound if no row exists with the given ID and workspace.
+func (r *Repository) Get(ctx context.Context, id string, workspaceID string) (*Function, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT `+functionsColumns+`
 		FROM `+functionsTableName+`
-		WHERE id = $1`,
+		WHERE id = $1 AND workspace_id = $2`,
 		id,
+		workspaceID,
 	)
 
 	fn, err := scanFunction(row)
@@ -178,14 +182,15 @@ func (r *Repository) Update(ctx context.Context, fn *Function) error {
 	}
 
 	// Use RETURNING to atomically retrieve the new version and timestamp,
-	// avoiding a separate SELECT round-trip.
+	// avoiding a separate SELECT round-trip. The workspace_id filter provides
+	// defense-in-depth multi-tenant isolation, consistent with protocols/storage.
 	var newVersion int
 	var newUpdatedAt time.Time
 	err := r.db.QueryRowContext(ctx,
 		`UPDATE `+functionsTableName+`
 		SET name = $1, type = $2, code = $3, version = version + 1,
 			settings = $4, updated_at = $5
-		WHERE id = $6
+		WHERE id = $6 AND workspace_id = $7
 		RETURNING version, updated_at`,
 		fn.Name,
 		fn.Type,
@@ -193,6 +198,7 @@ func (r *Repository) Update(ctx context.Context, fn *Function) error {
 		settingsArg,
 		now,
 		fn.ID,
+		fn.WorkspaceID,
 	).Scan(&newVersion, &newUpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -212,13 +218,16 @@ func (r *Repository) Update(ctx context.Context, fn *Function) error {
 	return nil
 }
 
-// Delete removes a function from the functions table by its primary key ID.
-// Returns ErrFunctionNotFound if no row exists with the given ID.
-func (r *Repository) Delete(ctx context.Context, id string) error {
+// Delete removes a function from the functions table by its primary key ID,
+// scoped to a workspace. The workspaceID filter provides defense-in-depth
+// multi-tenant isolation, consistent with protocols/storage.
+// Returns ErrFunctionNotFound if no row exists with the given ID and workspace.
+func (r *Repository) Delete(ctx context.Context, id string, workspaceID string) error {
 	result, err := r.db.ExecContext(ctx,
 		`DELETE FROM `+functionsTableName+`
-		WHERE id = $1`,
+		WHERE id = $1 AND workspace_id = $2`,
 		id,
+		workspaceID,
 	)
 	if err != nil {
 		return fmt.Errorf("deleting function %s: %w", id, err)
@@ -300,13 +309,14 @@ func (r *Repository) List(ctx context.Context, workspaceID string, opts ListOpti
 // In the current single-table schema, the version column tracks the latest version
 // on the same row. This method validates that the stored version matches the requested
 // version. A future version-history table would extend this to support historical lookups.
-func (r *Repository) GetByVersion(ctx context.Context, id string, version int) (*Function, error) {
+func (r *Repository) GetByVersion(ctx context.Context, id string, version int, workspaceID string) (*Function, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT `+functionsColumns+`
 		FROM `+functionsTableName+`
-		WHERE id = $1 AND version = $2`,
+		WHERE id = $1 AND version = $2 AND workspace_id = $3`,
 		id,
 		version,
+		workspaceID,
 	)
 
 	fn, err := scanFunction(row)

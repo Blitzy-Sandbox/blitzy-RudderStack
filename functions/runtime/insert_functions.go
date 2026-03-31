@@ -137,6 +137,11 @@ func (e *Engine) ExecuteInsertFunction(
 	if fn == nil {
 		return nil, fmt.Errorf("insert function definition must not be nil")
 	}
+	if fn.Type != FunctionTypeInsert {
+		return nil, &ValidationError{
+			Message: fmt.Sprintf("expected function type %q, got %q", FunctionTypeInsert, fn.Type),
+		}
+	}
 	if len(event) == 0 {
 		return nil, &InvalidEventPayload{
 			Message: "event payload is required for insert function execution",

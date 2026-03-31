@@ -35,6 +35,11 @@ const (
 	// This follows the convention from gateway/handle_http_auth.go where
 	// workspace information is extracted from request context and headers.
 	WorkspaceIDHeader = "X-Rudder-Workspace-Id"
+
+	// maxCSVBodySize is the maximum allowed size for CSV import request bodies (10 MB).
+	// This limit prevents memory exhaustion from excessively large uploads,
+	// following security best practice for unbounded body reads.
+	maxCSVBodySize = 10 * 1024 * 1024 // 10 MB
 )
 
 // ---------------------------------------------------------------------------
@@ -111,7 +116,8 @@ var (
 // in warehouse/backfill/handler.go:35-44.
 type TrackingPlanService interface {
 	// Create creates a new tracking plan and returns its generated ID.
-	Create(ctx context.Context, req CreateTrackingPlanRequest) (string, error)
+	// The workspaceID parameter is required for multi-tenant isolation.
+	Create(ctx context.Context, workspaceID string, req CreateTrackingPlanRequest) (string, error)
 
 	// Get retrieves a single tracking plan by workspace and ID.
 	Get(ctx context.Context, workspaceID, id string) (*TrackingPlanResponse, error)
@@ -193,9 +199,9 @@ func (h *Handler) CreateTrackingPlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delegate to the service layer for business logic and persistence.
-	// The workspace ID is propagated via context values set at the gateway level;
-	// we also pass it directly to the service for explicit workspace scoping.
-	id, err := h.service.Create(r.Context(), req)
+	// The workspace ID is passed directly to enforce multi-tenant isolation
+	// at the storage layer, ensuring tracking plans are scoped to their workspace.
+	id, err := h.service.Create(r.Context(), workspaceID, req)
 	if err != nil {
 		h.handleServiceError(w, err)
 		return
@@ -204,10 +210,6 @@ func (h *Handler) CreateTrackingPlan(w http.ResponseWriter, r *http.Request) {
 	// Return the created tracking plan ID with HTTP 201 Created,
 	// following warehouse/backfill/handler.go:149.
 	h.writeJSONResponse(w, http.StatusCreated, CreateResponse{ID: id})
-
-	// Suppress unused variable warning — workspace ID is validated above and
-	// available for future use (e.g., audit logging, request context enrichment).
-	_ = workspaceID
 }
 
 // GetTrackingPlan handles GET /tracking-plans/{id} requests.
@@ -373,7 +375,11 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read the full CSV request body using io.ReadAll.
+	// Wrap the request body with a size limit to prevent memory exhaustion
+	// from excessively large CSV uploads (defense against DoS via large payloads).
+	r.Body = http.MaxBytesReader(w, r.Body, maxCSVBodySize)
+
+	// Read the full CSV request body using io.ReadAll (now size-limited).
 	csvData, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.writeErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("failed to read request body: %s", err.Error()))

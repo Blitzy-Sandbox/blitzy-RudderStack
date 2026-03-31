@@ -13,6 +13,8 @@ package schema
 import (
 	"fmt"
 	"sync"
+
+	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
 )
 
 // ---------------------------------------------------------------------------
@@ -133,7 +135,7 @@ func GetCompiledCommonSchema() (*CompiledSchema, error) {
 	compiledCommonSchemaOnce.Do(func() {
 		compiledCommonSchema, compiledCommonSchemaErr = CompileSchema(CommonEventSchema)
 		if compiledCommonSchemaErr != nil {
-			pkgLogger.Errorn("failed to compile common event schema: " + compiledCommonSchemaErr.Error())
+			pkgLogger.Errorn("failed to compile common event schema", obskit.Error(compiledCommonSchemaErr))
 		}
 	})
 	return compiledCommonSchema, compiledCommonSchemaErr

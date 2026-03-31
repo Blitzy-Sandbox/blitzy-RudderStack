@@ -78,6 +78,9 @@ type DestinationFunctionResult struct {
 type destinationFunctionRequest struct {
 	// FunctionID is the unique identifier of the destination function.
 	FunctionID string `json:"functionId"`
+	// WorkspaceID is the workspace this function belongs to, consistent with
+	// sourceFunctionRequest and insertFunctionRequest for multi-tenant tracing.
+	WorkspaceID string `json:"workspaceId"`
 	// Code is the JavaScript source code of the function.
 	Code string `json:"code"`
 	// Version is the function version for cache invalidation.
@@ -154,6 +157,11 @@ func (e *Engine) ExecuteDestinationFunction(
 	if fn == nil {
 		return nil, fmt.Errorf("function definition is required")
 	}
+	if fn.Type != FunctionTypeDestination {
+		return nil, &ValidationError{
+			Message: fmt.Sprintf("expected function type %q, got %q", FunctionTypeDestination, fn.Type),
+		}
+	}
 	if len(event) == 0 {
 		return nil, &InvalidEventPayload{Message: "event payload is required"}
 	}
@@ -205,13 +213,14 @@ func (e *Engine) ExecuteDestinationFunction(
 	// Engine's internal transformerRequest, this uses the destination-specific
 	// schema that includes EventType for explicit handler context.
 	req := destinationFunctionRequest{
-		FunctionID: fn.ID,
-		Code:       fn.Code,
-		Version:    fn.Version,
-		Handler:    handler,
-		EventType:  eventType,
-		Event:      event,
-		Settings:   mergedSettings,
+		FunctionID:  fn.ID,
+		WorkspaceID: fn.WorkspaceID,
+		Code:        fn.Code,
+		Version:     fn.Version,
+		Handler:     handler,
+		EventType:   eventType,
+		Event:       event,
+		Settings:    mergedSettings,
 	}
 
 	// Marshal the request payload using jsonrs (the project-standard JSON

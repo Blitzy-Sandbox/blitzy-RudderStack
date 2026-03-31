@@ -33,16 +33,10 @@ import (
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
+
+	functionsruntime "github.com/rudderlabs/rudder-server/functions/runtime"
+	functionsstorage "github.com/rudderlabs/rudder-server/functions/storage"
 )
-
-// ---------------------------------------------------------------------------
-// Sentinel Errors
-// ---------------------------------------------------------------------------
-
-// ErrFunctionNotFound is returned when a function cannot be found by its ID.
-// The handler checks for this error using errors.Is() and returns HTTP 404,
-// following the pattern from services/rsources/http/http.go lines 102-107.
-var ErrFunctionNotFound = errors.New("function not found")
 
 // ---------------------------------------------------------------------------
 // Valid Function Types
@@ -62,40 +56,41 @@ var validFunctionTypes = map[string]bool{
 // ---------------------------------------------------------------------------
 
 // FunctionRepository defines the persistence operations for function management.
-// Implementations are expected to be provided by functions/storage.Repository.
-// The interface follows the dependency inversion principle used in
-// processor/transformer/clients.go where interfaces are defined by the consumer.
+// Method signatures match functions/storage.Repository exactly so that the
+// storage implementation satisfies this interface without adapter layers.
+// All mutating and read operations are scoped by workspace_id for
+// defense-in-depth multi-tenant isolation.
 type FunctionRepository interface {
-	// Create persists a new function record. The FunctionModel must have all
+	// Create persists a new function record. The Function must have all
 	// required fields populated (ID, WorkspaceID, Name, Type, Code, Version).
-	Create(ctx context.Context, fn *FunctionModel) error
+	Create(ctx context.Context, fn *functionsstorage.Function) error
 
-	// Get retrieves a function by its unique ID. Returns ErrFunctionNotFound
-	// if no function exists with the given ID.
-	Get(ctx context.Context, id string) (*FunctionModel, error)
+	// Get retrieves a function by its unique ID scoped to a workspace.
+	// Returns functionsstorage.ErrFunctionNotFound if no row matches.
+	Get(ctx context.Context, id string, workspaceID string) (*functionsstorage.Function, error)
 
 	// Update modifies an existing function record. The repository is responsible
 	// for incrementing the Version field and updating the UpdatedAt timestamp.
-	Update(ctx context.Context, fn *FunctionModel) error
+	// Workspace scoping is derived from fn.WorkspaceID.
+	Update(ctx context.Context, fn *functionsstorage.Function) error
 
-	// Delete removes a function by its unique ID. Returns ErrFunctionNotFound
-	// if no function exists with the given ID.
-	Delete(ctx context.Context, id string) error
+	// Delete removes a function by its unique ID scoped to a workspace.
+	// Returns functionsstorage.ErrFunctionNotFound if no row matches.
+	Delete(ctx context.Context, id string, workspaceID string) error
 
 	// List returns all functions for the given workspace, subject to the
-	// pagination and filtering options in ListOpts.
-	List(ctx context.Context, workspaceID string, opts ListOpts) ([]*FunctionModel, error)
+	// pagination and filtering options in ListOptions.
+	List(ctx context.Context, workspaceID string, opts functionsstorage.ListOptions) ([]*functionsstorage.Function, error)
 }
 
 // FunctionRuntime defines the function execution interface for test invocation.
-// Implementations are expected to be provided by functions/runtime.Engine.
-// The Execute method accepts a FunctionModel and sample event payload, returning
-// the execution result as raw JSON.
+// Method signature matches functions/runtime.Engine.Execute exactly so that the
+// Engine satisfies this interface without adapter layers.
 type FunctionRuntime interface {
 	// Execute runs the function with the given event and settings, returning
-	// the result as raw JSON. An error indicates execution failure (e.g.,
+	// an ExecutionResult. An error indicates execution failure (e.g.,
 	// syntax error, runtime exception, timeout).
-	Execute(ctx context.Context, fn *FunctionModel, event json.RawMessage, settings map[string]string) (json.RawMessage, error)
+	Execute(ctx context.Context, fn *functionsruntime.FunctionDef, event json.RawMessage, settings map[string]string) (*functionsruntime.ExecutionResult, error)
 }
 
 // SecretsManager defines the secrets management interface for function secrets.
@@ -117,9 +112,10 @@ type SecretsManager interface {
 // Data Transfer Types
 // ---------------------------------------------------------------------------
 
-// FunctionModel represents a function in API requests and responses.
-// This type is used for JSON serialization/deserialization at the API boundary
-// and is shared with the storage layer to minimize type conversion boilerplate.
+// FunctionModel is the API-layer Data Transfer Object for function responses.
+// It exists separately from functionsstorage.Function to provide a clean
+// API boundary: Settings are represented as map[string]string (loaded from
+// the encrypted secrets manager) rather than json.RawMessage (DB JSONB column).
 //
 // Supported function types:
 //   - "source"      — Source Functions with onRequest handler (E-015)
@@ -137,13 +133,33 @@ type FunctionModel struct {
 	UpdatedAt   time.Time         `json:"updatedAt"`
 }
 
-// ListOpts configures filtering and pagination for function listing.
-// Default values are applied by the listFunctions handler when query
-// parameters are omitted.
-type ListOpts struct {
-	Limit      int    `json:"limit"`
-	Offset     int    `json:"offset"`
-	TypeFilter string `json:"typeFilter"`
+// storageToModel converts a storage-layer Function to the API response DTO.
+// The Settings field is NOT copied because API-layer settings come from the
+// encrypted SecretsManager, not from the storage JSONB column.
+func storageToModel(fn *functionsstorage.Function) *FunctionModel {
+	return &FunctionModel{
+		ID:          fn.ID,
+		WorkspaceID: fn.WorkspaceID,
+		Name:        fn.Name,
+		Type:        fn.Type,
+		Code:        fn.Code,
+		Version:     fn.Version,
+		CreatedAt:   fn.CreatedAt,
+		UpdatedAt:   fn.UpdatedAt,
+	}
+}
+
+// storageToFunctionDef converts a storage-layer Function to a runtime
+// FunctionDef for execution via FunctionRuntime.Execute.
+func storageToFunctionDef(fn *functionsstorage.Function) *functionsruntime.FunctionDef {
+	return &functionsruntime.FunctionDef{
+		ID:          fn.ID,
+		WorkspaceID: fn.WorkspaceID,
+		Name:        fn.Name,
+		Type:        fn.Type,
+		Code:        fn.Code,
+		Version:     fn.Version,
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -230,7 +246,7 @@ func (h *Handler) createFunction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now()
-	fn := &FunctionModel{
+	storageFn := &functionsstorage.Function{
 		ID:          uuid.New().String(),
 		WorkspaceID: req.WorkspaceID,
 		Name:        req.Name,
@@ -241,7 +257,7 @@ func (h *Handler) createFunction(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:   now,
 	}
 
-	if err := h.repo.Create(ctx, fn); err != nil {
+	if err := h.repo.Create(ctx, storageFn); err != nil {
 		h.log.Errorn("failed to create function", obskit.Error(err))
 		h.writeErrorResponse(w, http.StatusInternalServerError, "failed to create function")
 		return
@@ -250,13 +266,16 @@ func (h *Handler) createFunction(w http.ResponseWriter, r *http.Request) {
 	// Store settings as secrets if provided. Secrets storage is best-effort;
 	// the function is already persisted, so we log errors but do not fail.
 	for key, value := range req.Settings {
-		if err := h.secrets.Set(ctx, fn.ID, key, value); err != nil {
+		if err := h.secrets.Set(ctx, storageFn.ID, key, value); err != nil {
 			h.log.Errorn("failed to set function secret", obskit.Error(err))
 		}
 	}
-	fn.Settings = req.Settings
 
-	h.writeJSONResponse(w, http.StatusCreated, fn)
+	// Convert storage entity to API response DTO, enriching with secrets.
+	resp := storageToModel(storageFn)
+	resp.Settings = req.Settings
+
+	h.writeJSONResponse(w, http.StatusCreated, resp)
 }
 
 // ---------------------------------------------------------------------------
@@ -275,9 +294,15 @@ func (h *Handler) getFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fn, err := h.repo.Get(ctx, id)
+	workspaceID := r.URL.Query().Get("workspaceId")
+	if workspaceID == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspaceId query parameter is required")
+		return
+	}
+
+	fn, err := h.repo.Get(ctx, id, workspaceID)
 	if err != nil {
-		if errors.Is(err, ErrFunctionNotFound) {
+		if errors.Is(err, functionsstorage.ErrFunctionNotFound) {
 			h.writeErrorResponse(w, http.StatusNotFound, "function not found")
 			return
 		}
@@ -286,7 +311,7 @@ func (h *Handler) getFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSONResponse(w, http.StatusOK, fn)
+	h.writeJSONResponse(w, http.StatusOK, storageToModel(fn))
 }
 
 // ---------------------------------------------------------------------------
@@ -307,6 +332,12 @@ func (h *Handler) updateFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	workspaceID := r.URL.Query().Get("workspaceId")
+	if workspaceID == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspaceId query parameter is required")
+		return
+	}
+
 	var req updateFunctionRequest
 	if err := jsonrs.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.writeErrorResponse(w, http.StatusBadRequest, "invalid request body: "+err.Error())
@@ -314,9 +345,9 @@ func (h *Handler) updateFunction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Retrieve the existing function to apply partial updates.
-	fn, err := h.repo.Get(ctx, id)
+	fn, err := h.repo.Get(ctx, id, workspaceID)
 	if err != nil {
-		if errors.Is(err, ErrFunctionNotFound) {
+		if errors.Is(err, functionsstorage.ErrFunctionNotFound) {
 			h.writeErrorResponse(w, http.StatusNotFound, "function not found")
 			return
 		}
@@ -341,15 +372,18 @@ func (h *Handler) updateFunction(w http.ResponseWriter, r *http.Request) {
 		fn.Code = req.Code
 	}
 
-	// Increment version and update timestamp.
-	fn.Version++
-	fn.UpdatedAt = time.Now()
-
+	// Version increment and UpdatedAt are managed atomically by the storage
+	// layer's UPDATE ... SET version=version+1, updated_at=NOW() RETURNING
+	// clause — no handler-side mutation needed to avoid double-increment.
 	if err := h.repo.Update(ctx, fn); err != nil {
 		h.log.Errorn("failed to update function", obskit.Error(err))
 		h.writeErrorResponse(w, http.StatusInternalServerError, "failed to update function")
 		return
 	}
+
+	// Convert to response DTO. The storage layer already reflected the new
+	// version and updated_at back onto fn via the RETURNING clause.
+	resp := storageToModel(fn)
 
 	// Update secrets if provided. Uses Set for upsert behavior on each key.
 	if len(req.Settings) > 0 {
@@ -358,10 +392,10 @@ func (h *Handler) updateFunction(w http.ResponseWriter, r *http.Request) {
 				h.log.Errorn("failed to update function secret", obskit.Error(err))
 			}
 		}
-		fn.Settings = req.Settings
+		resp.Settings = req.Settings
 	}
 
-	h.writeJSONResponse(w, http.StatusOK, fn)
+	h.writeJSONResponse(w, http.StatusOK, resp)
 }
 
 // ---------------------------------------------------------------------------
@@ -382,19 +416,30 @@ func (h *Handler) deleteFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Best-effort secrets cleanup before function deletion.
-	if err := h.secrets.DeleteAll(ctx, id); err != nil {
-		h.log.Errorn("failed to delete function secrets", obskit.Error(err))
+	workspaceID := r.URL.Query().Get("workspaceId")
+	if workspaceID == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspaceId query parameter is required")
+		return
 	}
 
-	if err := h.repo.Delete(ctx, id); err != nil {
-		if errors.Is(err, ErrFunctionNotFound) {
+	// Delete the function entity first (primary operation). If this fails,
+	// secrets remain intact and no data is lost — a retry will succeed
+	// cleanly. Reversing this order (secrets-first) would risk orphaning
+	// the function record if secret deletion succeeds but function deletion
+	// fails.
+	if err := h.repo.Delete(ctx, id, workspaceID); err != nil {
+		if errors.Is(err, functionsstorage.ErrFunctionNotFound) {
 			h.writeErrorResponse(w, http.StatusNotFound, "function not found")
 			return
 		}
 		h.log.Errorn("failed to delete function", obskit.Error(err))
 		h.writeErrorResponse(w, http.StatusInternalServerError, "failed to delete function")
 		return
+	}
+
+	// Best-effort orphaned secrets cleanup after function deletion.
+	if err := h.secrets.DeleteAll(ctx, id); err != nil {
+		h.log.Errorn("failed to delete function secrets", obskit.Error(err))
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -439,26 +484,28 @@ func (h *Handler) listFunctions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	opts := ListOpts{
+	opts := functionsstorage.ListOptions{
 		Limit:      limit,
 		Offset:     offset,
 		TypeFilter: typeFilter,
 	}
 
-	functions, err := h.repo.List(ctx, workspaceID, opts)
+	storageFunctions, err := h.repo.List(ctx, workspaceID, opts)
 	if err != nil {
 		h.log.Errorn("failed to list functions", obskit.Error(err))
 		h.writeErrorResponse(w, http.StatusInternalServerError, "failed to list functions")
 		return
 	}
 
+	// Convert storage entities to API response DTOs.
 	// Ensure non-nil slice so JSON serialization produces [] instead of null.
 	// Follows pattern from warehouse/healthmonitor/handler.go lines 97-99.
-	if functions == nil {
-		functions = make([]*FunctionModel, 0)
+	models := make([]*FunctionModel, 0, len(storageFunctions))
+	for _, fn := range storageFunctions {
+		models = append(models, storageToModel(fn))
 	}
 
-	h.writeJSONResponse(w, http.StatusOK, functions)
+	h.writeJSONResponse(w, http.StatusOK, models)
 }
 
 // ---------------------------------------------------------------------------
@@ -492,10 +539,16 @@ func (h *Handler) testFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Retrieve the function definition.
-	fn, err := h.repo.Get(ctx, id)
+	workspaceID := r.URL.Query().Get("workspaceId")
+	if workspaceID == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspaceId query parameter is required")
+		return
+	}
+
+	// Retrieve the function definition from storage.
+	fn, err := h.repo.Get(ctx, id, workspaceID)
 	if err != nil {
-		if errors.Is(err, ErrFunctionNotFound) {
+		if errors.Is(err, functionsstorage.ErrFunctionNotFound) {
 			h.writeErrorResponse(w, http.StatusNotFound, "function not found")
 			return
 		}
@@ -512,8 +565,11 @@ func (h *Handler) testFunction(w http.ResponseWriter, r *http.Request) {
 		settings = make(map[string]string)
 	}
 
+	// Convert the storage entity to a runtime FunctionDef for execution.
+	fnDef := storageToFunctionDef(fn)
+
 	// Execute the function with the sample event payload.
-	result, err := h.runtime.Execute(ctx, fn, req.Event, settings)
+	result, err := h.runtime.Execute(ctx, fnDef, req.Event, settings)
 	if err != nil {
 		h.log.Errorn("function test execution failed", obskit.Error(err))
 		h.writeErrorResponse(w, http.StatusUnprocessableEntity, "function execution failed: "+err.Error())

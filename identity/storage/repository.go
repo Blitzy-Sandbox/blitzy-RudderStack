@@ -111,12 +111,22 @@ type ProfileData struct {
 // PostgresRepository implements Repository using PostgreSQL.
 // It is safe for concurrent use since the underlying *sql.DB manages its own
 // connection pool. All operations use parameterized queries for SQL injection safety.
+//
+// Design note: This package uses *sql.DB directly rather than warehouse/internal/repo's
+// sqlmiddleware.DB. While the AAP references warehouse/identity/identity.go which uses
+// sqlmiddleware.DB, that middleware is warehouse-specific (adding warehouse-scoped tracing
+// and upload lifecycle hooks). The identity/ package is a new top-level service independent
+// of the warehouse subsystem, following the warehouse/backfill/repository.go pattern of
+// direct *sql.DB usage. Observability is provided through the logger and through
+// instrumented database drivers (e.g., otelsql) configured at the connection level by
+// the caller, avoiding a circular dependency on warehouse internals.
 type PostgresRepository struct {
 	db     *sql.DB
 	logger logger.Logger
 }
 
 // NewPostgresRepository creates a new PostgresRepository with the given database connection.
+// The *sql.DB is used directly (see PostgresRepository design note above).
 // If log is nil, the package-level logger is used.
 func NewPostgresRepository(db *sql.DB, log logger.Logger) *PostgresRepository {
 	if log == nil {

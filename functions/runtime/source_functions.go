@@ -19,12 +19,9 @@
 package runtime
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"time"
 
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
@@ -202,71 +199,29 @@ func (e *Engine) ExecuteSourceFunction(
 	// Phase 4: POST to Transformer service
 	// -----------------------------------------------------------------------
 
-	tfBody, err := jsonrs.Marshal(&tfReq)
-	if err != nil {
-		log.Errorn("Failed to marshal transformer request",
-			logger.NewStringField("functionId", fn.ID),
-			obskit.Error(err),
-		)
-		recordSourceError(e.statsFactory, fn.ID, "marshal_error")
-		return nil, fmt.Errorf("marshaling transformer request for source function: %w", err)
-	}
-
-	url := e.transformerURL + sourceEndpoint
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(tfBody))
-	if err != nil {
-		log.Errorn("Failed to create HTTP request for source function",
-			logger.NewStringField("functionId", fn.ID),
-			logger.NewStringField("url", url),
-			obskit.Error(err),
-		)
-		recordSourceError(e.statsFactory, fn.ID, "request_create_error")
-		return nil, fmt.Errorf("creating HTTP request for source function: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	httpResp, err := e.httpClient.Do(httpReq)
+	// Reuse the Engine's shared postToTransformer helper to eliminate
+	// duplicated HTTP marshaling / POST / status-check logic. The helper
+	// handles request marshaling, Content-Type header, round-trip metrics,
+	// response body reading, and non-200 error conversion in one call.
+	respBody, err := e.postToTransformer(ctx, sourceEndpoint, &tfReq)
 	if err != nil {
 		log.Errorn("Source function transformer request failed",
 			logger.NewStringField("functionId", fn.ID),
-			logger.NewStringField("url", url),
 			obskit.Error(err),
 		)
-		recordSourceError(e.statsFactory, fn.ID, "http_error")
-		return nil, fmt.Errorf("posting source function to transformer: %w", err)
-	}
-	defer func() { _ = httpResp.Body.Close() }()
-
-	respBody, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		log.Errorn("Failed to read source function transformer response",
-			logger.NewStringField("functionId", fn.ID),
-			obskit.Error(err),
-		)
-		recordSourceError(e.statsFactory, fn.ID, "read_error")
-		return nil, fmt.Errorf("reading source function transformer response: %w", err)
+		recordSourceError(e.statsFactory, fn.ID, "transformer_error")
+		return nil, fmt.Errorf("source function transformer call: %w", err)
 	}
 
-	// Record the Transformer HTTP round-trip time as execution duration.
+	// Record the Source-Function-specific execution time (end-to-end from
+	// the start of this method, complementing the generic transformer
+	// round-trip metric emitted by postToTransformer).
 	elapsed := time.Since(start)
 	e.statsFactory.NewTaggedStat(
 		"functions_source_execution_time",
 		stats.TimerType,
 		stats.Tags{"function_id": fn.ID},
 	).SendTiming(elapsed)
-
-	// Check for non-200 HTTP status codes from the Transformer service.
-	if httpResp.StatusCode != http.StatusOK {
-		log.Errorn("Source function transformer returned non-OK status",
-			logger.NewStringField("functionId", fn.ID),
-			logger.NewIntField("statusCode", int64(httpResp.StatusCode)),
-		)
-		recordSourceError(e.statsFactory, fn.ID, "transformer_error")
-		return nil, fmt.Errorf(
-			"transformer returned HTTP %d for source function %s: %s",
-			httpResp.StatusCode, fn.ID, string(respBody),
-		)
-	}
 
 	// -----------------------------------------------------------------------
 	// Phase 5: Parse Transformer response
