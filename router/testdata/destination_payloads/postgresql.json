@@ -1,0 +1,801 @@
+{
+  "destination_type": "POSTGRESQL",
+  "destination_tier": "warehouse",
+  "segment_slug": "postgres",
+  "rudderstack_package": "warehouse/integrations/postgres/",
+  "categories": ["Raw Data", "Warehouses"],
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment loads track events into a <source_slug>.tracks table and a per-event table <source_slug>.<event_name> via direct SQL INSERT or COPY.",
+      "loading_method": "Direct SQL INSERT or COPY INTO",
+      "target_table": "<source_slug>.tracks",
+      "per_event_table": "<source_slug>.<event_name>",
+      "columns": {
+        "id": "VARCHAR(512)",
+        "received_at": "TIMESTAMP WITH TIME ZONE",
+        "sent_at": "TIMESTAMP WITH TIME ZONE",
+        "timestamp": "TIMESTAMP WITH TIME ZONE",
+        "original_timestamp": "TIMESTAMP WITH TIME ZONE",
+        "event": "VARCHAR(512)",
+        "event_text": "VARCHAR(512)",
+        "anonymous_id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)",
+        "context_user_agent": "TEXT",
+        "context_page_url": "TEXT",
+        "context_page_referrer": "TEXT",
+        "context_locale": "VARCHAR(512)"
+      },
+      "sample_row": {
+        "id": "msg-abc-123",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "event": "product_viewed",
+        "event_text": "Product Viewed",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "context_library_name": "analytics.js",
+        "context_library_version": "2.1.0",
+        "context_ip": "203.0.113.50",
+        "context_user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "context_page_url": "https://example.com/products/premium-widget",
+        "context_page_referrer": "https://example.com/",
+        "context_locale": "en-US"
+      },
+      "per_event_table_columns": {
+        "id": "VARCHAR(512)",
+        "received_at": "TIMESTAMP WITH TIME ZONE",
+        "sent_at": "TIMESTAMP WITH TIME ZONE",
+        "timestamp": "TIMESTAMP WITH TIME ZONE",
+        "original_timestamp": "TIMESTAMP WITH TIME ZONE",
+        "anonymous_id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "product_id": "VARCHAR(512)",
+        "name": "VARCHAR(512)",
+        "price": "FLOAT",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)"
+      },
+      "per_event_sample_row": {
+        "id": "msg-abc-123",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "context_library_name": "analytics.js",
+        "context_library_version": "2.1.0"
+      }
+    },
+    "identify": {
+      "description": "Segment loads identify events into a <source_slug>.identifies table and upserts traits into a <source_slug>.users table.",
+      "loading_method": "Direct SQL INSERT or COPY INTO with upsert for users table",
+      "target_table": "<source_slug>.identifies",
+      "users_table": "<source_slug>.users",
+      "identifies_columns": {
+        "id": "VARCHAR(512)",
+        "received_at": "TIMESTAMP WITH TIME ZONE",
+        "sent_at": "TIMESTAMP WITH TIME ZONE",
+        "timestamp": "TIMESTAMP WITH TIME ZONE",
+        "original_timestamp": "TIMESTAMP WITH TIME ZONE",
+        "anonymous_id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "email": "VARCHAR(512)",
+        "name": "VARCHAR(512)",
+        "phone": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)"
+      },
+      "users_columns": {
+        "id": "VARCHAR(512)",
+        "received_at": "TIMESTAMP WITH TIME ZONE",
+        "email": "VARCHAR(512)",
+        "name": "VARCHAR(512)",
+        "phone": "VARCHAR(512)"
+      },
+      "sample_identifies_row": {
+        "id": "msg-def-456",
+        "received_at": "2026-02-25T12:01:00.000Z",
+        "sent_at": "2026-02-25T12:00:59.000Z",
+        "timestamp": "2026-02-25T12:00:58.000Z",
+        "original_timestamp": "2026-02-25T12:00:58.000Z",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "email": "jane.doe@example.com",
+        "name": "Jane Doe",
+        "phone": "+1-555-0100",
+        "context_library_name": "analytics.js",
+        "context_library_version": "2.1.0",
+        "context_ip": "203.0.113.50"
+      },
+      "sample_users_row": {
+        "id": "user_123",
+        "received_at": "2026-02-25T12:01:00.000Z",
+        "email": "jane.doe@example.com",
+        "name": "Jane Doe",
+        "phone": "+1-555-0100"
+      }
+    },
+    "page": {
+      "description": "Segment loads page events into a <source_slug>.pages table via direct SQL INSERT or COPY.",
+      "loading_method": "Direct SQL INSERT or COPY INTO",
+      "target_table": "<source_slug>.pages",
+      "columns": {
+        "id": "VARCHAR(512)",
+        "received_at": "TIMESTAMP WITH TIME ZONE",
+        "sent_at": "TIMESTAMP WITH TIME ZONE",
+        "timestamp": "TIMESTAMP WITH TIME ZONE",
+        "original_timestamp": "TIMESTAMP WITH TIME ZONE",
+        "anonymous_id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "name": "VARCHAR(512)",
+        "path": "TEXT",
+        "url": "TEXT",
+        "title": "TEXT",
+        "referrer": "TEXT",
+        "search": "TEXT",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)",
+        "context_user_agent": "TEXT"
+      },
+      "sample_row": {
+        "id": "msg-ghi-789",
+        "received_at": "2026-02-25T12:02:00.000Z",
+        "sent_at": "2026-02-25T12:01:59.000Z",
+        "timestamp": "2026-02-25T12:01:58.000Z",
+        "original_timestamp": "2026-02-25T12:01:58.000Z",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "name": "Products",
+        "path": "/products",
+        "url": "https://example.com/products",
+        "title": "Products - Example Store",
+        "referrer": "https://example.com/",
+        "search": "",
+        "context_library_name": "analytics.js",
+        "context_library_version": "2.1.0",
+        "context_ip": "203.0.113.50",
+        "context_user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+      }
+    },
+    "screen": {
+      "description": "Segment loads screen events into a <source_slug>.screens table via direct SQL INSERT or COPY.",
+      "loading_method": "Direct SQL INSERT or COPY INTO",
+      "target_table": "<source_slug>.screens",
+      "columns": {
+        "id": "VARCHAR(512)",
+        "received_at": "TIMESTAMP WITH TIME ZONE",
+        "sent_at": "TIMESTAMP WITH TIME ZONE",
+        "timestamp": "TIMESTAMP WITH TIME ZONE",
+        "original_timestamp": "TIMESTAMP WITH TIME ZONE",
+        "anonymous_id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "name": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "context_device_type": "VARCHAR(512)",
+        "context_os_name": "VARCHAR(512)",
+        "context_os_version": "VARCHAR(512)",
+        "context_app_name": "VARCHAR(512)",
+        "context_app_version": "VARCHAR(512)"
+      },
+      "sample_row": {
+        "id": "msg-jkl-012",
+        "received_at": "2026-02-25T12:03:00.000Z",
+        "sent_at": "2026-02-25T12:02:59.000Z",
+        "timestamp": "2026-02-25T12:02:58.000Z",
+        "original_timestamp": "2026-02-25T12:02:58.000Z",
+        "anonymous_id": "anon-uuid-002",
+        "user_id": "user_123",
+        "name": "Home Screen",
+        "context_library_name": "analytics-ios",
+        "context_library_version": "4.1.0",
+        "context_device_type": "iPhone",
+        "context_os_name": "iOS",
+        "context_os_version": "17.2",
+        "context_app_name": "ExampleApp",
+        "context_app_version": "3.5.0"
+      }
+    },
+    "group": {
+      "description": "Segment loads group events into a <source_slug>.groups table via direct SQL INSERT or COPY.",
+      "loading_method": "Direct SQL INSERT or COPY INTO",
+      "target_table": "<source_slug>.groups",
+      "columns": {
+        "id": "VARCHAR(512)",
+        "received_at": "TIMESTAMP WITH TIME ZONE",
+        "sent_at": "TIMESTAMP WITH TIME ZONE",
+        "timestamp": "TIMESTAMP WITH TIME ZONE",
+        "original_timestamp": "TIMESTAMP WITH TIME ZONE",
+        "anonymous_id": "VARCHAR(512)",
+        "user_id": "VARCHAR(512)",
+        "group_id": "VARCHAR(512)",
+        "name": "VARCHAR(512)",
+        "industry": "VARCHAR(512)",
+        "employees": "BIGINT",
+        "plan": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)"
+      },
+      "sample_row": {
+        "id": "msg-mno-345",
+        "received_at": "2026-02-25T12:04:00.000Z",
+        "sent_at": "2026-02-25T12:03:59.000Z",
+        "timestamp": "2026-02-25T12:03:58.000Z",
+        "original_timestamp": "2026-02-25T12:03:58.000Z",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "group_id": "grp-456",
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "employees": 250,
+        "plan": "enterprise",
+        "context_library_name": "analytics.js",
+        "context_library_version": "2.1.0"
+      }
+    },
+    "alias": {
+      "description": "Segment loads alias events into a <source_slug>.aliases table via direct SQL INSERT or COPY.",
+      "loading_method": "Direct SQL INSERT or COPY INTO",
+      "target_table": "<source_slug>.aliases",
+      "columns": {
+        "id": "VARCHAR(512)",
+        "received_at": "TIMESTAMP WITH TIME ZONE",
+        "sent_at": "TIMESTAMP WITH TIME ZONE",
+        "timestamp": "TIMESTAMP WITH TIME ZONE",
+        "original_timestamp": "TIMESTAMP WITH TIME ZONE",
+        "user_id": "VARCHAR(512)",
+        "previous_id": "VARCHAR(512)",
+        "context_library_name": "VARCHAR(512)",
+        "context_library_version": "VARCHAR(512)",
+        "context_ip": "VARCHAR(512)"
+      },
+      "sample_row": {
+        "id": "msg-pqr-678",
+        "received_at": "2026-02-25T12:05:00.000Z",
+        "sent_at": "2026-02-25T12:04:59.000Z",
+        "timestamp": "2026-02-25T12:04:58.000Z",
+        "original_timestamp": "2026-02-25T12:04:58.000Z",
+        "user_id": "user_123",
+        "previous_id": "anon-uuid-001",
+        "context_library_name": "analytics.js",
+        "context_library_version": "2.1.0",
+        "context_ip": "203.0.113.50"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack loads track events into <namespace>.tracks and per-event tables via file-download loading with gzipped CSV staging and pq.CopyIn.",
+      "loading_method": "File-download loading via gzipped CSV, staging table, pq.CopyIn, dedup via ROW_NUMBER()",
+      "target_table": "<namespace>.tracks",
+      "per_event_table": "<namespace>.<event_name>",
+      "staging_mechanism": "CREATE TEMPORARY TABLE ... (LIKE <namespace>.<table>) ON COMMIT PRESERVE ROWS; pq.CopyIn for bulk load; ROW_NUMBER() OVER (PARTITION BY id ORDER BY received_at DESC) for dedup; INSERT INTO ... SELECT ... WHERE _rudder_staging_row_number = 1",
+      "columns": {
+        "id": "text",
+        "received_at": "timestamptz",
+        "sent_at": "timestamptz",
+        "timestamp": "timestamptz",
+        "original_timestamp": "timestamptz",
+        "event": "text",
+        "event_text": "text",
+        "anonymous_id": "text",
+        "user_id": "text",
+        "context_library_name": "text",
+        "context_library_version": "text",
+        "context_ip": "text",
+        "context_user_agent": "text",
+        "context_page_url": "text",
+        "context_page_referrer": "text",
+        "context_locale": "text",
+        "uuid_ts": "timestamptz",
+        "context_passed_ip": "text",
+        "context_request_ip": "text"
+      },
+      "sample_row": {
+        "id": "msg-xyz-789",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "event": "product_viewed",
+        "event_text": "Product Viewed",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "context_ip": "203.0.113.50",
+        "context_user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "context_page_url": "https://example.com/products/premium-widget",
+        "context_page_referrer": "https://example.com/",
+        "context_locale": "en-US",
+        "uuid_ts": "2026-02-25T12:00:03.000Z",
+        "context_passed_ip": "203.0.113.50",
+        "context_request_ip": "203.0.113.50"
+      },
+      "per_event_table_columns": {
+        "id": "text",
+        "received_at": "timestamptz",
+        "sent_at": "timestamptz",
+        "timestamp": "timestamptz",
+        "original_timestamp": "timestamptz",
+        "anonymous_id": "text",
+        "user_id": "text",
+        "product_id": "text",
+        "name": "text",
+        "price": "numeric",
+        "context_library_name": "text",
+        "context_library_version": "text",
+        "uuid_ts": "timestamptz"
+      },
+      "per_event_sample_row": {
+        "id": "msg-xyz-789",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "uuid_ts": "2026-02-25T12:00:03.000Z"
+      }
+    },
+    "identify": {
+      "description": "RudderStack loads identify events into <namespace>.identifies and computes latest traits into <namespace>.users via staging tables with ROW_NUMBER() dedup and CASE-based newest-value aggregation.",
+      "loading_method": "File-download loading via gzipped CSV, staging table, pq.CopyIn, dedup via ROW_NUMBER(), users table computed via CASE-based newest-value aggregation",
+      "target_table": "<namespace>.identifies",
+      "users_table": "<namespace>.users",
+      "staging_mechanism": "LoadUserTables: (1) load identifies staging, (2) build union staging from identifies+users, (3) compute users with CASE WHEN ... THEN ... END newest aggregation per trait column, (4) dedup INSERT with ROW_NUMBER() OVER (PARTITION BY id ORDER BY received_at DESC)",
+      "identifies_columns": {
+        "id": "text",
+        "received_at": "timestamptz",
+        "sent_at": "timestamptz",
+        "timestamp": "timestamptz",
+        "original_timestamp": "timestamptz",
+        "anonymous_id": "text",
+        "user_id": "text",
+        "email": "text",
+        "name": "text",
+        "phone": "text",
+        "context_library_name": "text",
+        "context_library_version": "text",
+        "context_ip": "text",
+        "uuid_ts": "timestamptz",
+        "context_passed_ip": "text",
+        "context_request_ip": "text",
+        "context_traits_email": "text",
+        "context_traits_name": "text",
+        "context_traits_phone": "text"
+      },
+      "users_columns": {
+        "id": "text",
+        "received_at": "timestamptz",
+        "email": "text",
+        "name": "text",
+        "phone": "text",
+        "uuid_ts": "timestamptz",
+        "context_traits_email": "text",
+        "context_traits_name": "text",
+        "context_traits_phone": "text"
+      },
+      "sample_identifies_row": {
+        "id": "msg-stu-901",
+        "received_at": "2026-02-25T12:01:00.000Z",
+        "sent_at": "2026-02-25T12:00:59.000Z",
+        "timestamp": "2026-02-25T12:00:58.000Z",
+        "original_timestamp": "2026-02-25T12:00:58.000Z",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "email": "jane.doe@example.com",
+        "name": "Jane Doe",
+        "phone": "+1-555-0100",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "context_ip": "203.0.113.50",
+        "uuid_ts": "2026-02-25T12:01:01.000Z",
+        "context_passed_ip": "203.0.113.50",
+        "context_request_ip": "203.0.113.50",
+        "context_traits_email": "jane.doe@example.com",
+        "context_traits_name": "Jane Doe",
+        "context_traits_phone": "+1-555-0100"
+      },
+      "sample_users_row": {
+        "id": "user_123",
+        "received_at": "2026-02-25T12:01:00.000Z",
+        "email": "jane.doe@example.com",
+        "name": "Jane Doe",
+        "phone": "+1-555-0100",
+        "uuid_ts": "2026-02-25T12:01:01.000Z",
+        "context_traits_email": "jane.doe@example.com",
+        "context_traits_name": "Jane Doe",
+        "context_traits_phone": "+1-555-0100"
+      }
+    },
+    "page": {
+      "description": "RudderStack loads page events into <namespace>.pages via file-download loading with gzipped CSV staging and pq.CopyIn.",
+      "loading_method": "File-download loading via gzipped CSV, staging table, pq.CopyIn, dedup via ROW_NUMBER()",
+      "target_table": "<namespace>.pages",
+      "columns": {
+        "id": "text",
+        "received_at": "timestamptz",
+        "sent_at": "timestamptz",
+        "timestamp": "timestamptz",
+        "original_timestamp": "timestamptz",
+        "anonymous_id": "text",
+        "user_id": "text",
+        "name": "text",
+        "path": "text",
+        "url": "text",
+        "title": "text",
+        "referrer": "text",
+        "search": "text",
+        "context_library_name": "text",
+        "context_library_version": "text",
+        "context_ip": "text",
+        "context_user_agent": "text",
+        "uuid_ts": "timestamptz"
+      },
+      "sample_row": {
+        "id": "msg-vwx-234",
+        "received_at": "2026-02-25T12:02:00.000Z",
+        "sent_at": "2026-02-25T12:01:59.000Z",
+        "timestamp": "2026-02-25T12:01:58.000Z",
+        "original_timestamp": "2026-02-25T12:01:58.000Z",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "name": "Products",
+        "path": "/products",
+        "url": "https://example.com/products",
+        "title": "Products - Example Store",
+        "referrer": "https://example.com/",
+        "search": "",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "context_ip": "203.0.113.50",
+        "context_user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "uuid_ts": "2026-02-25T12:02:01.000Z"
+      }
+    },
+    "screen": {
+      "description": "RudderStack loads screen events into <namespace>.screens via file-download loading with gzipped CSV staging and pq.CopyIn.",
+      "loading_method": "File-download loading via gzipped CSV, staging table, pq.CopyIn, dedup via ROW_NUMBER()",
+      "target_table": "<namespace>.screens",
+      "columns": {
+        "id": "text",
+        "received_at": "timestamptz",
+        "sent_at": "timestamptz",
+        "timestamp": "timestamptz",
+        "original_timestamp": "timestamptz",
+        "anonymous_id": "text",
+        "user_id": "text",
+        "name": "text",
+        "context_library_name": "text",
+        "context_library_version": "text",
+        "context_device_type": "text",
+        "context_os_name": "text",
+        "context_os_version": "text",
+        "context_app_name": "text",
+        "context_app_version": "text",
+        "uuid_ts": "timestamptz"
+      },
+      "sample_row": {
+        "id": "msg-yza-567",
+        "received_at": "2026-02-25T12:03:00.000Z",
+        "sent_at": "2026-02-25T12:02:59.000Z",
+        "timestamp": "2026-02-25T12:02:58.000Z",
+        "original_timestamp": "2026-02-25T12:02:58.000Z",
+        "anonymous_id": "anon-uuid-002",
+        "user_id": "user_123",
+        "name": "Home Screen",
+        "context_library_name": "rudder-sdk-ios",
+        "context_library_version": "2.3.0",
+        "context_device_type": "iPhone",
+        "context_os_name": "iOS",
+        "context_os_version": "17.2",
+        "context_app_name": "ExampleApp",
+        "context_app_version": "3.5.0",
+        "uuid_ts": "2026-02-25T12:03:01.000Z"
+      }
+    },
+    "group": {
+      "description": "RudderStack loads group events into <namespace>.groups via file-download loading with gzipped CSV staging and pq.CopyIn.",
+      "loading_method": "File-download loading via gzipped CSV, staging table, pq.CopyIn, dedup via ROW_NUMBER()",
+      "target_table": "<namespace>.groups",
+      "columns": {
+        "id": "text",
+        "received_at": "timestamptz",
+        "sent_at": "timestamptz",
+        "timestamp": "timestamptz",
+        "original_timestamp": "timestamptz",
+        "anonymous_id": "text",
+        "user_id": "text",
+        "group_id": "text",
+        "name": "text",
+        "industry": "text",
+        "employees": "bigint",
+        "plan": "text",
+        "context_library_name": "text",
+        "context_library_version": "text",
+        "uuid_ts": "timestamptz"
+      },
+      "sample_row": {
+        "id": "msg-bcd-890",
+        "received_at": "2026-02-25T12:04:00.000Z",
+        "sent_at": "2026-02-25T12:03:59.000Z",
+        "timestamp": "2026-02-25T12:03:58.000Z",
+        "original_timestamp": "2026-02-25T12:03:58.000Z",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "group_id": "grp-456",
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "employees": 250,
+        "plan": "enterprise",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "uuid_ts": "2026-02-25T12:04:01.000Z"
+      }
+    },
+    "alias": {
+      "description": "RudderStack loads alias events into <namespace>.aliases via file-download loading with gzipped CSV staging and pq.CopyIn.",
+      "loading_method": "File-download loading via gzipped CSV, staging table, pq.CopyIn, dedup via ROW_NUMBER()",
+      "target_table": "<namespace>.aliases",
+      "columns": {
+        "id": "text",
+        "received_at": "timestamptz",
+        "sent_at": "timestamptz",
+        "timestamp": "timestamptz",
+        "original_timestamp": "timestamptz",
+        "user_id": "text",
+        "previous_id": "text",
+        "context_library_name": "text",
+        "context_library_version": "text",
+        "context_ip": "text",
+        "uuid_ts": "timestamptz"
+      },
+      "sample_row": {
+        "id": "msg-efg-123",
+        "received_at": "2026-02-25T12:05:00.000Z",
+        "sent_at": "2026-02-25T12:04:59.000Z",
+        "timestamp": "2026-02-25T12:04:58.000Z",
+        "original_timestamp": "2026-02-25T12:04:58.000Z",
+        "user_id": "user_123",
+        "previous_id": "anon-uuid-001",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "context_ip": "203.0.113.50",
+        "uuid_ts": "2026-02-25T12:05:01.000Z"
+      }
+    }
+  },
+  "field_mappings": {
+    "loading_method": {
+      "segment": "Direct SQL INSERT or COPY INTO target tables",
+      "rudderstack": "File-download loading: download gzipped CSV from object storage, create staging table (CREATE TEMPORARY TABLE ... LIKE target), stream rows via pq.CopyIn, dedup via ROW_NUMBER() OVER (PARTITION BY id ORDER BY received_at DESC), INSERT into target table",
+      "parity_impact": "Different loading mechanism but functionally equivalent end state. RudderStack adds intermediate staging step for atomicity and dedup."
+    },
+    "connection_pooling": {
+      "segment": "Standard connection pooling via Segment infrastructure; connection details configured via UI",
+      "rudderstack": "Per-upload connection via database/sql with sqlmiddleware wrapper; configurable connect_timeout, slow query threshold monitoring, transaction rollback timeout",
+      "parity_impact": "No impact on data output. Operational difference in connection lifecycle management."
+    },
+    "ssh_tunneling": {
+      "segment": "Not supported natively for PostgreSQL warehouse connections",
+      "rudderstack": "SSH tunneling supported via tunnelling.Connect when SSH configuration is provided in destination config (host, port, user, private key). Connection routed through SSH tunnel transparently.",
+      "parity_impact": "RudderStack-unique connectivity feature. No impact on data schema or payload format."
+    },
+    "ssl_support": {
+      "segment": "SSL supported via standard PostgreSQL connection parameters",
+      "rudderstack": "SSL supported with sslmode parameter (disable, require, verify-ca). verify-ca mode supports server-ca.pem, client-cert.pem, client-key.pem certificate chain.",
+      "parity_impact": "Equivalent SSL support. No impact on data schema or payload format."
+    },
+    "schema_namespace": {
+      "segment": "Uses <source_slug> as the PostgreSQL schema name",
+      "rudderstack": "Uses configurable namespace (typically derived from source name) as the PostgreSQL schema name. Schema created via CREATE SCHEMA IF NOT EXISTS with SET search_path.",
+      "parity_impact": "Schema naming may differ. Functionally equivalent with different default naming convention."
+    },
+    "data_types": {
+      "segment": "Uses VARCHAR(512) for strings, TIMESTAMP WITH TIME ZONE for timestamps, FLOAT for numbers, BIGINT for integers, BOOLEAN for booleans",
+      "rudderstack": "Uses text for strings (int→bigint, float→numeric, string→text, datetime→timestamptz, boolean→boolean, json→jsonb). All string columns use text type instead of VARCHAR(512).",
+      "parity_impact": "Column type difference: Segment uses VARCHAR(512), RudderStack uses text. numeric vs FLOAT for decimal numbers. Both support the same value ranges in practice."
+    },
+    "column_naming": {
+      "segment": "Flattened context fields use underscore notation: context_library_name, context_ip, etc.",
+      "rudderstack": "Same flattened underscore notation: context_library_name, context_ip, etc. Additional RudderStack-specific columns: uuid_ts, context_passed_ip, context_request_ip, context_traits_* for identify events.",
+      "parity_impact": "Column names are compatible. RudderStack includes additional metadata columns not present in Segment output."
+    },
+    "additional_rudderstack_columns": {
+      "description": "RudderStack adds columns not present in Segment warehouse output",
+      "columns": {
+        "uuid_ts": "Timestamp when event was assigned a UUID by RudderStack Gateway",
+        "context_passed_ip": "IP address passed explicitly in event context",
+        "context_request_ip": "IP address from the HTTP request to Gateway",
+        "context_traits_*": "Duplicate of trait columns prefixed with context_traits_ in identifies table"
+      },
+      "parity_impact": "Additional columns do not affect existing column values. They provide extra metadata useful for debugging and audit."
+    },
+    "dedup_strategy": {
+      "segment": "INSERT with ON CONFLICT handling or COPY with post-load dedup",
+      "rudderstack": "Staging table with ROW_NUMBER() OVER (PARTITION BY id ORDER BY received_at DESC) to keep only the latest version of each event. For users table, CASE-based newest-value aggregation computes latest trait per user across all identify events.",
+      "parity_impact": "Different dedup mechanism but same end result: each event appears once, users table reflects latest trait values."
+    },
+    "users_table_computation": {
+      "segment": "Upserts latest trait values into users table as identify events arrive",
+      "rudderstack": "LoadUserTables builds union staging table combining new identifies and existing users data, then computes latest trait values per user via CASE WHEN received_at > existing.received_at THEN new_value ELSE existing_value END aggregation. Configurable via skipComputingUserLatestTraits.",
+      "parity_impact": "Same end state (users table has latest traits). RudderStack uses batch recomputation vs Segment's incremental upsert."
+    },
+    "merge_behavior": {
+      "segment": "Direct INSERT or upsert with no separate merge toggle",
+      "rudderstack": "Merge behavior controlled by Warehouse.postgres.allowMerge config (default: true). When merge is enabled, deletes matching rows from target table before inserting from staging table. When disabled, performs append-only INSERT. Special handling for discards table with multi-column join filter.",
+      "parity_impact": "When allowMerge is true (default), behavior matches Segment upsert semantics. When disabled, RudderStack switches to append-only which differs from Segment."
+    },
+    "primary_keys": {
+      "segment": "Standard primary key on id column for event tables",
+      "rudderstack": "Primary keys: users→id, identifies→id, discards→row_id. Partition keys: users→id, identifies→id, discards→(row_id, column_name, table_name). Used for dedup ROW_NUMBER() partitioning.",
+      "parity_impact": "Compatible primary key strategy. RudderStack partition keys drive dedup granularity."
+    },
+    "table_name_limit": {
+      "segment": "Standard PostgreSQL identifier length limit (63 characters default)",
+      "rudderstack": "Table name limit set to 127 characters. Staging table names generated via warehouseutils.StagingTableName with provider and table name prefix.",
+      "parity_impact": "RudderStack allows longer table names. No impact on standard event table names."
+    },
+    "error_handling": {
+      "segment": "Standard error reporting via Segment UI",
+      "rudderstack": "Structured error mappings: ResourceNotFoundError (DNS failure, DB not exist, relation not exist, DB starting/shutting down), PermissionError (connection refused, auth failed, permission denied), ColumnCountError (1600 column limit). Errors mapped to job status codes for retry/abort decisions.",
+      "parity_impact": "No impact on data output. Operational difference in error classification and retry strategy."
+    },
+    "context_library": {
+      "segment": "context_library_name: analytics.js (or analytics-ios, analytics-android, etc.)",
+      "rudderstack": "context_library_name: rudder-sdk-js (or rudder-sdk-ios, rudder-sdk-android, etc.)",
+      "parity_impact": "Different SDK library identifiers in context.library fields. This is expected as each platform uses its own SDK."
+    }
+  },
+  "parity_analysis": {
+    "overall_status": "NEEDS_VERIFICATION",
+    "parity_percentage_estimate": 85,
+    "critical_gaps": [
+      {
+        "gap_id": "PG-001",
+        "field": "data_types",
+        "severity": "LOW",
+        "description": "Segment uses VARCHAR(512) for string columns; RudderStack uses text. Segment uses FLOAT; RudderStack uses numeric. Both are functionally equivalent for typical payloads.",
+        "remediation": "No action required unless strict DDL parity is mandated. text and VARCHAR(512) store identical values."
+      },
+      {
+        "gap_id": "PG-002",
+        "field": "additional_columns",
+        "severity": "LOW",
+        "description": "RudderStack adds uuid_ts, context_passed_ip, context_request_ip, and context_traits_* columns not present in Segment output.",
+        "remediation": "Additional columns are additive and do not affect shared column data. No action required for data parity."
+      },
+      {
+        "gap_id": "PG-003",
+        "field": "loading_method",
+        "severity": "INFO",
+        "description": "Different loading mechanism (Segment: direct INSERT/COPY; RudderStack: file-download with staging table and pq.CopyIn). End state is equivalent.",
+        "remediation": "No action required. Loading method is an implementation detail that does not affect data parity."
+      },
+      {
+        "gap_id": "PG-004",
+        "field": "context_library",
+        "severity": "INFO",
+        "description": "Different SDK library names in context_library_name column (analytics.js vs rudder-sdk-js). This is expected behavior.",
+        "remediation": "No action required. SDK-level difference inherent to each platform."
+      },
+      {
+        "gap_id": "PG-005",
+        "field": "ssh_tunneling",
+        "severity": "INFO",
+        "description": "RudderStack supports SSH tunneling for PostgreSQL connections; Segment does not. This is a RudderStack-unique connectivity feature.",
+        "remediation": "No action required. Connectivity feature does not affect data schema or payload format."
+      }
+    ],
+    "shared_fields_parity": {
+      "id": "MATCH",
+      "received_at": "MATCH",
+      "sent_at": "MATCH",
+      "timestamp": "MATCH",
+      "original_timestamp": "MATCH",
+      "event": "MATCH",
+      "event_text": "MATCH",
+      "anonymous_id": "MATCH",
+      "user_id": "MATCH",
+      "group_id": "MATCH",
+      "previous_id": "MATCH",
+      "name": "MATCH",
+      "path": "MATCH",
+      "url": "MATCH",
+      "title": "MATCH",
+      "referrer": "MATCH",
+      "search": "MATCH",
+      "context_ip": "MATCH",
+      "context_user_agent": "MATCH",
+      "context_library_name": "DIFFERS_SDK_NAME",
+      "context_library_version": "DIFFERS_SDK_VERSION",
+      "context_page_url": "MATCH",
+      "context_page_referrer": "MATCH",
+      "context_locale": "MATCH",
+      "context_device_type": "MATCH",
+      "context_os_name": "MATCH",
+      "context_os_version": "MATCH",
+      "context_app_name": "MATCH",
+      "context_app_version": "MATCH",
+      "email": "MATCH",
+      "phone": "MATCH",
+      "industry": "MATCH",
+      "employees": "MATCH",
+      "plan": "MATCH"
+    },
+    "rudderstack_only_fields": [
+      "uuid_ts",
+      "context_passed_ip",
+      "context_request_ip",
+      "context_traits_email",
+      "context_traits_name",
+      "context_traits_phone"
+    ],
+    "segment_only_fields": []
+  },
+  "destination_config": {
+    "rudderstack": {
+      "required_settings": {
+        "host": "PostgreSQL server hostname",
+        "port": "PostgreSQL server port (default: 5432)",
+        "database": "Target database name",
+        "user": "Database username",
+        "password": "Database password",
+        "namespace": "Schema name for tables (derived from source name)",
+        "sslMode": "SSL mode: disable, require, or verify-ca"
+      },
+      "optional_settings": {
+        "sshHost": "SSH tunnel host for tunneled connections",
+        "sshPort": "SSH tunnel port",
+        "sshUser": "SSH tunnel username",
+        "sshPrivateKey": "SSH tunnel private key (PEM format)",
+        "syncFrequency": "Warehouse sync frequency in minutes",
+        "syncStartAt": "Sync start time (HH:MM format)",
+        "excludeWindow.excludeWindowStartTime": "Maintenance window start time",
+        "excludeWindow.excludeWindowEndTime": "Maintenance window end time"
+      },
+      "runtime_config": {
+        "Warehouse.postgres.allowMerge": "Enable merge (upsert) behavior (default: true)",
+        "Warehouse.postgres.enableDeleteByJobs": "Enable DeleteBy job support (default: false)",
+        "Warehouse.postgres.numWorkersDownloadLoadFiles": "Parallel file download workers (default: 1)",
+        "Warehouse.postgres.slowQueryThreshold": "Slow query logging threshold (default: 5m)",
+        "Warehouse.postgres.txnRollbackTimeout": "Transaction rollback timeout (default: 30s)",
+        "Warehouse.postgres.skipDedupDestinationIDs": "Destination IDs to skip dedup for",
+        "Warehouse.postgres.skipComputingUserLatestTraits": "Skip users table trait recomputation (default: false)",
+        "Warehouse.postgres.skipComputingUserLatestTraitsWorkspaceIDs": "Workspace IDs to skip trait recomputation for"
+      }
+    },
+    "segment": {
+      "required_settings": {
+        "hostname": "PostgreSQL server hostname",
+        "port": "PostgreSQL server port (default: 5432)",
+        "database": "Target database name",
+        "username": "Database username",
+        "password": "Database password"
+      },
+      "optional_settings": {
+        "schema": "PostgreSQL schema name (default: source slug)",
+        "ssl": "Enable SSL connections"
+      }
+    }
+  },
+  "notes": "PostgreSQL is a shared warehouse destination present in both RudderStack and Segment. Key architectural differences: (1) Segment uses direct SQL INSERT or COPY to load data; RudderStack uses file-download loading with gzipped CSV staging, pq.CopyIn for bulk streaming, and ROW_NUMBER() dedup. (2) RudderStack uniquely supports SSH tunneling for secure connections through bastion hosts. (3) RudderStack uses text/numeric/timestamptz types while Segment uses VARCHAR(512)/FLOAT/TIMESTAMP WITH TIME ZONE — functionally equivalent. (4) RudderStack adds extra metadata columns (uuid_ts, context_passed_ip, context_request_ip, context_traits_*). (5) Users table computation differs: Segment uses incremental upserts, RudderStack uses batch CASE-based newest-value aggregation. Overall data parity is high (~85%) with differences limited to column types, additional metadata columns, and SDK library identifiers. Reference: warehouse/integrations/postgres/ package in rudder-server, docs/gap-report/destination-catalog-parity.md warehouse comparison table."
+}
