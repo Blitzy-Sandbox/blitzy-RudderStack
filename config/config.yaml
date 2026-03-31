@@ -277,3 +277,197 @@ PgNotifier:
   retriggerCount: 500
   trackBatchInterval: 2s
   maxAttempt: 3
+# ====================================================================
+# Sprint 3-5: Destination Connector Expansion (E-010 to E-014)
+# ====================================================================
+StreamDestinations:
+  # Default timeout for new stream destination producers
+  defaultTimeout: 30s
+  # Default retry count for failed deliveries
+  defaultRetryCount: 3
+  # Per-destination enable/disable toggles (all default disabled)
+  azureEventHub:
+    enabled: false
+    timeout: 30s
+    maxRetries: 3
+    maxBatchSize: 500
+  googleCloudFunctions:
+    enabled: false
+    timeout: 30s
+    maxRetries: 3
+  bingAds:
+    enabled: false
+    timeout: 30s
+    maxRetries: 3
+  criteo:
+    enabled: false
+    timeout: 30s
+    maxRetries: 3
+  theTradeDesk:
+    enabled: false
+    timeout: 30s
+    maxRetries: 3
+# ====================================================================
+# Sprint 4-6: Transformation and Functions Framework (E-015 to E-019)
+# ====================================================================
+Functions:
+  # Master toggle for Functions runtime (Source, Destination, Insert Functions)
+  enabled: false
+  runtime:
+    # Maximum execution time per function invocation
+    timeout: 30s
+    # Memory limit per function execution in bytes (default 128MB)
+    memoryLimit: 134217728
+    # Maximum concurrent function executions
+    maxConcurrency: 10
+    # Sandbox mode for JavaScript execution (isolate, process)
+    sandboxMode: isolate
+  secrets:
+    # Encryption key for per-function secrets storage (required when Functions.enabled=true)
+    encryptionKey: ""
+  api:
+    # Enable Functions management REST API endpoints
+    enabled: false
+    # Maximum code size in bytes for uploaded functions (default 5MB)
+    maxCodeSize: 5242880
+  sourceFunctions:
+    # Enable Source Functions webhook ingestion via onRequest handler
+    enabled: false
+    # Maximum request body size for source function webhooks in KB
+    maxRequestSizeKB: 4000
+  destinationFunctions:
+    # Enable Destination Functions typed handler dispatch (onTrack, onIdentify, etc.)
+    enabled: false
+  insertFunctions:
+    # Enable Insert Functions pre-destination transformation hooks
+    enabled: false
+# ====================================================================
+# Sprint 5-7: Protocols and Tracking Plan Enforcement (E-020 to E-025)
+# ====================================================================
+Protocols:
+  enforcement:
+    # Default enforcement mode: Allow, Omit, or Block
+    defaultMode: Allow
+  anomalyDetection:
+    # Enable anomaly detection for unexpected events/properties not in tracking plan
+    enabled: false
+    # Time window for tracking event/property frequency patterns
+    timeWindow: 24h
+    # Anomaly threshold — fraction of total events triggering anomaly (0.0-1.0)
+    threshold: 0.05
+    # Maximum number of tracked event types per source
+    maxTrackedEvents: 10000
+  forwardBlockedEvents:
+    # Enable server-to-server forwarding of blocked events to alternative source
+    enabled: false
+    # Destination source write key for forwarded blocked events
+    targetSourceWriteKey: ""
+  api:
+    # Enable Tracking Plan management REST API (CRUD, versioning, CSV import/export)
+    enabled: false
+  validation:
+    # JSON Schema draft version for tracking plan validation
+    schemaDraft: "draft-07"
+    # Maximum schema size in bytes (default 1MB)
+    maxSchemaSize: 1048576
+  consent:
+    # Integration mode: when true, consent decisions interact with Protocols enforcement
+    protocolsIntegrationEnabled: false
+# ====================================================================
+# Sprint 6-8: Identity Resolution and Profiles (E-026 to E-030)
+# ====================================================================
+Identity:
+  # Master toggle for real-time identity resolution service
+  enabled: false
+  graph:
+    # Interval between identity graph persistence flushes to PostgreSQL
+    persistenceInterval: 5s
+    # Maximum depth for identity merge chain traversal
+    maxMergeDepth: 100
+    # Maximum number of identities per graph segment
+    maxIdentitiesPerSegment: 100000
+  profiles:
+    # Enable Redis-backed profile caching for sub-200ms API responses
+    cacheEnabled: true
+    # Profile cache TTL
+    cacheTTL: 5m
+    # Maximum response time target for Profiles API
+    responseTimeout: 200ms
+    # Maximum number of events returned per profile lookup
+    maxEventsPerProfile: 1000
+  redis:
+    # Redis server address for identity graph caching
+    address: "localhost:6379"
+    # Redis database number
+    db: 0
+    # Redis connection pool size
+    poolSize: 10
+    # Redis connection password (empty for no auth)
+    password: ""
+  sync:
+    # Enable profile sync to downstream destinations via change-data-capture
+    enabled: false
+    # Interval between profile sync cycles
+    interval: 30s
+    # Maximum batch size for profile sync
+    batchSize: 100
+  resolution:
+    # Blocked identifier values (regex patterns) to prevent merge-all scenarios
+    blockedValues: []
+    # Maximum number of external IDs per identity per week
+    weeklyLimit: 0
+    # Maximum number of external IDs per identity per month
+    monthlyLimit: 0
+    # Maximum number of external IDs per identity ever
+    totalLimit: 0
+    # Identifier type priority ranking (higher priority types override lower)
+    priorityOrder:
+      - user_id
+      - email
+      - phone
+      - anonymous_id
+# ====================================================================
+# Sprint 8-10: Operational Tooling and Monitoring (E-036 to E-039)
+# ====================================================================
+Monitoring:
+  dashboard:
+    # Enable per-destination delivery monitoring dashboard metrics
+    enabled: false
+    # Metrics refresh/aggregation interval
+    refreshInterval: 10s
+    # Retention period for dashboard metrics
+    retentionPeriod: 24h
+  alerting:
+    # Enable configurable alerting rules engine
+    enabled: false
+    # Alert rule evaluation interval
+    evaluationInterval: 30s
+    # Default notification channels (webhook, email, slack)
+    channels:
+      - webhook
+    # Default alerting thresholds
+    thresholds:
+      # Throughput drop percentage triggering alert
+      throughputDropPercent: 50
+      # Error rate percentage triggering alert
+      errorRatePercent: 5
+      # Delivery latency threshold in milliseconds
+      deliveryLatencyMs: 30000
+      # JobsDB queue depth triggering alert
+      queueDepthThreshold: 100000
+  profiling:
+    # Enable per-stage pipeline performance profiling
+    enabled: false
+    # Sampling rate for performance profiling (0.0-1.0)
+    sampleRate: 0.01
+    # Target throughput for capacity planning reports (events per second)
+    targetThroughput: 50000
+    # Profiling data retention period
+    retentionPeriod: 7d
+  replay:
+    # Enable dry-run mode for advanced replay operations
+    dryRunEnabled: false
+    # Maximum date range for replay filtering in days
+    maxDateRangeDays: 90
+    # Maximum concurrent advanced replay operations
+    maxConcurrentReplays: 2
