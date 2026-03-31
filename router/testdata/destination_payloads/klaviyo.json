@@ -1,0 +1,834 @@
+{
+  "destination_type": "KLAVIYO",
+  "destination_tier": "cloud",
+  "segment_slug": "actions-klaviyo",
+  "category": "Email Marketing",
+  "api_endpoint": "POST https://a.klaviyo.com/api/events",
+  "event_types": ["track", "identify", "group"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment maps track calls to the Klaviyo Events API (POST /api/events) using JSON:API format. Each track event creates a new event associated with a profile identified by email, phone_number, or external_id. The event name maps to the metric name and properties are passed as event properties. The legacy Track endpoint (POST /api/track) uses a token-based payload with customer_properties and properties.",
+      "api_endpoint": "POST https://a.klaviyo.com/api/events",
+      "headers": {
+        "Authorization": "Klaviyo-API-Key <PRIVATE_API_KEY>",
+        "Content-Type": "application/json",
+        "revision": "2026-01-15"
+      },
+      "request_body": {
+        "data": {
+          "type": "event",
+          "attributes": {
+            "properties": {
+              "product_id": "SKU-001",
+              "product_name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 1,
+              "currency": "USD",
+              "$value": 49.99
+            },
+            "time": "2026-02-25T12:00:00+00:00",
+            "value": 49.99,
+            "unique_id": "seg-msg-abc-123",
+            "metric": {
+              "data": {
+                "type": "metric",
+                "attributes": {
+                  "name": "Product Viewed"
+                }
+              }
+            },
+            "profile": {
+              "data": {
+                "type": "profile",
+                "attributes": {
+                  "email": "alex@example.com",
+                  "phone_number": "+14155551234",
+                  "external_id": "user_123",
+                  "properties": {
+                    "first_name": "Alex",
+                    "last_name": "Keener"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "legacy_request_body": {
+        "token": "PUBLIC_KEY",
+        "event": "Product Viewed",
+        "customer_properties": {
+          "$email": "alex@example.com",
+          "$phone_number": "+14155551234",
+          "$first_name": "Alex",
+          "$last_name": "Keener",
+          "$id": "user_123"
+        },
+        "properties": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": 49.99,
+          "quantity": 1,
+          "currency": "USD",
+          "$value": 49.99
+        },
+        "time": 1740484800
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "quantity": 1,
+          "currency": "USD",
+          "revenue": 49.99
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "traits": {
+            "email": "alex@example.com",
+            "firstName": "Alex",
+            "lastName": "Keener",
+            "phone": "+14155551234"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-abc-123"
+      }
+    },
+    "identify": {
+      "description": "Segment maps identify calls to the Klaviyo Profiles API (POST /api/profiles or PATCH /api/profiles/{id}) to create or update a profile. Profile attributes are mapped from Segment traits. The $email field is the primary key used for profile deduplication and merging. The legacy Identify endpoint (POST /api/identify) uses a token-based payload with properties prefixed by $.",
+      "api_endpoint": "POST https://a.klaviyo.com/api/profiles",
+      "headers": {
+        "Authorization": "Klaviyo-API-Key <PRIVATE_API_KEY>",
+        "Content-Type": "application/json",
+        "revision": "2026-01-15"
+      },
+      "request_body": {
+        "data": {
+          "type": "profile",
+          "attributes": {
+            "email": "alex@example.com",
+            "phone_number": "+14155551234",
+            "external_id": "user_123",
+            "first_name": "Alex",
+            "last_name": "Keener",
+            "organization": "Acme Corp",
+            "title": "Product Manager",
+            "image": "https://example.com/alex.jpg",
+            "location": {
+              "address1": "123 Main St",
+              "address2": "Suite 100",
+              "city": "San Francisco",
+              "region": "CA",
+              "zip": "94105",
+              "country": "US",
+              "timezone": "America/Los_Angeles",
+              "latitude": 37.7749,
+              "longitude": -122.4194
+            },
+            "properties": {
+              "plan": "enterprise",
+              "signup_date": "2026-01-15",
+              "lifetime_value": 5000.00,
+              "preferred_language": "en"
+            }
+          }
+        }
+      },
+      "legacy_request_body": {
+        "token": "PUBLIC_KEY",
+        "properties": {
+          "$email": "alex@example.com",
+          "$phone_number": "+14155551234",
+          "$id": "user_123",
+          "$first_name": "Alex",
+          "$last_name": "Keener",
+          "$organization": "Acme Corp",
+          "$title": "Product Manager",
+          "$image": "https://example.com/alex.jpg",
+          "$address1": "123 Main St",
+          "$address2": "Suite 100",
+          "$city": "San Francisco",
+          "$region": "CA",
+          "$zip": "94105",
+          "$country": "US",
+          "$timezone": "America/Los_Angeles",
+          "$latitude": 37.7749,
+          "$longitude": -122.4194,
+          "plan": "enterprise",
+          "signup_date": "2026-01-15",
+          "lifetime_value": 5000.00,
+          "preferred_language": "en"
+        }
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "traits": {
+          "email": "alex@example.com",
+          "firstName": "Alex",
+          "lastName": "Keener",
+          "phone": "+14155551234",
+          "company": {
+            "name": "Acme Corp"
+          },
+          "title": "Product Manager",
+          "avatar": "https://example.com/alex.jpg",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US"
+          },
+          "plan": "enterprise",
+          "signedUpAt": "2026-01-15",
+          "lifetimeValue": 5000.00,
+          "preferredLanguage": "en"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "timezone": "America/Los_Angeles",
+          "locale": "en-US",
+          "ip": "203.0.113.42",
+          "location": {
+            "latitude": 37.7749,
+            "longitude": -122.4194
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-def-456"
+      }
+    },
+    "group": {
+      "description": "Segment maps group calls to the Klaviyo Lists API to add profiles to a Klaviyo list. The groupId maps to the Klaviyo list ID. Segment's Klaviyo (Actions) destination uses the 'Add Profile to List' action (POST /api/lists/{list_id}/relationships/profiles) or the 'Subscribe Profile' action (POST /api/profile-subscription-bulk-create-jobs) depending on the configured action. The profile is identified by email or phone_number from traits.",
+      "api_endpoint": "POST https://a.klaviyo.com/api/lists/{list_id}/relationships/profiles",
+      "headers": {
+        "Authorization": "Klaviyo-API-Key <PRIVATE_API_KEY>",
+        "Content-Type": "application/json",
+        "revision": "2026-01-15"
+      },
+      "request_body": {
+        "data": [
+          {
+            "type": "profile",
+            "id": "01GDDKASAP8TKDDA2GRZDSVP4H"
+          }
+        ]
+      },
+      "subscribe_request_body": {
+        "data": {
+          "type": "profile-subscription-bulk-create-job",
+          "attributes": {
+            "custom_source": "Segment Integration",
+            "profiles": {
+              "data": [
+                {
+                  "type": "profile",
+                  "attributes": {
+                    "email": "alex@example.com",
+                    "phone_number": "+14155551234",
+                    "subscriptions": {
+                      "email": {
+                        "marketing": {
+                          "consent": "SUBSCRIBED"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "relationships": {
+            "list": {
+              "data": {
+                "type": "list",
+                "id": "LIST_ABC123"
+              }
+            }
+          }
+        }
+      },
+      "legacy_request_body": {
+        "api_key": "PRIVATE_API_KEY",
+        "profiles": [
+          {
+            "email": "alex@example.com",
+            "$first_name": "Alex",
+            "$last_name": "Keener"
+          }
+        ]
+      },
+      "legacy_api_endpoint": "POST https://a.klaviyo.com/api/v2/list/LIST_ABC123/subscribe",
+      "source_event": {
+        "type": "group",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "groupId": "LIST_ABC123",
+        "traits": {
+          "name": "Newsletter Subscribers",
+          "description": "Main marketing email list",
+          "email": "alex@example.com"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "traits": {
+            "email": "alex@example.com",
+            "firstName": "Alex",
+            "lastName": "Keener",
+            "phone": "+14155551234"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-ghi-789"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack maps track calls to the Klaviyo Events API (POST /api/events) or legacy Track API (POST /api/track) depending on the configured API version. The event name becomes the Klaviyo metric name. Event properties are passed through, with the revenue property mapped to Klaviyo's $value special property. The profile is identified by $email from traits or context.traits. RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event.",
+      "api_endpoint": "POST https://a.klaviyo.com/api/events",
+      "headers": {
+        "Authorization": "Klaviyo-API-Key <PRIVATE_API_KEY>",
+        "Content-Type": "application/json",
+        "revision": "2026-01-15"
+      },
+      "request_body": {
+        "data": {
+          "type": "event",
+          "attributes": {
+            "properties": {
+              "product_id": "SKU-001",
+              "product_name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 1,
+              "currency": "USD",
+              "$value": 49.99
+            },
+            "time": "2026-02-25T12:00:00+00:00",
+            "value": 49.99,
+            "unique_id": "rs-msg-xyz-789",
+            "metric": {
+              "data": {
+                "type": "metric",
+                "attributes": {
+                  "name": "Product Viewed"
+                }
+              }
+            },
+            "profile": {
+              "data": {
+                "type": "profile",
+                "attributes": {
+                  "email": "alex@example.com",
+                  "phone_number": "+14155551234",
+                  "external_id": "user_123",
+                  "properties": {
+                    "first_name": "Alex",
+                    "last_name": "Keener"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "legacy_request_body": {
+        "token": "PUBLIC_KEY",
+        "event": "Product Viewed",
+        "customer_properties": {
+          "$email": "alex@example.com",
+          "$phone_number": "+14155551234",
+          "$first_name": "Alex",
+          "$last_name": "Keener",
+          "$id": "user_123"
+        },
+        "properties": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": 49.99,
+          "quantity": 1,
+          "currency": "USD",
+          "$value": 49.99
+        },
+        "time": 1740484800
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "quantity": 1,
+          "currency": "USD",
+          "revenue": 49.99
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "traits": {
+            "email": "alex@example.com",
+            "firstName": "Alex",
+            "lastName": "Keener",
+            "phone": "+14155551234"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-xyz-789",
+        "rudderId": "rudder-uuid-001"
+      }
+    },
+    "identify": {
+      "description": "RudderStack maps identify calls to the Klaviyo Profiles API (POST /api/profiles or PATCH /api/profiles/{id}) or the legacy Identify API (POST /api/identify). The traits from the identify call are mapped to Klaviyo profile attributes: email→email, firstName→first_name, lastName→last_name, phone→phone_number, userId→external_id. Custom traits are passed as Klaviyo custom properties. RudderStack supports both the legacy $-prefixed property format and the modern JSON:API format.",
+      "api_endpoint": "POST https://a.klaviyo.com/api/profiles",
+      "headers": {
+        "Authorization": "Klaviyo-API-Key <PRIVATE_API_KEY>",
+        "Content-Type": "application/json",
+        "revision": "2026-01-15"
+      },
+      "request_body": {
+        "data": {
+          "type": "profile",
+          "attributes": {
+            "email": "alex@example.com",
+            "phone_number": "+14155551234",
+            "external_id": "user_123",
+            "first_name": "Alex",
+            "last_name": "Keener",
+            "organization": "Acme Corp",
+            "title": "Product Manager",
+            "image": "https://example.com/alex.jpg",
+            "location": {
+              "address1": "123 Main St",
+              "address2": "Suite 100",
+              "city": "San Francisco",
+              "region": "CA",
+              "zip": "94105",
+              "country": "US",
+              "timezone": "America/Los_Angeles",
+              "latitude": 37.7749,
+              "longitude": -122.4194
+            },
+            "properties": {
+              "plan": "enterprise",
+              "signup_date": "2026-01-15",
+              "lifetime_value": 5000.00,
+              "preferred_language": "en"
+            }
+          }
+        }
+      },
+      "legacy_request_body": {
+        "token": "PUBLIC_KEY",
+        "properties": {
+          "$email": "alex@example.com",
+          "$phone_number": "+14155551234",
+          "$id": "user_123",
+          "$first_name": "Alex",
+          "$last_name": "Keener",
+          "$organization": "Acme Corp",
+          "$title": "Product Manager",
+          "$image": "https://example.com/alex.jpg",
+          "$address1": "123 Main St",
+          "$address2": "Suite 100",
+          "$city": "San Francisco",
+          "$region": "CA",
+          "$zip": "94105",
+          "$country": "US",
+          "$timezone": "America/Los_Angeles",
+          "$latitude": 37.7749,
+          "$longitude": -122.4194,
+          "plan": "enterprise",
+          "signup_date": "2026-01-15",
+          "lifetime_value": 5000.00,
+          "preferred_language": "en"
+        }
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "traits": {
+          "email": "alex@example.com",
+          "firstName": "Alex",
+          "lastName": "Keener",
+          "phone": "+14155551234",
+          "company": {
+            "name": "Acme Corp"
+          },
+          "title": "Product Manager",
+          "avatar": "https://example.com/alex.jpg",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US"
+          },
+          "plan": "enterprise",
+          "signedUpAt": "2026-01-15",
+          "lifetimeValue": 5000.00,
+          "preferredLanguage": "en"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "timezone": "America/Los_Angeles",
+          "locale": "en-US",
+          "ip": "203.0.113.42",
+          "location": {
+            "latitude": 37.7749,
+            "longitude": -122.4194
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-def-456",
+        "rudderId": "rudder-uuid-002"
+      }
+    },
+    "group": {
+      "description": "RudderStack maps group calls to Klaviyo list management operations. The groupId is used as the Klaviyo list ID. RudderStack supports adding a profile to a list via the Lists API (POST /api/lists/{list_id}/relationships/profiles) or subscribing a profile via the Subscribe Profiles endpoint (POST /api/profile-subscription-bulk-create-jobs). The profile is identified by email or phone_number from the event traits or context.traits. If the profile does not exist in Klaviyo, it is created during the subscribe operation.",
+      "api_endpoint": "POST https://a.klaviyo.com/api/lists/{list_id}/relationships/profiles",
+      "headers": {
+        "Authorization": "Klaviyo-API-Key <PRIVATE_API_KEY>",
+        "Content-Type": "application/json",
+        "revision": "2026-01-15"
+      },
+      "request_body": {
+        "data": [
+          {
+            "type": "profile",
+            "id": "01GDDKASAP8TKDDA2GRZDSVP4H"
+          }
+        ]
+      },
+      "subscribe_request_body": {
+        "data": {
+          "type": "profile-subscription-bulk-create-job",
+          "attributes": {
+            "custom_source": "RudderStack Integration",
+            "profiles": {
+              "data": [
+                {
+                  "type": "profile",
+                  "attributes": {
+                    "email": "alex@example.com",
+                    "phone_number": "+14155551234",
+                    "subscriptions": {
+                      "email": {
+                        "marketing": {
+                          "consent": "SUBSCRIBED"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "relationships": {
+            "list": {
+              "data": {
+                "type": "list",
+                "id": "LIST_ABC123"
+              }
+            }
+          }
+        }
+      },
+      "legacy_request_body": {
+        "api_key": "PRIVATE_API_KEY",
+        "profiles": [
+          {
+            "email": "alex@example.com",
+            "$first_name": "Alex",
+            "$last_name": "Keener"
+          }
+        ]
+      },
+      "legacy_api_endpoint": "POST https://a.klaviyo.com/api/v2/list/LIST_ABC123/subscribe",
+      "source_event": {
+        "type": "group",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "groupId": "LIST_ABC123",
+        "traits": {
+          "name": "Newsletter Subscribers",
+          "description": "Main marketing email list",
+          "email": "alex@example.com"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "traits": {
+            "email": "alex@example.com",
+            "firstName": "Alex",
+            "lastName": "Keener",
+            "phone": "+14155551234"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-ghi-789",
+        "rudderId": "rudder-uuid-003"
+      }
+    }
+  },
+  "field_mappings": {
+    "primary_identifier": {
+      "klaviyo_field": "$email / email",
+      "segment_mapping": "Segment uses traits.email or context.traits.email as the primary profile identifier. Mapped to Klaviyo $email (legacy) or attributes.email (v2). $email is Klaviyo's primary key for profile deduplication and merging.",
+      "rudderstack_mapping": "RudderStack uses traits.email or context.traits.email as the primary profile identifier. Mapped to Klaviyo $email (legacy) or attributes.email (v2). Falls back to context.externalId with type 'klaviyoId' if available.",
+      "parity": "match",
+      "notes": "Both platforms use email as the primary identifier for Klaviyo. Klaviyo recommends email as the primary key for profile deduplication. email must be a valid email address and is case-insensitive in Klaviyo."
+    },
+    "phone_number": {
+      "klaviyo_field": "$phone_number / phone_number",
+      "segment_mapping": "Segment maps traits.phone to Klaviyo $phone_number (legacy) or attributes.phone_number (v2).",
+      "rudderstack_mapping": "RudderStack maps traits.phone to Klaviyo $phone_number (legacy) or attributes.phone_number (v2).",
+      "parity": "match",
+      "notes": "Phone numbers must be in E.164 format (e.g., +14155551234). Klaviyo uses phone_number as a secondary profile identifier for SMS-only contacts."
+    },
+    "external_id": {
+      "klaviyo_field": "$id / external_id",
+      "segment_mapping": "Segment maps userId to Klaviyo $id (legacy) or external_id (v2). This serves as an external system identifier linking Klaviyo profiles to the source application's user ID.",
+      "rudderstack_mapping": "RudderStack maps userId to Klaviyo $id (legacy) or external_id (v2). Maps the Segment spec userId field directly to Klaviyo's external identifier.",
+      "parity": "match",
+      "notes": "Klaviyo's external_id is not involved in profile merging. It provides a cross-reference to the source system but does not deduplicate profiles. Only email and phone_number are used for profile deduplication."
+    },
+    "first_name": {
+      "klaviyo_field": "$first_name / first_name",
+      "segment_mapping": "Segment maps traits.firstName or traits.first_name to Klaviyo $first_name (legacy) or attributes.first_name (v2).",
+      "rudderstack_mapping": "RudderStack maps traits.firstName or traits.first_name to Klaviyo $first_name (legacy) or attributes.first_name (v2).",
+      "parity": "match"
+    },
+    "last_name": {
+      "klaviyo_field": "$last_name / last_name",
+      "segment_mapping": "Segment maps traits.lastName or traits.last_name to Klaviyo $last_name (legacy) or attributes.last_name (v2).",
+      "rudderstack_mapping": "RudderStack maps traits.lastName or traits.last_name to Klaviyo $last_name (legacy) or attributes.last_name (v2).",
+      "parity": "match"
+    },
+    "organization": {
+      "klaviyo_field": "$organization / organization",
+      "segment_mapping": "Segment maps traits.company.name or traits.organization to Klaviyo $organization (legacy) or attributes.organization (v2).",
+      "rudderstack_mapping": "RudderStack maps traits.company.name or traits.organization to Klaviyo $organization (legacy) or attributes.organization (v2).",
+      "parity": "match"
+    },
+    "title": {
+      "klaviyo_field": "$title / title",
+      "segment_mapping": "Segment maps traits.title to Klaviyo $title (legacy) or attributes.title (v2).",
+      "rudderstack_mapping": "RudderStack maps traits.title to Klaviyo $title (legacy) or attributes.title (v2).",
+      "parity": "match"
+    },
+    "image": {
+      "klaviyo_field": "$image / image",
+      "segment_mapping": "Segment maps traits.avatar to Klaviyo $image (legacy) or attributes.image (v2).",
+      "rudderstack_mapping": "RudderStack maps traits.avatar to Klaviyo $image (legacy) or attributes.image (v2).",
+      "parity": "match",
+      "notes": "The Segment spec uses 'avatar' for profile images; Klaviyo uses '$image' (legacy) or 'image' (v2). Both platforms perform the same trait→field mapping."
+    },
+    "location_address": {
+      "klaviyo_field": "$address1, $address2, $city, $region, $zip, $country / location.*",
+      "segment_mapping": "Segment maps traits.address.street to $address1, traits.address.city to $city, traits.address.state to $region, traits.address.postalCode to $zip, traits.address.country to $country.",
+      "rudderstack_mapping": "RudderStack maps traits.address.street to $address1, traits.address.city to $city, traits.address.state to $region, traits.address.postalCode to $zip, traits.address.country to $country.",
+      "parity": "match",
+      "notes": "Klaviyo's v2 API nests all location fields under attributes.location (address1, address2, city, region, zip, country, timezone, latitude, longitude). The legacy API uses flat $-prefixed fields."
+    },
+    "timezone": {
+      "klaviyo_field": "$timezone / location.timezone",
+      "segment_mapping": "Segment maps context.timezone to Klaviyo $timezone (legacy) or location.timezone (v2). Uses IANA timezone format (e.g., America/Los_Angeles).",
+      "rudderstack_mapping": "RudderStack maps context.timezone to Klaviyo $timezone (legacy) or location.timezone (v2). Uses IANA timezone format.",
+      "parity": "match"
+    },
+    "geolocation": {
+      "klaviyo_field": "$latitude, $longitude / location.latitude, location.longitude",
+      "segment_mapping": "Segment maps context.location.latitude and context.location.longitude to Klaviyo $latitude/$longitude (legacy) or location.latitude/location.longitude (v2).",
+      "rudderstack_mapping": "RudderStack maps context.location.latitude and context.location.longitude to Klaviyo $latitude/$longitude (legacy) or location.latitude/location.longitude (v2).",
+      "parity": "match"
+    },
+    "event_name": {
+      "klaviyo_field": "event / metric.attributes.name",
+      "segment_mapping": "Segment maps the event name from track calls to Klaviyo's 'event' field (legacy) or metric.attributes.name (v2). Standard ecommerce event names (e.g., 'Order Completed', 'Product Viewed') are passed through as-is.",
+      "rudderstack_mapping": "RudderStack maps the event name from track calls to Klaviyo's 'event' field (legacy) or metric.attributes.name (v2). Ecommerce event names are passed through without transformation.",
+      "parity": "match",
+      "notes": "Klaviyo allows up to 200 unique metrics (event types) per account. Event names are case-sensitive in Klaviyo."
+    },
+    "event_properties": {
+      "klaviyo_field": "properties / attributes.properties",
+      "segment_mapping": "Segment maps track event properties to Klaviyo properties. Non-object properties can be used for segmentation in Klaviyo. The $value special property is set from revenue or value. The $event_id property serves as a deduplication key.",
+      "rudderstack_mapping": "RudderStack maps track event properties to Klaviyo properties. Maps revenue to $value. Maps messageId to $event_id for deduplication when unique_id is not explicitly set.",
+      "parity": "match",
+      "notes": "Klaviyo's $value property is used for revenue tracking and must be numeric. The $extra property can store non-segmentable values like HTML templates."
+    },
+    "event_timestamp": {
+      "klaviyo_field": "time / attributes.time",
+      "segment_mapping": "Segment maps the event timestamp to Klaviyo's 'time' field. Legacy API expects Unix epoch seconds; v2 API accepts ISO 8601 datetime strings.",
+      "rudderstack_mapping": "RudderStack maps the event timestamp to Klaviyo's 'time' field. Converts ISO 8601 timestamp to Unix epoch seconds for legacy API; passes ISO 8601 for v2 API.",
+      "parity": "match",
+      "notes": "Legacy API time format is Unix epoch seconds (integer). V2 API uses ISO 8601 format (YYYY-MM-DDTHH:MM:SS+00:00)."
+    },
+    "event_unique_id": {
+      "klaviyo_field": "$event_id / attributes.unique_id",
+      "segment_mapping": "Segment maps messageId to Klaviyo's $event_id (legacy) or unique_id (v2) for event deduplication. Duplicate events with the same unique_id for a given metric and profile are ignored.",
+      "rudderstack_mapping": "RudderStack maps messageId to Klaviyo's $event_id (legacy) or unique_id (v2) for event deduplication.",
+      "parity": "match",
+      "notes": "Klaviyo ignores duplicate events sharing the same unique_id for a given metric and profile combination."
+    },
+    "revenue_value": {
+      "klaviyo_field": "$value / attributes.value",
+      "segment_mapping": "Segment maps properties.revenue or properties.value to Klaviyo's $value special property. This numeric value is used for revenue reporting and segmentation.",
+      "rudderstack_mapping": "RudderStack maps properties.revenue or properties.value to Klaviyo's $value special property.",
+      "parity": "match"
+    },
+    "custom_properties": {
+      "klaviyo_field": "properties.* / attributes.properties.*",
+      "segment_mapping": "Segment maps custom traits (not matching reserved Klaviyo fields) to Klaviyo custom profile properties. Custom properties can be used for segmentation, flow triggers, and template personalization.",
+      "rudderstack_mapping": "RudderStack maps custom traits (not matching reserved Klaviyo fields) to Klaviyo custom profile properties.",
+      "parity": "match",
+      "notes": "Klaviyo has data limits for custom properties: up to 500 custom properties per profile, string values up to 65,535 characters. Custom properties do not need to be pre-created in Klaviyo (unlike SendGrid custom fields)."
+    },
+    "list_management": {
+      "klaviyo_field": "list_id / relationships.list.data.id",
+      "segment_mapping": "Segment maps group calls to Klaviyo list operations. The groupId maps to the Klaviyo list ID. Segment supports both 'Add Profile to List' (direct list addition) and 'Subscribe Profile' (with consent and opt-in) actions via the Klaviyo (Actions) destination.",
+      "rudderstack_mapping": "RudderStack maps group calls to Klaviyo list operations. The groupId maps to the Klaviyo list ID. RudderStack supports list subscribe operations via the legacy v2 Subscribe API (POST /api/v2/list/{list_id}/subscribe) or the modern Subscribe Profiles endpoint.",
+      "parity": "match",
+      "notes": "Klaviyo lists can be configured for single or double opt-in. Double opt-in is the default. When using the subscribe endpoint with double opt-in enabled, the profile will not appear in the list until the opt-in email is confirmed. The 'Add Profile to List' endpoint bypasses opt-in requirements. Maximum 1000 profiles per subscribe request."
+    },
+    "consent_management": {
+      "klaviyo_field": "subscriptions.email.marketing.consent / subscriptions.sms.marketing.consent",
+      "segment_mapping": "Segment's Klaviyo (Actions) destination supports consent management via the Subscribe Profile action. Consent can be set to 'SUBSCRIBED' for email and/or SMS marketing channels.",
+      "rudderstack_mapping": "RudderStack supports consent management through the group call's traits when subscribing profiles to lists. Consent status is passed to Klaviyo's subscribe endpoint.",
+      "parity": "partial",
+      "notes": "Segment's Actions destination provides more granular control over consent management with separate email and SMS subscription channels. RudderStack's consent handling depends on the integration configuration."
+    }
+  },
+  "authentication": {
+    "method": "API Key",
+    "legacy_auth": {
+      "method": "Public API Key in payload",
+      "field": "token",
+      "description": "Legacy v1-2 Track and Identify endpoints use a public API key passed as the 'token' field in the JSON payload. List operations use a private API key as a query parameter."
+    },
+    "modern_auth": {
+      "method": "Private API Key in header",
+      "header": "Authorization: Klaviyo-API-Key <PRIVATE_API_KEY>",
+      "description": "Modern v2+ endpoints use a private API key in the Authorization header with the 'Klaviyo-API-Key' scheme. API key scopes control access permissions (events:write, profiles:write, lists:write)."
+    },
+    "segment_config": "API key configured in the Klaviyo (Actions) destination settings. Segment supports both public key (for client-side Track/Identify) and private key (for server-side API calls).",
+    "rudderstack_config": "API key configured in the Klaviyo destination settings in the RudderStack dashboard. Both public key (privateApiKey for legacy endpoints) and private key (for v2 endpoints) are supported.",
+    "parity": "match"
+  },
+  "api_versions": {
+    "legacy_v1_v2": {
+      "track_endpoint": "POST https://a.klaviyo.com/api/track",
+      "identify_endpoint": "POST https://a.klaviyo.com/api/identify",
+      "list_subscribe_endpoint": "POST https://a.klaviyo.com/api/v2/list/{list_id}/subscribe",
+      "auth_method": "token field in payload (Track/Identify) or api_key query parameter (Lists)",
+      "payload_format": "Flat JSON with $-prefixed special properties",
+      "status": "Legacy — still functional but deprecated in favor of v2+ JSON:API endpoints"
+    },
+    "modern_v2_plus": {
+      "events_endpoint": "POST https://a.klaviyo.com/api/events",
+      "profiles_endpoint": "POST https://a.klaviyo.com/api/profiles",
+      "lists_endpoint": "POST https://a.klaviyo.com/api/lists/{list_id}/relationships/profiles",
+      "subscribe_endpoint": "POST https://a.klaviyo.com/api/profile-subscription-bulk-create-jobs",
+      "auth_method": "Klaviyo-API-Key header with private API key",
+      "payload_format": "JSON:API specification with data.type, data.attributes, data.relationships",
+      "revision_header": "revision: 2026-01-15",
+      "status": "Current recommended API version"
+    }
+  },
+  "parity_status": "partial",
+  "known_gaps": [
+    {
+      "gap_id": "KL-001",
+      "field": "API version selection",
+      "description": "Segment's Klaviyo (Actions) destination uses the modern v2+ JSON:API endpoints exclusively. RudderStack's Klaviyo integration may use either legacy v1-2 or modern v2+ endpoints depending on configuration. This can result in different payload formats reaching Klaviyo even though the end result is functionally equivalent.",
+      "severity": "medium",
+      "remediation": "Ensure RudderStack's Klaviyo integration defaults to the modern v2+ endpoints to match Segment's behavior. Verify both legacy and modern payloads produce identical profile/event state in Klaviyo."
+    },
+    {
+      "gap_id": "KL-002",
+      "field": "Consent management granularity",
+      "description": "Segment's Klaviyo (Actions) destination provides separate actions for subscribing profiles with email and SMS consent channels. RudderStack's group call maps to list subscribe but may not provide the same granular consent management for separate email/SMS channels within a single operation.",
+      "severity": "medium",
+      "remediation": "Extend RudderStack's Klaviyo integration to support explicit email and SMS consent fields in the group call traits (e.g., traits.subscriptions.email, traits.subscriptions.sms). Map these to Klaviyo's subscription consent object."
+    },
+    {
+      "gap_id": "KL-003",
+      "field": "Actions-based configurable mappings",
+      "description": "Segment's Klaviyo (Actions) destination supports configurable field mappings and event subscriptions, allowing users to customize which events trigger which Klaviyo actions and how fields are mapped. RudderStack uses a fixed field mapping determined by the Transformer service.",
+      "severity": "medium",
+      "remediation": "This is a platform-level architectural gap (DC-002). RudderStack's Transformer handles field mapping centrally. Custom mappings can be achieved via User Transformations but lack the declarative UI that Segment provides."
+    },
+    {
+      "gap_id": "KL-004",
+      "field": "RudderStack envelope fields",
+      "description": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to the source event envelope. These additional fields do not impact the Klaviyo API payload but differ from Segment's event structure.",
+      "severity": "informational",
+      "remediation": "No impact on destination payload. These fields are stripped during transformation before the Klaviyo API call."
+    },
+    {
+      "gap_id": "KL-005",
+      "field": "context.library",
+      "description": "Segment uses analytics.js as the library name; RudderStack uses rudder-sdk-js. This difference is present in the source event but does not propagate to the Klaviyo API payload.",
+      "severity": "informational",
+      "remediation": "No impact on destination payload — library metadata is used by the Transformer but not sent to Klaviyo in the final payload."
+    },
+    {
+      "gap_id": "KL-006",
+      "field": "Profile merge behavior on external_id",
+      "description": "Klaviyo's external_id is not involved in profile merging. Only email and phone_number trigger profile deduplication. Both Segment and RudderStack map userId to external_id, but users migrating from Segment should be aware that external_id alone will not prevent duplicate profiles in Klaviyo.",
+      "severity": "low",
+      "remediation": "Document that email or phone_number must always be provided alongside userId to ensure proper profile deduplication in Klaviyo. This is a Klaviyo platform constraint, not a parity gap."
+    },
+    {
+      "gap_id": "KL-007",
+      "field": "Ecommerce event mapping",
+      "description": "Segment's Klaviyo (Actions) destination has pre-built actions for standard ecommerce events (Ordered Product, Viewed Product, Added to Cart, Started Checkout) with specific Klaviyo metric name mappings. RudderStack passes ecommerce event names through without transformation, which may result in different metric names in Klaviyo.",
+      "severity": "medium",
+      "remediation": "Verify that RudderStack's ecommerce event name mapping matches Segment's Klaviyo metric name conventions. Consider adding explicit ecommerce event name mapping in the Transformer's Klaviyo destination configuration."
+    },
+    {
+      "gap_id": "KL-008",
+      "field": "Double opt-in handling",
+      "description": "When subscribing profiles to a Klaviyo list configured with double opt-in (default), the profile will not appear in the list until the confirmation email is clicked. Both platforms handle this identically (it is a Klaviyo platform behavior), but users should be aware of the asynchronous nature of list subscriptions.",
+      "severity": "informational",
+      "remediation": "No remediation needed. Document double opt-in behavior for users configuring group calls."
+    }
+  ],
+  "notes": "Klaviyo is a shared cloud destination in the Email Marketing category. Segment has two Klaviyo variants: Classic (slug: klaviyo) and Actions (slug: actions-klaviyo). RudderStack's integration is delivered via the Router as a cloud REST destination, with event transformation handled by the external Transformer service (port 9090). Klaviyo's API has two generations: the legacy v1-2 Track/Identify API (token-based, flat JSON with $-prefixed special properties) and the modern v2+ API (private key auth, JSON:API specification with data.type/attributes/relationships). The primary profile identifier in Klaviyo is $email (or email in v2). Phone number serves as the secondary identifier for SMS-only contacts. The external_id field maps to userId but does not participate in profile merging. Klaviyo supports up to 200 unique metrics (event types) per account. Events are created asynchronously and may take up to a few minutes to appear in the Klaviyo UI. Profile custom properties do not need to be pre-created (unlike SendGrid). Klaviyo rate limits: Events API burst 350/s, steady 3500/m; Profiles API varies by endpoint. Lists are set to double opt-in by default. This fixture documents both legacy and modern API formats for comprehensive parity comparison."
+}
