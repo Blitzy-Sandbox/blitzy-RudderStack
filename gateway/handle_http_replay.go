@@ -19,6 +19,22 @@ func (gw *Handle) webReplayHandler() http.HandlerFunc {
 	return gw.callType("replay", gw.replaySourceIDAuth(gw.withWarehouseReplayTag(gw.webHandler())))
 }
 
+// webReplayAdvancedHandler handles advanced replay requests with source-level,
+// date-range, destination-level filtering and dry-run mode (E-038).
+// The handler chain adds withAdvancedReplayFilters (defined in handle_http_replay_advanced.go)
+// before the existing withWarehouseReplayTag middleware, enabling advanced filter parameters
+// to be injected into event context via HTTP headers:
+//
+//   - X-Replay-Source-Filter: Source ID to filter replay events
+//   - X-Replay-Start-Date / X-Replay-End-Date: Date range for replay window (RFC 3339)
+//   - X-Replay-Destination-Filter: Destination ID to target replay
+//   - X-Replay-Dry-Run: Preview mode without executing side effects
+//
+// This handler is intended for the /v1/replay/advanced endpoint.
+func (gw *Handle) webReplayAdvancedHandler() http.HandlerFunc {
+	return gw.callType("replay", gw.replaySourceIDAuth(gw.withAdvancedReplayFilters(gw.withWarehouseReplayTag(gw.webHandler()))))
+}
+
 // withWarehouseReplayTag is a middleware that detects the X-Warehouse-Replay HTTP header
 // and injects a warehouseOnly routing flag into each event's context within the request body.
 // This enables the Processor (processor/processor.go) to detect warehouse-targeted replay
@@ -73,6 +89,34 @@ func (gw *Handle) withWarehouseReplayTag(delegate http.HandlerFunc) http.Handler
 			// Single event format (non-batch replay — defensive handling)
 			if modified, setErr := sjson.SetBytes(body, "context.warehouseOnly", true); setErr == nil {
 				body = modified
+			}
+		}
+
+		// Advanced replay filter passthrough (E-038).
+		// When advanced replay filter headers are present on the request, inject them
+		// into each event's context alongside the warehouseOnly tag. This allows the
+		// basic replay endpoint (/v1/replay) to also benefit from advanced filter
+		// parameters when both warehouse replay and filter headers are sent together.
+		//
+		// Each non-empty header value is injected into the event context using the
+		// same sjson.SetBytes pattern as the warehouseOnly injection above. The
+		// injectReplayFilters helper (handle_http_replay_advanced.go) handles the
+		// per-field injection and uses strings.EqualFold for the boolean dry-run check,
+		// consistent with the X-Warehouse-Replay comparison at the top of this function.
+		sourceFilter := r.Header.Get("X-Replay-Source-Filter")
+		startDate := r.Header.Get("X-Replay-Start-Date")
+		endDate := r.Header.Get("X-Replay-End-Date")
+		destFilter := r.Header.Get("X-Replay-Destination-Filter")
+		dryRunStr := r.Header.Get("X-Replay-Dry-Run")
+
+		if sourceFilter != "" || startDate != "" || endDate != "" || destFilter != "" || dryRunStr != "" {
+			if batch.Exists() && batch.IsArray() {
+				for i := range batch.Array() {
+					prefix := "batch." + strconv.Itoa(i) + ".context."
+					body = injectReplayFilters(body, prefix, sourceFilter, startDate, endDate, destFilter, dryRunStr)
+				}
+			} else {
+				body = injectReplayFilters(body, "context.", sourceFilter, startDate, endDate, destFilter, dryRunStr)
 			}
 		}
 
