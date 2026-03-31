@@ -1,0 +1,714 @@
+{
+  "destination_type": "AMPLITUDE",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "endpoint": "https://api2.amplitude.com/2/httpapi",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Accept": "*/*"
+    },
+    "body": {
+      "api_key": "SEGMENT_AMPLITUDE_API_KEY",
+      "options": {
+        "min_id_length": 1
+      },
+      "events": [
+        {
+          "event_type": "Product Viewed",
+          "user_id": "user_123",
+          "device_id": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+          "time": 1740480000000,
+          "session_id": 1740479000000,
+          "insert_id": "msg-seg-abc-123",
+          "event_properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Electronics",
+            "currency": "USD"
+          },
+          "user_properties": {
+            "$set": {
+              "email": "user@example.com",
+              "plan": "enterprise"
+            }
+          },
+          "groups": {
+            "company_id": "company_456"
+          },
+          "app_version": "2.1.3",
+          "platform": "Web",
+          "os_name": "Mac OS X",
+          "os_version": "14.3.1",
+          "device_brand": "",
+          "device_manufacturer": "",
+          "device_model": "",
+          "carrier": "",
+          "country": "United States",
+          "region": "California",
+          "city": "San Francisco",
+          "dma": "San Francisco-Oakland-San Jose, CA",
+          "language": "en-US",
+          "ip": "203.0.113.50",
+          "location_lat": 37.7749,
+          "location_lng": -122.4194,
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        }
+      ]
+    }
+  },
+  "rudderstack_expected_payload": {
+    "endpoint": "https://api2.amplitude.com/2/httpapi",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Accept": "*/*"
+    },
+    "body": {
+      "api_key": "RUDDERSTACK_AMPLITUDE_API_KEY",
+      "options": {
+        "min_id_length": 1
+      },
+      "events": [
+        {
+          "event_type": "Product Viewed",
+          "user_id": "user_123",
+          "device_id": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+          "time": 1740480000000,
+          "session_id": 1740479000000,
+          "insert_id": "msg-rs-xyz-789",
+          "event_properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Electronics",
+            "currency": "USD"
+          },
+          "user_properties": {
+            "$set": {
+              "email": "user@example.com",
+              "plan": "enterprise"
+            }
+          },
+          "groups": {
+            "company_id": "company_456"
+          },
+          "app_version": "2.1.3",
+          "platform": "Web",
+          "os_name": "Mac OS X",
+          "os_version": "14.3.1",
+          "device_brand": "",
+          "device_manufacturer": "",
+          "device_model": "",
+          "carrier": "",
+          "country": "United States",
+          "region": "California",
+          "city": "San Francisco",
+          "dma": "San Francisco-Oakland-San Jose, CA",
+          "language": "en-US",
+          "ip": "203.0.113.50",
+          "location_lat": 37.7749,
+          "location_lng": -122.4194,
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        }
+      ]
+    }
+  },
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "event_type_payloads": {
+    "track": {
+      "description": "Track events map to Amplitude custom events via the HTTP V2 API /2/httpapi endpoint.",
+      "segment_spec_input": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+        "timestamp": "2025-02-25T12:00:00.000Z",
+        "messageId": "msg-seg-abc-123",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "category": "Electronics",
+          "currency": "USD"
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "os": {
+            "name": "Mac OS X",
+            "version": "14.3.1"
+          },
+          "locale": "en-US",
+          "location": {
+            "latitude": 37.7749,
+            "longitude": -122.4194,
+            "city": "San Francisco",
+            "region": "California",
+            "country": "United States"
+          },
+          "app": {
+            "version": "2.1.3"
+          },
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "sessionId": 1740479000000,
+          "groupId": "company_456"
+        }
+      },
+      "amplitude_output": {
+        "event_type": "Product Viewed",
+        "user_id": "user_123",
+        "device_id": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+        "time": 1740480000000,
+        "insert_id": "msg-seg-abc-123",
+        "session_id": 1740479000000,
+        "event_properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "category": "Electronics",
+          "currency": "USD"
+        },
+        "user_properties": {},
+        "groups": {
+          "company_id": "company_456"
+        },
+        "ip": "203.0.113.50",
+        "os_name": "Mac OS X",
+        "os_version": "14.3.1",
+        "platform": "Web",
+        "language": "en-US",
+        "country": "United States",
+        "region": "California",
+        "city": "San Francisco",
+        "location_lat": 37.7749,
+        "location_lng": -122.4194,
+        "app_version": "2.1.3"
+      }
+    },
+    "identify": {
+      "description": "Identify events map to Amplitude $identify special event type with user_properties $set operations.",
+      "segment_spec_input": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+        "timestamp": "2025-02-25T12:01:00.000Z",
+        "messageId": "msg-seg-def-456",
+        "traits": {
+          "email": "user@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "age": 32,
+          "address": {
+            "city": "San Francisco",
+            "state": "California",
+            "country": "US"
+          }
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "os": {
+            "name": "Mac OS X",
+            "version": "14.3.1"
+          },
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        }
+      },
+      "amplitude_output": {
+        "event_type": "$identify",
+        "user_id": "user_123",
+        "device_id": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+        "time": 1740480060000,
+        "insert_id": "msg-seg-def-456",
+        "user_properties": {
+          "$set": {
+            "email": "user@example.com",
+            "name": "Jane Doe",
+            "plan": "enterprise",
+            "age": 32,
+            "address_city": "San Francisco",
+            "address_state": "California",
+            "address_country": "US"
+          }
+        },
+        "event_properties": {},
+        "ip": "203.0.113.50",
+        "os_name": "Mac OS X",
+        "os_version": "14.3.1",
+        "platform": "Web"
+      }
+    },
+    "page": {
+      "description": "Page events map to Amplitude 'Viewed <pageName>' event type with page properties as event_properties.",
+      "segment_spec_input": {
+        "type": "page",
+        "name": "Home",
+        "userId": "user_123",
+        "anonymousId": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+        "timestamp": "2025-02-25T12:02:00.000Z",
+        "messageId": "msg-seg-ghi-789",
+        "properties": {
+          "title": "Home Page",
+          "url": "https://example.com/",
+          "path": "/",
+          "referrer": "https://google.com/",
+          "search": ""
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "os": {
+            "name": "Mac OS X",
+            "version": "14.3.1"
+          },
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        }
+      },
+      "amplitude_output": {
+        "event_type": "Viewed Home",
+        "user_id": "user_123",
+        "device_id": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+        "time": 1740480120000,
+        "insert_id": "msg-seg-ghi-789",
+        "event_properties": {
+          "title": "Home Page",
+          "url": "https://example.com/",
+          "path": "/",
+          "referrer": "https://google.com/",
+          "search": ""
+        },
+        "user_properties": {},
+        "ip": "203.0.113.50",
+        "os_name": "Mac OS X",
+        "os_version": "14.3.1",
+        "platform": "Web"
+      }
+    },
+    "screen": {
+      "description": "Screen events map to Amplitude 'Viewed <screenName>' event type, analogous to page events for mobile.",
+      "segment_spec_input": {
+        "type": "screen",
+        "name": "Dashboard",
+        "userId": "user_123",
+        "anonymousId": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+        "timestamp": "2025-02-25T12:03:00.000Z",
+        "messageId": "msg-seg-jkl-012",
+        "properties": {
+          "screenName": "Dashboard",
+          "section": "analytics"
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "os": {
+            "name": "iOS",
+            "version": "17.3"
+          },
+          "device": {
+            "manufacturer": "Apple",
+            "model": "iPhone 15",
+            "type": "ios"
+          },
+          "library": {
+            "name": "analytics-ios",
+            "version": "4.1.0"
+          }
+        }
+      },
+      "amplitude_output": {
+        "event_type": "Viewed Dashboard",
+        "user_id": "user_123",
+        "device_id": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+        "time": 1740480180000,
+        "insert_id": "msg-seg-jkl-012",
+        "event_properties": {
+          "screenName": "Dashboard",
+          "section": "analytics"
+        },
+        "user_properties": {},
+        "ip": "203.0.113.50",
+        "os_name": "iOS",
+        "os_version": "17.3",
+        "device_manufacturer": "Apple",
+        "device_model": "iPhone 15",
+        "platform": "iOS"
+      }
+    },
+    "group": {
+      "description": "Group events map to Amplitude $groupidentify special event type with group_properties $set operations.",
+      "segment_spec_input": {
+        "type": "group",
+        "groupId": "company_456",
+        "userId": "user_123",
+        "anonymousId": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+        "timestamp": "2025-02-25T12:04:00.000Z",
+        "messageId": "msg-seg-mno-345",
+        "traits": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employees": 500,
+          "plan": "enterprise"
+        },
+        "context": {
+          "ip": "203.0.113.50",
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        }
+      },
+      "amplitude_output": {
+        "event_type": "$groupidentify",
+        "user_id": "user_123",
+        "device_id": "C8F9E604-F01A-4BD9-95C6-8E5357DF265D",
+        "time": 1740480240000,
+        "insert_id": "msg-seg-mno-345",
+        "event_properties": {},
+        "user_properties": {},
+        "groups": {
+          "company_id": "company_456"
+        },
+        "group_properties": {
+          "$set": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "employees": 500,
+            "plan": "enterprise"
+          }
+        },
+        "ip": "203.0.113.50",
+        "platform": "Web"
+      }
+    },
+    "alias": {
+      "description": "Alias events map to Amplitude $identify with user_properties $set containing the mapping from previousId to userId. Amplitude user merge via user_mapping API may also be required.",
+      "segment_spec_input": {
+        "type": "alias",
+        "previousId": "anonymous_abc",
+        "userId": "user_123",
+        "timestamp": "2025-02-25T12:05:00.000Z",
+        "messageId": "msg-seg-pqr-678",
+        "context": {
+          "ip": "203.0.113.50",
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        }
+      },
+      "amplitude_output": {
+        "event_type": "$identify",
+        "user_id": "user_123",
+        "device_id": "anonymous_abc",
+        "time": 1740480300000,
+        "insert_id": "msg-seg-pqr-678",
+        "user_properties": {
+          "$set": {}
+        },
+        "event_properties": {},
+        "ip": "203.0.113.50",
+        "platform": "Web"
+      },
+      "merge_api_call": {
+        "description": "Amplitude recommends using the user merge API to merge anonymous and identified users.",
+        "endpoint": "https://api2.amplitude.com/merge",
+        "method": "POST",
+        "body": {
+          "api_key": "AMPLITUDE_API_KEY",
+          "global_user_ids": [
+            {
+              "unmerged_amplitude_id": "anonymous_abc",
+              "merged_amplitude_id": "user_123"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "field_mappings": {
+    "identity_fields": {
+      "userId": {
+        "amplitude_field": "user_id",
+        "description": "Segment/RudderStack userId maps directly to Amplitude user_id. Must be 5+ characters unless min_id_length option is set.",
+        "required": false,
+        "notes": "At least one of user_id or device_id must be present."
+      },
+      "anonymousId": {
+        "amplitude_field": "device_id",
+        "description": "Segment/RudderStack anonymousId maps to Amplitude device_id.",
+        "required": false,
+        "notes": "At least one of user_id or device_id must be present. Must be 5+ characters unless min_id_length option is set."
+      },
+      "messageId": {
+        "amplitude_field": "insert_id",
+        "description": "Message ID maps to Amplitude insert_id for deduplication. Amplitude ignores duplicate events with the same insert_id on the same device_id within 7 days.",
+        "required": false,
+        "notes": "Highly recommended for deduplication. Different UUID generation strategies between Segment and RudderStack."
+      }
+    },
+    "event_fields": {
+      "event": {
+        "amplitude_field": "event_type",
+        "description": "Segment/RudderStack event name maps to Amplitude event_type.",
+        "required": true,
+        "notes": "String limit of 1024 characters."
+      },
+      "properties": {
+        "amplitude_field": "event_properties",
+        "description": "Event properties object maps directly to Amplitude event_properties.",
+        "required": false,
+        "notes": "Nested object. String values have 1024 character limit."
+      },
+      "traits": {
+        "amplitude_field": "user_properties",
+        "description": "User traits map to Amplitude user_properties with $set operation for identify calls.",
+        "required": false,
+        "notes": "For identify events, traits are wrapped in $set operator. Nested objects may be flattened with underscore separators."
+      }
+    },
+    "timestamp_fields": {
+      "timestamp": {
+        "amplitude_field": "time",
+        "description": "ISO 8601 timestamp is converted to epoch milliseconds for Amplitude.",
+        "format_conversion": "ISO 8601 (YYYY-MM-DDTHH:mm:ss.sssZ) to epoch milliseconds (integer)",
+        "example": {
+          "input": "2025-02-25T12:00:00.000Z",
+          "output": 1740480000000
+        },
+        "required": true,
+        "notes": "Amplitude requires time as milliseconds since epoch. Any other format results in a 400 Bad Request."
+      },
+      "context.sessionId": {
+        "amplitude_field": "session_id",
+        "description": "Session ID passed in context maps to Amplitude session_id. Typically epoch milliseconds of session start.",
+        "required": false,
+        "notes": "Session ID is expected as epoch ms of session start time. Set to -1 for out-of-session events."
+      }
+    },
+    "context_fields": {
+      "context.ip": {
+        "amplitude_field": "ip",
+        "description": "Client IP address from request context.",
+        "required": false,
+        "notes": "Used by Amplitude for geo-location if country/region/city not provided."
+      },
+      "context.os.name": {
+        "amplitude_field": "os_name",
+        "description": "Operating system name from context.",
+        "required": false,
+        "notes": "For web: browser name may be used. For mobile: iOS, Android, etc."
+      },
+      "context.os.version": {
+        "amplitude_field": "os_version",
+        "description": "Operating system version from context.",
+        "required": false
+      },
+      "context.device.manufacturer": {
+        "amplitude_field": "device_manufacturer",
+        "description": "Device manufacturer from context.",
+        "required": false
+      },
+      "context.device.model": {
+        "amplitude_field": "device_model",
+        "description": "Device model from context.",
+        "required": false
+      },
+      "context.device.brand": {
+        "amplitude_field": "device_brand",
+        "description": "Device brand from context.",
+        "required": false
+      },
+      "context.network.carrier": {
+        "amplitude_field": "carrier",
+        "description": "Network carrier from context.",
+        "required": false
+      },
+      "context.locale": {
+        "amplitude_field": "language",
+        "description": "Locale from context maps to Amplitude language field.",
+        "required": false
+      },
+      "context.location.latitude": {
+        "amplitude_field": "location_lat",
+        "description": "Latitude from context location.",
+        "required": false
+      },
+      "context.location.longitude": {
+        "amplitude_field": "location_lng",
+        "description": "Longitude from context location.",
+        "required": false
+      },
+      "context.location.city": {
+        "amplitude_field": "city",
+        "description": "City from context location.",
+        "required": false
+      },
+      "context.location.region": {
+        "amplitude_field": "region",
+        "description": "Region/state from context location.",
+        "required": false
+      },
+      "context.location.country": {
+        "amplitude_field": "country",
+        "description": "Country from context location.",
+        "required": false
+      },
+      "context.app.version": {
+        "amplitude_field": "app_version",
+        "description": "Application version from context.",
+        "required": false
+      }
+    },
+    "revenue_fields": {
+      "properties.revenue": {
+        "amplitude_field": "revenue",
+        "description": "Revenue value from event properties maps to top-level Amplitude revenue field.",
+        "required": false,
+        "notes": "Used for revenue tracking. Negative values indicate refunds."
+      },
+      "properties.price": {
+        "amplitude_field": "price",
+        "description": "Item price from event properties maps to Amplitude price field.",
+        "required": false
+      },
+      "properties.quantity": {
+        "amplitude_field": "quantity",
+        "description": "Item quantity from event properties maps to Amplitude quantity field.",
+        "required": false,
+        "notes": "If price and quantity are sent, Amplitude calculates revenue = price * quantity."
+      },
+      "properties.productId": {
+        "amplitude_field": "productId",
+        "description": "Product ID from event properties for revenue tracking.",
+        "required": false
+      },
+      "properties.revenueType": {
+        "amplitude_field": "revenueType",
+        "description": "Revenue type from event properties (e.g., 'Purchase', 'Refund').",
+        "required": false
+      }
+    },
+    "special_event_type_mappings": {
+      "identify": {
+        "amplitude_event_type": "$identify",
+        "description": "Segment/RudderStack identify calls map to Amplitude $identify event type. Traits are set as user_properties with $set operator."
+      },
+      "page": {
+        "amplitude_event_type": "Viewed <pageName>",
+        "description": "Page calls map to Amplitude event with event_type 'Viewed <pageName>'. Page properties become event_properties."
+      },
+      "screen": {
+        "amplitude_event_type": "Viewed <screenName>",
+        "description": "Screen calls map to Amplitude event with event_type 'Viewed <screenName>'. Screen properties become event_properties."
+      },
+      "group": {
+        "amplitude_event_type": "$groupidentify",
+        "description": "Group calls map to Amplitude $groupidentify event type. Group traits are set as group_properties with $set operator. The groupId is mapped to a configured group type key in the groups object."
+      },
+      "alias": {
+        "amplitude_event_type": "$identify",
+        "description": "Alias calls map to Amplitude $identify with device_id set to previousId and user_id set to userId. Amplitude user merge API may also be used to merge anonymous with identified user profiles."
+      }
+    },
+    "platform_derivation": {
+      "description": "The Amplitude platform field is derived from context. Web sources set 'Web', iOS sources set 'iOS', Android sources set 'Android'.",
+      "rules": [
+        { "condition": "context.library.name contains 'js' or context is web", "value": "Web" },
+        { "condition": "context.library.name contains 'ios'", "value": "iOS" },
+        { "condition": "context.library.name contains 'android'", "value": "Android" },
+        { "condition": "context.library.name contains 'python' or server-side SDK", "value": "Web" }
+      ]
+    },
+    "property_name_transformations": {
+      "description": "Amplitude does not require property name transformations. Properties are forwarded as-is from Segment/RudderStack event properties to Amplitude event_properties.",
+      "nested_object_handling": "Nested objects in traits may be flattened with underscore separators when mapped to user_properties (e.g., address.city becomes address_city)."
+    },
+    "group_identify_handling": {
+      "description": "Group calls require special handling in Amplitude. The groupId must be associated with a group type (configured in Amplitude project settings). Group traits are set via group_properties with the $set operator in the $groupidentify event type.",
+      "configuration_required": "The group type key (e.g., 'company_id', 'team_id') must be configured in the destination settings.",
+      "association_pattern": "Track events can include group associations via the groups field to attribute events to specific groups."
+    }
+  },
+  "api_configuration": {
+    "endpoint": {
+      "us": "https://api2.amplitude.com/2/httpapi",
+      "eu": "https://api.eu.amplitude.com/2/httpapi",
+      "batch_us": "https://api2.amplitude.com/batch",
+      "batch_eu": "https://api.eu.amplitude.com/batch"
+    },
+    "authentication": "API key sent in request body as 'api_key' field (not in headers).",
+    "rate_limits": {
+      "http_v2": {
+        "batches_per_second": 100,
+        "events_per_second": 1000,
+        "events_per_batch": 10,
+        "max_request_size_bytes": 1048576,
+        "max_events_per_request": 2000
+      },
+      "batch_api": {
+        "max_payload_size_bytes": 20971520,
+        "user_property_updates_per_hour": 1800
+      }
+    },
+    "min_id_length": {
+      "default": 5,
+      "configurable": true,
+      "description": "Device IDs and User IDs must be strings with a length of 5 characters or more by default. Override with options.min_id_length."
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "needs_verification",
+    "known_differences": [
+      {
+        "area": "library_context",
+        "description": "Segment sends context.library.name='analytics.js'; RudderStack sends context.library.name='rudder-sdk-js'. These propagate to the library field in the Amplitude payload.",
+        "impact": "low",
+        "resolution": "Cosmetic difference only — does not affect Amplitude event processing."
+      },
+      {
+        "area": "message_id_format",
+        "description": "Segment and RudderStack use different UUID generation strategies for messageId, which maps to Amplitude insert_id for deduplication.",
+        "impact": "low",
+        "resolution": "Both achieve the same dedup purpose. No functional parity issue."
+      },
+      {
+        "area": "envelope_fields",
+        "description": "RudderStack may include additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) in intermediate processing, but these should not be forwarded to the Amplitude API payload.",
+        "impact": "none",
+        "resolution": "Transformer strips envelope fields before sending to Amplitude endpoint."
+      },
+      {
+        "area": "nested_trait_flattening",
+        "description": "Handling of nested objects in user traits/properties may differ. Some implementations flatten nested objects (address.city -> address_city) while others preserve nesting.",
+        "impact": "medium",
+        "resolution": "Verify both Segment and RudderStack apply consistent flattening strategy for Amplitude user_properties."
+      },
+      {
+        "area": "group_type_configuration",
+        "description": "The group type key used in the Amplitude groups object depends on destination configuration. The default key name may differ between Segment and RudderStack implementations.",
+        "impact": "medium",
+        "resolution": "Ensure destination configuration maps groupId to the correct Amplitude group type key."
+      },
+      {
+        "area": "timestamp_precision",
+        "description": "ISO 8601 to epoch milliseconds conversion must be precise. Both platforms should produce identical epoch ms values for the same ISO timestamp input.",
+        "impact": "high",
+        "resolution": "Verify timestamp conversion produces identical epoch ms values in both pipelines."
+      }
+    ]
+  },
+  "notes": "Amplitude is a shared cloud destination. Category: Analytics. Segment has classic + Actions variants. RudderStack delivers Amplitude events via the Router's HTTP-based delivery pipeline through the external Transformer service (port 9090). The Transformer handles field mapping from RudderStack event format to Amplitude HTTP API v2 format. The Amplitude HTTP V2 API endpoint (https://api2.amplitude.com/2/httpapi) accepts JSON POST requests with api_key and events array. The time field must be epoch milliseconds — ISO format results in 400 errors. insert_id is recommended for dedup (7-day window per device_id). EU data residency uses api.eu.amplitude.com. Rate limits: 100 batches/sec, 1000 events/sec, requests under 1MB with fewer than 2000 events."
+}
