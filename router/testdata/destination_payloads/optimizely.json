@@ -1,0 +1,703 @@
+{
+  "destination_type": "OPTIMIZELY",
+  "destination_tier": "cloud",
+  "segment_slug": "optimizely-full-stack",
+  "segment_slug_actions": "actions-optimizely-feature-experimentation-cloud",
+  "category": "A/B Testing",
+  "event_types": ["track", "page"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment maps Track calls to Optimizely's track method via the Optimizely Event API (POST https://logx.optimizely.com/v1/events). The Segment event name must match exactly the name of an active experiment metric in the Optimizely dashboard. Segment maps event name to Optimizely eventName (event key), event properties to Optimizely eventTags, and context.traits to Optimizely attributes. Revenue values must be integers representing cents (e.g., $1 = 100). The visitor_id is derived from userId by default; with 'Use User ID' disabled, anonymousId is used instead. Optimizely's Event API wraps the event in a visitors[].snapshots[].events[] structure with the account_id, project_id, and revision from the datafile.",
+      "endpoint": "POST https://logx.optimizely.com/v1/events",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "track",
+        "event": "Purchase Completed",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:32:10.456Z",
+        "properties": {
+          "revenue": 14999,
+          "value": 149.99,
+          "orderId": "ORD-9087",
+          "currency": "USD",
+          "productName": "Premium Widget",
+          "experimentId": "exp-42",
+          "variationId": "var-2",
+          "variationName": "Redesigned Checkout"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.8.1"
+          },
+          "traits": {
+            "plan": "enterprise",
+            "company": "Acme Corp",
+            "role": "Engineering Manager"
+          },
+          "page": {
+            "path": "/checkout/confirmation",
+            "referrer": "https://www.example.com/cart",
+            "title": "Order Confirmation",
+            "url": "https://www.example.com/checkout/confirmation"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "seg-msg-track-opt-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://logx.optimizely.com/v1/events",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "account_id": "{OPTIMIZELY_ACCOUNT_ID}",
+          "project_id": "{OPTIMIZELY_PROJECT_ID}",
+          "revision": "{DATAFILE_REVISION}",
+          "client_name": "segment",
+          "client_version": "1.0.0",
+          "anonymize_ip": true,
+          "enrich_decisions": true,
+          "visitors": [
+            {
+              "visitor_id": "user-abc-123",
+              "attributes": [
+                {
+                  "entity_id": "{ATTR_ENTITY_ID_PLAN}",
+                  "key": "plan",
+                  "type": "custom",
+                  "value": "enterprise"
+                },
+                {
+                  "entity_id": "{ATTR_ENTITY_ID_COMPANY}",
+                  "key": "company",
+                  "type": "custom",
+                  "value": "Acme Corp"
+                },
+                {
+                  "entity_id": "{ATTR_ENTITY_ID_ROLE}",
+                  "key": "role",
+                  "type": "custom",
+                  "value": "Engineering Manager"
+                }
+              ],
+              "snapshots": [
+                {
+                  "decisions": [],
+                  "events": [
+                    {
+                      "entity_id": "{EVENT_ENTITY_ID}",
+                      "timestamp": 1726407130456,
+                      "key": "Purchase Completed",
+                      "uuid": "seg-msg-track-opt-001",
+                      "tags": {
+                        "revenue": 14999,
+                        "value": 149.99,
+                        "orderId": "ORD-9087",
+                        "currency": "USD",
+                        "productName": "Premium Widget"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "page": {
+      "description": "Segment converts Page calls to Track calls with the formatted event name 'Viewed <name> Page' before forwarding to Optimizely. For example, analytics.page('Home') is sent as a Track call with eventName 'Viewed Home Page'. This converted Track event is delivered to Optimizely's Event API. The page name must correspond to a Custom Event defined in the Optimizely dashboard with a matching API name, and that event must be added as a metric to a running experiment.",
+      "endpoint": "POST https://logx.optimizely.com/v1/events",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "page",
+        "name": "Experiment Results",
+        "category": "Testing",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:31:00.789Z",
+        "properties": {
+          "title": "Experiment Results — Campaign #42",
+          "url": "https://www.example.com/experiments/42/results",
+          "path": "/experiments/42/results",
+          "referrer": "https://www.example.com/experiments",
+          "search": "?variation=2&metric=conversion_rate",
+          "experimentId": "exp-42",
+          "variationName": "Redesigned Checkout"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.8.1"
+          },
+          "traits": {
+            "plan": "enterprise"
+          },
+          "page": {
+            "path": "/experiments/42/results",
+            "referrer": "https://www.example.com/experiments",
+            "title": "Experiment Results — Campaign #42",
+            "url": "https://www.example.com/experiments/42/results"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "seg-msg-page-opt-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://logx.optimizely.com/v1/events",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "account_id": "{OPTIMIZELY_ACCOUNT_ID}",
+          "project_id": "{OPTIMIZELY_PROJECT_ID}",
+          "revision": "{DATAFILE_REVISION}",
+          "client_name": "segment",
+          "client_version": "1.0.0",
+          "anonymize_ip": true,
+          "enrich_decisions": true,
+          "visitors": [
+            {
+              "visitor_id": "user-abc-123",
+              "attributes": [
+                {
+                  "entity_id": "{ATTR_ENTITY_ID_PLAN}",
+                  "key": "plan",
+                  "type": "custom",
+                  "value": "enterprise"
+                }
+              ],
+              "snapshots": [
+                {
+                  "decisions": [],
+                  "events": [
+                    {
+                      "entity_id": "{EVENT_ENTITY_ID}",
+                      "timestamp": 1726407060789,
+                      "key": "Viewed Experiment Results Page",
+                      "uuid": "seg-msg-page-opt-001",
+                      "tags": {
+                        "title": "Experiment Results — Campaign #42",
+                        "url": "https://www.example.com/experiments/42/results",
+                        "path": "/experiments/42/results",
+                        "referrer": "https://www.example.com/experiments",
+                        "search": "?variation=2&metric=conversion_rate"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack maps Track calls to Optimizely's Event API (POST https://logx.optimizely.com/v1/events) via the RudderStack Transformer service. The event name is mapped to Optimizely eventName (event key), event properties to eventTags, and context.traits to Optimizely attributes. Revenue values must be integers representing cents. The visitor_id is derived from userId with configurable fallback to anonymousId. RudderStack adds additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event. The Transformer handles datafile fetching, entity_id resolution, and Event API payload construction.",
+      "endpoint": "POST https://logx.optimizely.com/v1/events",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "track",
+        "event": "Purchase Completed",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:32:10.456Z",
+        "properties": {
+          "revenue": 14999,
+          "value": 149.99,
+          "orderId": "ORD-9087",
+          "currency": "USD",
+          "productName": "Premium Widget",
+          "experimentId": "exp-42",
+          "variationId": "var-2",
+          "variationName": "Redesigned Checkout"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.2.1"
+          },
+          "traits": {
+            "plan": "enterprise",
+            "company": "Acme Corp",
+            "role": "Engineering Manager"
+          },
+          "page": {
+            "path": "/checkout/confirmation",
+            "referrer": "https://www.example.com/cart",
+            "title": "Order Confirmation",
+            "url": "https://www.example.com/checkout/confirmation"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "rs-msg-track-opt-001",
+        "rudderId": "rudder-uuid-track-opt-001",
+        "originalTimestamp": "2024-09-15T14:32:10.456Z",
+        "sentAt": "2024-09-15T14:32:11.000Z",
+        "receivedAt": "2024-09-15T14:32:12.000Z"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://logx.optimizely.com/v1/events",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "account_id": "{OPTIMIZELY_ACCOUNT_ID}",
+          "project_id": "{OPTIMIZELY_PROJECT_ID}",
+          "revision": "{DATAFILE_REVISION}",
+          "client_name": "rudderstack",
+          "client_version": "3.2.1",
+          "anonymize_ip": true,
+          "enrich_decisions": true,
+          "visitors": [
+            {
+              "visitor_id": "user-abc-123",
+              "attributes": [
+                {
+                  "entity_id": "{ATTR_ENTITY_ID_PLAN}",
+                  "key": "plan",
+                  "type": "custom",
+                  "value": "enterprise"
+                },
+                {
+                  "entity_id": "{ATTR_ENTITY_ID_COMPANY}",
+                  "key": "company",
+                  "type": "custom",
+                  "value": "Acme Corp"
+                },
+                {
+                  "entity_id": "{ATTR_ENTITY_ID_ROLE}",
+                  "key": "role",
+                  "type": "custom",
+                  "value": "Engineering Manager"
+                }
+              ],
+              "snapshots": [
+                {
+                  "decisions": [],
+                  "events": [
+                    {
+                      "entity_id": "{EVENT_ENTITY_ID}",
+                      "timestamp": 1726407130456,
+                      "key": "Purchase Completed",
+                      "uuid": "rs-msg-track-opt-001",
+                      "tags": {
+                        "revenue": 14999,
+                        "value": 149.99,
+                        "orderId": "ORD-9087",
+                        "currency": "USD",
+                        "productName": "Premium Widget"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "key_differences": [
+        {
+          "field": "context.library.name",
+          "segment_value": "analytics.js",
+          "rudderstack_value": "rudder-sdk-js",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "envelope_fields",
+          "segment_value": "messageId only",
+          "rudderstack_value": "rudderId, messageId, originalTimestamp, sentAt, receivedAt",
+          "impact": "rudderstack_superset"
+        },
+        {
+          "field": "mapped_output.body.client_name",
+          "segment_value": "segment",
+          "rudderstack_value": "rudderstack",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "mapped_output.body.client_version",
+          "segment_value": "1.0.0 (Segment integration version)",
+          "rudderstack_value": "3.2.1 (SDK version from context.library.version)",
+          "impact": "informational"
+        },
+        {
+          "field": "mapped_output.body.visitors[].snapshots[].events[].uuid",
+          "segment_value": "Segment messageId (seg-msg-track-opt-001)",
+          "rudderstack_value": "RudderStack messageId (rs-msg-track-opt-001)",
+          "impact": "cosmetic"
+        }
+      ]
+    },
+    "page": {
+      "description": "RudderStack converts Page calls following the same pattern as Segment: the page name is reformatted as 'Viewed <name> Page' and delivered as a track event to Optimizely's Event API. Page properties are included as event tags. The RudderStack Transformer resolves the event key against the Optimizely datafile to verify it maps to an active experiment metric. Additional RudderStack envelope fields are present in the source event but do not affect the Optimizely API payload structure.",
+      "endpoint": "POST https://logx.optimizely.com/v1/events",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "page",
+        "name": "Experiment Results",
+        "category": "Testing",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:31:00.789Z",
+        "properties": {
+          "title": "Experiment Results — Campaign #42",
+          "url": "https://www.example.com/experiments/42/results",
+          "path": "/experiments/42/results",
+          "referrer": "https://www.example.com/experiments",
+          "search": "?variation=2&metric=conversion_rate",
+          "experimentId": "exp-42",
+          "variationName": "Redesigned Checkout"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.2.1"
+          },
+          "traits": {
+            "plan": "enterprise"
+          },
+          "page": {
+            "path": "/experiments/42/results",
+            "referrer": "https://www.example.com/experiments",
+            "title": "Experiment Results — Campaign #42",
+            "url": "https://www.example.com/experiments/42/results"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "rs-msg-page-opt-001",
+        "rudderId": "rudder-uuid-page-opt-001",
+        "originalTimestamp": "2024-09-15T14:31:00.789Z",
+        "sentAt": "2024-09-15T14:31:01.000Z",
+        "receivedAt": "2024-09-15T14:31:02.000Z"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://logx.optimizely.com/v1/events",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "account_id": "{OPTIMIZELY_ACCOUNT_ID}",
+          "project_id": "{OPTIMIZELY_PROJECT_ID}",
+          "revision": "{DATAFILE_REVISION}",
+          "client_name": "rudderstack",
+          "client_version": "3.2.1",
+          "anonymize_ip": true,
+          "enrich_decisions": true,
+          "visitors": [
+            {
+              "visitor_id": "user-abc-123",
+              "attributes": [
+                {
+                  "entity_id": "{ATTR_ENTITY_ID_PLAN}",
+                  "key": "plan",
+                  "type": "custom",
+                  "value": "enterprise"
+                }
+              ],
+              "snapshots": [
+                {
+                  "decisions": [],
+                  "events": [
+                    {
+                      "entity_id": "{EVENT_ENTITY_ID}",
+                      "timestamp": 1726407060789,
+                      "key": "Viewed Experiment Results Page",
+                      "uuid": "rs-msg-page-opt-001",
+                      "tags": {
+                        "title": "Experiment Results — Campaign #42",
+                        "url": "https://www.example.com/experiments/42/results",
+                        "path": "/experiments/42/results",
+                        "referrer": "https://www.example.com/experiments",
+                        "search": "?variation=2&metric=conversion_rate"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "key_differences": [
+        {
+          "field": "context.library.name",
+          "segment_value": "analytics.js",
+          "rudderstack_value": "rudder-sdk-js",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "envelope_fields",
+          "segment_value": "messageId only",
+          "rudderstack_value": "rudderId, messageId, originalTimestamp, sentAt, receivedAt",
+          "impact": "rudderstack_superset"
+        },
+        {
+          "field": "mapped_output.body.client_name",
+          "segment_value": "segment",
+          "rudderstack_value": "rudderstack",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "page_to_track_conversion",
+          "segment_value": "Page calls converted to Track with event name 'Viewed <name> Page'",
+          "rudderstack_value": "Page calls follow the same conversion pattern to Track with 'Viewed <name> Page'",
+          "impact": "equivalent"
+        }
+      ]
+    }
+  },
+  "field_mappings": {
+    "visitor_identification": {
+      "user_id": {
+        "segment_mapping": "By default, Segment identifies Optimizely visitors using anonymousId. Enabling the 'Use User ID' setting means only Track events from identified users (with userId) are forwarded. With 'fallbackToAnonymousId' enabled, anonymousId is used when userId is unavailable. The visitor_id in the Event API payload is set accordingly.",
+        "rudderstack_mapping": "RudderStack identifies Optimizely visitors using userId as the primary identifier, with configurable fallback to anonymousId when userId is not present. The visitor_id in the Event API payload is derived from the configured identification strategy.",
+        "parity": "equivalent"
+      },
+      "anonymous_id": {
+        "segment_mapping": "anonymousId is the default visitor identifier unless 'Use User ID' is enabled. Falls through as the visitor_id in the Event API visitors[] array.",
+        "rudderstack_mapping": "anonymousId is available as a fallback identifier when userId is not present. The RudderStack transformer determines the visitor_id based on configuration.",
+        "parity": "equivalent"
+      }
+    },
+    "experiment_variation_mapping": {
+      "experiment_decisions": {
+        "segment_mapping": "Experiment decisions (activate, isFeatureEnabled) must be handled natively via the Optimizely SDK. Segment does not call decision-based methods — it only forwards conversion events. The decisions[] array in the Event API payload is empty for Segment-originated events because Segment relies on the native Optimizely SDK for bucketing and variation assignment.",
+        "rudderstack_mapping": "RudderStack follows the same pattern — experiment decisions must be made natively via the Optimizely SDK. RudderStack only forwards conversion events with an empty decisions[] array. The native Optimizely SDK is responsible for variation assignment and experiment activation.",
+        "parity": "equivalent"
+      },
+      "experiment_metadata_properties": {
+        "segment_mapping": "Experiment context (experimentId, variationId, variationName) can be passed as event properties for informational purposes. These properties are forwarded as eventTags in the Event API payload. Optimizely does not use these tags for experiment attribution — attribution is determined by the visitor_id matching an activated experiment.",
+        "rudderstack_mapping": "Experiment metadata (experimentId, variationId, variationName) passed as event properties are forwarded as eventTags. These are informational and do not affect experiment attribution on the Optimizely results page.",
+        "parity": "equivalent"
+      },
+      "experiment_viewed_event": {
+        "segment_mapping": "Segment's Optimizely Web destination automatically sends 'Experiment Viewed' Track events to Segment when an Optimizely experiment is activated via the campaignDecided notification listener. Properties include campaignName, campaignId, experimentId, experimentName, variationName, variationId, audienceId, audienceName, and nonInteraction. This is a device-mode (client-side) feature.",
+        "rudderstack_mapping": "RudderStack does not automatically emit 'Experiment Viewed' events from the Optimizely SDK. Users must implement notification listeners natively and call rudderanalytics.track() manually to achieve the same behavior. This is consistent with cloud-mode delivery where the Optimizely SDK runs independently.",
+        "parity": "segment_extra_feature"
+      }
+    },
+    "conversion_event_mapping": {
+      "event_name_to_event_key": {
+        "segment_mapping": "Segment maps the Track event name directly to the Optimizely event key (events[].key). The event name must exactly match an active experiment metric name defined in the Optimizely dashboard. No prefix or transformation is applied to the event name.",
+        "rudderstack_mapping": "RudderStack maps the Track event name directly to the Optimizely event key (events[].key). The same exact-match requirement applies — the event name must correspond to an active metric in the Optimizely dashboard.",
+        "parity": "equivalent"
+      },
+      "event_properties_to_event_tags": {
+        "segment_mapping": "Segment maps all Track event properties to Optimizely eventTags (events[].tags). Event tags can be strings, integers, floating point numbers, or boolean values. Optimizely rejects events containing other data types (e.g., arrays). Custom event tags (all tags except 'revenue' and 'value') are not displayed on the Optimizely results page but are available in Data Export reports.",
+        "rudderstack_mapping": "RudderStack maps Track event properties to Optimizely eventTags (events[].tags). The same data type restrictions apply — strings, integers, floats, and booleans only. Custom tags are available in Optimizely Data Export. Array and object properties are either flattened or filtered by the Transformer before delivery.",
+        "parity": "equivalent"
+      },
+      "traits_to_attributes": {
+        "segment_mapping": "Segment maps context.traits to Optimizely attributes (visitors[].attributes[]). Each trait becomes an attribute entry with entity_id (resolved from the datafile), key (trait name), type 'custom', and value. Attributes must be pre-defined in the Optimizely dashboard for entity_id resolution. For SDKs v1.x/v2.x, the attributes object must match between activate/isFeatureEnabled calls and Track calls for correct attribution on the results page.",
+        "rudderstack_mapping": "RudderStack maps context.traits to Optimizely attributes in the same structure. The Transformer resolves entity_ids from the Optimizely datafile. The same requirement applies for SDKs v1.x/v2.x regarding matching attribute objects between decision and conversion calls.",
+        "parity": "equivalent"
+      }
+    },
+    "revenue_tracking": {
+      "revenue_property": {
+        "segment_mapping": "Revenue must be passed as a 'revenue' property in the Track event. The value must be an integer representing cents (e.g., $1 = 100, $149.99 = 14999). Segment forwards this as events[].tags.revenue in the Event API payload. Revenue is displayed on the Optimizely results page for metrics configured with revenue tracking.",
+        "rudderstack_mapping": "Revenue must be passed as a 'revenue' property with integer cent values following the same convention. RudderStack forwards the value as events[].tags.revenue in the Event API payload. The Transformer preserves the integer type for revenue fields.",
+        "parity": "equivalent"
+      },
+      "value_property": {
+        "segment_mapping": "An optional 'value' property (numeric, not necessarily cents) can be included for non-revenue numeric metrics. Sent as events[].tags.value in the Event API payload. Used for numeric metric tracking in Optimizely experiments (e.g., session duration, items in cart).",
+        "rudderstack_mapping": "The 'value' property is forwarded as events[].tags.value. Numeric type is preserved by the Transformer. Used for non-revenue numeric metrics in Optimizely experiments.",
+        "parity": "equivalent"
+      }
+    },
+    "page_event_mapping": {
+      "page_to_track_conversion": {
+        "segment_mapping": "Segment converts Page calls to Track calls with the event name 'Viewed <name> Page'. For example, analytics.page('Home') generates a Track call with eventName 'Viewed Home Page'. This converted event is sent to Optimizely's Event API as a standard conversion event. A matching Custom Event must be defined in the Optimizely dashboard with the exact API name (e.g., 'Viewed Home Page').",
+        "rudderstack_mapping": "RudderStack converts Page calls to Track calls following the same 'Viewed <name> Page' naming convention. The converted event is delivered to Optimizely's Event API via the Transformer. The same Custom Event definition requirement applies in the Optimizely dashboard.",
+        "parity": "equivalent"
+      },
+      "page_properties_as_tags": {
+        "segment_mapping": "Page properties (title, url, path, referrer, search) are forwarded as event tags in the converted Track call. These appear in Optimizely Data Export reports as custom event tags.",
+        "rudderstack_mapping": "Page properties are forwarded as event tags in the same manner. Available in Optimizely Data Export reports.",
+        "parity": "equivalent"
+      }
+    },
+    "entity_id_resolution": {
+      "event_entity_id": {
+        "segment_mapping": "Segment resolves the event entity_id from the Optimizely datafile by matching the event key (Track event name) against the datafile's events[] array. The datafile URL is configured in the destination settings. Events not found in the datafile are not forwarded.",
+        "rudderstack_mapping": "RudderStack's Transformer resolves the event entity_id from the Optimizely datafile using the same key-matching approach. The datafile URL is configured in the destination settings.",
+        "parity": "equivalent"
+      },
+      "attribute_entity_id": {
+        "segment_mapping": "Attribute entity_ids are resolved from the datafile's attributes[] array by matching the trait key against the attribute key. Attributes not defined in the Optimizely dashboard are either dropped or sent with a generated entity_id depending on the SDK version.",
+        "rudderstack_mapping": "Attribute entity_ids are resolved from the datafile in the same manner. The Transformer matches trait keys to the datafile's attribute definitions.",
+        "parity": "equivalent"
+      }
+    },
+    "timestamp_handling": {
+      "event_timestamp": {
+        "segment_mapping": "Segment sends the timestamp as ISO-8601 in the source event. The Event API payload requires epoch milliseconds in events[].timestamp. Segment converts the ISO-8601 timestamp to epoch milliseconds for the API payload.",
+        "rudderstack_mapping": "RudderStack sends timestamp as ISO-8601 in the source event. The Transformer converts to epoch milliseconds for the events[].timestamp field in the Event API payload.",
+        "parity": "equivalent"
+      },
+      "additional_timestamps": {
+        "segment_mapping": "Segment provides a single timestamp field in the source event",
+        "rudderstack_mapping": "RudderStack provides originalTimestamp, sentAt, and receivedAt in addition to the primary timestamp, enabling more precise event timing analysis. These additional timestamps do not affect the Optimizely Event API payload.",
+        "parity": "rudderstack_superset"
+      }
+    },
+    "context_fields": {
+      "library": {
+        "segment_mapping": "context.library.name = 'analytics.js' for web sources. Segment sends client_name = 'segment' in the Event API payload.",
+        "rudderstack_mapping": "context.library.name = 'rudder-sdk-js' for web sources. RudderStack sends client_name = 'rudderstack' in the Event API payload.",
+        "parity": "different_sdk_identifier"
+      },
+      "ip_anonymization": {
+        "segment_mapping": "Segment sets anonymize_ip = true in the Event API payload by default. Optimizely will not store or use the visitor's IP address for geolocation targeting.",
+        "rudderstack_mapping": "RudderStack sets anonymize_ip = true in the Event API payload. The same IP anonymization behavior applies.",
+        "parity": "equivalent"
+      },
+      "envelope_fields": {
+        "segment_mapping": "Segment source events include messageId for deduplication. The messageId is used as the events[].uuid in the Event API payload.",
+        "rudderstack_mapping": "RudderStack source events include rudderId, messageId, originalTimestamp, sentAt, and receivedAt. The messageId is used as events[].uuid. Additional fields provide richer event metadata.",
+        "parity": "rudderstack_superset"
+      }
+    }
+  },
+  "destination_config": {
+    "required_settings": {
+      "datafileUrl": {
+        "description": "URL to the Optimizely project's datafile (JSON). Contains experiment definitions, event keys, attribute keys, and entity IDs. The datafile is fetched periodically by the Transformer to resolve entity_ids for events and attributes. Format: https://cdn.optimizely.com/datafiles/{SDK_KEY}.json",
+        "type": "string",
+        "required": true
+      },
+      "accountId": {
+        "description": "Optimizely Account ID. Included as 'account_id' in every Event API request. Found in the Optimizely dashboard under Settings > Account.",
+        "type": "string",
+        "required": true
+      }
+    },
+    "optional_settings": {
+      "projectId": {
+        "description": "Optimizely Project ID. If not specified, resolved from the datafile. Included as 'project_id' in Event API requests.",
+        "type": "string",
+        "required": false
+      },
+      "useUserId": {
+        "description": "When enabled, only Track events from identified users (with userId present) are forwarded to Optimizely. When disabled (default), anonymousId is used as the visitor_id.",
+        "type": "boolean",
+        "default": false
+      },
+      "fallbackToAnonymousId": {
+        "description": "When 'Use User ID' is enabled and userId is not present, fall back to anonymousId as the visitor_id. Prevents event loss for anonymous visitors while preferring userId when available.",
+        "type": "boolean",
+        "default": false
+      },
+      "trackKnownUsers": {
+        "description": "When enabled, events are only forwarded for users who have been identified with a userId. Anonymous-only events are dropped. Useful for B2B use cases where experiments target known accounts.",
+        "type": "boolean",
+        "default": false
+      },
+      "anonymizeIp": {
+        "description": "When enabled (default), sets anonymize_ip = true in Event API requests, preventing Optimizely from storing visitor IP addresses for geolocation targeting.",
+        "type": "boolean",
+        "default": true
+      },
+      "eventFilteringOption": {
+        "description": "Controls which events are forwarded to Optimizely. Options: 'disable' (send all events), 'whitelistedEvents' (only send events matching specified list), 'blacklistedEvents' (send all events except those in specified list).",
+        "type": "string",
+        "default": "disable",
+        "allowed_values": ["disable", "whitelistedEvents", "blacklistedEvents"]
+      },
+      "whitelistedEvents": {
+        "description": "List of event names to forward when eventFilteringOption is 'whitelistedEvents'. Only events with names matching this list are sent to Optimizely.",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "blacklistedEvents": {
+        "description": "List of event names to exclude when eventFilteringOption is 'blacklistedEvents'. Events with names matching this list are dropped; all others are forwarded.",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "nonInteraction": {
+        "description": "When enabled, conversion events sent from Optimizely experiment activation are marked as non-interaction events. Relevant for analytics tools that distinguish between interaction and non-interaction hits (e.g., Google Analytics bounce rate calculation).",
+        "type": "boolean",
+        "default": true
+      },
+      "sendExperimentTrack": {
+        "description": "When enabled, Optimizely experiment activation events ('Experiment Viewed') are automatically sent as Track calls. Client-side/device-mode only — not applicable for cloud-mode server-side delivery.",
+        "type": "boolean",
+        "default": true
+      },
+      "sendExperimentIdentify": {
+        "description": "When enabled, experiment variation assignments are included as traits in Identify calls when experiments are activated. Client-side/device-mode only.",
+        "type": "boolean",
+        "default": true
+      }
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "high_parity",
+    "track_parity": "equivalent",
+    "page_parity": "equivalent",
+    "known_gaps": [
+      {
+        "gap_id": "OPT-GAP-001",
+        "description": "Segment sets client_name = 'segment' in the Optimizely Event API payload, while RudderStack sets client_name = 'rudderstack'. This is a cosmetic difference in the client identification field and does not affect experiment attribution or results.",
+        "severity": "low",
+        "impact": "Optimizely Data Export reports will show different client_name values. No functional impact on experiment measurement or conversion tracking."
+      },
+      {
+        "gap_id": "OPT-GAP-002",
+        "description": "Segment's Optimizely Web destination includes automatic 'Experiment Viewed' event generation via the campaignDecided notification listener in device-mode. Properties include campaignName, campaignId, experimentId, experimentName, variationName, variationId, audienceId, audienceName. RudderStack's cloud-mode integration does not automatically emit experiment exposure events — users must implement notification listeners natively.",
+        "severity": "medium",
+        "impact": "RudderStack users who need experiment exposure tracking in their analytics pipeline must implement Optimizely notification listeners manually and call rudderanalytics.track('Experiment Viewed', {...}) explicitly. This adds integration effort but provides equivalent functionality."
+      },
+      {
+        "gap_id": "OPT-GAP-003",
+        "description": "Segment's Optimizely Feature Experimentation (Actions) destination supports configurable field mappings via Segment's Actions framework, allowing users to customize how event fields map to Optimizely event parameters. RudderStack uses transformer-based fixed mappings.",
+        "severity": "low",
+        "impact": "RudderStack's transformer handles field mapping automatically. For non-standard mapping requirements, users must configure the transformer or use custom transformations."
+      },
+      {
+        "gap_id": "OPT-GAP-004",
+        "description": "Segment supports GDPR user deletion/suppression via the Optimizely Feature Experimentation (Actions) destination using a Personal Access Token. RudderStack's Optimizely integration does not include built-in GDPR user deletion support through the destination.",
+        "severity": "medium",
+        "impact": "RudderStack users must handle Optimizely GDPR deletion requests through a separate process (direct Optimizely API calls or a custom Regulation Worker implementation)."
+      },
+      {
+        "gap_id": "OPT-GAP-005",
+        "description": "Segment offers multiple Optimizely destination variants: Optimizely Full Stack (classic server-side), Optimizely Web (client-side with notification listeners), Optimizely Feature Experimentation (Actions), Optimizely Data Platform (Actions), and Optimizely Advanced Audience Targeting (Actions). RudderStack provides a single cloud-mode Optimizely destination covering the core Full Stack server-side use case.",
+        "severity": "medium",
+        "impact": "Users requiring Optimizely Data Platform integration, Advanced Audience Targeting, or client-side Web destination features must use native Optimizely SDKs alongside RudderStack or implement custom integrations."
+      }
+    ],
+    "recommended_validation": [
+      "Verify Track events with event names matching active Optimizely experiment metrics appear as conversions on the Optimizely results page",
+      "Confirm revenue tracking by sending a Track call with integer 'revenue' property (in cents) and verifying the revenue metric in the Optimizely experiment report",
+      "Verify the 'value' numeric metric by sending a Track call with a 'value' property and checking the metric on the Optimizely results page",
+      "Test attribute mapping by sending context.traits with pre-defined Optimizely attributes and verifying segmented results in the Optimizely dashboard",
+      "Validate Page calls are converted to Track events with 'Viewed <name> Page' event name and the conversion appears in Optimizely",
+      "Test userId vs anonymousId visitor identification by sending events with different ID configurations and verifying visitor attribution on the results page",
+      "Confirm that event tags (custom properties beyond revenue/value) are available in the Optimizely Data Export report",
+      "Verify entity_id resolution by ensuring the Transformer correctly fetches and parses the Optimizely datafile",
+      "Test event filtering options (whitelist/blacklist) to confirm only desired events are forwarded to Optimizely",
+      "Validate that events with unsupported data types in properties (arrays, nested objects) are handled gracefully without causing API errors",
+      "Confirm timestamp conversion from ISO-8601 to epoch milliseconds is accurate in the Event API payload",
+      "Test the 'trackKnownUsers' setting to verify anonymous-only events are correctly dropped when enabled"
+    ]
+  },
+  "notes": "Optimizely (category: A/B Testing, Feature Flagging) provides feature experimentation, A/B testing, and feature flag management. Segment offers five Optimizely destination variants: Optimizely Full Stack (classic server-side), Optimizely Web (client-side), Optimizely Feature Experimentation (Actions), Optimizely Data Platform (Actions), and Optimizely Advanced Audience Targeting (Actions). RudderStack supports Optimizely as a cloud destination via the Router, delivering events to Optimizely's Event API (POST https://logx.optimizely.com/v1/events). The integration supports two event types: Track (conversion event tracking for experiment metrics) and Page (converted to Track with 'Viewed <name> Page' event name). Key Optimizely concepts: events must match active experiment metrics in the Optimizely dashboard, decisions (activate/isFeatureEnabled) must be handled natively via the Optimizely SDK, revenue is tracked in integer cents (e.g., $1 = 100), context.traits map to Optimizely attributes for result segmentation, and the datafile provides entity_id resolution for events and attributes. The primary payload differences between Segment and RudderStack are: (1) client_name identification — Segment uses 'segment', RudderStack uses 'rudderstack', (2) RudderStack includes additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) in source events, (3) Segment's device-mode Optimizely Web destination auto-emits 'Experiment Viewed' events while RudderStack requires manual notification listener implementation. Both platforms produce functionally equivalent Optimizely Event API payloads for conversion tracking and page view events."
+}
