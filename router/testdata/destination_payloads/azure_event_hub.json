@@ -1,0 +1,217 @@
+{
+  "destination_type": "AZURE_EVENT_HUB",
+  "destination_tier": "stream",
+  "segment_reference_payload": null,
+  "rudderstack_expected_payload": {
+    "track": {
+      "topic": "my-event-hub",
+      "key": "user_123",
+      "value": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon-456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "category": "Electronics"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0"
+        },
+        "messageId": "msg-uuid-001",
+        "rudderId": "rudder-uuid-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      }
+    },
+    "identify": {
+      "topic": "my-event-hub",
+      "key": "user_123",
+      "value": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon-456",
+        "timestamp": "2026-02-25T12:01:00.000Z",
+        "traits": {
+          "email": "user@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "company": "Acme Corp"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "ip": "203.0.113.50"
+        },
+        "messageId": "msg-uuid-002",
+        "rudderId": "rudder-uuid-002",
+        "originalTimestamp": "2026-02-25T12:01:00.000Z",
+        "sentAt": "2026-02-25T12:01:01.000Z",
+        "receivedAt": "2026-02-25T12:01:02.000Z"
+      }
+    },
+    "page": {
+      "topic": "my-event-hub",
+      "key": "user_123",
+      "value": {
+        "type": "page",
+        "userId": "user_123",
+        "anonymousId": "anon-456",
+        "name": "Home",
+        "timestamp": "2026-02-25T12:02:00.000Z",
+        "properties": {
+          "title": "Home - Acme Corp",
+          "url": "https://www.example.com/",
+          "path": "/",
+          "referrer": "https://www.google.com/"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          }
+        },
+        "messageId": "msg-uuid-003",
+        "rudderId": "rudder-uuid-003",
+        "originalTimestamp": "2026-02-25T12:02:00.000Z",
+        "sentAt": "2026-02-25T12:02:01.000Z",
+        "receivedAt": "2026-02-25T12:02:02.000Z"
+      }
+    },
+    "screen": {
+      "topic": "my-event-hub",
+      "key": "user_123",
+      "value": {
+        "type": "screen",
+        "userId": "user_123",
+        "anonymousId": "anon-456",
+        "name": "Dashboard",
+        "timestamp": "2026-02-25T12:03:00.000Z",
+        "properties": {
+          "title": "Dashboard Screen",
+          "feed_type": "main"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-android",
+            "version": "1.20.0"
+          },
+          "os": {
+            "name": "Android",
+            "version": "14"
+          }
+        },
+        "messageId": "msg-uuid-004",
+        "rudderId": "rudder-uuid-004",
+        "originalTimestamp": "2026-02-25T12:03:00.000Z",
+        "sentAt": "2026-02-25T12:03:01.000Z",
+        "receivedAt": "2026-02-25T12:03:02.000Z"
+      }
+    },
+    "group": {
+      "topic": "my-event-hub",
+      "key": "user_123",
+      "value": {
+        "type": "group",
+        "userId": "user_123",
+        "anonymousId": "anon-456",
+        "groupId": "group-789",
+        "timestamp": "2026-02-25T12:04:00.000Z",
+        "traits": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employees": 500,
+          "plan": "enterprise"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          }
+        },
+        "messageId": "msg-uuid-005",
+        "rudderId": "rudder-uuid-005",
+        "originalTimestamp": "2026-02-25T12:04:00.000Z",
+        "sentAt": "2026-02-25T12:04:01.000Z",
+        "receivedAt": "2026-02-25T12:04:02.000Z"
+      }
+    },
+    "alias": {
+      "topic": "my-event-hub",
+      "key": "user_123",
+      "value": {
+        "type": "alias",
+        "userId": "user_123",
+        "previousId": "anon-456",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          }
+        },
+        "messageId": "msg-uuid-006",
+        "rudderId": "rudder-uuid-006",
+        "originalTimestamp": "2026-02-25T12:05:00.000Z",
+        "sentAt": "2026-02-25T12:05:01.000Z",
+        "receivedAt": "2026-02-25T12:05:02.000Z"
+      }
+    }
+  },
+  "destination_config": {
+    "topic": "my-event-hub",
+    "bootstrapServer": "my-namespace.servicebus.windows.net:9093",
+    "eventHubsConnectionString": "Endpoint=sb://my-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=<redacted>"
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "note": "No Segment equivalent. Uses Kafka-compatible producer via services/streammanager/kafka/.",
+    "topic": "Derived from azureEventHubConfig.Topic in destination config; maps to the Event Hub name within the Event Hubs Namespace",
+    "key": "Derived from userId field in the event via gjson (parsedJSON.Get('userId').String()); used as Kafka partition key",
+    "value": "Full JSON-serialized event message extracted via parsedJSON.Get('message').Value() and re-marshaled with jsonrs",
+    "bootstrap_server": "The Event Hubs Namespace endpoint in host:port format (typically port 9093); supports comma-separated list for multiple addresses",
+    "connection_string": "Azure Event Hubs connection string starting with Endpoint=sb:// containing SharedAccessKey for SASL/PLAIN authentication over TLS",
+    "envelope_fields": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to every event payload",
+    "authentication": "Azure Event Hub uses SASL/PLAIN over TLS via the Kafka protocol; credentials derived from EventHubsConnectionString using client.NewAzureEventHubs"
+  },
+  "producer_details": {
+    "constructor": "NewProducerForAzureEventHubs",
+    "package": "services/streammanager/kafka",
+    "config_struct": "azureEventHubConfig",
+    "config_fields": {
+      "Topic": "Name of the Event Hub (not the namespace)",
+      "BootstrapServer": "host:port format (port usually 9093 on Azure Event Hubs)",
+      "EventHubsConnectionString": "Starts with Endpoint=sb:// and contains SharedAccessKey"
+    },
+    "client_factory": "client.NewAzureEventHubs",
+    "producer_config_provider": "AZURE_EVENT_HUB",
+    "default_publish_timeout_seconds": 10,
+    "metrics": {
+      "creation_time": "router.kafka.creation_time_azure_event_hubs",
+      "produce_time": "router.kafka.produce_time",
+      "publish_time": "router.kafka.publish_time",
+      "close_time": "router.kafka.close_producer_time"
+    },
+    "avro_support": false,
+    "ssh_support": false
+  },
+  "notes": "Azure Event Hub is RudderStack-unique. Uses shared Kafka producer (NewProducerForAzureEventHubs). Segment has no Azure Event Hub destination in its catalog. The producer leverages the Kafka wire protocol exposed by Azure Event Hubs on port 9093, authenticating via SASL/PLAIN with the Event Hubs connection string. Configuration requires the Event Hub name (topic), bootstrap server (namespace endpoint), and connection string. Unlike standard Kafka, Azure Event Hub does not support Avro serialization or SSH tunneling through this producer path. The dial timeout is configurable via Router.AZURE_EVENT_HUB.dialTimeout."
+}
