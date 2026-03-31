@@ -1,0 +1,521 @@
+{
+  "destination_type": "CLEVERTAP",
+  "destination_tier": "cloud",
+  "category": "Marketing Automation, SMS & Push",
+  "segment_slug": "clevertap",
+  "segment_new_slug": "actions-clevertap",
+  "rudderstack_docs": "https://www.rudderstack.com/docs/destinations/streaming-destinations/clevertap/",
+  "segment_docs": "https://segment.com/docs/connections/destinations/catalog/actions-clevertap/",
+  "authentication": {
+    "method": "custom_header",
+    "headers": {
+      "X-CleverTap-Account-Id": "ACCOUNT_ID",
+      "X-CleverTap-Passcode": "PASSCODE",
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "notes": "Both Segment and RudderStack authenticate with CleverTap using two custom HTTP headers: X-CleverTap-Account-Id (the CleverTap Account ID) and X-CleverTap-Passcode (the Account Passcode). Credentials are obtained from the CleverTap dashboard under Settings > Passcode. CleverTap supports multiple account-level passcodes for better security when integrating with different partners. The API endpoint URL is region-specific and includes a data center identifier (e.g., in1, us1, eu1, sg1, mec1, aps3). Concurrent requests are limited to 15 per account."
+  },
+  "event_types": ["track", "identify", "page", "screen"],
+  "segment_reference_payloads": {
+    "track": {
+      "description": "Segment track calls are sent to CleverTap's Upload Events API. The event name maps to the evtName field. Event properties are mapped to the evtData object. The userId is mapped to the identity field for user identification. Timestamps are converted to Unix epoch seconds for the ts field. CleverTap supports String, Integer, Long, Double, Float, Boolean, Date, and JSON Array data types in event properties. A maximum of 1000 event records can be sent per API call.",
+      "api_endpoint": "POST https://{region}.api.clevertap.com/1/upload",
+      "payload": {
+        "d": [
+          {
+            "identity": "user_123",
+            "type": "event",
+            "evtName": "Product Purchased",
+            "evtData": {
+              "Product name": "Premium Widget",
+              "Brand": "Acme Corp",
+              "Category": "Electronics",
+              "Price": 49.99,
+              "Currency": "USD",
+              "Quantity": 1
+            },
+            "ts": 1740484800
+          }
+        ]
+      },
+      "notes": "Segment sends track events to CleverTap's Upload Events API endpoint (/1/upload). The event name maps to evtName and all event properties are sent in the evtData object. The identity field is derived from the Segment userId to identify the user in CleverTap. If the identity does not exist, CleverTap creates a new user profile. Timestamps are converted to Unix epoch seconds for the ts field. CleverTap event keys are limited to 120 characters, property values are limited to 512 bytes, and each event type supports a maximum of 256 properties. The maximum number of unique event types per account is 512. CleverTap also supports alternative user identifiers: FBID (Facebook ID), GPID (Google Plus ID), and objectId (CleverTap internal ID)."
+    },
+    "identify": {
+      "description": "Segment identify calls are sent to CleverTap's Upload User Profiles API. The userId maps to the identity field. User traits are sent in the profileData object. CleverTap creates a new user profile if the identity does not exist, or updates the existing profile with the provided attributes. Standard profile properties include Name, Email, Phone, Gender, DOB, and messaging subscription preferences (MSG-email, MSG-push, MSG-sms, MSG-whatsapp).",
+      "api_endpoint": "POST https://{region}.api.clevertap.com/1/upload",
+      "payload": {
+        "d": [
+          {
+            "identity": "user_123",
+            "type": "profile",
+            "profileData": {
+              "Name": "John Doe",
+              "Email": "john.doe@example.com",
+              "Phone": "+15551234567",
+              "Gender": "M",
+              "DOB": "$D_803001952",
+              "Customer Type": "premium",
+              "Company": "Acme Corp",
+              "MSG-email": true,
+              "MSG-push": true,
+              "MSG-sms": true,
+              "MSG-whatsapp": false
+            }
+          }
+        ]
+      },
+      "notes": "Segment sends identify calls to CleverTap's Upload User Profiles API. The userId is mapped to the identity field, which is CleverTap's primary user identifier. Standard Segment traits are mapped to CleverTap's built-in profile properties: traits.name → Name, traits.email → Email, traits.phone → Phone, traits.gender → Gender (mapped to M/F), traits.birthday → DOB (formatted as $D_epochSeconds). Custom traits are passed through as custom profile properties. The MSG-email, MSG-push, MSG-sms, and MSG-whatsapp fields control messaging channel subscription preferences. CleverTap also supports profile property operations like $add (add to array), $remove (remove from array), and $delete (delete property). A maximum of 1000 profile records can be sent per API call."
+    },
+    "page": {
+      "description": "Segment page calls are mapped to CleverTap events via the Upload Events API. The page name is used to construct the event name (typically 'Viewed {name} Page'). Page properties are mapped to the evtData object. Page views are tracked as regular events in CleverTap since CleverTap does not have a dedicated page view API — all page tracking flows through the Upload Events API.",
+      "api_endpoint": "POST https://{region}.api.clevertap.com/1/upload",
+      "payload": {
+        "d": [
+          {
+            "identity": "user_123",
+            "type": "event",
+            "evtName": "Web Page Viewed",
+            "evtData": {
+              "name": "Home",
+              "url": "https://www.example.com/home",
+              "path": "/home",
+              "title": "Home Page - Example Site",
+              "referrer": "https://www.google.com",
+              "search": ""
+            },
+            "ts": 1740484800
+          }
+        ]
+      },
+      "notes": "Segment maps page calls to CleverTap event tracking via the Upload Events API. The event name is typically constructed from the page name (e.g., 'Web Page Viewed' or 'Viewed {name} Page'). Standard page properties (url, path, title, referrer, search) are sent in the evtData object. Since CleverTap does not have a native page view concept, page calls are indistinguishable from track calls at the CleverTap API level. The identity and ts fields follow the same mapping rules as track events."
+    },
+    "screen": {
+      "description": "Segment screen calls are mapped to CleverTap events via the Upload Events API. The screen name is used to construct the event name. Screen properties are mapped to the evtData object. Screen views are used for mobile app screen tracking and follow the same API pattern as page calls.",
+      "api_endpoint": "POST https://{region}.api.clevertap.com/1/upload",
+      "payload": {
+        "d": [
+          {
+            "identity": "user_123",
+            "type": "event",
+            "evtName": "Screen Viewed",
+            "evtData": {
+              "name": "Dashboard",
+              "category": "Main"
+            },
+            "ts": 1740484800
+          }
+        ]
+      },
+      "notes": "Segment maps screen calls to CleverTap events using the same Upload Events API as track and page calls. The screen name and category are used to construct the evtName. Screen properties are sent in evtData. This mapping is primarily relevant for mobile applications using the Segment mobile SDKs. The same 512-byte property value limit and 120-character event key limit apply."
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "track": {
+      "description": "RudderStack track calls are transformed by the RudderStack Transformer service and sent to CleverTap's Upload Events API. The event name maps to evtName. Event properties are mapped to evtData. The userId is mapped to the identity field. RudderStack's transformer handles timestamp conversion to Unix epoch seconds and maps context fields to CleverTap-specific fields.",
+      "api_endpoint": "POST https://{region}.api.clevertap.com/1/upload",
+      "payload": {
+        "d": [
+          {
+            "identity": "user_123",
+            "type": "event",
+            "evtName": "Product Purchased",
+            "evtData": {
+              "Product name": "Premium Widget",
+              "Brand": "Acme Corp",
+              "Category": "Electronics",
+              "Price": 49.99,
+              "Currency": "USD",
+              "Quantity": 1
+            },
+            "ts": 1740484800
+          }
+        ]
+      },
+      "payload_with_objectid": {
+        "d": [
+          {
+            "objectId": "clevertap-internal-id-xyz",
+            "type": "event",
+            "evtName": "Product Purchased",
+            "evtData": {
+              "Product name": "Premium Widget",
+              "Brand": "Acme Corp",
+              "Category": "Electronics",
+              "Price": 49.99,
+              "Currency": "USD",
+              "Quantity": 1
+            },
+            "ts": 1740484800
+          }
+        ]
+      },
+      "notes": "RudderStack sends track events to CleverTap's Upload Events API. The transformation is handled by the RudderStack Transformer service. The event name maps to evtName and properties map to evtData. The userId is mapped to identity. RudderStack derives the user identifier from userId (preferred) or anonymousId (fallback). When the CleverTap objectId is available in the event context (via context.externalId), RudderStack uses objectId instead of identity for user identification. Timestamps (originalTimestamp) are converted to Unix epoch seconds for the ts field. The RudderStack Transformer flattens nested event properties for compatibility with CleverTap's evtData structure. CleverTap event keys must not exceed 120 characters, and property values must not exceed 512 bytes."
+    },
+    "identify": {
+      "description": "RudderStack identify calls are transformed and sent to CleverTap's Upload User Profiles API. User traits are mapped to CleverTap profile properties in the profileData object. Standard traits (name, email, phone, gender, birthday) are mapped to CleverTap's built-in profile property names. Custom traits pass through as custom profile properties.",
+      "api_endpoint": "POST https://{region}.api.clevertap.com/1/upload",
+      "payload": {
+        "d": [
+          {
+            "identity": "user_123",
+            "type": "profile",
+            "profileData": {
+              "Name": "John Doe",
+              "Email": "john.doe@example.com",
+              "Phone": "+15551234567",
+              "Gender": "M",
+              "DOB": "$D_803001952",
+              "Customer Type": "premium",
+              "Company": "Acme Corp",
+              "MSG-email": true,
+              "MSG-push": true,
+              "MSG-sms": true,
+              "MSG-whatsapp": false
+            }
+          }
+        ]
+      },
+      "payload_with_objectid": {
+        "d": [
+          {
+            "objectId": "clevertap-internal-id-xyz",
+            "type": "profile",
+            "profileData": {
+              "Name": "John Doe",
+              "Email": "john.doe@example.com",
+              "Phone": "+15551234567",
+              "Gender": "M",
+              "DOB": "$D_803001952",
+              "Customer Type": "premium",
+              "Company": "Acme Corp"
+            }
+          }
+        ]
+      },
+      "notes": "RudderStack sends identify calls to CleverTap's Upload User Profiles API. The RudderStack Transformer maps standard traits to CleverTap built-in profile property names: traits.name → Name, traits.email → Email, traits.phone → Phone, traits.gender → Gender (converted to M/F single character), traits.birthday → DOB (formatted as $D_epochSeconds using CleverTap's date prefix). Custom traits are passed through as custom profile properties. The identity field is derived from userId (preferred) or anonymousId (fallback). When context.externalId contains a CleverTap objectId, RudderStack uses objectId instead of identity. RudderStack additionally supports multi-value profile property operations ($add, $remove) and property deletion ($delete) when traits contain these operators. CleverTap creates a new user profile if the identity does not exist, or updates the existing profile."
+    },
+    "page": {
+      "description": "RudderStack page calls are transformed into CleverTap events via the Upload Events API. The page name is used to construct the event name. Page properties are mapped to evtData. This mapping follows the same pattern as track events since CleverTap does not have a dedicated page view endpoint.",
+      "api_endpoint": "POST https://{region}.api.clevertap.com/1/upload",
+      "payload": {
+        "d": [
+          {
+            "identity": "user_123",
+            "type": "event",
+            "evtName": "Web Page Viewed",
+            "evtData": {
+              "name": "Home",
+              "url": "https://www.example.com/home",
+              "path": "/home",
+              "title": "Home Page - Example Site",
+              "referrer": "https://www.google.com",
+              "search": ""
+            },
+            "ts": 1740484800
+          }
+        ]
+      },
+      "notes": "RudderStack maps page calls to CleverTap events through the Upload Events API. The RudderStack Transformer constructs the evtName from the page name (e.g., 'Web Page Viewed' or a configurable page event name pattern). Standard page properties (url, path, title, referrer, search) are sent in the evtData object. The identity field is derived from userId or anonymousId. The ts field is converted from originalTimestamp to Unix epoch seconds. RudderStack and Segment produce functionally identical CleverTap payloads for page calls."
+    },
+    "screen": {
+      "description": "RudderStack screen calls are transformed into CleverTap events via the Upload Events API. The screen name is used to construct the event name. Screen properties are mapped to evtData. This is primarily relevant for mobile applications.",
+      "api_endpoint": "POST https://{region}.api.clevertap.com/1/upload",
+      "payload": {
+        "d": [
+          {
+            "identity": "user_123",
+            "type": "event",
+            "evtName": "Screen Viewed",
+            "evtData": {
+              "name": "Dashboard",
+              "category": "Main"
+            },
+            "ts": 1740484800
+          }
+        ]
+      },
+      "notes": "RudderStack maps screen calls to CleverTap events using the Upload Events API. The RudderStack Transformer constructs the evtName from the screen name. Screen properties are sent in evtData. The identity and ts field derivation follows the same rules as track events. Screen calls are primarily used by RudderStack's mobile SDKs (Android, iOS, React Native, Flutter) for tracking app screen views. Both Segment and RudderStack produce equivalent CleverTap payloads for screen calls."
+    }
+  },
+  "field_mappings": {
+    "identity_mapping": {
+      "segment_field": "userId",
+      "rudderstack_field": "userId (primary), anonymousId (fallback)",
+      "clevertap_field": "identity",
+      "description": "Both Segment and RudderStack map the userId to CleverTap's identity field, which is the primary user identifier in CleverTap. CleverTap uses the identity field to create or look up user profiles. If the identity does not already exist, a new user profile is created automatically. CleverTap also supports alternative identifier fields: FBID (Facebook ID), GPID (Google Plus ID), and objectId (CleverTap's internal user ID). RudderStack additionally supports falling back to anonymousId when userId is not available, enabling anonymous user tracking before identification.",
+      "parity_status": "FUNCTIONAL_MATCH",
+      "gap_detail": "RudderStack supports anonymousId fallback for identity derivation, enabling anonymous user tracking. Segment's cloud-mode integration maps userId to identity. RudderStack also supports CleverTap objectId via context.externalId for more precise user identification. Both platforms support FBID and GPID as alternative identifiers when configured."
+    },
+    "event_property_mapping": {
+      "segment_approach": "Segment maps track event name to evtName and properties to evtData. Property names are sent as-is to CleverTap.",
+      "rudderstack_approach": "RudderStack maps track event name to evtName and properties to evtData. The RudderStack Transformer flattens nested properties and ensures compatibility with CleverTap's data type constraints.",
+      "clevertap_field": "evtName, evtData (in Upload Events API payload)",
+      "description": "Both platforms use CleverTap's Upload Events API with the d array structure. Each event record contains type ('event'), evtName (event name), evtData (event properties), and ts (timestamp in epoch seconds). CleverTap supports multiple data types in evtData: String, Integer, Long, Double, Float, Boolean, Date ($D_ prefix for epoch seconds), and JSON Array. Event keys must not exceed 120 characters and property values are limited to 512 bytes. The maximum number of unique event types per account is 512, with up to 256 properties per event type.",
+      "parity_status": "MATCH",
+      "gap_detail": "Both platforms produce the same Upload Events API payload structure. The evtName and evtData mapping is identical. RudderStack's Transformer may additionally flatten deeply nested properties for CleverTap compatibility."
+    },
+    "profile_push_vs_event_push": {
+      "segment_approach": "Segment routes identify calls to the Upload User Profiles API (type: 'profile') and track/page/screen calls to the Upload Events API (type: 'event'). Both use the same /1/upload endpoint but with different type values and data structures.",
+      "rudderstack_approach": "RudderStack follows the same routing pattern: identify calls produce type 'profile' with profileData, while track/page/screen calls produce type 'event' with evtName and evtData. The /1/upload endpoint accepts both types in a single batch request.",
+      "clevertap_field": "type ('profile' or 'event')",
+      "description": "CleverTap uses a unified Upload API endpoint (/1/upload) that accepts both profile and event records. The type field determines how each record is processed: type 'profile' updates user profile attributes via profileData, while type 'event' records user actions via evtName and evtData. Both record types can be mixed in a single batch request within the d array. Profile records update user attributes (Name, Email, Phone, Gender, DOB, custom properties) and messaging preferences (MSG-email, MSG-push, MSG-sms, MSG-whatsapp). Event records track user actions with event name, properties, and timestamp. Both platforms correctly route calls to the appropriate record type.",
+      "parity_status": "MATCH",
+      "gap_detail": "Both platforms correctly distinguish between profile push (identify → type:profile) and event push (track/page/screen → type:event). The routing logic and resulting API payloads are identical."
+    },
+    "timestamp_handling": {
+      "segment_field": "timestamp (ISO 8601)",
+      "rudderstack_field": "originalTimestamp (ISO 8601)",
+      "clevertap_field": "ts (Unix epoch seconds)",
+      "description": "CleverTap's Upload Events API expects the ts field as Unix epoch seconds (integer). Both Segment and RudderStack convert their respective ISO 8601 timestamp fields to epoch seconds. Segment uses the timestamp field, while RudderStack uses originalTimestamp. The ts field is only applicable to event records (type: 'event'); profile records (type: 'profile') do not include a timestamp field — CleverTap automatically records when the profile was created or last updated. Date-type profile properties use the special $D_ prefix followed by epoch seconds (e.g., $D_1487576752 for DOB).",
+      "parity_status": "MATCH",
+      "gap_detail": "Both platforms convert ISO 8601 timestamps to Unix epoch seconds for the ts field. The source field names differ (timestamp vs originalTimestamp) but produce identical CleverTap API payloads."
+    },
+    "user_attribute_mapping": {
+      "segment_approach": "Segment maps identify traits to CleverTap profile properties. Standard traits (name, email, phone, gender, birthday) are mapped to CleverTap's built-in profile property names (Name, Email, Phone, Gender, DOB).",
+      "rudderstack_approach": "RudderStack maps identify traits to CleverTap profile properties using the same convention. Standard traits are mapped to built-in names: name→Name, email→Email, phone→Phone, gender→Gender (M/F), birthday→DOB ($D_epochSeconds). Custom traits pass through as custom profile properties.",
+      "clevertap_field": "profileData (in Upload User Profiles API payload)",
+      "description": "Both platforms map user traits to CleverTap's profileData object within the Upload User Profiles API. CleverTap has built-in profile properties (Name, Email, Phone, Gender, DOB) that are recognized by the platform for native features like segmentation, campaigns, and messaging. Gender must be 'M' or 'F'. DOB uses CleverTap's special date format ($D_ prefix with epoch seconds). Custom profile properties are stored alongside built-in properties. The MSG-email, MSG-push, MSG-sms, and MSG-whatsapp boolean fields control per-channel messaging opt-in/opt-out preferences.",
+      "parity_status": "MATCH",
+      "gap_detail": "Both platforms map standard traits to the same CleverTap built-in profile property names. The trait-to-profile-property mapping is functionally identical."
+    },
+    "region_configuration": {
+      "segment_approach": "Segment configures the CleverTap region during destination setup. The region determines the API endpoint URL (e.g., in1.api.clevertap.com for India, us1.api.clevertap.com for US, eu1.api.clevertap.com for EU).",
+      "rudderstack_approach": "RudderStack requires the CleverTap Region to be configured in the destination settings. This determines the API endpoint URL for all API calls.",
+      "clevertap_field": "API endpoint URL prefix ({region}.api.clevertap.com)",
+      "description": "CleverTap maintains multiple geographically distributed data centers. Each account is assigned to a specific region, and all API requests must be directed to the correct regional endpoint. Supported regions include: in1 (India), us1 (US), eu1 (Europe), sg1 (Singapore), mec1 (Middle East), aps3 (Asia Pacific). Both Segment and RudderStack require region configuration during destination setup. Misconfigured regions result in authentication failures.",
+      "parity_status": "MATCH",
+      "gap_detail": "Both platforms handle region configuration identically. The region is configured once during setup and applied to all API requests."
+    }
+  },
+  "parity_summary": {
+    "overall_status": "HIGH_PARITY",
+    "track_parity": "MATCH",
+    "identify_parity": "MATCH",
+    "page_parity": "MATCH",
+    "screen_parity": "MATCH",
+    "known_gaps": [
+      {
+        "gap_id": "CLEVERTAP-001",
+        "severity": "LOW",
+        "description": "Segment has both a classic ('clevertap') and an actions-based ('actions-clevertap') destination variant. The actions-based variant uses Segment's newer architecture with configurable field mappings per action. RudderStack has a single CleverTap destination with fixed transformer-based field mapping.",
+        "impact": "Segment's actions-based variant provides more granular control over field mappings through the Segment UI. RudderStack's transformer handles mapping automatically. No functional payload difference for standard use cases."
+      },
+      {
+        "gap_id": "CLEVERTAP-002",
+        "severity": "LOW",
+        "description": "RudderStack supports anonymousId fallback for the identity field when userId is not present. This enables tracking of anonymous users before they are identified. Segment's cloud-mode integration typically requires userId for user identification in CleverTap.",
+        "impact": "RudderStack users can track anonymous users in CleverTap using anonymousId. When the user later identifies, the anonymous profile can be merged. This provides better pre-identification user tracking."
+      },
+      {
+        "gap_id": "CLEVERTAP-003",
+        "severity": "LOW",
+        "description": "RudderStack supports CleverTap's objectId via context.externalId for more precise user identification. When a CleverTap objectId is available, RudderStack can use it instead of the identity field, enabling direct profile matching without identity resolution.",
+        "impact": "Provides more precise user identification for advanced use cases where the CleverTap internal ID is known. Reduces identity resolution overhead for returning users."
+      },
+      {
+        "gap_id": "CLEVERTAP-004",
+        "severity": "INFO",
+        "description": "RudderStack supports both cloud mode (server-to-server via Transformer) and device mode (native CleverTap SDK integration) for Android, iOS, and Web. Segment also supports both connection modes. Device mode payloads are handled directly by the CleverTap SDK and are outside the scope of this payload parity comparison.",
+        "impact": "Both platforms support identical connection modes. This payload comparison focuses on cloud mode (server-to-server) payloads only."
+      },
+      {
+        "gap_id": "CLEVERTAP-005",
+        "severity": "INFO",
+        "description": "CleverTap's Upload API supports batch submission with up to 1000 records per API call. Both Segment and RudderStack typically send individual events per API call, but the batch capability is available for throughput optimization. The d array in the payload can contain mixed profile and event records.",
+        "impact": "Both platforms can leverage batch event/profile submission. No parity difference — the capability is determined by CleverTap's API, not the sending platform."
+      },
+      {
+        "gap_id": "CLEVERTAP-006",
+        "severity": "INFO",
+        "description": "CleverTap supports multi-value profile properties with $add, $remove, and $set operations, as well as property deletion via $delete. RudderStack's Transformer supports these operators when they are included in the identify traits. Segment's classic integration may have limited support for these advanced property operations.",
+        "impact": "RudderStack may provide more complete support for CleverTap's advanced profile property operations compared to Segment's classic integration."
+      }
+    ],
+    "matching_features": [
+      "User identity mapping (userId → identity)",
+      "User profile creation/update (identify traits → profileData via Upload User Profiles API)",
+      "Event tracking (track event → evtName/evtData via Upload Events API)",
+      "Page view tracking (page → Upload Events API with constructed event name)",
+      "Screen view tracking (screen → Upload Events API with constructed event name)",
+      "Standard trait mapping to CleverTap built-in profile properties (Name, Email, Phone, Gender, DOB)",
+      "Timestamp conversion (ISO 8601 → Unix epoch seconds for ts field)",
+      "Region-based API endpoint configuration",
+      "Custom header authentication (X-CleverTap-Account-Id, X-CleverTap-Passcode)",
+      "Profile messaging preference management (MSG-email, MSG-push, MSG-sms, MSG-whatsapp)",
+      "Unified /1/upload endpoint for both profile and event data",
+      "Custom profile property passthrough for identify traits",
+      "Custom event property passthrough for track properties",
+      "Date property formatting with $D_ epoch prefix",
+      "Device mode SDK integration for Android, iOS, and Web",
+      "Alternative user identifier support (FBID, GPID, objectId)"
+    ]
+  },
+  "source_event_fixtures": {
+    "track_event": {
+      "type": "track",
+      "userId": "user_123",
+      "event": "Product Purchased",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "product_name": "Premium Widget",
+        "brand": "Acme Corp",
+        "category": "Electronics",
+        "price": 49.99,
+        "currency": "USD",
+        "quantity": 1
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.48.0"
+        },
+        "app": {
+          "version": "1.0.0"
+        },
+        "device": {
+          "type": "web"
+        },
+        "os": {
+          "name": "Windows",
+          "version": "10"
+        },
+        "browser": {
+          "name": "Chrome",
+          "version": "121.0.0.0"
+        },
+        "ip": "192.168.1.1",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0"
+      },
+      "messageId": "msg-track-clevertap-001",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    },
+    "identify_event": {
+      "type": "identify",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "traits": {
+        "name": "John Doe",
+        "email": "john.doe@example.com",
+        "phone": "+15551234567",
+        "gender": "male",
+        "birthday": "1995-06-15",
+        "plan": "premium",
+        "company": "Acme Corp"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.48.0"
+        },
+        "app": {
+          "version": "1.0.0"
+        },
+        "device": {
+          "type": "web"
+        },
+        "os": {
+          "name": "Windows",
+          "version": "10"
+        },
+        "browser": {
+          "name": "Chrome",
+          "version": "121.0.0.0"
+        },
+        "ip": "192.168.1.1",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0",
+        "locale": "en-US",
+        "timezone": "America/New_York"
+      },
+      "messageId": "msg-identify-clevertap-001",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    },
+    "page_event": {
+      "type": "page",
+      "userId": "user_123",
+      "name": "Home",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "name": "Home",
+        "url": "https://www.example.com/home",
+        "path": "/home",
+        "title": "Home Page - Example Site",
+        "referrer": "https://www.google.com",
+        "search": ""
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.48.0"
+        },
+        "app": {
+          "version": "1.0.0"
+        },
+        "device": {
+          "type": "web"
+        },
+        "os": {
+          "name": "Windows",
+          "version": "10"
+        },
+        "browser": {
+          "name": "Chrome",
+          "version": "121.0.0.0"
+        },
+        "ip": "192.168.1.1",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0"
+      },
+      "messageId": "msg-page-clevertap-001",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    },
+    "screen_event": {
+      "type": "screen",
+      "userId": "user_123",
+      "name": "Dashboard",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "name": "Dashboard",
+        "category": "Main"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-android",
+          "version": "1.22.0"
+        },
+        "app": {
+          "name": "MyApp",
+          "version": "2.1.0",
+          "build": "210"
+        },
+        "device": {
+          "type": "android",
+          "manufacturer": "Samsung",
+          "model": "Galaxy S23",
+          "id": "device-uuid-456"
+        },
+        "os": {
+          "name": "Android",
+          "version": "14"
+        },
+        "screen": {
+          "width": 1080,
+          "height": 2340,
+          "density": 2.75
+        },
+        "ip": "10.0.0.50",
+        "locale": "en-US",
+        "timezone": "America/Los_Angeles"
+      },
+      "messageId": "msg-screen-clevertap-001",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    }
+  },
+  "notes": "CleverTap is a shared cloud destination present in both RudderStack and Segment catalogs. Categories: Marketing Automation, SMS & Push. CleverTap is a modern, integrated retention cloud that empowers digital consumer brands to increase customer retention by enabling personalized communication across push notifications, email, SMS, in-app messaging, WhatsApp, and web push channels. Both platforms use CleverTap's unified Upload API (/1/upload) for server-to-server cloud-mode integration. The primary integration pattern for both platforms is: (1) userId maps to CleverTap's identity field for user identification; (2) identify traits are mapped to CleverTap profile properties via type 'profile' with profileData, with standard traits mapped to built-in property names (Name, Email, Phone, Gender, DOB); (3) track event names map to evtName and properties map to evtData in type 'event' records; (4) page and screen calls are converted to CleverTap events with constructed event names. Authentication uses custom X-CleverTap-Account-Id and X-CleverTap-Passcode headers. The API endpoint is region-specific ({region}.api.clevertap.com). Segment has both a classic ('clevertap') and newer actions-based ('actions-clevertap') destination variant. RudderStack provides a single CleverTap destination supporting both cloud mode and device mode (native SDK) for Android, iOS, and Web. Payload-level parity is high — the core data flow (userId→identity, traits→profileData, event→evtName/evtData) produces functionally identical CleverTap API payloads from both platforms. The Upload API supports batch submission of up to 1000 records per call, with mixed profile and event records allowed. CleverTap's concurrent request limit is 15 per account."
+}
