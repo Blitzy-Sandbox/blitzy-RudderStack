@@ -1,0 +1,443 @@
+{
+  "destination_type": "PERSONALIZE",
+  "destination_tier": "stream",
+  "segment_reference_payload": {
+    "destination_slug": "amazon-personalize",
+    "destination_name": "Amazon Personalize",
+    "description": "Segment's Amazon Personalize integration uses an AWS Lambda function as an intermediary. Segment invokes the customer-deployed Lambda with the raw event payload, and the Lambda is responsible for calling the Personalize Events API (PutEvents) to record real-time interactions. Segment maps track events to the Personalize Interactions schema with USER_ID, ITEM_ID, EVENT_TYPE, and TIMESTAMP fields. Historical data is trained via S3/Redshift/Snowflake CSV exports with Glue ETL jobs.",
+    "integration_method": "Lambda-based (Segment invokes customer Lambda; Lambda calls Personalize Events API)",
+    "supported_call_types": ["track", "identify"],
+    "personalize_schema": {
+      "interactions": {
+        "type": "record",
+        "name": "Interactions",
+        "namespace": "com.amazonaws.personalize.schema",
+        "fields": [
+          {"name": "USER_ID", "type": "string"},
+          {"name": "ITEM_ID", "type": "string"},
+          {"name": "EVENT_TYPE", "type": "string"},
+          {"name": "TIMESTAMP", "type": "long"}
+        ],
+        "version": "1.0"
+      }
+    },
+    "field_mapping_from_segment_spec": {
+      "userId": "USER_ID",
+      "properties.sku": "ITEM_ID",
+      "event": "EVENT_TYPE",
+      "timestamp": "TIMESTAMP (converted from ISO 8601 to UNIX epoch seconds)"
+    },
+    "sample_track_event": {
+      "type": "track",
+      "event": "Product Viewed",
+      "userId": "user_123",
+      "anonymousId": "anon_456",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "sku": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "category": "Widgets"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "192.168.1.1"
+      },
+      "messageId": "msg-abc-123"
+    },
+    "sample_identify_event": {
+      "type": "identify",
+      "userId": "user_123",
+      "anonymousId": "anon_456",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "traits": {
+        "email": "user@example.com",
+        "name": "Jane Doe",
+        "plan": "premium"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        }
+      },
+      "messageId": "msg-abc-124"
+    },
+    "lambda_payload_format": {
+      "description": "Segment sends the full event JSON to the customer-deployed Lambda function. The Lambda function is responsible for parsing the event and calling the appropriate Personalize API (PutEvents, PutUsers, PutItems).",
+      "lambda_invocation": {
+        "function_name": "customer-defined-lambda-arn",
+        "invocation_type": "RequestResponse",
+        "payload": "Full Segment event JSON"
+      }
+    },
+    "training_data_format": {
+      "method": "CSV export via S3/Redshift/Snowflake with Glue ETL",
+      "csv_columns": ["USER_ID", "ITEM_ID", "EVENT_TYPE", "TIMESTAMP"],
+      "source_events": ["Order Completed", "Product Added", "Product Viewed"],
+      "glue_field_mapping": [
+        {"source": "userId", "source_type": "string", "target": "USER_ID", "target_type": "string"},
+        {"source": "properties.sku", "source_type": "string", "target": "ITEM_ID", "target_type": "string"},
+        {"source": "event", "source_type": "string", "target": "EVENT_TYPE", "target_type": "string"},
+        {"source": "timestamp", "source_type": "string", "target": "TIMESTAMP_ISO", "target_type": "string"}
+      ]
+    }
+  },
+  "rudderstack_expected_payload": {
+    "producer_package": "services/streammanager/personalize",
+    "producer_constructor": "NewProducer",
+    "producer_interface": "common.StreamProducer (common.Producer)",
+    "description": "RudderStack directly integrates with the AWS Personalize Events API via the personalizeevents SDK client. The PersonalizeProducer implements the common.Producer interface with three API branches: PutEvents (for interaction events), PutUsers (for user metadata), and PutItems (for item catalog data). The Produce method dispatches to the correct AWS API based on the 'choice' field in the JSON payload envelope.",
+    "connection": {
+      "method": "personalizeevents.NewFromConfig(awsConfig)",
+      "protocol": "AWS SDK v2 HTTP client to Personalize Events API",
+      "authentication": {
+        "method": "AWS IAM",
+        "config_fields": {
+          "Region": "AWS region (e.g., us-east-1)",
+          "IAMRoleARN": "IAM Role ARN for cross-account access",
+          "ExternalID": "External ID for STS AssumeRole"
+        }
+      },
+      "http_pooling": {
+        "max_idle_conns_per_host": "Configurable via Router.PERSONALIZE.httpMaxIdleConnsPerHost, Router.PERSONALIZE.noOfWorkers, Router.noOfWorkers (default: 64)"
+      },
+      "timeout": "Configurable via common.Opts.Timeout from Router (default: 10 seconds)"
+    },
+    "destination_config": {
+      "Region": "Required. AWS region where Personalize resources are deployed.",
+      "IAMRoleARN": "Required. IAM Role ARN used to authenticate with the Personalize Events API.",
+      "ExternalID": "Required. External ID for STS AssumeRole cross-account access.",
+      "trackingId": "Required for PutEvents. The tracking ID of the Personalize event tracker.",
+      "datasetArn": "Required for PutUsers and PutItems. The ARN of the Personalize dataset."
+    },
+    "payload_envelope": {
+      "description": "The JSON payload sent to PersonalizeProducer.Produce uses an envelope with 'choice' and 'payload' fields. The 'choice' field selects the API branch; the 'payload' field contains the structured data for that API call. If 'choice' is absent, the entire JSON is treated as a PutEvents input for backward compatibility.",
+      "structure": {
+        "choice": "One of: PutEvents, PutUsers, PutItems (optional; defaults to PutEvents when absent)",
+        "payload": "JSON object matching the corresponding API input structure"
+      }
+    },
+    "api_branches": {
+      "PutEvents": {
+        "aws_api": "personalizeevents.PutEvents",
+        "description": "Records user interaction events. Maps track events to Personalize interaction data.",
+        "input_structure": {
+          "EventList": [
+            {
+              "EventId": "Unique event identifier (string pointer)",
+              "EventType": "Event type name, e.g., 'Product Viewed' (string pointer)",
+              "ItemId": "Item identifier from event properties (string pointer)",
+              "SentAt": "Event timestamp (time.Time pointer)",
+              "EventValue": "Optional numeric value for the event (float32 pointer)",
+              "Impression": "Optional list of item IDs shown to the user (string array)",
+              "Properties": "Optional JSON properties as stringified JSON (json.RawMessage pointer)",
+              "RecommendationId": "Optional recommendation ID if event was from a recommendation (string pointer)",
+              "MetricAttribution": {
+                "EventAttributionSource": "Optional attribution source identifier (string pointer)"
+              }
+            }
+          ],
+          "SessionId": "User session identifier (string pointer)",
+          "TrackingId": "Personalize event tracker tracking ID (string pointer)",
+          "UserId": "User identifier (string pointer)"
+        },
+        "sample_input": {
+          "choice": "PutEvents",
+          "payload": {
+            "EventList": [
+              {
+                "EventId": "evt-001",
+                "EventType": "Product Viewed",
+                "ItemId": "SKU-001",
+                "SentAt": "2026-02-25T12:00:00Z",
+                "EventValue": null,
+                "Impression": ["SKU-001", "SKU-002", "SKU-003"],
+                "Properties": "{\"category\":\"Widgets\",\"price\":49.99}",
+                "RecommendationId": "rec-abc-123",
+                "MetricAttribution": {
+                  "EventAttributionSource": "rudderstack-campaign-1"
+                }
+              }
+            ],
+            "SessionId": "session-xyz-789",
+            "TrackingId": "arn:aws:personalize:us-east-1:123456789012:event-tracker/tracker-id",
+            "UserId": "user_123"
+          }
+        },
+        "sample_aws_sdk_input": {
+          "EventList": [
+            {
+              "EventId": "evt-001",
+              "EventType": "Product Viewed",
+              "ItemId": "SKU-001",
+              "SentAt": "2026-02-25T12:00:00Z",
+              "EventValue": null,
+              "Impression": ["SKU-001", "SKU-002", "SKU-003"],
+              "Properties": "{\"category\":\"Widgets\",\"price\":49.99}",
+              "RecommendationId": "rec-abc-123",
+              "MetricAttribution": {
+                "EventAttributionSource": "rudderstack-campaign-1"
+              }
+            }
+          ],
+          "SessionId": "session-xyz-789",
+          "TrackingId": "arn:aws:personalize:us-east-1:123456789012:event-tracker/tracker-id",
+          "UserId": "user_123"
+        }
+      },
+      "PutUsers": {
+        "aws_api": "personalizeevents.PutUsers",
+        "description": "Updates user metadata in the Personalize Users dataset. Maps identify events to Personalize user profiles.",
+        "input_structure": {
+          "DatasetArn": "ARN of the Personalize Users dataset (string pointer)",
+          "Users": [
+            {
+              "UserId": "User identifier (string pointer)",
+              "Properties": "Optional JSON user properties as stringified JSON (json.RawMessage pointer)"
+            }
+          ]
+        },
+        "sample_input": {
+          "choice": "PutUsers",
+          "payload": {
+            "DatasetArn": "arn:aws:personalize:us-east-1:123456789012:dataset/my-dataset-group/USERS",
+            "Users": [
+              {
+                "UserId": "user_123",
+                "Properties": "{\"email\":\"user@example.com\",\"name\":\"Jane Doe\",\"plan\":\"premium\"}"
+              }
+            ]
+          }
+        },
+        "sample_aws_sdk_input": {
+          "DatasetArn": "arn:aws:personalize:us-east-1:123456789012:dataset/my-dataset-group/USERS",
+          "Users": [
+            {
+              "UserId": "user_123",
+              "Properties": "{\"email\":\"user@example.com\",\"name\":\"Jane Doe\",\"plan\":\"premium\"}"
+            }
+          ]
+        }
+      },
+      "PutItems": {
+        "aws_api": "personalizeevents.PutItems",
+        "description": "Updates item metadata in the Personalize Items dataset. Maps item catalog data to Personalize item records.",
+        "input_structure": {
+          "DatasetArn": "ARN of the Personalize Items dataset (string pointer)",
+          "Items": [
+            {
+              "ItemId": "Item identifier (string pointer)",
+              "Properties": "Optional JSON item properties as stringified JSON (json.RawMessage pointer)"
+            }
+          ]
+        },
+        "sample_input": {
+          "choice": "PutItems",
+          "payload": {
+            "DatasetArn": "arn:aws:personalize:us-east-1:123456789012:dataset/my-dataset-group/ITEMS",
+            "Items": [
+              {
+                "ItemId": "SKU-001",
+                "Properties": "{\"name\":\"Premium Widget\",\"category\":\"Widgets\",\"price\":49.99}"
+              }
+            ]
+          }
+        },
+        "sample_aws_sdk_input": {
+          "DatasetArn": "arn:aws:personalize:us-east-1:123456789012:dataset/my-dataset-group/ITEMS",
+          "Items": [
+            {
+              "ItemId": "SKU-001",
+              "Properties": "{\"name\":\"Premium Widget\",\"category\":\"Widgets\",\"price\":49.99}"
+            }
+          ]
+        }
+      }
+    },
+    "produce_method": {
+      "function": "PersonalizeProducer.Produce(jsonData json.RawMessage, _ any) (int, string, string)",
+      "flow": [
+        "1. Validate client is not nil (returns 400 if invalid)",
+        "2. Parse JSON envelope with gjson.ParseBytes(jsonData)",
+        "3. Extract 'choice' field (parsedJSON.Get('choice').String())",
+        "4. Extract 'payload' field (parsedJSON.Get('payload').String())",
+        "5. Switch on 'choice':",
+        "   - 'PutEvents': Unmarshal payload into PersonalizeEvent, call ToPutEventsInput(), invoke client.PutEvents()",
+        "   - 'PutUsers': Unmarshal payload into Users, call ToPutUsersInput(), invoke client.PutUsers()",
+        "   - 'PutItems': Unmarshal payload into Items, call ToPutItemsInput(), invoke client.PutItems()",
+        "   - default: Unmarshal entire jsonData as PersonalizeEvent, call ToPutEventsInput(), invoke client.PutEvents()",
+        "6. On success: return 200, 'Success', response info",
+        "7. On error: parse via common.ParseAWSError(), log structured error, return error status"
+      ],
+      "error_handling": {
+        "nil_client": "Returns HTTP 400 with 'Could not create producer for Personalize'",
+        "invalid_json_PutEvents": "Returns HTTP 400 with 'Could not unmarshal jsonData according to PutEvents input structure'",
+        "invalid_json_PutUsers": "Returns HTTP 400 with 'Could not unmarshal jsonData according to PutUsers input structure'",
+        "invalid_json_PutItems": "Returns HTTP 400 with 'Could not unmarshal jsonData according to PutItems input structure'",
+        "aws_api_error": "Parsed via common.ParseAWSError, logged with structured fields (statusCode, respStatus, responseMessage), returned to caller"
+      }
+    },
+    "metrics": {
+      "logging_namespace": "streammanager.personalize",
+      "error_log_fields": ["statusCode (int64)", "respStatus (string)", "responseMessage (string)"]
+    },
+    "sample_track_payload": {
+      "description": "A track event mapped to PutEvents branch. The Transformer maps RudderStack track events into the PutEvents envelope format.",
+      "input_json": {
+        "choice": "PutEvents",
+        "payload": {
+          "EventList": [
+            {
+              "EventId": "msg-xyz-789",
+              "EventType": "Product Viewed",
+              "ItemId": "SKU-001",
+              "SentAt": "2026-02-25T12:00:00Z",
+              "Properties": "{\"category\":\"Widgets\",\"price\":49.99,\"name\":\"Premium Widget\"}"
+            }
+          ],
+          "SessionId": "session-001",
+          "TrackingId": "arn:aws:personalize:us-east-1:123456789012:event-tracker/tracker-id",
+          "UserId": "user_123"
+        }
+      }
+    },
+    "sample_identify_payload": {
+      "description": "An identify event mapped to PutUsers branch. The Transformer maps RudderStack identify events (traits) into the PutUsers envelope format.",
+      "input_json": {
+        "choice": "PutUsers",
+        "payload": {
+          "DatasetArn": "arn:aws:personalize:us-east-1:123456789012:dataset/my-dataset-group/USERS",
+          "Users": [
+            {
+              "UserId": "user_123",
+              "Properties": "{\"email\":\"user@example.com\",\"name\":\"Jane Doe\",\"plan\":\"premium\"}"
+            }
+          ]
+        }
+      }
+    },
+    "sample_item_payload": {
+      "description": "An item catalog update mapped to PutItems branch. Used to sync product/item data to the Personalize Items dataset.",
+      "input_json": {
+        "choice": "PutItems",
+        "payload": {
+          "DatasetArn": "arn:aws:personalize:us-east-1:123456789012:dataset/my-dataset-group/ITEMS",
+          "Items": [
+            {
+              "ItemId": "SKU-001",
+              "Properties": "{\"name\":\"Premium Widget\",\"category\":\"Widgets\",\"price\":49.99,\"in_stock\":true}"
+            }
+          ]
+        }
+      }
+    },
+    "backward_compatibility": {
+      "description": "When 'choice' is absent from the JSON envelope, the entire JSON payload is deserialized as a PutEvents input (PersonalizeEvent struct). This preserves backward compatibility with older transformer versions that did not wrap payloads in the choice/payload envelope.",
+      "sample_legacy_input": {
+        "EventList": [
+          {
+            "EventId": "evt-legacy-001",
+            "EventType": "Product Viewed",
+            "ItemId": "SKU-001",
+            "SentAt": "2026-02-25T12:00:00Z"
+          }
+        ],
+        "SessionId": "session-legacy",
+        "TrackingId": "tracker-id",
+        "UserId": "user_123"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify"
+  ],
+  "event_type_payloads": {
+    "track": {
+      "segment_approach": "Segment sends the full track event to a customer-deployed Lambda function. The Lambda parses userId, event name, product SKU, and timestamp, then calls the Personalize PutEvents API. Field mapping (userId→USER_ID, properties.sku→ITEM_ID, event→EVENT_TYPE, timestamp→TIMESTAMP) is done in the Lambda code using Glue-style mapping or custom logic.",
+      "rudderstack_approach": "RudderStack's Transformer maps the track event into a PutEvents envelope with 'choice':'PutEvents' and a structured 'payload' containing EventList (EventId, EventType, ItemId, SentAt, Properties), SessionId, TrackingId, and UserId. The PersonalizeProducer.Produce method dispatches directly to the Personalize Events API via the AWS SDK.",
+      "parity_gaps": [
+        "Segment uses a Lambda intermediary; RudderStack calls the Personalize API directly via the stream producer",
+        "Segment's field mapping is done in customer Lambda code; RudderStack's mapping is done in the Transformer service",
+        "Segment maps 'event' to EVENT_TYPE and 'properties.sku' to ITEM_ID by convention; RudderStack's Transformer can configure arbitrary property-to-field mappings",
+        "Segment timestamps are converted from ISO 8601 to UNIX epoch in Glue ETL; RudderStack sends timestamps as time.Time objects via the SDK"
+      ]
+    },
+    "identify": {
+      "segment_approach": "Segment sends the full identify event to the customer-deployed Lambda. The Lambda may call PutUsers to update user metadata in the Personalize Users dataset, mapping traits to user properties. The exact mapping depends on customer Lambda implementation.",
+      "rudderstack_approach": "RudderStack's Transformer maps the identify event into a PutUsers envelope with 'choice':'PutUsers' and a structured 'payload' containing DatasetArn and Users array. Each User contains UserId and a stringified JSON Properties field derived from the identify traits.",
+      "parity_gaps": [
+        "Segment's identify→PutUsers mapping is customer-defined in Lambda; RudderStack implements it as a first-class Transformer mapping",
+        "Segment does not guarantee PutUsers support out-of-the-box; it depends on customer Lambda implementation",
+        "RudderStack's PutUsers support is built into the stream producer and Transformer pipeline"
+      ]
+    }
+  },
+  "field_mappings": {
+    "event_type_routing": {
+      "description": "Both platforms support track and identify event types for Personalize. Segment routes through a Lambda intermediary; RudderStack routes directly to the Personalize Events API via the stream producer.",
+      "track": "PutEvents API branch (interaction recording)",
+      "identify": "PutUsers API branch (user metadata update)",
+      "item_catalog": "PutItems API branch (item metadata update — RudderStack-specific extension, no direct Segment equivalent for real-time item updates)"
+    },
+    "user_identification": {
+      "segment": "userId field in the event maps to USER_ID in the Personalize Interactions schema",
+      "rudderstack": "UserId field in the PutEvents input maps directly to the Personalize PutEvents UserId parameter"
+    },
+    "item_identification": {
+      "segment": "properties.sku (or similar product property) maps to ITEM_ID in the Interactions schema via Glue ETL or Lambda",
+      "rudderstack": "ItemId field in each Event within the PutEvents EventList maps to the Personalize Event ItemId parameter"
+    },
+    "event_type_field": {
+      "segment": "event field (e.g., 'Product Viewed') maps to EVENT_TYPE in the Interactions schema",
+      "rudderstack": "EventType field in each Event maps to the Personalize Event EventType parameter"
+    },
+    "timestamp_handling": {
+      "segment": "ISO 8601 timestamp converted to UNIX epoch seconds via Glue ETL (TIMESTAMP_ISO → TIMESTAMP)",
+      "rudderstack": "SentAt field as time.Time pointer, serialized by the AWS SDK in the appropriate format"
+    },
+    "session_tracking": {
+      "segment": "No built-in session tracking in the Personalize integration; depends on customer Lambda implementation",
+      "rudderstack": "SessionId is a first-class field in the PutEvents input, mapped from session context"
+    },
+    "event_tracker": {
+      "segment": "Tracking ID configured in the Lambda function environment or hardcoded",
+      "rudderstack": "TrackingId field in the PutEvents input, configured via destination settings"
+    },
+    "dataset_arn": {
+      "segment": "Dataset ARN configured in the Lambda function for PutUsers/PutItems calls",
+      "rudderstack": "DatasetArn field in the PutUsers/PutItems input, configured via destination settings"
+    },
+    "properties_serialization": {
+      "segment": "Properties are passed as part of the event JSON to Lambda; serialization depends on Lambda implementation",
+      "rudderstack": "Properties are serialized as stringified JSON via json.RawMessage and aws.String conversion (stringifyJsonRaw helper)"
+    },
+    "impression_tracking": {
+      "segment": "Not documented as a first-class feature in the Segment Personalize integration",
+      "rudderstack": "Impression field in Event supports a list of item IDs shown to the user, passed directly to the Personalize Impression parameter"
+    },
+    "metric_attribution": {
+      "segment": "Not documented in the Segment Personalize integration",
+      "rudderstack": "MetricAttribution with EventAttributionSource field supported in each Event, passed to the Personalize MetricAttribution parameter"
+    },
+    "recommendation_id": {
+      "segment": "Not documented as a first-class field in the Segment Personalize integration",
+      "rudderstack": "RecommendationId field in each Event, passed to the Personalize RecommendationId parameter for attribution"
+    },
+    "event_value": {
+      "segment": "Not documented as a first-class field in the Segment Personalize integration",
+      "rudderstack": "EventValue field (float32 pointer) in each Event, passed to the Personalize EventValue parameter for weighted interactions"
+    },
+    "payload_envelope": {
+      "segment": "Full event JSON is sent to Lambda as the invocation payload; no envelope wrapper",
+      "rudderstack": "JSON envelope with 'choice' (API branch selector) and 'payload' (structured input data) fields; fallback to raw PutEvents when 'choice' is absent"
+    }
+  },
+  "parity_status": "needs_verification",
+  "parity_coverage_percent": null,
+  "notes": "Amazon Personalize is a shared stream destination present in both RudderStack and Segment (Segment slug: amazon-personalize). The fundamental architectural difference is that Segment uses an AWS Lambda intermediary — customers deploy their own Lambda function that receives Segment events and forwards them to the Personalize Events API — while RudderStack directly integrates with the Personalize Events API via the AWS SDK v2 personalizeevents client. RudderStack's implementation supports three distinct API branches: PutEvents (for recording user interactions/track events), PutUsers (for updating user metadata/identify events), and PutItems (for updating item catalog data). The 'choice' field in the JSON payload envelope selects the API branch, with backward compatibility defaulting to PutEvents when absent. RudderStack's implementation is more feature-rich out-of-the-box, supporting EventValue, Impression lists, MetricAttribution, and RecommendationId as first-class fields, whereas these features depend on customer Lambda implementation in Segment. Parity verification requires comparing the output payloads at the Personalize API level — both platforms ultimately call the same AWS PutEvents/PutUsers/PutItems APIs, but the routing and transformation paths differ significantly. RudderStack package: services/streammanager/personalize/. Producer: PersonalizeProducer implementing common.Producer interface. Registered in services/streammanager/streammanager.go and listed in router/customdestinationmanager/customdestinationmanager.go ObjectStreamDestinations array."
+}
