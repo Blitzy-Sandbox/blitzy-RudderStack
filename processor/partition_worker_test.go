@@ -423,6 +423,12 @@ func (m *mockWorkerHandle) userTransformStage(partition string, in *transformati
 	}
 }
 
+func (m *mockWorkerHandle) insertFunctionsStage(_ string, in *userTransformData) *userTransformData {
+	// Insert Functions stage mock: no-op pass-through for testing. In production, this stage
+	// executes per-destination pre-transform hooks when Insert Functions are configured (E-017).
+	return in
+}
+
 func (m *mockWorkerHandle) destinationTransformStage(partition string, in *userTransformData) *storeMessage {
 	if m.limiters.destinationtransform != nil {
 		defer m.limiters.destinationtransform.Begin("")()
