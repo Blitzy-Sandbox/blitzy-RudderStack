@@ -339,7 +339,7 @@ type DgSourceTrackingPlanConfigT struct {
 	MergedConfig        map[string]any                `json:"mergedConfig"`
 	Deleted             bool                          `json:"deleted"`
 	TrackingPlan        TrackingPlanT                 `json:"trackingPlan"`
-	EnforcementConfig   TrackingPlanEnforcementConfig `json:"enforcementConfig"`
+	EnforcementConfig   TrackingPlanEnforcementConfig `json:"enforcementConfig,omitempty"`
 }
 
 func (dgSourceTPConfigT *DgSourceTrackingPlanConfigT) GetMergedConfig(eventType string) map[string]any {

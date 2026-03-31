@@ -463,7 +463,7 @@ Monitoring:
     # Target throughput for capacity planning reports (events per second)
     targetThroughput: 50000
     # Profiling data retention period
-    retentionPeriod: 7d
+    retentionPeriod: 168h
   replay:
     # Enable dry-run mode for advanced replay operations
     dryRunEnabled: false

@@ -79,9 +79,12 @@ type GraphSegment struct {
 // ExternalID represents an external identifier associated with an identity graph segment.
 // Supports 12+ external identifier types (user_id, email, anonymous_id, ios.id, android.id, etc.).
 // Maps to the identity_external_ids table.
+// WorkspaceID is denormalized from identity_graph to enforce workspace-scoped uniqueness
+// at the database level (unique index on workspace_id, external_id_type, external_id_value).
 type ExternalID struct {
 	ID              int64      `json:"id"`
 	GraphID         int64      `json:"graph_id"`
+	WorkspaceID     string     `json:"workspace_id"`
 	ExternalIDType  string     `json:"external_id_type"`
 	ExternalIDValue string     `json:"external_id_value"`
 	CreatedSource   string     `json:"created_source"`
@@ -314,17 +317,19 @@ func (r *PostgresRepository) MergeSegments(ctx context.Context, targetSegmentID 
 }
 
 // AddExternalID inserts a single external identifier into the identity_external_ids table
-// and returns the newly created row's ID.
+// and returns the newly created row's ID. The ExternalID.WorkspaceID field must be set
+// to enforce workspace-scoped uniqueness via the database unique index.
 func (r *PostgresRepository) AddExternalID(ctx context.Context, externalID ExternalID) (int64, error) {
 	now := time.Now()
 	sqlStmt := fmt.Sprintf(
-		`INSERT INTO %s (graph_id, external_id_type, external_id_value, created_source, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		`INSERT INTO %s (graph_id, workspace_id, external_id_type, external_id_value, created_source, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
 		tableIdentityExternalIDs,
 	)
 
 	var id int64
 	err := r.db.QueryRowContext(ctx, sqlStmt,
 		externalID.GraphID,
+		externalID.WorkspaceID,
 		externalID.ExternalIDType,
 		externalID.ExternalIDValue,
 		externalID.CreatedSource,
@@ -352,7 +357,7 @@ func (r *PostgresRepository) AddExternalID(ctx context.Context, externalID Exter
 // Nullable fields (merged_at, merged_from) are handled via sql.NullTime and sql.NullInt64.
 func (r *PostgresRepository) GetExternalIDsBySegment(ctx context.Context, segmentID int64) ([]ExternalID, error) {
 	sqlStmt := fmt.Sprintf(
-		`SELECT id, graph_id, external_id_type, external_id_value, created_source, created_at, merged_at, merged_from FROM %s WHERE graph_id = $1 ORDER BY created_at ASC`,
+		`SELECT id, graph_id, workspace_id, external_id_type, external_id_value, created_source, created_at, merged_at, merged_from FROM %s WHERE graph_id = $1 ORDER BY created_at ASC`,
 		tableIdentityExternalIDs,
 	)
 
@@ -373,7 +378,7 @@ func (r *PostgresRepository) GetExternalIDsBySegment(ctx context.Context, segmen
 		var mergedFrom sql.NullInt64
 
 		if err := rows.Scan(
-			&eid.ID, &eid.GraphID, &eid.ExternalIDType, &eid.ExternalIDValue,
+			&eid.ID, &eid.GraphID, &eid.WorkspaceID, &eid.ExternalIDType, &eid.ExternalIDValue,
 			&eid.CreatedSource, &eid.CreatedAt, &mergedAt, &mergedFrom,
 		); err != nil {
 			r.logger.Errorn("Error scanning external ID row",
@@ -403,12 +408,14 @@ func (r *PostgresRepository) GetExternalIDsBySegment(ctx context.Context, segmen
 
 // LookupByExternalID finds the graph segment owning a specific external ID
 // within a given workspace. Returns nil, nil if no match is found.
+// The query filters on e.workspace_id to leverage the workspace-scoped unique index
+// (workspace_id, external_id_type, external_id_value) on identity_external_ids.
 func (r *PostgresRepository) LookupByExternalID(ctx context.Context, workspaceID, externalIDType, externalIDValue string) (*GraphSegment, error) {
 	sqlStmt := fmt.Sprintf(
 		`SELECT g.id, g.workspace_id, g.segment_id, g.created_at
 		 FROM %s g
 		 JOIN %s e ON g.id = e.graph_id
-		 WHERE g.workspace_id = $1 AND e.external_id_type = $2 AND e.external_id_value = $3
+		 WHERE e.workspace_id = $1 AND e.external_id_type = $2 AND e.external_id_value = $3
 		 LIMIT 1`,
 		tableIdentityGraph, tableIdentityExternalIDs,
 	)
@@ -448,7 +455,7 @@ func (r *PostgresRepository) BulkAddExternalIDs(ctx context.Context, externalIDs
 
 	stmt, err := txn.Prepare(pq.CopyIn(
 		tableIdentityExternalIDs,
-		"graph_id", "external_id_type", "external_id_value", "created_source", "created_at",
+		"graph_id", "workspace_id", "external_id_type", "external_id_value", "created_source", "created_at",
 	))
 	if err != nil {
 		_ = txn.Rollback()
@@ -465,7 +472,7 @@ func (r *PostgresRepository) BulkAddExternalIDs(ctx context.Context, externalIDs
 		if createdAt.IsZero() {
 			createdAt = now
 		}
-		_, err = stmt.Exec(eid.GraphID, eid.ExternalIDType, eid.ExternalIDValue, eid.CreatedSource, createdAt)
+		_, err = stmt.Exec(eid.GraphID, eid.WorkspaceID, eid.ExternalIDType, eid.ExternalIDValue, eid.CreatedSource, createdAt)
 		if err != nil {
 			_ = txn.Rollback()
 			r.logger.Errorn("Error executing COPY row for bulk add external IDs",
