@@ -68,6 +68,69 @@ func (gw *Handle) webGroupHandler() http.HandlerFunc {
 	return gw.callType("group", gw.writeKeyAuth(gw.webHandler()))
 }
 
+// webSourceFunctionsHandler - handler for Source Functions webhook requests (E-015)
+// Routes to the dedicated Source Functions handler in handle_http_functions.go.
+// The handler authenticates via sourceFunctionsAuth (handle_http_auth.go) which supports
+// Bearer token, X-Functions-Token header, and writeKey-based auth, then delegates to
+// sourceFunctionsWebhookHandler which wraps the webhook payload in a batch event format
+// for standard pipeline processing.
+func (gw *Handle) webSourceFunctionsHandler() http.HandlerFunc {
+	return gw.callType("sourceFunctions", gw.sourceFunctionsAuth(gw.sourceFunctionsWebhookHandler()))
+}
+
+// webProtocolsHandler - handler for Protocols/Tracking Plan management API (E-024)
+// This handler delegates to the Protocols API router registered via the protocols package.
+// The actual CRUD logic, versioning, and CSV import/export are in protocols/api/handler.go.
+// The protocols API routes are mounted at /v1/protocols/... in handle_lifecycle.go.
+func (gw *Handle) webProtocolsHandler() http.HandlerFunc {
+	return withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
+		// Delegate to the protocols API handler registered in gw.internalHttpHandlers
+		if handler, ok := gw.internalHttpHandlers["/v1/protocols"]; ok {
+			handler.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "Protocols API not configured", http.StatusServiceUnavailable)
+	})
+}
+
+// webProfilesHandler - handler for Profiles REST API (E-027)
+// This handler delegates to the Identity/Profiles API router registered via the identity package.
+// The actual profile lookup logic (traits, events, external_ids, metadata) is in identity/profiles/api.go.
+// Profiles API targets sub-200ms response times backed by Redis caching.
+func (gw *Handle) webProfilesHandler() http.HandlerFunc {
+	return withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
+		// Delegate to the profiles API handler registered in gw.internalHttpHandlers
+		if handler, ok := gw.internalHttpHandlers["/v1/profiles"]; ok {
+			handler.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "Profiles API not configured", http.StatusServiceUnavailable)
+	})
+}
+
+// webMonitoringHandler - handler for per-destination delivery monitoring dashboard (E-036)
+// Serves per-destination delivery metrics including success/failure rates, latency percentiles
+// (p50/p95/p99), throughput, retry counts, and circuit breaker state.
+// The actual metrics aggregation is in services/monitoring/dashboard.go.
+func (gw *Handle) webMonitoringHandler() http.HandlerFunc {
+	return withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
+		// Delegate to the monitoring dashboard handler registered in gw.internalHttpHandlers
+		if handler, ok := gw.internalHttpHandlers["/v1/monitoring"]; ok {
+			handler.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "Monitoring API not configured", http.StatusServiceUnavailable)
+	})
+}
+
+// webAdvancedReplayHandler - handler for advanced replay with source/date-range/destination filtering and dry-run (E-038)
+// Extends the base replay handler with additional filter parameters parsed from HTTP headers:
+// X-Replay-Source-Filter, X-Replay-Start-Date, X-Replay-End-Date, X-Replay-Destination-Filter, X-Replay-Dry-Run.
+// Advanced filter logic is in handle_http_replay_advanced.go.
+func (gw *Handle) webAdvancedReplayHandler() http.HandlerFunc {
+	return gw.callType("replay", gw.replaySourceIDAuth(gw.withAdvancedReplayFilters(gw.withWarehouseReplayTag(gw.webHandler()))))
+}
+
 // robotsHandler prevents robots from crawling the gateway endpoints
 func (*Handle) robotsHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte("User-agent: * \nDisallow: / \n"))
