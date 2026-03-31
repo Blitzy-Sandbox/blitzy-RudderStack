@@ -1,0 +1,780 @@
+{
+  "destination_type": "CLEARBIT",
+  "destination_tier": "cloud",
+  "segment_slug": "clearbit",
+  "category": "Enrichment",
+  "event_types": ["identify"],
+  "api_endpoint": "https://person.clearbit.com",
+  "authentication": {
+    "type": "basic_auth_or_bearer",
+    "description": "HTTP Basic Auth with API key as username and empty password, or Bearer token in Authorization header",
+    "basic_auth_header": "Authorization: Basic base64(<api_key>:)",
+    "bearer_header": "Authorization: Bearer <api_key>"
+  },
+  "rate_limits": {
+    "default": "600 requests/minute",
+    "notes": "Rate limits returned via X-RateLimit-Limit and X-RateLimit-Remaining headers. Post-HubSpot acquisition, limits may be governed by Breeze Intelligence credit quotas."
+  },
+  "enrichment_apis": {
+    "person": {
+      "endpoint": "https://person.clearbit.com/v2/people/find",
+      "method": "GET",
+      "description": "Look up a person by email address, returns demographic, employment, social, and geographic data",
+      "required_params": ["email"],
+      "optional_params": ["given_name", "family_name", "ip_address", "location", "company", "company_domain", "linkedin", "twitter", "facebook"]
+    },
+    "company": {
+      "endpoint": "https://company.clearbit.com/v2/companies/find",
+      "method": "GET",
+      "description": "Look up a company by domain, returns firmographic, technographic, and financial data",
+      "required_params": ["domain"]
+    },
+    "combined": {
+      "endpoint": "https://person-stream.clearbit.com/v2/combined/find",
+      "method": "GET",
+      "description": "Combined person and company lookup in a single request using email, returns both person and company data",
+      "required_params": ["email"]
+    }
+  },
+  "segment_reference_payloads": {
+    "identify": {
+      "description": "Segment's Clearbit Enrichment integration listens for identify events, extracts the email from traits, calls the Clearbit Combined Enrichment API, and writes enriched person and company data back as traits on the user profile. Clearbit enrichment data appears as nested traits prefixed with clearbit_company.* and clearbit_person.* in downstream destinations.",
+      "input_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "traits": {
+          "email": "jane.doe@acmecorp.com",
+          "name": "Jane Doe",
+          "firstName": "Jane",
+          "lastName": "Doe"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://www.example.com/signup",
+            "title": "Sign Up - Example"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "seg-msg-identify-001"
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://person-stream.clearbit.com/v2/combined/find?email=jane.doe@acmecorp.com",
+        "headers": {
+          "Authorization": "Basic base64(<api_key>:)",
+          "Content-Type": "application/json"
+        }
+      },
+      "enrichment_response": {
+        "person": {
+          "id": "clearbit-person-uuid-001",
+          "avatar": "https://d1ts43dypk8bqh.cloudfront.net/v1/avatars/clearbit-person-uuid-001",
+          "fullName": "Jane Doe",
+          "email": "jane.doe@acmecorp.com",
+          "gender": "female",
+          "location": "San Francisco, CA, US",
+          "timeZone": "America/Los_Angeles",
+          "utcOffset": -8,
+          "geo": {
+            "city": "San Francisco",
+            "state": "California",
+            "stateCode": "CA",
+            "country": "United States",
+            "countryCode": "US",
+            "lat": 37.7749,
+            "lng": -122.4194
+          },
+          "bio": "VP of Engineering at Acme Corp",
+          "site": "https://janedoe.com",
+          "twitter": {
+            "handle": "janedoe",
+            "id": "123456789",
+            "followers": 1250,
+            "following": 340,
+            "statuses": 4200,
+            "likes": 8900,
+            "bio": "VP Engineering @AcmeCorp | Building great products",
+            "site": "https://janedoe.com",
+            "avatar": "https://pbs.twimg.com/profile_images/janedoe.jpg"
+          },
+          "linkedin": {
+            "handle": "in/janedoe"
+          },
+          "facebook": {
+            "handle": "janedoe"
+          },
+          "github": {
+            "handle": "janedoe",
+            "avatar": "https://avatars.githubusercontent.com/u/12345",
+            "company": "Acme Corp",
+            "blog": "https://janedoe.com",
+            "followers": 85,
+            "following": 42
+          },
+          "googleplus": {
+            "handle": null
+          },
+          "gravatar": {
+            "handle": "janedoe",
+            "urls": [],
+            "avatars": []
+          },
+          "fuzzy": false,
+          "emailProvider": false,
+          "indexedAt": "2026-02-20T10:00:00.000Z",
+          "name": {
+            "fullName": "Jane Doe",
+            "givenName": "Jane",
+            "familyName": "Doe"
+          },
+          "employment": {
+            "domain": "acmecorp.com",
+            "name": "Acme Corp",
+            "title": "VP of Engineering",
+            "role": "engineering",
+            "subRole": "engineering_management",
+            "seniority": "executive"
+          }
+        },
+        "company": {
+          "id": "clearbit-company-uuid-001",
+          "name": "Acme Corp",
+          "legalName": "Acme Corporation Inc.",
+          "domain": "acmecorp.com",
+          "domainAliases": ["acme.com"],
+          "url": "https://www.acmecorp.com",
+          "logo": "https://logo.clearbit.com/acmecorp.com",
+          "description": "Acme Corp is a technology company building enterprise SaaS solutions.",
+          "category": {
+            "sector": "Technology",
+            "industryGroup": "Software & Services",
+            "industry": "Application Software",
+            "subIndustry": "Enterprise Software",
+            "sicCode": "7372",
+            "naicsCode": "511210"
+          },
+          "tags": ["SaaS", "B2B", "Enterprise", "Technology"],
+          "emailProvider": false,
+          "type": "private",
+          "ticker": null,
+          "identifiers": {
+            "usEIN": null,
+            "usCIK": null
+          },
+          "phone": "+1-555-000-1234",
+          "site": {
+            "phoneNumbers": ["+1-555-000-1234"],
+            "emailAddresses": ["info@acmecorp.com", "support@acmecorp.com"]
+          },
+          "foundedYear": 2015,
+          "location": "San Francisco, CA, US",
+          "geo": {
+            "streetNumber": "123",
+            "streetName": "Market Street",
+            "subPremise": "Suite 400",
+            "city": "San Francisco",
+            "postalCode": "94105",
+            "state": "California",
+            "stateCode": "CA",
+            "country": "United States",
+            "countryCode": "US",
+            "lat": 37.7937,
+            "lng": -122.3965
+          },
+          "metrics": {
+            "raised": 50000000,
+            "employees": 250,
+            "employeesRange": "201-500",
+            "annualRevenue": null,
+            "estimatedAnnualRevenue": "$10M-$50M",
+            "fiscalYearEnd": 12,
+            "marketCap": null
+          },
+          "facebook": {
+            "handle": "acmecorp",
+            "likes": 5400
+          },
+          "linkedin": {
+            "handle": "company/acme-corp"
+          },
+          "twitter": {
+            "handle": "acmecorp",
+            "id": "987654321",
+            "bio": "Building the future of enterprise software",
+            "followers": 12500,
+            "following": 890,
+            "location": "San Francisco, CA",
+            "site": "https://www.acmecorp.com",
+            "avatar": "https://pbs.twimg.com/profile_images/acmecorp.jpg"
+          },
+          "crunchbase": {
+            "handle": "organization/acme-corp"
+          },
+          "tech": ["ruby", "google-analytics", "aws", "react", "kubernetes", "postgresql"],
+          "techCategories": ["web-framework", "analytics", "cloud-hosting", "javascript-framework", "container-orchestration", "database"],
+          "parent": {
+            "domain": null
+          },
+          "ultimateParent": {
+            "domain": null
+          }
+        }
+      },
+      "enriched_traits_written_back": {
+        "description": "After enrichment, Segment writes the Clearbit data back as traits on the user profile. These traits are then forwarded to downstream destinations.",
+        "traits": {
+          "clearbit_company_name": "Acme Corp",
+          "clearbit_company_domain": "acmecorp.com",
+          "clearbit_company_industry": "Application Software",
+          "clearbit_company_sector": "Technology",
+          "clearbit_company_employees": 250,
+          "clearbit_company_employeesRange": "201-500",
+          "clearbit_company_estimatedAnnualRevenue": "$10M-$50M",
+          "clearbit_company_raised": 50000000,
+          "clearbit_company_type": "private",
+          "clearbit_company_location": "San Francisco, CA, US",
+          "clearbit_company_foundedYear": 2015,
+          "clearbit_company_tags": ["SaaS", "B2B", "Enterprise", "Technology"],
+          "clearbit_company_tech": ["ruby", "google-analytics", "aws", "react", "kubernetes", "postgresql"],
+          "clearbit_person_fullName": "Jane Doe",
+          "clearbit_person_title": "VP of Engineering",
+          "clearbit_person_role": "engineering",
+          "clearbit_person_seniority": "executive",
+          "clearbit_person_employment_name": "Acme Corp",
+          "clearbit_person_employment_domain": "acmecorp.com",
+          "clearbit_person_location": "San Francisco, CA, US",
+          "clearbit_person_timeZone": "America/Los_Angeles",
+          "clearbit_person_gender": "female",
+          "clearbit_person_bio": "VP of Engineering at Acme Corp",
+          "clearbit_person_avatar": "https://d1ts43dypk8bqh.cloudfront.net/v1/avatars/clearbit-person-uuid-001",
+          "clearbit_person_twitter_handle": "janedoe",
+          "clearbit_person_linkedin_handle": "in/janedoe",
+          "clearbit_person_github_handle": "janedoe"
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "identify": {
+      "description": "RudderStack maps identify calls to the Clearbit Combined Enrichment API, following the same pattern as Segment. The email from traits is used to call the Clearbit API, and enriched person/company data is written back as traits. RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event.",
+      "input_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "traits": {
+          "email": "jane.doe@acmecorp.com",
+          "name": "Jane Doe",
+          "firstName": "Jane",
+          "lastName": "Doe"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://www.example.com/signup",
+            "title": "Sign Up - Example"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "rs-msg-identify-001",
+        "rudderId": "rudder-uuid-identify-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://person-stream.clearbit.com/v2/combined/find?email=jane.doe@acmecorp.com",
+        "headers": {
+          "Authorization": "Basic base64(<api_key>:)",
+          "Content-Type": "application/json"
+        }
+      },
+      "enrichment_response": {
+        "person": {
+          "id": "clearbit-person-uuid-001",
+          "avatar": "https://d1ts43dypk8bqh.cloudfront.net/v1/avatars/clearbit-person-uuid-001",
+          "fullName": "Jane Doe",
+          "email": "jane.doe@acmecorp.com",
+          "gender": "female",
+          "location": "San Francisco, CA, US",
+          "timeZone": "America/Los_Angeles",
+          "utcOffset": -8,
+          "geo": {
+            "city": "San Francisco",
+            "state": "California",
+            "stateCode": "CA",
+            "country": "United States",
+            "countryCode": "US",
+            "lat": 37.7749,
+            "lng": -122.4194
+          },
+          "bio": "VP of Engineering at Acme Corp",
+          "site": "https://janedoe.com",
+          "twitter": {
+            "handle": "janedoe",
+            "id": "123456789",
+            "followers": 1250,
+            "following": 340,
+            "statuses": 4200,
+            "likes": 8900,
+            "bio": "VP Engineering @AcmeCorp | Building great products",
+            "site": "https://janedoe.com",
+            "avatar": "https://pbs.twimg.com/profile_images/janedoe.jpg"
+          },
+          "linkedin": {
+            "handle": "in/janedoe"
+          },
+          "facebook": {
+            "handle": "janedoe"
+          },
+          "github": {
+            "handle": "janedoe",
+            "avatar": "https://avatars.githubusercontent.com/u/12345",
+            "company": "Acme Corp",
+            "blog": "https://janedoe.com",
+            "followers": 85,
+            "following": 42
+          },
+          "googleplus": {
+            "handle": null
+          },
+          "gravatar": {
+            "handle": "janedoe",
+            "urls": [],
+            "avatars": []
+          },
+          "fuzzy": false,
+          "emailProvider": false,
+          "indexedAt": "2026-02-20T10:00:00.000Z",
+          "name": {
+            "fullName": "Jane Doe",
+            "givenName": "Jane",
+            "familyName": "Doe"
+          },
+          "employment": {
+            "domain": "acmecorp.com",
+            "name": "Acme Corp",
+            "title": "VP of Engineering",
+            "role": "engineering",
+            "subRole": "engineering_management",
+            "seniority": "executive"
+          }
+        },
+        "company": {
+          "id": "clearbit-company-uuid-001",
+          "name": "Acme Corp",
+          "legalName": "Acme Corporation Inc.",
+          "domain": "acmecorp.com",
+          "domainAliases": ["acme.com"],
+          "url": "https://www.acmecorp.com",
+          "logo": "https://logo.clearbit.com/acmecorp.com",
+          "description": "Acme Corp is a technology company building enterprise SaaS solutions.",
+          "category": {
+            "sector": "Technology",
+            "industryGroup": "Software & Services",
+            "industry": "Application Software",
+            "subIndustry": "Enterprise Software",
+            "sicCode": "7372",
+            "naicsCode": "511210"
+          },
+          "tags": ["SaaS", "B2B", "Enterprise", "Technology"],
+          "emailProvider": false,
+          "type": "private",
+          "ticker": null,
+          "identifiers": {
+            "usEIN": null,
+            "usCIK": null
+          },
+          "phone": "+1-555-000-1234",
+          "site": {
+            "phoneNumbers": ["+1-555-000-1234"],
+            "emailAddresses": ["info@acmecorp.com", "support@acmecorp.com"]
+          },
+          "foundedYear": 2015,
+          "location": "San Francisco, CA, US",
+          "geo": {
+            "streetNumber": "123",
+            "streetName": "Market Street",
+            "subPremise": "Suite 400",
+            "city": "San Francisco",
+            "postalCode": "94105",
+            "state": "California",
+            "stateCode": "CA",
+            "country": "United States",
+            "countryCode": "US",
+            "lat": 37.7937,
+            "lng": -122.3965
+          },
+          "metrics": {
+            "raised": 50000000,
+            "employees": 250,
+            "employeesRange": "201-500",
+            "annualRevenue": null,
+            "estimatedAnnualRevenue": "$10M-$50M",
+            "fiscalYearEnd": 12,
+            "marketCap": null
+          },
+          "facebook": {
+            "handle": "acmecorp",
+            "likes": 5400
+          },
+          "linkedin": {
+            "handle": "company/acme-corp"
+          },
+          "twitter": {
+            "handle": "acmecorp",
+            "id": "987654321",
+            "bio": "Building the future of enterprise software",
+            "followers": 12500,
+            "following": 890,
+            "location": "San Francisco, CA",
+            "site": "https://www.acmecorp.com",
+            "avatar": "https://pbs.twimg.com/profile_images/acmecorp.jpg"
+          },
+          "crunchbase": {
+            "handle": "organization/acme-corp"
+          },
+          "tech": ["ruby", "google-analytics", "aws", "react", "kubernetes", "postgresql"],
+          "techCategories": ["web-framework", "analytics", "cloud-hosting", "javascript-framework", "container-orchestration", "database"],
+          "parent": {
+            "domain": null
+          },
+          "ultimateParent": {
+            "domain": null
+          }
+        }
+      },
+      "enriched_traits_written_back": {
+        "description": "After enrichment, RudderStack writes the Clearbit data back as traits on the user profile, following the same trait naming convention as Segment. These traits are then forwarded to downstream destinations via the Transformer service.",
+        "traits": {
+          "clearbit_company_name": "Acme Corp",
+          "clearbit_company_domain": "acmecorp.com",
+          "clearbit_company_industry": "Application Software",
+          "clearbit_company_sector": "Technology",
+          "clearbit_company_employees": 250,
+          "clearbit_company_employeesRange": "201-500",
+          "clearbit_company_estimatedAnnualRevenue": "$10M-$50M",
+          "clearbit_company_raised": 50000000,
+          "clearbit_company_type": "private",
+          "clearbit_company_location": "San Francisco, CA, US",
+          "clearbit_company_foundedYear": 2015,
+          "clearbit_company_tags": ["SaaS", "B2B", "Enterprise", "Technology"],
+          "clearbit_company_tech": ["ruby", "google-analytics", "aws", "react", "kubernetes", "postgresql"],
+          "clearbit_person_fullName": "Jane Doe",
+          "clearbit_person_title": "VP of Engineering",
+          "clearbit_person_role": "engineering",
+          "clearbit_person_seniority": "executive",
+          "clearbit_person_employment_name": "Acme Corp",
+          "clearbit_person_employment_domain": "acmecorp.com",
+          "clearbit_person_location": "San Francisco, CA, US",
+          "clearbit_person_timeZone": "America/Los_Angeles",
+          "clearbit_person_gender": "female",
+          "clearbit_person_bio": "VP of Engineering at Acme Corp",
+          "clearbit_person_avatar": "https://d1ts43dypk8bqh.cloudfront.net/v1/avatars/clearbit-person-uuid-001",
+          "clearbit_person_twitter_handle": "janedoe",
+          "clearbit_person_linkedin_handle": "in/janedoe",
+          "clearbit_person_github_handle": "janedoe"
+        }
+      }
+    }
+  },
+  "field_mappings": {
+    "identify": {
+      "email_as_lookup_key": {
+        "segment_field": "traits.email",
+        "clearbit_field": "email query parameter",
+        "description": "The email from the identify call's traits is used as the primary lookup key for the Clearbit Enrichment API. Both Segment and RudderStack extract traits.email to query the Combined Person/Company endpoint.",
+        "parity_status": "equivalent"
+      },
+      "person_name": {
+        "segment_field": "enriched traits: clearbit_person_fullName",
+        "clearbit_field": "person.name.fullName",
+        "description": "Person's full name from Clearbit enrichment response is mapped to clearbit_person_fullName trait.",
+        "parity_status": "equivalent"
+      },
+      "person_given_name": {
+        "segment_field": "enriched traits: clearbit_person_givenName",
+        "clearbit_field": "person.name.givenName",
+        "description": "Person's given (first) name from Clearbit enrichment.",
+        "parity_status": "equivalent"
+      },
+      "person_family_name": {
+        "segment_field": "enriched traits: clearbit_person_familyName",
+        "clearbit_field": "person.name.familyName",
+        "description": "Person's family (last) name from Clearbit enrichment.",
+        "parity_status": "equivalent"
+      },
+      "person_employment_title": {
+        "segment_field": "enriched traits: clearbit_person_title",
+        "clearbit_field": "person.employment.title",
+        "description": "Person's job title from Clearbit employment data. Maps to trait for downstream use in lead scoring and routing.",
+        "parity_status": "equivalent"
+      },
+      "person_employment_role": {
+        "segment_field": "enriched traits: clearbit_person_role",
+        "clearbit_field": "person.employment.role",
+        "description": "Person's functional role (e.g., 'engineering', 'marketing', 'sales'). Used for persona segmentation.",
+        "parity_status": "equivalent"
+      },
+      "person_employment_seniority": {
+        "segment_field": "enriched traits: clearbit_person_seniority",
+        "clearbit_field": "person.employment.seniority",
+        "description": "Person's seniority level (e.g., 'executive', 'manager', 'director'). Used for lead prioritization.",
+        "parity_status": "equivalent"
+      },
+      "person_location": {
+        "segment_field": "enriched traits: clearbit_person_location",
+        "clearbit_field": "person.location",
+        "description": "Person's geographic location string (e.g., 'San Francisco, CA, US').",
+        "parity_status": "equivalent"
+      },
+      "person_time_zone": {
+        "segment_field": "enriched traits: clearbit_person_timeZone",
+        "clearbit_field": "person.timeZone",
+        "description": "Person's IANA time zone identifier (e.g., 'America/Los_Angeles').",
+        "parity_status": "equivalent"
+      },
+      "person_gender": {
+        "segment_field": "enriched traits: clearbit_person_gender",
+        "clearbit_field": "person.gender",
+        "description": "Person's inferred gender. Note: Clearbit infers gender from name data.",
+        "parity_status": "equivalent"
+      },
+      "person_bio": {
+        "segment_field": "enriched traits: clearbit_person_bio",
+        "clearbit_field": "person.bio",
+        "description": "Person's biographical description, typically sourced from social profiles.",
+        "parity_status": "equivalent"
+      },
+      "person_avatar": {
+        "segment_field": "enriched traits: clearbit_person_avatar",
+        "clearbit_field": "person.avatar",
+        "description": "URL to person's avatar image hosted by Clearbit CDN.",
+        "parity_status": "equivalent"
+      },
+      "person_twitter_handle": {
+        "segment_field": "enriched traits: clearbit_person_twitter_handle",
+        "clearbit_field": "person.twitter.handle",
+        "description": "Person's Twitter/X handle without @ prefix.",
+        "parity_status": "equivalent"
+      },
+      "person_linkedin_handle": {
+        "segment_field": "enriched traits: clearbit_person_linkedin_handle",
+        "clearbit_field": "person.linkedin.handle",
+        "description": "Person's LinkedIn profile path (e.g., 'in/janedoe').",
+        "parity_status": "equivalent"
+      },
+      "person_github_handle": {
+        "segment_field": "enriched traits: clearbit_person_github_handle",
+        "clearbit_field": "person.github.handle",
+        "description": "Person's GitHub username.",
+        "parity_status": "equivalent"
+      },
+      "company_name": {
+        "segment_field": "enriched traits: clearbit_company_name",
+        "clearbit_field": "company.name",
+        "description": "Company name from Clearbit company enrichment data.",
+        "parity_status": "equivalent"
+      },
+      "company_domain": {
+        "segment_field": "enriched traits: clearbit_company_domain",
+        "clearbit_field": "company.domain",
+        "description": "Company's primary domain name.",
+        "parity_status": "equivalent"
+      },
+      "company_industry": {
+        "segment_field": "enriched traits: clearbit_company_industry",
+        "clearbit_field": "company.category.industry",
+        "description": "Company's industry classification from Clearbit's category taxonomy.",
+        "parity_status": "equivalent"
+      },
+      "company_sector": {
+        "segment_field": "enriched traits: clearbit_company_sector",
+        "clearbit_field": "company.category.sector",
+        "description": "Company's sector classification (e.g., 'Technology', 'Healthcare').",
+        "parity_status": "equivalent"
+      },
+      "company_employees": {
+        "segment_field": "enriched traits: clearbit_company_employees",
+        "clearbit_field": "company.metrics.employees",
+        "description": "Company's estimated employee count as an integer.",
+        "parity_status": "equivalent"
+      },
+      "company_employees_range": {
+        "segment_field": "enriched traits: clearbit_company_employeesRange",
+        "clearbit_field": "company.metrics.employeesRange",
+        "description": "Company's employee count range bucket (e.g., '201-500', '51-200').",
+        "parity_status": "equivalent"
+      },
+      "company_estimated_annual_revenue": {
+        "segment_field": "enriched traits: clearbit_company_estimatedAnnualRevenue",
+        "clearbit_field": "company.metrics.estimatedAnnualRevenue",
+        "description": "Company's estimated annual revenue range string (e.g., '$10M-$50M').",
+        "parity_status": "equivalent"
+      },
+      "company_raised": {
+        "segment_field": "enriched traits: clearbit_company_raised",
+        "clearbit_field": "company.metrics.raised",
+        "description": "Total funding raised by the company in USD (integer).",
+        "parity_status": "equivalent"
+      },
+      "company_type": {
+        "segment_field": "enriched traits: clearbit_company_type",
+        "clearbit_field": "company.type",
+        "description": "Company type: 'private', 'public', 'nonprofit', 'education', 'government'.",
+        "parity_status": "equivalent"
+      },
+      "company_location": {
+        "segment_field": "enriched traits: clearbit_company_location",
+        "clearbit_field": "company.location",
+        "description": "Company's headquarters location string.",
+        "parity_status": "equivalent"
+      },
+      "company_founded_year": {
+        "segment_field": "enriched traits: clearbit_company_foundedYear",
+        "clearbit_field": "company.foundedYear",
+        "description": "Year the company was founded (integer).",
+        "parity_status": "equivalent"
+      },
+      "company_tags": {
+        "segment_field": "enriched traits: clearbit_company_tags",
+        "clearbit_field": "company.tags",
+        "description": "Array of descriptive tags for the company (e.g., ['SaaS', 'B2B']).",
+        "parity_status": "equivalent"
+      },
+      "company_tech_stack": {
+        "segment_field": "enriched traits: clearbit_company_tech",
+        "clearbit_field": "company.tech",
+        "description": "Array of technology identifiers detected on the company's website (e.g., ['react', 'aws', 'postgresql']).",
+        "parity_status": "equivalent"
+      },
+      "enrichment_trait_naming": {
+        "segment_field": "clearbit_<category>_<field>",
+        "clearbit_field": "person.* / company.*",
+        "description": "Both Segment and RudderStack use a flattened trait naming convention with clearbit_ prefix to namespace enrichment data. The exact trait key format may vary slightly between implementations.",
+        "parity_status": "needs_verification",
+        "known_gap": "Trait key naming convention (e.g., clearbit_company_name vs clearbit.company.name vs company.name) may differ between Segment and RudderStack implementations. Verify exact Transformer output."
+      }
+    },
+    "enrichment_request_response": {
+      "description": "Clearbit Enrichment is unique among destinations because it enriches the event rather than simply forwarding it. Both platforms send a GET request to the Clearbit Combined API with the user's email, receive person + company data, and write it back as traits.",
+      "request_flow": {
+        "step_1": "Receive identify event with traits.email",
+        "step_2": "Extract email from traits",
+        "step_3": "Call Clearbit Combined Enrichment API: GET https://person-stream.clearbit.com/v2/combined/find?email=<email>",
+        "step_4": "Receive enrichment response with person and company objects",
+        "step_5": "Flatten enrichment response into trait key-value pairs with clearbit_ prefix",
+        "step_6": "Write enriched traits back to user profile",
+        "step_7": "Forward enriched identify event (with new traits) to downstream destinations"
+      },
+      "async_handling": {
+        "description": "Clearbit may return HTTP 202 Accepted if the person/company data is not immediately available. The streaming API (person-stream.clearbit.com) holds the connection open for up to 60 seconds to avoid 202 responses. Webhook-based async delivery is also supported.",
+        "segment_approach": "Uses streaming API by default; falls back to webhook for async cases",
+        "rudderstack_approach": "Uses Transformer service to handle Clearbit API calls; async handling via Transformer retry logic",
+        "parity_status": "needs_verification",
+        "known_gap": "Async enrichment handling (202 Accepted, webhook callbacks) may differ between Segment and RudderStack Transformer implementations"
+      }
+    }
+  },
+  "parity_analysis": {
+    "overall_status": "needs_verification",
+    "identify_parity": {
+      "status": "high_confidence",
+      "description": "Identify calls trigger Clearbit enrichment via the Combined API. Both Segment and RudderStack extract traits.email, call the same Clearbit API endpoint, and write enriched data back as traits. The core enrichment flow is architecturally equivalent.",
+      "known_gaps": [
+        "Trait naming convention: exact prefix and separator format may differ between Segment and RudderStack Transformer output (clearbit_company_name vs company.name)",
+        "Async handling: 202 Accepted response handling and retry behavior may differ",
+        "Enrichment data freshness: Clearbit caches data and de-duplicates API calls within billing periods; behavior may vary based on API key configuration",
+        "Error handling: Behavior on 404 (person not found), 422 (invalid email), and 429 (rate limit exceeded) may differ",
+        "RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are not present in Segment events"
+      ]
+    },
+    "enrichment_architecture_parity": {
+      "status": "medium_confidence",
+      "description": "Both platforms use the Clearbit Combined Enrichment API (person + company in one call). The key architectural difference is that Segment's Clearbit integration runs as a native server-side destination, while RudderStack delegates enrichment to the Transformer service (port 9090).",
+      "known_gaps": [
+        "Segment uses a native Clearbit integration with direct API calls; RudderStack uses the Transformer service as a proxy",
+        "Streaming API vs webhook handling for async enrichment responses",
+        "Rate limit management and credit consumption tracking differences",
+        "Clearbit was acquired by HubSpot; integration may evolve toward Breeze Intelligence"
+      ]
+    },
+    "destination_api_differences": [
+      {
+        "area": "Enrichment Trigger",
+        "segment_approach": "Clearbit Enrichment integration listens for identify events with traits.email automatically",
+        "rudderstack_approach": "Transformer service handles enrichment API calls when Clearbit destination is configured",
+        "gap": "Verify identical trigger conditions and email extraction logic"
+      },
+      {
+        "area": "API Endpoint Selection",
+        "segment_approach": "Uses Combined API (person-stream.clearbit.com) for person + company data in one call",
+        "rudderstack_approach": "Transformer uses Combined API endpoint for enrichment",
+        "gap": "Verify same API version and endpoint are used"
+      },
+      {
+        "area": "Enriched Trait Writeback",
+        "segment_approach": "Writes enriched data back as traits on the user profile with clearbit_ prefix, then forwards to downstream destinations",
+        "rudderstack_approach": "Transformer writes enriched data back as traits, forwarded via Router to downstream destinations",
+        "gap": "Verify identical trait key naming and data type preservation"
+      },
+      {
+        "area": "Authentication",
+        "segment_approach": "API key configured in Clearbit destination settings, sent via HTTP Basic Auth",
+        "rudderstack_approach": "API key from destination configuration, sent via HTTP Basic Auth through Transformer",
+        "gap": "Verify identical auth header format"
+      },
+      {
+        "area": "Error and 404 Handling",
+        "segment_approach": "On 404 (person not found), no enrichment traits are added; event continues without enrichment",
+        "rudderstack_approach": "Transformer handles 404 responses; event continues without enrichment data",
+        "gap": "Verify identical behavior on person/company not found (404), invalid email (422), and rate limit (429)"
+      },
+      {
+        "area": "Async Enrichment (202 Accepted)",
+        "segment_approach": "Uses streaming API to hold connection; webhook callback for truly async cases",
+        "rudderstack_approach": "Transformer may retry or use streaming API; webhook callback handling may differ",
+        "gap": "Verify async enrichment handling is equivalent"
+      }
+    ]
+  },
+  "destination_config": {
+    "required_settings": {
+      "apiKey": {
+        "type": "string",
+        "description": "Clearbit API key used for authentication. Sent as HTTP Basic Auth username with empty password, or as Bearer token.",
+        "sensitive": true
+      }
+    },
+    "optional_settings": {
+      "enableEnrichment": {
+        "type": "boolean",
+        "description": "Enable person and company enrichment on identify events",
+        "default": true
+      },
+      "enableReveal": {
+        "type": "boolean",
+        "description": "Enable company reveal from IP address on page events. Uses the Clearbit Reveal API (separate from Enrichment).",
+        "default": false
+      },
+      "useStreamingApi": {
+        "type": "boolean",
+        "description": "Use the streaming API (person-stream.clearbit.com) to hold connection open for up to 60 seconds instead of receiving 202 Accepted responses",
+        "default": true
+      }
+    }
+  },
+  "notes": "Clearbit is a shared cloud destination in the Enrichment category. Unlike most destinations that forward events to an external API, Clearbit is an enrichment destination that augments identify events with person and company data from the Clearbit Combined Enrichment API. The enrichment flow: (1) identify event received with traits.email, (2) Clearbit Combined API queried with email, (3) person data (name, employment, social, geo) and company data (firmographics, technographics, metrics) returned, (4) enriched data written back as traits with clearbit_ prefix, (5) enriched event forwarded to downstream destinations. Clearbit was acquired by HubSpot in 2023 and is being rebranded as Breeze Intelligence. The Person API endpoint is person.clearbit.com/v2/people/find, the Company API is company.clearbit.com/v2/companies/find, and the Combined API is person-stream.clearbit.com/v2/combined/find. Authentication uses HTTP Basic Auth (API key as username, empty password). Rate limit: 600 requests/minute. Key parity areas: (1) enrichment trait naming convention, (2) async 202 handling, (3) error handling for 404/422/429 responses, (4) enrichment data completeness and field mapping. Clearbit returns 100+ data attributes across person and company objects."
+}
