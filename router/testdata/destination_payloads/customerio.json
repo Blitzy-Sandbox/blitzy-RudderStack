@@ -1,0 +1,574 @@
+{
+  "destination_type": "CUSTOMERIO",
+  "destination_tier": "cloud",
+  "category": "Email Marketing, Marketing Automation",
+  "segment_slug": "customer-io",
+  "segment_new_slug": "actions-customerio",
+  "rudderstack_docs": "https://www.rudderstack.com/docs/destinations/streaming-destinations/customer.io/",
+  "segment_docs": "https://segment.com/docs/connections/destinations/catalog/actions-customerio/",
+  "authentication": {
+    "method": "basic_auth",
+    "description": "Customer.io Track API uses HTTP Basic authentication with site_id as the username and API key as the password. All requests to track.customer.io require this authentication.",
+    "headers": {
+      "Authorization": "Basic base64({site_id}:{api_key})",
+      "Content-Type": "application/json"
+    },
+    "segment_config": {
+      "site_id": "Configured in Segment destination settings as 'Site ID'",
+      "api_key": "Configured in Segment destination settings as 'API Key'"
+    },
+    "rudderstack_config": {
+      "site_id": "Configured in RudderStack destination settings as 'siteID'",
+      "api_key": "Configured in RudderStack destination settings as 'apiKey'"
+    },
+    "parity": "MATCH"
+  },
+  "event_types": ["track", "identify", "page", "screen"],
+  "segment_reference_payloads": {
+    "identify": {
+      "description": "Segment maps identify calls to the Customer.io Track API v1 PUT /api/v1/customers/{identifier} endpoint. The userId becomes the customer identifier in the URL path. Traits are sent as top-level customer attributes. The email trait is treated as a special field for Customer.io's messaging capabilities. The created_at field is converted from ISO-8601 to a Unix timestamp.",
+      "api_endpoint": "PUT https://track.customer.io/api/v1/customers/{identifier}",
+      "payload": {
+        "email": "alex@example.com",
+        "created_at": 1740484800,
+        "first_name": "Alex",
+        "last_name": "Keener",
+        "plan": "premium",
+        "logins": 42,
+        "age": 32,
+        "address": {
+          "street": "123 Main St",
+          "city": "San Francisco",
+          "state": "CA",
+          "postal_code": "94105",
+          "country": "US"
+        },
+        "phone": "+14155551234",
+        "company": "Acme Corp",
+        "title": "Senior Engineer",
+        "website": "https://alex.example.com"
+      },
+      "url_parameters": {
+        "identifier": "user_123"
+      },
+      "notes": "Segment derives the {identifier} from userId. If userId is not set but email is present in traits, Customer.io may use email as the identifier depending on workspace configuration. Segment converts camelCase trait names to snake_case for certain reserved fields (firstName → first_name, lastName → last_name)."
+    },
+    "track": {
+      "description": "Segment maps track calls to the Customer.io Track API v1 POST /api/v1/customers/{identifier}/events endpoint. The event name from the Segment spec maps to the 'name' field in Customer.io. Event properties are sent under the 'data' object. Timestamps are converted from ISO-8601 to Unix epoch seconds.",
+      "api_endpoint": "POST https://track.customer.io/api/v1/customers/{identifier}/events",
+      "payload": {
+        "name": "Product Viewed",
+        "type": "event",
+        "data": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": 49.99,
+          "quantity": 1,
+          "currency": "USD",
+          "category": "Widgets",
+          "url": "https://example.com/products/premium-widget",
+          "image_url": "https://example.com/images/premium-widget.png"
+        },
+        "timestamp": 1740484800
+      },
+      "url_parameters": {
+        "identifier": "user_123"
+      },
+      "notes": "Segment maps properties.revenue to data.$value if present for e-commerce events, enabling revenue tracking in Customer.io. Anonymous events without a userId are sent to POST /api/v1/events with an anonymous_id field instead."
+    },
+    "page": {
+      "description": "Segment maps page calls to the Customer.io Track API v1 POST /api/v1/customers/{identifier}/events endpoint with type set to 'page'. The page name maps to 'name' and page properties are sent under the 'data' object, including the URL, referrer, title, and path from the Segment page spec.",
+      "api_endpoint": "POST https://track.customer.io/api/v1/customers/{identifier}/events",
+      "payload": {
+        "type": "page",
+        "name": "Home",
+        "data": {
+          "url": "https://example.com/",
+          "title": "Welcome to Example",
+          "path": "/",
+          "referrer": "https://google.com/",
+          "search": "",
+          "keywords": ["example", "home"]
+        },
+        "timestamp": 1740484800
+      },
+      "url_parameters": {
+        "identifier": "user_123"
+      },
+      "notes": "Segment sends page calls as Customer.io events with type 'page'. The page name becomes the event name for segmentation and campaign triggering in Customer.io."
+    },
+    "screen": {
+      "description": "Segment maps screen calls to the Customer.io Track API v1 POST /api/v1/customers/{identifier}/events endpoint with type set to 'screen'. The screen name maps to 'name' and screen properties are sent under the 'data' object.",
+      "api_endpoint": "POST https://track.customer.io/api/v1/customers/{identifier}/events",
+      "payload": {
+        "type": "screen",
+        "name": "Dashboard",
+        "data": {
+          "dashboard_id": "dash_001",
+          "section": "overview",
+          "widgets_loaded": 5
+        },
+        "timestamp": 1740484800
+      },
+      "url_parameters": {
+        "identifier": "user_123"
+      },
+      "notes": "Segment sends screen calls as Customer.io events with type 'screen'. This enables mobile app screen tracking within Customer.io for campaign targeting based on screens viewed."
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "identify": {
+      "description": "RudderStack maps identify calls to the Customer.io Track API v1 PUT /api/v1/customers/{identifier} endpoint. The userId is used as the customer identifier in the URL path. Traits from the identify call are mapped as top-level customer attributes. RudderStack converts trait names from camelCase to snake_case for known reserved fields.",
+      "api_endpoint": "PUT https://track.customer.io/api/v1/customers/{identifier}",
+      "payload": {
+        "email": "alex@example.com",
+        "created_at": 1740484800,
+        "first_name": "Alex",
+        "last_name": "Keener",
+        "plan": "premium",
+        "logins": 42,
+        "age": 32,
+        "address": {
+          "street": "123 Main St",
+          "city": "San Francisco",
+          "state": "CA",
+          "postal_code": "94105",
+          "country": "US"
+        },
+        "phone": "+14155551234",
+        "company": "Acme Corp",
+        "title": "Senior Engineer",
+        "website": "https://alex.example.com"
+      },
+      "url_parameters": {
+        "identifier": "user_123"
+      },
+      "notes": "RudderStack derives the {identifier} from userId. If userId is absent but traits.email exists, RudderStack falls back to email as the identifier. The created_at field is converted from ISO-8601 to Unix timestamp. RudderStack flattens nested trait objects based on destination configuration."
+    },
+    "track": {
+      "description": "RudderStack maps track calls to the Customer.io Track API v1 POST /api/v1/customers/{identifier}/events endpoint. The event name is mapped to the 'name' field, and properties are placed in the 'data' object. Timestamps are converted from ISO-8601 to Unix epoch seconds.",
+      "api_endpoint": "POST https://track.customer.io/api/v1/customers/{identifier}/events",
+      "payload": {
+        "name": "Product Viewed",
+        "type": "event",
+        "data": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": 49.99,
+          "quantity": 1,
+          "currency": "USD",
+          "category": "Widgets",
+          "url": "https://example.com/products/premium-widget",
+          "image_url": "https://example.com/images/premium-widget.png"
+        },
+        "timestamp": 1740484800
+      },
+      "url_parameters": {
+        "identifier": "user_123"
+      },
+      "notes": "RudderStack maps properties.revenue to data.$value for e-commerce revenue tracking. For anonymous events (no userId), RudderStack sends to POST /api/v1/events with an anonymous_id field. RudderStack strips internal envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) before delivery."
+    },
+    "page": {
+      "description": "RudderStack maps page calls to the Customer.io Track API v1 POST /api/v1/customers/{identifier}/events endpoint with type set to 'page'. The page name maps to 'name' and page properties are sent under the 'data' object.",
+      "api_endpoint": "POST https://track.customer.io/api/v1/customers/{identifier}/events",
+      "payload": {
+        "type": "page",
+        "name": "Home",
+        "data": {
+          "url": "https://example.com/",
+          "title": "Welcome to Example",
+          "path": "/",
+          "referrer": "https://google.com/",
+          "search": "",
+          "keywords": ["example", "home"]
+        },
+        "timestamp": 1740484800
+      },
+      "url_parameters": {
+        "identifier": "user_123"
+      },
+      "notes": "RudderStack sends page calls as Customer.io events with type 'page'. The page name from the RudderStack event maps to the Customer.io event name."
+    },
+    "screen": {
+      "description": "RudderStack maps screen calls to the Customer.io Track API v1 POST /api/v1/customers/{identifier}/events endpoint with type set to 'screen'. The screen name maps to 'name' and screen properties are sent under the 'data' object.",
+      "api_endpoint": "POST https://track.customer.io/api/v1/customers/{identifier}/events",
+      "payload": {
+        "type": "screen",
+        "name": "Dashboard",
+        "data": {
+          "dashboard_id": "dash_001",
+          "section": "overview",
+          "widgets_loaded": 5
+        },
+        "timestamp": 1740484800
+      },
+      "url_parameters": {
+        "identifier": "user_123"
+      },
+      "notes": "RudderStack sends screen calls as Customer.io events with type 'screen'. The screen name from the RudderStack event maps to the Customer.io event name."
+    }
+  },
+  "field_mappings": {
+    "customer_identification": {
+      "segment_field": "userId",
+      "rudderstack_field": "userId",
+      "customerio_field": "identifier (URL path parameter)",
+      "description": "Both Segment and RudderStack use userId as the primary customer identifier for Customer.io. The userId is placed in the URL path as the {identifier} parameter. If userId is absent, both platforms can fall back to email from traits.",
+      "parity_status": "MATCH",
+      "gap_detail": null
+    },
+    "email_identification": {
+      "segment_field": "traits.email or context.traits.email",
+      "rudderstack_field": "traits.email or context.traits.email",
+      "customerio_field": "email (top-level attribute)",
+      "description": "Email is a critical identifier in Customer.io, used for messaging and as a fallback identifier when userId is not set. Both platforms map traits.email to the Customer.io email attribute. Customer.io workspace configuration determines whether id or email is the primary identifier.",
+      "parity_status": "MATCH",
+      "gap_detail": null
+    },
+    "anonymous_id_handling": {
+      "segment_field": "anonymousId",
+      "rudderstack_field": "anonymousId",
+      "customerio_field": "anonymous_id (in event payload for anonymous events)",
+      "description": "When no userId is present, both platforms send anonymous events using the anonymousId. Customer.io associates anonymous events with identified users when a subsequent identify call links the anonymousId to a userId.",
+      "parity_status": "MATCH",
+      "gap_detail": null
+    },
+    "created_at_timestamp": {
+      "segment_field": "traits.createdAt (ISO-8601)",
+      "rudderstack_field": "traits.createdAt (ISO-8601)",
+      "customerio_field": "created_at (Unix timestamp in seconds)",
+      "description": "Both platforms convert the ISO-8601 createdAt trait to Unix epoch seconds for Customer.io's created_at field. This field determines when the customer was first created in Customer.io and affects campaign trigger timing.",
+      "parity_status": "MATCH",
+      "gap_detail": null
+    },
+    "event_name_mapping": {
+      "segment_field": "event",
+      "rudderstack_field": "event",
+      "customerio_field": "name",
+      "description": "The event name from the Segment spec 'event' field maps to Customer.io's 'name' field in the events endpoint payload. Both platforms perform this mapping identically.",
+      "parity_status": "MATCH",
+      "gap_detail": null
+    },
+    "event_properties_mapping": {
+      "segment_field": "properties",
+      "rudderstack_field": "properties",
+      "customerio_field": "data",
+      "description": "Event properties from the Segment spec are nested under the 'data' key in the Customer.io event payload. Both platforms map properties to data with the same structure. Nested objects, arrays, and arrays of objects are preserved.",
+      "parity_status": "MATCH",
+      "gap_detail": null
+    },
+    "revenue_value_mapping": {
+      "segment_field": "properties.revenue → data.$value",
+      "rudderstack_field": "properties.revenue → data.$value",
+      "customerio_field": "data.$value",
+      "description": "For e-commerce events, both platforms map properties.revenue to data.$value, which Customer.io uses for revenue tracking and reporting in campaign metrics.",
+      "parity_status": "NEEDS_VERIFICATION",
+      "gap_detail": "Verify that both platforms consistently map revenue to $value and handle currency conversion identically."
+    },
+    "trait_name_conversion": {
+      "segment_field": "traits (camelCase: firstName, lastName, createdAt)",
+      "rudderstack_field": "traits (camelCase: firstName, lastName, createdAt)",
+      "customerio_field": "attributes (snake_case: first_name, last_name, created_at)",
+      "description": "Both platforms convert certain reserved camelCase trait names to snake_case for Customer.io. Known conversions: firstName → first_name, lastName → last_name, createdAt → created_at. Custom traits may or may not be converted depending on platform configuration.",
+      "parity_status": "NEEDS_VERIFICATION",
+      "gap_detail": "Verify that the set of reserved traits that undergo camelCase to snake_case conversion is identical between both platforms. Custom trait name handling may differ."
+    },
+    "timestamp_conversion": {
+      "segment_field": "timestamp (ISO-8601)",
+      "rudderstack_field": "timestamp (ISO-8601)",
+      "customerio_field": "timestamp (Unix epoch seconds)",
+      "description": "Both platforms convert ISO-8601 timestamps to Unix epoch seconds for the Customer.io Track API. This applies to event timestamps, created_at, and any date-type traits.",
+      "parity_status": "MATCH",
+      "gap_detail": null
+    },
+    "page_event_type": {
+      "segment_field": "type: 'page'",
+      "rudderstack_field": "type: 'page'",
+      "customerio_field": "type: 'page' (in events endpoint)",
+      "description": "Both platforms map page calls to Customer.io events with type 'page'. The page name is sent as the event name and page properties are nested under 'data'.",
+      "parity_status": "MATCH",
+      "gap_detail": null
+    },
+    "screen_event_type": {
+      "segment_field": "type: 'screen'",
+      "rudderstack_field": "type: 'screen'",
+      "customerio_field": "type: 'screen' (in events endpoint)",
+      "description": "Both platforms map screen calls to Customer.io events with type 'screen'. The screen name is sent as the event name and screen properties are nested under 'data'.",
+      "parity_status": "MATCH",
+      "gap_detail": null
+    },
+    "nested_object_handling": {
+      "segment_field": "traits.address (nested object)",
+      "rudderstack_field": "traits.address (nested object)",
+      "customerio_field": "address (nested JSON attribute)",
+      "description": "Customer.io supports nested JSON objects as customer attributes and event properties. Both platforms preserve the nested structure when sending to Customer.io.",
+      "parity_status": "NEEDS_VERIFICATION",
+      "gap_detail": "Verify that both platforms handle deeply nested objects identically. Some implementations may flatten nested objects while others preserve the full JSON structure."
+    },
+    "unsubscribed_handling": {
+      "segment_field": "traits.unsubscribed → unsubscribed (boolean)",
+      "rudderstack_field": "traits.unsubscribed → unsubscribed (boolean)",
+      "customerio_field": "unsubscribed (boolean attribute)",
+      "description": "Customer.io uses the unsubscribed attribute to manage email subscription status. Both platforms map this trait to the unsubscribed boolean attribute.",
+      "parity_status": "NEEDS_VERIFICATION",
+      "gap_detail": "Verify that both platforms handle the unsubscribed attribute consistently and that it correctly controls Customer.io messaging behavior."
+    }
+  },
+  "parity_summary": {
+    "overall_status": "HIGH_PARITY",
+    "track_parity": "MATCH",
+    "identify_parity": "MATCH",
+    "page_parity": "MATCH",
+    "screen_parity": "MATCH",
+    "known_gaps": [
+      {
+        "gap_id": "CUSTOMERIO-001",
+        "severity": "LOW",
+        "description": "Segment has both a classic ('customer-io') and an actions-based ('actions-customerio') destination variant. The actions-based variant offers configurable field mappings and event subscriptions. RudderStack has a single Customer.io destination that maps to the classic Track API v1 pattern.",
+        "remediation": "Consider implementing support for the Customer.io Pipelines API (cdp.customer.io) for enhanced flexibility, in addition to the existing Track API v1 integration."
+      },
+      {
+        "gap_id": "CUSTOMERIO-002",
+        "severity": "LOW",
+        "description": "Custom trait name case conversion behavior may differ between Segment and RudderStack. Segment converts known reserved traits (firstName, lastName, createdAt) to snake_case. RudderStack's conversion behavior should be verified to ensure identical handling for all reserved and custom traits.",
+        "remediation": "Create integration tests comparing trait name output for both standard Segment spec traits and custom traits with mixed casing patterns."
+      },
+      {
+        "gap_id": "CUSTOMERIO-003",
+        "severity": "LOW",
+        "description": "Customer.io's v2 Track API and Pipelines API support objects and relationships (via group endpoint). The Segment actions-based destination may support object/relationship operations that the classic Track API v1 integration does not.",
+        "remediation": "Evaluate extending RudderStack's Customer.io destination to support Customer.io objects and relationships via the v2 API or Pipelines API."
+      },
+      {
+        "gap_id": "CUSTOMERIO-004",
+        "severity": "MEDIUM",
+        "description": "Revenue tracking via the $value field in event data needs verification for consistent mapping between both platforms. E-commerce events should map properties.revenue to data.$value for Customer.io revenue attribution.",
+        "remediation": "Add explicit parity tests for e-commerce events (Order Completed, Product Viewed, etc.) verifying that both platforms produce identical $value mappings."
+      },
+      {
+        "gap_id": "CUSTOMERIO-005",
+        "severity": "LOW",
+        "description": "Customer.io supports semantic events for destructive operations (Delete Person, Suppress Person, Unsuppress Person) via specific event names. Both platforms should handle these semantic events consistently when forwarding track calls.",
+        "remediation": "Document and test semantic event pass-through behavior for both platforms."
+      },
+      {
+        "gap_id": "CUSTOMERIO-006",
+        "severity": "LOW",
+        "description": "The RudderStack payload includes additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) that are stripped before delivery to Customer.io. Verify no envelope leakage occurs.",
+        "remediation": "Add integration test assertions confirming that RudderStack-specific envelope fields do not appear in the delivered Customer.io payload."
+      },
+      {
+        "gap_id": "CUSTOMERIO-007",
+        "severity": "LOW",
+        "description": "Customer.io region-specific data centers (US and EU) require different API base URLs (track.customer.io vs track-eu.customer.io). Both platforms must support region configuration.",
+        "remediation": "Verify that both Segment and RudderStack destination configurations support Customer.io's EU data center URL and test payload delivery to both regions."
+      }
+    ],
+    "matching_features": [
+      "Customer identification via userId or email",
+      "Track API v1 endpoint mapping (PUT customers, POST events)",
+      "Basic authentication with site_id and api_key",
+      "ISO-8601 to Unix timestamp conversion",
+      "Event name to Customer.io name field mapping",
+      "Event properties to data object mapping",
+      "Page and screen event type support",
+      "Anonymous event handling with anonymousId",
+      "Nested JSON attribute and property support",
+      "Trait name camelCase to snake_case conversion for reserved fields"
+    ]
+  },
+  "source_event_fixtures": {
+    "track_event": {
+      "type": "track",
+      "userId": "user_123",
+      "event": "Product Viewed",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "quantity": 1,
+        "currency": "USD",
+        "category": "Widgets",
+        "url": "https://example.com/products/premium-widget",
+        "image_url": "https://example.com/images/premium-widget.png",
+        "revenue": 49.99
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        },
+        "traits": {
+          "email": "alex@example.com",
+          "firstName": "Alex",
+          "lastName": "Keener"
+        },
+        "ip": "203.0.113.50",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        "locale": "en-US",
+        "page": {
+          "url": "https://example.com/products/premium-widget",
+          "title": "Premium Widget - Example Store",
+          "path": "/products/premium-widget",
+          "referrer": "https://google.com/"
+        }
+      },
+      "messageId": "msg-rudder-001",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    },
+    "identify_event": {
+      "type": "identify",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T11:55:00.000Z",
+      "traits": {
+        "email": "alex@example.com",
+        "firstName": "Alex",
+        "lastName": "Keener",
+        "phone": "+14155551234",
+        "plan": "premium",
+        "logins": 42,
+        "age": 32,
+        "createdAt": "2025-01-15T08:00:00.000Z",
+        "company": "Acme Corp",
+        "title": "Senior Engineer",
+        "website": "https://alex.example.com",
+        "address": {
+          "street": "123 Main St",
+          "city": "San Francisco",
+          "state": "CA",
+          "postalCode": "94105",
+          "country": "US"
+        }
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        },
+        "ip": "203.0.113.50",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        "locale": "en-US"
+      },
+      "messageId": "msg-rudder-002",
+      "originalTimestamp": "2026-02-25T11:55:00.000Z",
+      "sentAt": "2026-02-25T11:55:01.000Z",
+      "receivedAt": "2026-02-25T11:55:02.000Z"
+    },
+    "page_event": {
+      "type": "page",
+      "userId": "user_123",
+      "name": "Home",
+      "timestamp": "2026-02-25T11:50:00.000Z",
+      "properties": {
+        "url": "https://example.com/",
+        "title": "Welcome to Example",
+        "path": "/",
+        "referrer": "https://google.com/",
+        "search": "",
+        "keywords": ["example", "home"]
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        },
+        "ip": "203.0.113.50",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        "locale": "en-US",
+        "page": {
+          "url": "https://example.com/",
+          "title": "Welcome to Example",
+          "path": "/",
+          "referrer": "https://google.com/"
+        }
+      },
+      "messageId": "msg-rudder-003",
+      "originalTimestamp": "2026-02-25T11:50:00.000Z",
+      "sentAt": "2026-02-25T11:50:01.000Z",
+      "receivedAt": "2026-02-25T11:50:02.000Z"
+    },
+    "screen_event": {
+      "type": "screen",
+      "userId": "user_123",
+      "name": "Dashboard",
+      "timestamp": "2026-02-25T11:45:00.000Z",
+      "properties": {
+        "dashboard_id": "dash_001",
+        "section": "overview",
+        "widgets_loaded": 5
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-android",
+          "version": "1.x.x"
+        },
+        "ip": "203.0.113.50",
+        "os": {
+          "name": "Android",
+          "version": "14"
+        },
+        "device": {
+          "type": "android",
+          "manufacturer": "Google",
+          "model": "Pixel 8"
+        },
+        "app": {
+          "name": "ExampleApp",
+          "version": "3.2.1",
+          "build": "421"
+        },
+        "locale": "en-US"
+      },
+      "messageId": "msg-rudder-004",
+      "originalTimestamp": "2026-02-25T11:45:00.000Z",
+      "sentAt": "2026-02-25T11:45:01.000Z",
+      "receivedAt": "2026-02-25T11:45:02.000Z"
+    }
+  },
+  "api_configuration": {
+    "base_url_us": "https://track.customer.io/api/v1",
+    "base_url_eu": "https://track-eu.customer.io/api/v1",
+    "rate_limit": {
+      "description": "Fair-use rate limit of 100 requests per second for both active integrations and historical backfill scripts.",
+      "requests_per_second": 100,
+      "enforcement": "soft"
+    },
+    "endpoints": {
+      "identify_customer": {
+        "method": "PUT",
+        "path": "/customers/{identifier}",
+        "description": "Create or update a customer by identifier (id or email)"
+      },
+      "delete_customer": {
+        "method": "DELETE",
+        "path": "/customers/{identifier}",
+        "description": "Delete a customer by identifier"
+      },
+      "track_event": {
+        "method": "POST",
+        "path": "/customers/{identifier}/events",
+        "description": "Track an event for an identified customer"
+      },
+      "anonymous_event": {
+        "method": "POST",
+        "path": "/events",
+        "description": "Track an anonymous event (no customer identifier)"
+      },
+      "merge_customers": {
+        "method": "POST",
+        "path": "/merge_customers",
+        "description": "Merge two customer profiles"
+      }
+    },
+    "payload_limits": {
+      "max_attribute_count": 300,
+      "max_attribute_name_length": 150,
+      "max_attribute_value_size": "100KB",
+      "max_request_body_size": "32KB"
+    }
+  },
+  "notes": "Customer.io is a shared cloud destination present in both RudderStack and Segment catalogs. Categories: Email Marketing, Marketing Automation. Customer.io provides behavioral messaging tools (email, push notifications, SMS, in-app messages) triggered by customer events and attributes. Both platforms integrate via the Customer.io Track API v1 using HTTP Basic authentication. The primary identifier is userId mapped to the Customer.io {identifier} path parameter. Overall parity is HIGH — both platforms call the same API endpoints with equivalent payload structures. Key areas for verification include: trait name case conversion consistency, $value revenue mapping for e-commerce events, nested object handling, and EU data center URL support. Segment offers both a classic ('customer-io') and actions-based ('actions-customerio') variant; RudderStack currently maps to the classic Track API v1 pattern. Customer.io also has a newer Pipelines API (cdp.customer.io) that is CDP-native and Segment-spec compatible, which may represent a future integration path."
+}
