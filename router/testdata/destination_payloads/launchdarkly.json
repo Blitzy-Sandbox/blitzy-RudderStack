@@ -1,0 +1,754 @@
+{
+  "destination_type": "LAUNCHDARKLY",
+  "destination_tier": "cloud",
+  "category": "Feature Flagging",
+  "event_types": ["track", "identify"],
+  "segment_reference_payload": {
+    "description": "Segment sends events to the LaunchDarkly (Actions) destination, which maps Segment track events to LaunchDarkly custom metric events for use in experiments and feature flag evaluations. Identify and alias calls are used to alias anonymous users with identified user keys. LaunchDarkly does not store user attributes (traits) from CDPs; it only uses events for metric measurement in experiments and guarded rollouts.",
+    "endpoint": {
+      "track": "https://events.launchdarkly.com/v2/event-data-import/{project-key}/{environment-key}",
+      "identify": "https://events.launchdarkly.com/v2/event-data-import/{project-key}/{environment-key}"
+    },
+    "http_method": "POST",
+    "content_type": "application/json",
+    "auth": {
+      "type": "bearer_token",
+      "header": "Authorization",
+      "config_field": "clientSideId",
+      "description": "LaunchDarkly client-side ID for the project and environment. Obtained from LaunchDarkly Account settings. Used to authenticate event import requests."
+    },
+    "batch_support": {
+      "enabled": true,
+      "format": "json_array",
+      "max_payload_size": "10MB",
+      "description": "Events should be sent as JSON arrays for efficiency. Each request can contain multiple events up to 10MB total payload size."
+    },
+    "deduplication": {
+      "header": "X-LaunchDarkly-Payload-ID",
+      "description": "A freshly generated payload ID must be included with each request. When retrying, the same payload ID must be reused to prevent duplicate event processing."
+    },
+    "track": {
+      "description": "Track calls are mapped to LaunchDarkly custom events. Segment maps the event name to the LaunchDarkly metric key, userId to the context key, and event properties to event data. Custom events are used to power LaunchDarkly metrics in experiments and guarded rollouts.",
+      "input": {
+        "type": "track",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-def-456",
+        "event": "Order Completed",
+        "properties": {
+          "orderId": "ORD-98765",
+          "revenue": 49.99,
+          "currency": "USD",
+          "products": [
+            {
+              "productId": "PROD-001",
+              "name": "Premium Plan",
+              "price": 49.99,
+              "quantity": 1
+            }
+          ],
+          "coupon": "SAVE20",
+          "paymentMethod": "credit_card"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://app.example.com/checkout",
+            "referrer": "https://app.example.com/cart",
+            "title": "Checkout - Example App"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "timestamp": "2024-01-15T14:30:00.000Z",
+        "messageId": "seg-msg-track-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://events.launchdarkly.com/v2/event-data-import/{project-key}/{environment-key}",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer <client-side-id>",
+          "X-LaunchDarkly-Payload-ID": "<generated-uuid>"
+        },
+        "body": [
+          {
+            "kind": "custom",
+            "key": "Order Completed",
+            "contextKeys": {
+              "user": "user-abc-123"
+            },
+            "creationDate": 1705325400000,
+            "metricValue": 49.99,
+            "data": {
+              "orderId": "ORD-98765",
+              "revenue": 49.99,
+              "currency": "USD",
+              "products": [
+                {
+                  "productId": "PROD-001",
+                  "name": "Premium Plan",
+                  "price": 49.99,
+                  "quantity": 1
+                }
+              ],
+              "coupon": "SAVE20",
+              "paymentMethod": "credit_card"
+            }
+          }
+        ]
+      },
+      "mapping_notes": [
+        "event name maps to LaunchDarkly custom event 'key' field",
+        "userId maps to contextKeys.user as the primary context key",
+        "anonymousId is used as fallback when userId is absent",
+        "properties.revenue maps to metricValue for numeric metrics",
+        "all event properties are passed through in the 'data' field",
+        "timestamp is converted to epoch milliseconds for creationDate",
+        "context kind defaults to 'user' if not explicitly specified",
+        "LaunchDarkly does NOT store event properties as user attributes — data is only used for observational analytics in Data Export"
+      ]
+    },
+    "identify": {
+      "description": "Identify and alias calls map to the Alias User action in LaunchDarkly (Actions). This aliases an anonymous user with an identified user key, enabling LaunchDarkly to associate pre-identification activity with the known user. LaunchDarkly does NOT store user attributes (traits) sent via identify — it only processes the user key and anonymous key for aliasing.",
+      "input": {
+        "type": "identify",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-def-456",
+        "traits": {
+          "email": "user@example.com",
+          "name": "Jane Doe",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "plan": "premium",
+          "company": {
+            "name": "Acme Corp",
+            "id": "acme-001"
+          },
+          "createdAt": "2023-06-15T10:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://app.example.com/settings",
+            "title": "Settings - Example App"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "timestamp": "2024-01-15T14:25:00.000Z",
+        "messageId": "seg-msg-identify-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://events.launchdarkly.com/v2/event-data-import/{project-key}/{environment-key}",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer <client-side-id>",
+          "X-LaunchDarkly-Payload-ID": "<generated-uuid>"
+        },
+        "body": [
+          {
+            "kind": "alias",
+            "key": "user-abc-123",
+            "previousKey": "anon-def-456",
+            "contextKind": "user",
+            "previousContextKind": "anonymousUser",
+            "creationDate": 1705325100000
+          }
+        ]
+      },
+      "mapping_notes": [
+        "userId maps to the alias event 'key' field as the identified user key",
+        "anonymousId maps to 'previousKey' as the anonymous identifier being aliased",
+        "contextKind is set to 'user' for the identified key",
+        "previousContextKind is set to 'anonymousUser' for the anonymous key",
+        "timestamp is converted to epoch milliseconds for creationDate",
+        "ALL traits are DISCARDED — LaunchDarkly does not store user attributes from CDPs",
+        "traits like email, name, plan, company are not sent to LaunchDarkly",
+        "the alias event only links the anonymous identity to the known user identity"
+      ]
+    }
+  },
+  "rudderstack_expected_payload": {
+    "description": "RudderStack sends events to LaunchDarkly through the Transformer service, which maps RudderStack event format to LaunchDarkly Events API format. The Transformer strips RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) before delivery. The core mapping logic mirrors Segment's behavior for track and identify events.",
+    "endpoint": {
+      "track": "https://events.launchdarkly.com/v2/event-data-import/{project-key}/{environment-key}",
+      "identify": "https://events.launchdarkly.com/v2/event-data-import/{project-key}/{environment-key}"
+    },
+    "http_method": "POST",
+    "content_type": "application/json",
+    "auth": {
+      "type": "bearer_token",
+      "header": "Authorization",
+      "config_field": "clientSideId",
+      "description": "LaunchDarkly client-side ID configured in the RudderStack destination settings."
+    },
+    "batch_support": {
+      "enabled": true,
+      "format": "json_array",
+      "max_payload_size": "10MB",
+      "description": "Events batched as JSON arrays. RudderStack Transformer handles batching before delivery to LaunchDarkly Events API."
+    },
+    "deduplication": {
+      "header": "X-LaunchDarkly-Payload-ID",
+      "description": "RudderStack Transformer generates a unique payload ID per request for deduplication. Retry requests reuse the same payload ID."
+    },
+    "track": {
+      "description": "RudderStack track events are transformed to LaunchDarkly custom metric events. The Transformer maps event name to metric key, userId to context key, revenue to metricValue, and passes properties as event data.",
+      "input": {
+        "type": "track",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-def-456",
+        "event": "Order Completed",
+        "properties": {
+          "orderId": "ORD-98765",
+          "revenue": 49.99,
+          "currency": "USD",
+          "products": [
+            {
+              "productId": "PROD-001",
+              "name": "Premium Plan",
+              "price": 49.99,
+              "quantity": 1
+            }
+          ],
+          "coupon": "SAVE20",
+          "paymentMethod": "credit_card"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.0.0"
+          },
+          "page": {
+            "url": "https://app.example.com/checkout",
+            "referrer": "https://app.example.com/cart",
+            "title": "Checkout - Example App"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "rudderId": "rudder-uuid-001",
+        "originalTimestamp": "2024-01-15T14:30:00.000Z",
+        "sentAt": "2024-01-15T14:30:01.000Z",
+        "receivedAt": "2024-01-15T14:30:02.000Z",
+        "timestamp": "2024-01-15T14:30:00.000Z",
+        "messageId": "rs-msg-track-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://events.launchdarkly.com/v2/event-data-import/{project-key}/{environment-key}",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer <client-side-id>",
+          "X-LaunchDarkly-Payload-ID": "<generated-uuid>"
+        },
+        "body": [
+          {
+            "kind": "custom",
+            "key": "Order Completed",
+            "contextKeys": {
+              "user": "user-abc-123"
+            },
+            "creationDate": 1705325400000,
+            "metricValue": 49.99,
+            "data": {
+              "orderId": "ORD-98765",
+              "revenue": 49.99,
+              "currency": "USD",
+              "products": [
+                {
+                  "productId": "PROD-001",
+                  "name": "Premium Plan",
+                  "price": 49.99,
+                  "quantity": 1
+                }
+              ],
+              "coupon": "SAVE20",
+              "paymentMethod": "credit_card"
+            }
+          }
+        ]
+      },
+      "key_differences": [
+        {
+          "field": "context.library.name",
+          "segment_value": "analytics.js",
+          "rudderstack_value": "rudder-sdk-js",
+          "impact": "cosmetic — library name is not sent to LaunchDarkly destination, only present in source event envelope"
+        },
+        {
+          "field": "rudderId",
+          "segment_value": "not present",
+          "rudderstack_value": "rudder-uuid-001",
+          "impact": "cosmetic — stripped by Transformer before delivery; not sent to LaunchDarkly"
+        },
+        {
+          "field": "originalTimestamp",
+          "segment_value": "not present",
+          "rudderstack_value": "2024-01-15T14:30:00.000Z",
+          "impact": "cosmetic — RudderStack envelope field stripped by Transformer; creationDate derived from timestamp"
+        },
+        {
+          "field": "sentAt",
+          "segment_value": "not present",
+          "rudderstack_value": "2024-01-15T14:30:01.000Z",
+          "impact": "cosmetic — RudderStack envelope field stripped by Transformer"
+        },
+        {
+          "field": "receivedAt",
+          "segment_value": "not present",
+          "rudderstack_value": "2024-01-15T14:30:02.000Z",
+          "impact": "cosmetic — RudderStack envelope field stripped by Transformer"
+        }
+      ],
+      "mapping_notes": [
+        "RudderStack event name maps identically to LaunchDarkly custom event 'key' field",
+        "userId maps to contextKeys.user — identical to Segment behavior",
+        "anonymousId fallback when userId is absent — identical to Segment behavior",
+        "properties.revenue maps to metricValue — identical to Segment behavior",
+        "all event properties passed through in 'data' field — identical to Segment behavior",
+        "timestamp converted to epoch milliseconds for creationDate — identical to Segment behavior",
+        "RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are stripped by Transformer before delivery",
+        "the final LaunchDarkly API payload is identical between Segment and RudderStack after Transformer processing"
+      ]
+    },
+    "identify": {
+      "description": "RudderStack identify events are transformed to LaunchDarkly alias events. The Transformer maps userId to the identified key and anonymousId to the previous anonymous key. All traits are discarded since LaunchDarkly does not store user attributes from CDPs.",
+      "input": {
+        "type": "identify",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-def-456",
+        "traits": {
+          "email": "user@example.com",
+          "name": "Jane Doe",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "plan": "premium",
+          "company": {
+            "name": "Acme Corp",
+            "id": "acme-001"
+          },
+          "createdAt": "2023-06-15T10:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.0.0"
+          },
+          "page": {
+            "url": "https://app.example.com/settings",
+            "title": "Settings - Example App"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "rudderId": "rudder-uuid-002",
+        "originalTimestamp": "2024-01-15T14:25:00.000Z",
+        "sentAt": "2024-01-15T14:25:01.000Z",
+        "receivedAt": "2024-01-15T14:25:02.000Z",
+        "timestamp": "2024-01-15T14:25:00.000Z",
+        "messageId": "rs-msg-identify-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://events.launchdarkly.com/v2/event-data-import/{project-key}/{environment-key}",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer <client-side-id>",
+          "X-LaunchDarkly-Payload-ID": "<generated-uuid>"
+        },
+        "body": [
+          {
+            "kind": "alias",
+            "key": "user-abc-123",
+            "previousKey": "anon-def-456",
+            "contextKind": "user",
+            "previousContextKind": "anonymousUser",
+            "creationDate": 1705325100000
+          }
+        ]
+      },
+      "key_differences": [
+        {
+          "field": "context.library.name",
+          "segment_value": "analytics.js",
+          "rudderstack_value": "rudder-sdk-js",
+          "impact": "cosmetic — library name not sent to LaunchDarkly; only in source event envelope"
+        },
+        {
+          "field": "rudderId",
+          "segment_value": "not present",
+          "rudderstack_value": "rudder-uuid-002",
+          "impact": "cosmetic — stripped by Transformer before delivery"
+        },
+        {
+          "field": "originalTimestamp",
+          "segment_value": "not present",
+          "rudderstack_value": "2024-01-15T14:25:00.000Z",
+          "impact": "cosmetic — RudderStack envelope field stripped by Transformer"
+        },
+        {
+          "field": "sentAt",
+          "segment_value": "not present",
+          "rudderstack_value": "2024-01-15T14:25:01.000Z",
+          "impact": "cosmetic — RudderStack envelope field stripped by Transformer"
+        },
+        {
+          "field": "receivedAt",
+          "segment_value": "not present",
+          "rudderstack_value": "2024-01-15T14:25:02.000Z",
+          "impact": "cosmetic — RudderStack envelope field stripped by Transformer"
+        }
+      ],
+      "mapping_notes": [
+        "userId maps to alias event 'key' — identical to Segment behavior",
+        "anonymousId maps to 'previousKey' — identical to Segment behavior",
+        "contextKind set to 'user' for identified key — identical to Segment behavior",
+        "previousContextKind set to 'anonymousUser' — identical to Segment behavior",
+        "ALL traits are discarded — LaunchDarkly does not store user attributes from CDPs; identical to Segment behavior",
+        "RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are stripped by Transformer",
+        "the final LaunchDarkly alias payload is identical between Segment and RudderStack"
+      ]
+    }
+  },
+  "field_mappings": {
+    "user_context_mapping": {
+      "description": "Mapping of user identity fields from Segment/RudderStack events to LaunchDarkly context model. LaunchDarkly uses a context-based system where contexts have kinds and keys. The primary context kind is 'user' with the userId as the context key.",
+      "context_key": {
+        "segment_source": "userId",
+        "rudderstack_source": "userId",
+        "launchdarkly_field": "contextKeys.user",
+        "fallback": "anonymousId used when userId is not present",
+        "parity": "full",
+        "notes": "Both Segment and RudderStack map userId to the LaunchDarkly context key. If userId is absent, anonymousId is used as fallback."
+      },
+      "anonymous_key": {
+        "segment_source": "anonymousId",
+        "rudderstack_source": "anonymousId",
+        "launchdarkly_field": "previousKey (in alias events)",
+        "parity": "full",
+        "notes": "Used in alias events to link anonymous activity to identified users."
+      },
+      "context_kind": {
+        "segment_source": "configurable via Actions mapping (default: 'user')",
+        "rudderstack_source": "destination config or default 'user'",
+        "launchdarkly_field": "contextKind",
+        "parity": "full",
+        "notes": "LaunchDarkly supports multiple context kinds (user, device, organization, etc.). Default is 'user'. Both platforms support configuring the context kind."
+      },
+      "additional_context_keys": {
+        "segment_source": "configurable via Actions mapping",
+        "rudderstack_source": "configurable via destination config",
+        "launchdarkly_field": "additional entries in contextKeys object",
+        "parity": "full",
+        "notes": "LaunchDarkly multi-context support allows mapping additional context kinds (e.g., organization, device) alongside the primary user context."
+      },
+      "traits_handling": {
+        "segment_behavior": "traits are NOT sent to LaunchDarkly — LaunchDarkly does not store user attributes from CDPs",
+        "rudderstack_behavior": "traits are NOT sent to LaunchDarkly — identical to Segment",
+        "parity": "full",
+        "notes": "LaunchDarkly explicitly does not accept user attribute storage from CDPs. User attributes for flag targeting must be provided directly via LaunchDarkly SDKs at evaluation time."
+      }
+    },
+    "custom_event_tracking": {
+      "description": "Mapping of track event fields to LaunchDarkly custom events used for metrics in experiments and guarded rollouts.",
+      "event_key": {
+        "segment_source": "event (event name string)",
+        "rudderstack_source": "event (event name string)",
+        "launchdarkly_field": "key",
+        "parity": "full",
+        "notes": "The Segment/RudderStack event name maps directly to the LaunchDarkly custom event key. This key is matched against LaunchDarkly metric event keys for experiment measurement."
+      },
+      "metric_value": {
+        "segment_source": "properties.revenue or configurable property",
+        "rudderstack_source": "properties.revenue or configurable property",
+        "launchdarkly_field": "metricValue",
+        "parity": "full",
+        "notes": "Numeric value used for LaunchDarkly numeric metrics. Typically mapped from revenue or a configured numeric property. Used in numeric metric calculations in experiments."
+      },
+      "event_data": {
+        "segment_source": "properties (full properties object)",
+        "rudderstack_source": "properties (full properties object)",
+        "launchdarkly_field": "data",
+        "parity": "full",
+        "notes": "All event properties are passed through in the 'data' field. LaunchDarkly does NOT use this data for flag evaluations — it is only available in Data Export destinations for observational analytics."
+      },
+      "creation_date": {
+        "segment_source": "timestamp (ISO 8601 converted to epoch milliseconds)",
+        "rudderstack_source": "timestamp (ISO 8601 converted to epoch milliseconds)",
+        "launchdarkly_field": "creationDate",
+        "parity": "full",
+        "notes": "ISO 8601 timestamp is converted to epoch milliseconds. For experiment metrics, the event creation date must fall within an active experiment iteration and after the context first encountered the experiment."
+      },
+      "event_kind": {
+        "segment_source": "hardcoded to 'custom'",
+        "rudderstack_source": "hardcoded to 'custom'",
+        "launchdarkly_field": "kind",
+        "parity": "full",
+        "notes": "All Segment/RudderStack track events map to LaunchDarkly 'custom' event kind. The Events API validates that kind is 'custom' and returns 400 if validation fails."
+      }
+    },
+    "feature_flag_evaluation_context": {
+      "description": "LaunchDarkly evaluates feature flags based on context attributes provided at evaluation time via LaunchDarkly SDKs, NOT from CDP event data. However, CDP events can influence experimentation by providing metric events that LaunchDarkly correlates with flag evaluations using shared context keys.",
+      "evaluation_flow": {
+        "step_1": "LaunchDarkly SDK evaluates flag for a context (user) and sends evaluation event to LaunchDarkly",
+        "step_2": "Segment/RudderStack sends track event to LaunchDarkly via Events API with matching context key",
+        "step_3": "LaunchDarkly correlates the track event with the flag evaluation using the shared context key",
+        "step_4": "The correlated event contributes to experiment metric calculations",
+        "notes": "The context key (userId) is the critical linking field between flag evaluations and CDP metric events."
+      },
+      "context_key_correlation": {
+        "description": "LaunchDarkly correlates Segment/RudderStack events with flag evaluations using the context key",
+        "segment_source": "userId (or anonymousId fallback)",
+        "rudderstack_source": "userId (or anonymousId fallback)",
+        "launchdarkly_match_field": "contextKeys.user must match the context key used in SDK flag evaluations",
+        "parity": "full",
+        "notes": "Both Segment and RudderStack require the userId to match the LaunchDarkly context key used during flag evaluation. Mismatched keys will prevent experiment metric correlation."
+      },
+      "multi_context_support": {
+        "description": "LaunchDarkly supports multi-context evaluations where flags are evaluated based on multiple context kinds simultaneously",
+        "segment_support": "supported via additional_context_keys mapping in Actions destination",
+        "rudderstack_support": "supported via destination configuration for additional context kinds",
+        "launchdarkly_field": "contextKeys object with multiple kind-to-key mappings",
+        "parity": "full",
+        "notes": "Both platforms support mapping to LaunchDarkly multi-context by providing additional context kinds (organization, device, etc.) alongside the user context."
+      },
+      "experiment_requirements": {
+        "description": "Requirements for CDP events to be valid for LaunchDarkly experiment measurement",
+        "requirements": [
+          "The metric key (event name) must match a LaunchDarkly metric attached to a running experiment",
+          "The context key must match a context that has encountered the experiment flag",
+          "The creationDate must fall within the experiment's active iteration period",
+          "The creationDate must be after the context first encountered the experiment"
+        ],
+        "parity": "full",
+        "notes": "These requirements apply identically to both Segment and RudderStack events. Events that do not meet these requirements are accepted (202 response) but not processed for experiment metrics."
+      }
+    },
+    "event_property_mapping": {
+      "track_field_mapping": [
+        {
+          "source_field": "event",
+          "launchdarkly_field": "key",
+          "type": "string",
+          "required": true,
+          "segment_parity": "full",
+          "notes": "Event name becomes the LaunchDarkly custom event key for metric matching"
+        },
+        {
+          "source_field": "userId",
+          "launchdarkly_field": "contextKeys.user",
+          "type": "string",
+          "required": true,
+          "segment_parity": "full",
+          "notes": "Primary user identifier mapped to LaunchDarkly user context key"
+        },
+        {
+          "source_field": "anonymousId",
+          "launchdarkly_field": "contextKeys.user (fallback)",
+          "type": "string",
+          "required": false,
+          "segment_parity": "full",
+          "notes": "Used as context key when userId is not present"
+        },
+        {
+          "source_field": "properties",
+          "launchdarkly_field": "data",
+          "type": "object",
+          "required": false,
+          "segment_parity": "full",
+          "notes": "Full properties object passed through for Data Export observational analytics"
+        },
+        {
+          "source_field": "properties.revenue",
+          "launchdarkly_field": "metricValue",
+          "type": "number",
+          "required": false,
+          "segment_parity": "full",
+          "notes": "Revenue or configurable numeric property maps to metricValue for numeric metrics"
+        },
+        {
+          "source_field": "timestamp",
+          "launchdarkly_field": "creationDate",
+          "type": "integer (epoch ms)",
+          "required": true,
+          "segment_parity": "full",
+          "notes": "ISO 8601 converted to epoch milliseconds"
+        }
+      ],
+      "identify_field_mapping": [
+        {
+          "source_field": "userId",
+          "launchdarkly_field": "key",
+          "type": "string",
+          "required": true,
+          "segment_parity": "full",
+          "notes": "Identified user key in alias event"
+        },
+        {
+          "source_field": "anonymousId",
+          "launchdarkly_field": "previousKey",
+          "type": "string",
+          "required": true,
+          "segment_parity": "full",
+          "notes": "Anonymous key being aliased to the identified user"
+        },
+        {
+          "source_field": "timestamp",
+          "launchdarkly_field": "creationDate",
+          "type": "integer (epoch ms)",
+          "required": true,
+          "segment_parity": "full",
+          "notes": "ISO 8601 converted to epoch milliseconds"
+        },
+        {
+          "source_field": "traits",
+          "launchdarkly_field": "not mapped",
+          "type": "object",
+          "required": false,
+          "segment_parity": "full",
+          "notes": "ALL traits are discarded — LaunchDarkly does not store user attributes from CDPs"
+        }
+      ]
+    },
+    "destination_settings": {
+      "description": "Configuration settings comparison between Segment and RudderStack for the LaunchDarkly destination.",
+      "segment_settings": {
+        "clientSideId": {
+          "type": "string",
+          "required": true,
+          "description": "LaunchDarkly client-side ID for the project and environment. Found in LaunchDarkly Account settings."
+        },
+        "action_mappings": {
+          "type": "array",
+          "description": "Up to 50 configurable mappings defining which Segment events trigger which LaunchDarkly actions (Track Event or Alias User)."
+        }
+      },
+      "rudderstack_settings": {
+        "clientSideId": {
+          "type": "string",
+          "required": true,
+          "description": "LaunchDarkly client-side ID configured in the RudderStack destination settings."
+        },
+        "projectKey": {
+          "type": "string",
+          "required": true,
+          "description": "LaunchDarkly project key used in the Events API URL path."
+        },
+        "environmentKey": {
+          "type": "string",
+          "required": true,
+          "description": "LaunchDarkly environment key used in the Events API URL path."
+        }
+      },
+      "settings_parity_notes": [
+        "Both platforms require the LaunchDarkly client-side ID for authentication",
+        "RudderStack may require explicit projectKey and environmentKey for URL construction",
+        "Segment Actions framework provides up to 50 customizable field mappings; RudderStack uses destination configuration for equivalent flexibility",
+        "Both platforms support configuring which event types trigger LaunchDarkly actions"
+      ]
+    }
+  },
+  "destination_config": {
+    "required_settings": [
+      {
+        "key": "clientSideId",
+        "type": "string",
+        "description": "LaunchDarkly client-side ID for the target project and environment. Used for API authentication."
+      },
+      {
+        "key": "projectKey",
+        "type": "string",
+        "description": "LaunchDarkly project key. Used in the Events API URL: /v2/event-data-import/{projectKey}/{environmentKey}"
+      },
+      {
+        "key": "environmentKey",
+        "type": "string",
+        "description": "LaunchDarkly environment key. Used in the Events API URL: /v2/event-data-import/{projectKey}/{environmentKey}"
+      }
+    ],
+    "optional_settings": [
+      {
+        "key": "defaultContextKind",
+        "type": "string",
+        "default": "user",
+        "description": "Default LaunchDarkly context kind. Defaults to 'user'. Can be set to other kinds like 'device' or 'organization'."
+      },
+      {
+        "key": "metricValueProperty",
+        "type": "string",
+        "default": "revenue",
+        "description": "The event property to use as the LaunchDarkly metricValue. Defaults to 'revenue'. Can be set to any numeric property."
+      },
+      {
+        "key": "enableBatching",
+        "type": "boolean",
+        "default": true,
+        "description": "Whether to batch multiple events into a single API request. Recommended for efficiency."
+      }
+    ]
+  },
+  "parity_assessment": {
+    "overall_status": "high",
+    "description": "LaunchDarkly payload parity between Segment and RudderStack is high. The destination's narrow scope (custom metric events and alias events only, no user attribute storage) means the API payload is simple and well-defined. After RudderStack Transformer processing strips envelope fields, the final LaunchDarkly API payloads are functionally identical.",
+    "track_parity": {
+      "status": "full",
+      "description": "Track events produce identical LaunchDarkly custom event payloads. Event name, context keys, metric value, data, and creation date all map identically."
+    },
+    "identify_parity": {
+      "status": "full",
+      "description": "Identify events produce identical LaunchDarkly alias event payloads. User key, anonymous key, context kinds, and creation date all map identically. Traits are correctly discarded by both platforms."
+    },
+    "known_gaps": [
+      {
+        "gap_id": "LD-001",
+        "description": "Segment Actions destination supports up to 50 configurable field mappings per destination instance, allowing arbitrary event properties to be mapped to specific LaunchDarkly fields. RudderStack may have fewer configuration options for field-level mapping customization.",
+        "severity": "low",
+        "impact": "Most standard use cases (event name to key, revenue to metricValue) are covered by default mappings. Advanced custom mappings are an edge case."
+      },
+      {
+        "gap_id": "LD-002",
+        "description": "Segment supports configuring context kind per mapping via the Actions framework UI. RudderStack context kind configuration may be limited to a single default per destination.",
+        "severity": "low",
+        "impact": "Only affects users with multi-context LaunchDarkly setups where different events target different context kinds."
+      },
+      {
+        "gap_id": "LD-003",
+        "description": "LaunchDarkly (Actions) variant in Segment is a partner-owned integration with potentially faster iteration on new LaunchDarkly features. RudderStack Transformer-based integration depends on Transformer updates.",
+        "severity": "informational",
+        "impact": "New LaunchDarkly API features may be available in Segment's Actions destination before RudderStack's Transformer-based integration."
+      }
+    ],
+    "recommended_validation": [
+      "Verify track events produce correct 'custom' kind events with matching event key in LaunchDarkly Live Events",
+      "Confirm userId correctly maps to contextKeys.user in the LaunchDarkly Events API payload",
+      "Validate metricValue is correctly extracted from the configured property (default: revenue)",
+      "Test identify events produce valid alias events linking anonymousId to userId",
+      "Confirm all traits are correctly discarded and not sent to LaunchDarkly",
+      "Verify creationDate is correctly converted from ISO 8601 to epoch milliseconds",
+      "Test batch event delivery with multiple events in a single request",
+      "Validate X-LaunchDarkly-Payload-ID header is included for deduplication",
+      "Confirm events appear in LaunchDarkly Metrics activity tab with correct context keys",
+      "Test experiment correlation by verifying track events with matching context keys contribute to experiment metrics"
+    ]
+  },
+  "notes": [
+    "LaunchDarkly is a feature management and experimentation platform, not a traditional analytics destination",
+    "The primary use case for the Segment/RudderStack integration is powering LaunchDarkly experiment metrics with existing CDP track events",
+    "LaunchDarkly does NOT store user attributes (traits) from CDPs — flag targeting attributes must be provided directly via LaunchDarkly SDKs at evaluation time",
+    "The Events API endpoint includes project key and environment key in the URL path, making it environment-specific",
+    "LaunchDarkly's context model (replacing the legacy user model) supports multiple context kinds for complex targeting scenarios",
+    "The X-LaunchDarkly-Payload-ID header is critical for idempotent event delivery and must be reused on retries",
+    "Events accepted with 202 status may still fail processing if they don't conform to the required schema — the API only validates 'kind' field on ingestion",
+    "For experiment measurement, the context key in CDP events must exactly match the context key used in LaunchDarkly SDK flag evaluations",
+    "The classic (non-Actions) LaunchDarkly destination in Segment is deprecated in favor of the Actions variant — RudderStack should target the Actions-equivalent behavior",
+    "LaunchDarkly Audiences is a separate destination type for syncing Engage audiences to LaunchDarkly segments — not covered in this payload fixture"
+  ]
+}
