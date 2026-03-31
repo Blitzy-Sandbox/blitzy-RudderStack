@@ -1,0 +1,746 @@
+{
+  "destination_type": "SINGULAR",
+  "destination_tier": "cloud",
+  "category": "Attribution",
+  "event_types": ["track"],
+  "segment_reference_payloads": {
+    "track_standard_event": {
+      "description": "Segment maps track events to Singular's S2S EVENT API (https://s2s.singular.net/api/v1/evt). The event name is mapped to the 'n' parameter, device identifiers are extracted from context.device, and event properties are serialized as JSON into the 'e' (attributes) parameter. Segment uses platform-specific device IDs (IDFA for iOS, GAID/AIFA for Android) alongside the app identifier.",
+      "input_event": {
+        "type": "track",
+        "event": "Level Achieved",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "level": 5,
+          "score": 1250,
+          "difficulty": "hard",
+          "time_spent_seconds": 342
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ios",
+            "version": "4.1.0"
+          },
+          "app": {
+            "name": "Example Game",
+            "version": "2.5.1",
+            "build": "251",
+            "namespace": "com.example.game"
+          },
+          "device": {
+            "id": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+            "advertisingId": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+            "adTrackingEnabled": true,
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.2"
+          },
+          "locale": "en-US",
+          "ip": "203.0.113.50",
+          "timezone": "America/New_York",
+          "network": {
+            "carrier": "Verizon",
+            "wifi": true
+          }
+        },
+        "messageId": "seg-msg-track-singular-001"
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.singular.net/api/v1/evt",
+        "query_parameters": {
+          "a": "<singular_sdk_key>",
+          "p": "iOS",
+          "i": "com.example.game",
+          "ip": "203.0.113.50",
+          "n": "Level Achieved",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "idfv": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+          "att_authorization_status": "3",
+          "ve": "2.5.1",
+          "ma": "Apple",
+          "mo": "iPhone 15 Pro",
+          "lc": "en_US",
+          "bd": "251",
+          "os": "17.2",
+          "e": "{\"level\":5,\"score\":1250,\"difficulty\":\"hard\",\"time_spent_seconds\":342}",
+          "utime": "1740484800"
+        },
+        "notes": "Singular EVENT API uses GET requests with query parameters. The 'a' parameter is the SDK API key configured in destination settings. The 'n' parameter carries the event name. The 'e' parameter carries a JSON-encoded string of event attributes. Device identifiers (IDFA, IDFV) are extracted from context.device. The 'utime' is Unix epoch seconds of the event timestamp."
+      }
+    },
+    "track_revenue_event": {
+      "description": "Segment maps revenue-bearing track events to Singular's S2S EVENT API with the additional 'amt' (revenue amount) and 'cur' (currency) parameters. Revenue events are critical for Singular's ROI and campaign optimization reporting. The event name typically maps to standard purchase events like '__iap__' or a custom revenue event name.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T14:30:00.000Z",
+        "properties": {
+          "order_id": "ORD-98765",
+          "revenue": 49.99,
+          "currency": "USD",
+          "product_id": "SKU-001",
+          "product_name": "Premium Pack",
+          "quantity": 1,
+          "receipt": "MIITxQYJKoZIhvcNAQcCoIITt...base64_receipt_data"
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ios",
+            "version": "4.1.0"
+          },
+          "app": {
+            "name": "Example Game",
+            "version": "2.5.1",
+            "build": "251",
+            "namespace": "com.example.game"
+          },
+          "device": {
+            "id": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+            "advertisingId": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+            "adTrackingEnabled": true,
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.2"
+          },
+          "locale": "en-US",
+          "ip": "203.0.113.50",
+          "timezone": "America/New_York"
+        },
+        "messageId": "seg-msg-track-singular-002"
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.singular.net/api/v1/evt",
+        "query_parameters": {
+          "a": "<singular_sdk_key>",
+          "p": "iOS",
+          "i": "com.example.game",
+          "ip": "203.0.113.50",
+          "n": "Order Completed",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "idfv": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+          "att_authorization_status": "3",
+          "ve": "2.5.1",
+          "ma": "Apple",
+          "mo": "iPhone 15 Pro",
+          "lc": "en_US",
+          "bd": "251",
+          "os": "17.2",
+          "amt": "49.99",
+          "cur": "USD",
+          "e": "{\"order_id\":\"ORD-98765\",\"product_id\":\"SKU-001\",\"product_name\":\"Premium Pack\",\"quantity\":1}",
+          "receipt": "MIITxQYJKoZIhvcNAQcCoIITt...base64_receipt_data",
+          "utime": "1740493800"
+        },
+        "notes": "Revenue events include 'amt' (amount) and 'cur' (ISO 4217 currency code) as top-level query parameters. The 'receipt' parameter carries the platform transaction receipt for server-side validation and fraud prevention. Revenue and currency are extracted from properties.revenue and properties.currency respectively. Singular does not deduplicate events so server-side deduplication is required."
+      }
+    },
+    "track_android_event": {
+      "description": "Segment maps Android track events to Singular's S2S EVENT API using Android-specific device identifiers (AIFA/GAID for Google Advertising ID and ASID for Android App Set ID). The platform is set to 'Android' and the app identifier uses the Android package name.",
+      "input_event": {
+        "type": "track",
+        "event": "Tutorial Complete",
+        "userId": "user_456",
+        "anonymousId": "anon_def_789",
+        "timestamp": "2026-02-25T16:00:00.000Z",
+        "properties": {
+          "tutorial_name": "Onboarding",
+          "steps_completed": 5,
+          "total_steps": 5,
+          "completion_time_seconds": 180
+        },
+        "context": {
+          "library": {
+            "name": "analytics-android",
+            "version": "4.11.0"
+          },
+          "app": {
+            "name": "Example Game",
+            "version": "2.5.1",
+            "build": "251",
+            "namespace": "com.example.game"
+          },
+          "device": {
+            "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "advertisingId": "38400000-8cf0-11bd-b23e-10b96e40000d",
+            "adTrackingEnabled": true,
+            "manufacturer": "Samsung",
+            "model": "Galaxy S24",
+            "type": "android"
+          },
+          "os": {
+            "name": "Android",
+            "version": "14"
+          },
+          "locale": "en-US",
+          "ip": "198.51.100.25",
+          "timezone": "America/Los_Angeles"
+        },
+        "messageId": "seg-msg-track-singular-003"
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.singular.net/api/v1/evt",
+        "query_parameters": {
+          "a": "<singular_sdk_key>",
+          "p": "Android",
+          "i": "com.example.game",
+          "ip": "198.51.100.25",
+          "n": "Tutorial Complete",
+          "aifa": "38400000-8cf0-11bd-b23e-10b96e40000d",
+          "asid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "ve": "2.5.1",
+          "ma": "Samsung",
+          "mo": "Galaxy S24",
+          "lc": "en_US",
+          "bd": "251",
+          "os": "14",
+          "e": "{\"tutorial_name\":\"Onboarding\",\"steps_completed\":5,\"total_steps\":5,\"completion_time_seconds\":180}",
+          "utime": "1740499200"
+        },
+        "notes": "Android events use 'aifa' (Android Identifier for Advertisers, also known as GAID) instead of 'idfa'. The 'asid' parameter carries the Android App Set ID as a fallback identifier. Platform is set to 'Android' and the device model/manufacturer are populated from context.device fields."
+      }
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "track_standard_event": {
+      "description": "RudderStack maps track events to Singular's S2S EVENT API via the Transformer service. The mapping follows the same Singular API format as Segment. RudderStack extracts device identifiers from context.device, maps the event name to 'n', serializes event properties into the 'e' parameter, and includes RudderStack-specific envelope fields in the source event. The Transformer handles the conversion from RudderStack event format to Singular query parameters.",
+      "input_event": {
+        "type": "track",
+        "event": "Level Achieved",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "level": 5,
+          "score": 1250,
+          "difficulty": "hard",
+          "time_spent_seconds": 342
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-ios",
+            "version": "2.x.x"
+          },
+          "app": {
+            "name": "Example Game",
+            "version": "2.5.1",
+            "build": "251",
+            "namespace": "com.example.game"
+          },
+          "device": {
+            "id": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+            "advertisingId": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+            "adTrackingEnabled": true,
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.2"
+          },
+          "locale": "en-US",
+          "ip": "203.0.113.50",
+          "timezone": "America/New_York",
+          "network": {
+            "carrier": "Verizon",
+            "wifi": true
+          }
+        },
+        "messageId": "rs-msg-track-singular-001",
+        "rudderId": "rudder-uuid-singular-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.singular.net/api/v1/evt",
+        "query_parameters": {
+          "a": "<singular_sdk_key>",
+          "p": "iOS",
+          "i": "com.example.game",
+          "ip": "203.0.113.50",
+          "n": "Level Achieved",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "idfv": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+          "att_authorization_status": "3",
+          "ve": "2.5.1",
+          "ma": "Apple",
+          "mo": "iPhone 15 Pro",
+          "lc": "en_US",
+          "bd": "251",
+          "os": "17.2",
+          "e": "{\"level\":5,\"score\":1250,\"difficulty\":\"hard\",\"time_spent_seconds\":342}",
+          "utime": "1740484800"
+        },
+        "notes": "RudderStack Transformer produces identical Singular API calls as Segment for standard track events. The Transformer extracts device identifiers from context.device and maps them to the appropriate Singular parameters (idfa/idfv for iOS, aifa/asid for Android). RudderStack-specific envelope fields (rudderId, sentAt, receivedAt) are present in the source event but are NOT forwarded to Singular's API — only Segment spec fields are mapped."
+      }
+    },
+    "track_revenue_event": {
+      "description": "RudderStack maps revenue-bearing track events to Singular's S2S EVENT API with 'amt' and 'cur' parameters extracted from properties.revenue and properties.currency. The Transformer service handles the extraction of revenue fields and the serialization of remaining properties into the 'e' parameter. Receipt data from properties.receipt is passed through for server-side IAP validation.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T14:30:00.000Z",
+        "properties": {
+          "order_id": "ORD-98765",
+          "revenue": 49.99,
+          "currency": "USD",
+          "product_id": "SKU-001",
+          "product_name": "Premium Pack",
+          "quantity": 1,
+          "receipt": "MIITxQYJKoZIhvcNAQcCoIITt...base64_receipt_data"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-ios",
+            "version": "2.x.x"
+          },
+          "app": {
+            "name": "Example Game",
+            "version": "2.5.1",
+            "build": "251",
+            "namespace": "com.example.game"
+          },
+          "device": {
+            "id": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+            "advertisingId": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+            "adTrackingEnabled": true,
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.2"
+          },
+          "locale": "en-US",
+          "ip": "203.0.113.50",
+          "timezone": "America/New_York"
+        },
+        "messageId": "rs-msg-track-singular-002",
+        "rudderId": "rudder-uuid-singular-002",
+        "originalTimestamp": "2026-02-25T14:30:00.000Z",
+        "sentAt": "2026-02-25T14:30:01.000Z",
+        "receivedAt": "2026-02-25T14:30:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.singular.net/api/v1/evt",
+        "query_parameters": {
+          "a": "<singular_sdk_key>",
+          "p": "iOS",
+          "i": "com.example.game",
+          "ip": "203.0.113.50",
+          "n": "Order Completed",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "idfv": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+          "att_authorization_status": "3",
+          "ve": "2.5.1",
+          "ma": "Apple",
+          "mo": "iPhone 15 Pro",
+          "lc": "en_US",
+          "bd": "251",
+          "os": "17.2",
+          "amt": "49.99",
+          "cur": "USD",
+          "e": "{\"order_id\":\"ORD-98765\",\"product_id\":\"SKU-001\",\"product_name\":\"Premium Pack\",\"quantity\":1}",
+          "receipt": "MIITxQYJKoZIhvcNAQcCoIITt...base64_receipt_data",
+          "utime": "1740493800"
+        },
+        "notes": "Revenue mapping is identical between Segment and RudderStack. Both platforms extract properties.revenue into the 'amt' parameter and properties.currency into the 'cur' parameter. The receipt field is passed through for Singular's server-side IAP validation which is used for fraud prevention. Revenue and receipt fields are excluded from the 'e' JSON attributes to avoid duplication."
+      }
+    },
+    "track_android_event": {
+      "description": "RudderStack maps Android track events to Singular's S2S EVENT API using Android-specific identifiers. The Transformer detects the platform from context.device.type or context.os.name and uses the appropriate identifier parameters (aifa for Google Advertising ID, asid for Android App Set ID).",
+      "input_event": {
+        "type": "track",
+        "event": "Tutorial Complete",
+        "userId": "user_456",
+        "anonymousId": "anon_def_789",
+        "timestamp": "2026-02-25T16:00:00.000Z",
+        "properties": {
+          "tutorial_name": "Onboarding",
+          "steps_completed": 5,
+          "total_steps": 5,
+          "completion_time_seconds": 180
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-android",
+            "version": "2.x.x"
+          },
+          "app": {
+            "name": "Example Game",
+            "version": "2.5.1",
+            "build": "251",
+            "namespace": "com.example.game"
+          },
+          "device": {
+            "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "advertisingId": "38400000-8cf0-11bd-b23e-10b96e40000d",
+            "adTrackingEnabled": true,
+            "manufacturer": "Samsung",
+            "model": "Galaxy S24",
+            "type": "android"
+          },
+          "os": {
+            "name": "Android",
+            "version": "14"
+          },
+          "locale": "en-US",
+          "ip": "198.51.100.25",
+          "timezone": "America/Los_Angeles"
+        },
+        "messageId": "rs-msg-track-singular-003",
+        "rudderId": "rudder-uuid-singular-003",
+        "originalTimestamp": "2026-02-25T16:00:00.000Z",
+        "sentAt": "2026-02-25T16:00:01.000Z",
+        "receivedAt": "2026-02-25T16:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.singular.net/api/v1/evt",
+        "query_parameters": {
+          "a": "<singular_sdk_key>",
+          "p": "Android",
+          "i": "com.example.game",
+          "ip": "198.51.100.25",
+          "n": "Tutorial Complete",
+          "aifa": "38400000-8cf0-11bd-b23e-10b96e40000d",
+          "asid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "ve": "2.5.1",
+          "ma": "Samsung",
+          "mo": "Galaxy S24",
+          "lc": "en_US",
+          "bd": "251",
+          "os": "14",
+          "e": "{\"tutorial_name\":\"Onboarding\",\"steps_completed\":5,\"total_steps\":5,\"completion_time_seconds\":180}",
+          "utime": "1740499200"
+        },
+        "notes": "RudderStack Transformer detects the platform from context.device.type ('android') and maps context.device.advertisingId to 'aifa' (Android Identifier for Advertisers) instead of 'idfa'. The context.device.id is mapped to 'asid' (Android App Set ID). API call structure is identical to Segment's Android event mapping."
+      }
+    }
+  },
+  "field_mappings": {
+    "event_mapping": {
+      "event_name": {
+        "source_field": "event",
+        "singular_parameter": "n",
+        "description": "The RudderStack/Segment track event name maps directly to Singular's 'n' (event name) parameter. Singular recommends using standard event names prefixed with 'sng_' for streamlined partner integration, but custom event names are also supported.",
+        "parity_status": "equivalent"
+      },
+      "event_attributes": {
+        "source_field": "properties",
+        "singular_parameter": "e",
+        "description": "Event properties are JSON-serialized into Singular's 'e' (attributes) parameter. Revenue-related properties (revenue, currency, receipt) are extracted to their own top-level parameters and excluded from the 'e' JSON to avoid duplication.",
+        "parity_status": "needs_verification",
+        "known_gap": "Verify that both platforms apply identical JSON serialization (key ordering, numeric formatting) and identical extraction logic for revenue fields from properties."
+      },
+      "timestamp": {
+        "source_field": "timestamp",
+        "singular_parameter": "utime",
+        "description": "ISO 8601 timestamp from the event is converted to Unix epoch seconds (integer) for Singular's 'utime' parameter. Both platforms perform this conversion via their respective Transformer services.",
+        "parity_status": "equivalent"
+      }
+    },
+    "revenue_reporting": {
+      "revenue_amount": {
+        "source_field": "properties.revenue",
+        "singular_parameter": "amt",
+        "description": "Revenue amount extracted from properties.revenue and mapped to Singular's 'amt' parameter as a string-encoded decimal value. Required for Singular's ROI reporting and campaign optimization.",
+        "parity_status": "equivalent"
+      },
+      "currency_code": {
+        "source_field": "properties.currency",
+        "singular_parameter": "cur",
+        "description": "ISO 4217 currency code extracted from properties.currency and mapped to Singular's 'cur' parameter. Defaults to 'USD' if not specified in some implementations.",
+        "parity_status": "needs_verification",
+        "known_gap": "Verify default currency handling when properties.currency is omitted. Segment may default to 'USD' while RudderStack behavior needs confirmation."
+      },
+      "receipt_validation": {
+        "source_field": "properties.receipt",
+        "singular_parameter": "receipt",
+        "description": "Platform-specific transaction receipt (iOS App Store receipt or Google Play receipt) passed through for Singular's server-side IAP validation and fraud prevention. Singular uses the receipt to verify transaction authenticity.",
+        "parity_status": "needs_verification",
+        "known_gap": "Verify both platforms support receipt passthrough. The receipt field name in properties may differ between platforms or may require additional configuration."
+      },
+      "is_revenue_event": {
+        "description": "Singular distinguishes revenue events from standard events by the presence of 'amt' and 'cur' parameters. Both platforms should only include these parameters when properties.revenue is present and non-zero.",
+        "parity_status": "needs_verification"
+      }
+    },
+    "device_attribution": {
+      "ios_identifiers": {
+        "idfa": {
+          "source_field": "context.device.advertisingId",
+          "singular_parameter": "idfa",
+          "condition": "context.device.type == 'ios' OR context.os.name == 'iOS'",
+          "description": "iOS Identifier for Advertisers (IDFA) extracted from context.device.advertisingId when the device platform is iOS. Used as the primary attribution identifier for iOS devices. Requires ATT (App Tracking Transparency) authorization on iOS 14.5+.",
+          "parity_status": "equivalent"
+        },
+        "idfv": {
+          "source_field": "context.device.id",
+          "singular_parameter": "idfv",
+          "condition": "context.device.type == 'ios' OR context.os.name == 'iOS'",
+          "description": "iOS Identifier for Vendors (IDFV) extracted from context.device.id for iOS devices. Used as a fallback identifier when IDFA is not available (ATT denied). Unique per vendor per device.",
+          "parity_status": "equivalent"
+        },
+        "att_authorization_status": {
+          "source_field": "context.device.adTrackingEnabled",
+          "singular_parameter": "att_authorization_status",
+          "description": "App Tracking Transparency authorization status. Mapped from context.device.adTrackingEnabled: true maps to '3' (authorized), false maps to '2' (denied). Singular uses this to determine IDFA availability and attribution methodology.",
+          "parity_status": "needs_verification",
+          "known_gap": "Segment may pass the raw ATT status integer (0-3) while RudderStack derives it from the boolean adTrackingEnabled flag. Verify the exact mapping logic for values 0 (not determined) and 1 (restricted)."
+        }
+      },
+      "android_identifiers": {
+        "aifa": {
+          "source_field": "context.device.advertisingId",
+          "singular_parameter": "aifa",
+          "condition": "context.device.type == 'android' OR context.os.name == 'Android'",
+          "description": "Android Identifier for Advertisers (AIFA), also known as Google Advertising ID (GAID). Extracted from context.device.advertisingId when the device platform is Android.",
+          "parity_status": "equivalent"
+        },
+        "asid": {
+          "source_field": "context.device.id",
+          "singular_parameter": "asid",
+          "condition": "context.device.type == 'android' OR context.os.name == 'Android'",
+          "description": "Android App Set ID (ASID) extracted from context.device.id for Android devices. Used as a privacy-preserving fallback when GAID is not available.",
+          "parity_status": "equivalent"
+        }
+      },
+      "app_context": {
+        "app_identifier": {
+          "source_field": "context.app.namespace",
+          "singular_parameter": "i",
+          "description": "App bundle identifier (iOS) or package name (Android) from context.app.namespace. This is the primary app identifier in Singular and must match the app registered in the Singular dashboard.",
+          "parity_status": "equivalent"
+        },
+        "app_version": {
+          "source_field": "context.app.version",
+          "singular_parameter": "ve",
+          "description": "Application version string from context.app.version.",
+          "parity_status": "equivalent"
+        },
+        "build_number": {
+          "source_field": "context.app.build",
+          "singular_parameter": "bd",
+          "description": "Application build number from context.app.build.",
+          "parity_status": "equivalent"
+        },
+        "platform": {
+          "source_field": "context.os.name",
+          "singular_parameter": "p",
+          "description": "Platform name derived from context.os.name (e.g., 'iOS', 'Android'). Determines which device identifier parameters are used (idfa/idfv for iOS, aifa/asid for Android).",
+          "parity_status": "equivalent"
+        },
+        "os_version": {
+          "source_field": "context.os.version",
+          "singular_parameter": "os",
+          "description": "Operating system version from context.os.version.",
+          "parity_status": "equivalent"
+        },
+        "device_manufacturer": {
+          "source_field": "context.device.manufacturer",
+          "singular_parameter": "ma",
+          "description": "Device manufacturer from context.device.manufacturer (e.g., 'Apple', 'Samsung').",
+          "parity_status": "equivalent"
+        },
+        "device_model": {
+          "source_field": "context.device.model",
+          "singular_parameter": "mo",
+          "description": "Device model from context.device.model (e.g., 'iPhone 15 Pro', 'Galaxy S24').",
+          "parity_status": "equivalent"
+        },
+        "locale": {
+          "source_field": "context.locale",
+          "singular_parameter": "lc",
+          "description": "Device locale from context.locale, formatted as language_country (e.g., 'en_US'). Segment/RudderStack may use 'en-US' format which needs conversion to underscore-separated format for Singular.",
+          "parity_status": "needs_verification",
+          "known_gap": "Verify locale format conversion: Segment spec uses 'en-US' (hyphen) while Singular expects 'en_US' (underscore). Both platforms should apply this transformation."
+        },
+        "ip_address": {
+          "source_field": "context.ip",
+          "singular_parameter": "ip",
+          "description": "Client IP address from context.ip. Required by Singular for geo-based attribution and fraud detection.",
+          "parity_status": "equivalent"
+        }
+      }
+    },
+    "sdk_key_configuration": {
+      "description": "Singular requires an SDK API key for all S2S API calls. The key is configured in the destination settings and passed via the 'a' parameter.",
+      "segment_config": "SDK key configured in Segment destination settings under 'API Key' or 'SDK Key' field",
+      "rudderstack_config": "SDK key configured in RudderStack destination settings; stored in backend-config DestinationT.Config.apiKey",
+      "parity_status": "equivalent"
+    }
+  },
+  "parity_analysis": {
+    "overall_status": "needs_verification",
+    "track_parity": {
+      "status": "high_confidence",
+      "description": "Both Segment and RudderStack map track events to the same Singular S2S EVENT API (https://s2s.singular.net/api/v1/evt) using identical query parameters. The core event mapping (event name, properties, device identifiers, revenue fields) follows the same logic. Minor differences may exist in locale formatting, ATT status derivation, and default currency handling.",
+      "known_gaps": [
+        "Locale format conversion (en-US vs en_US) needs verification",
+        "ATT authorization status mapping from boolean to integer needs verification",
+        "Default currency when properties.currency is omitted",
+        "Receipt passthrough support for IAP validation",
+        "JSON serialization ordering of event attributes in 'e' parameter"
+      ]
+    },
+    "identify_parity": {
+      "status": "not_applicable",
+      "description": "Singular does not support identify events. User identification in Singular is handled entirely through device identifiers (IDFA, IDFV, AIFA, ASID) attached to session and event API calls, not through a separate user identification mechanism."
+    },
+    "destination_api_differences": [
+      {
+        "area": "Event Tracking",
+        "segment_approach": "Maps track events to Singular EVENT API via query parameters with analytics-ios/analytics-android SDK context",
+        "rudderstack_approach": "Maps track events to Singular EVENT API via query parameters with rudder-sdk-ios/rudder-sdk-android SDK context",
+        "gap": "Verify identical parameter mapping logic in both Transformers"
+      },
+      {
+        "area": "Revenue Reporting",
+        "segment_approach": "Extracts properties.revenue to 'amt', properties.currency to 'cur', includes receipt for IAP validation",
+        "rudderstack_approach": "Same extraction logic: properties.revenue to 'amt', properties.currency to 'cur', receipt passthrough",
+        "gap": "Verify default currency handling when currency is omitted"
+      },
+      {
+        "area": "Device Identification",
+        "segment_approach": "Extracts IDFA/IDFV from context.device for iOS, AIFA/ASID for Android, includes ATT status",
+        "rudderstack_approach": "Same device identifier extraction from context.device with platform-specific parameter mapping",
+        "gap": "Verify ATT status mapping from adTrackingEnabled boolean to Singular's integer status codes"
+      },
+      {
+        "area": "Singular Device ID (SDID)",
+        "segment_approach": "May support hybrid mode with Singular SDK-generated SDID for session management",
+        "rudderstack_approach": "S2S integration typically uses device identifiers without SDID unless hybrid mode is configured",
+        "gap": "Verify SDID support in both platforms for hybrid integration mode"
+      },
+      {
+        "area": "Data Deduplication",
+        "segment_approach": "Segment messageId can be used for server-side deduplication before sending to Singular",
+        "rudderstack_approach": "RudderStack messageId serves the same purpose; deduplication must be implemented server-side as Singular does not deduplicate",
+        "gap": "Neither platform provides built-in deduplication for Singular events"
+      }
+    ]
+  },
+  "destination_config": {
+    "required_settings": {
+      "apiKey": {
+        "type": "string",
+        "description": "Singular SDK API key. Found in the Singular dashboard under Developer Tools > SDK Integration > SDK Keys. This key is passed as the 'a' parameter in all S2S API calls.",
+        "sensitive": true
+      }
+    },
+    "optional_settings": {
+      "sessionEndpoint": {
+        "type": "string",
+        "default": "https://s2s.singular.net/api/v1/launch",
+        "description": "Singular SESSION API endpoint URL. Used for session (app open) tracking. Default points to Singular's production S2S endpoint."
+      },
+      "eventEndpoint": {
+        "type": "string",
+        "default": "https://s2s.singular.net/api/v1/evt",
+        "description": "Singular EVENT API endpoint URL. Used for in-app event and revenue tracking. Default points to Singular's production S2S endpoint."
+      },
+      "useV2Endpoint": {
+        "type": "boolean",
+        "default": false,
+        "description": "When true, uses Event Endpoint V2 which requires Singular Device ID (SDID) instead of platform-specific device identifiers. Used for hybrid integrations where the Singular SDK handles session management."
+      },
+      "defaultCurrency": {
+        "type": "string",
+        "default": "USD",
+        "description": "Default ISO 4217 currency code used when properties.currency is not specified in revenue events."
+      },
+      "passReceiptData": {
+        "type": "boolean",
+        "default": true,
+        "description": "When true, passes the platform transaction receipt (properties.receipt) to Singular for server-side IAP validation and fraud prevention."
+      },
+      "standardEventMapping": {
+        "type": "object",
+        "description": "Optional mapping of RudderStack/Segment event names to Singular standard event names (sng_* prefixed names). Enables streamlined partner integration and postback mapping in Singular.",
+        "example": {
+          "Order Completed": "sng_purchase",
+          "Product Added": "sng_add_to_cart",
+          "Tutorial Complete": "sng_tutorial_complete",
+          "Level Achieved": "sng_level_achieved",
+          "App Opened": "sng_session_start",
+          "Sign Up": "sng_sign_up",
+          "Content Viewed": "sng_content_view",
+          "Search": "sng_search"
+        }
+      }
+    }
+  },
+  "known_gaps": [
+    {
+      "gap_id": "SINGULAR-001",
+      "description": "Locale format conversion: Segment spec uses 'en-US' (hyphen-separated) while Singular expects 'en_US' (underscore-separated). Both platforms must convert the locale format when mapping context.locale to the Singular 'lc' parameter.",
+      "severity": "low",
+      "impact": "Incorrect locale format may cause Singular to not recognize the locale correctly, potentially affecting geo-based reporting."
+    },
+    {
+      "gap_id": "SINGULAR-002",
+      "description": "ATT authorization status mapping: Segment may pass the raw integer ATT status (0=not determined, 1=restricted, 2=denied, 3=authorized) while RudderStack derives the value from the boolean context.device.adTrackingEnabled field. The boolean-to-integer mapping may lose granularity for statuses 0 (not determined) and 1 (restricted).",
+      "severity": "medium",
+      "impact": "Incorrect ATT status may affect Singular's ability to determine IDFA availability and apply the correct attribution methodology on iOS 14.5+ devices."
+    },
+    {
+      "gap_id": "SINGULAR-003",
+      "description": "SDK library identification: Segment context.library.name is 'analytics-ios'/'analytics-android', RudderStack uses 'rudder-sdk-ios'/'rudder-sdk-android'. This field is not forwarded to Singular's API but may affect internal diagnostics.",
+      "severity": "low",
+      "impact": "No impact on Singular API calls. Library name is a source event field not mapped to any Singular parameter."
+    },
+    {
+      "gap_id": "SINGULAR-004",
+      "description": "RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are present in the source event but are not forwarded to Singular's API. These fields do not affect parity but represent additional metadata in the RudderStack event pipeline.",
+      "severity": "low",
+      "impact": "No functional impact on Singular integration. Envelope fields are internal to RudderStack's pipeline."
+    },
+    {
+      "gap_id": "SINGULAR-005",
+      "description": "Event attribute JSON serialization: The 'e' parameter carries JSON-serialized event properties. Key ordering and numeric formatting (integer vs float) may differ between Segment and RudderStack Transformer implementations.",
+      "severity": "low",
+      "impact": "Singular parses the JSON string server-side so key ordering is irrelevant. Numeric formatting differences are unlikely to cause issues."
+    },
+    {
+      "gap_id": "SINGULAR-006",
+      "description": "Singular Device ID (SDID) support: Singular offers two endpoint versions — V1 uses platform-specific identifiers (IDFA/AIFA) while V2 uses Singular's own device ID (SDID) for hybrid integrations. Verify that both platforms support V2 endpoint configuration for hybrid mode.",
+      "severity": "medium",
+      "impact": "Hybrid integrations combining Singular SDK for sessions with server-side event tracking require SDID support. Without V2 endpoint support, hybrid mode is not possible."
+    },
+    {
+      "gap_id": "SINGULAR-007",
+      "description": "Standard event name mapping: Singular recommends using standard event names (sng_purchase, sng_tutorial_complete, etc.) for streamlined partner integration. The mapping from Segment/RudderStack semantic event names to Singular standard names may not be identical between platforms.",
+      "severity": "medium",
+      "impact": "Inconsistent event name mapping may cause events to appear differently in Singular reports and affect partner postback configurations."
+    },
+    {
+      "gap_id": "SINGULAR-008",
+      "description": "No deduplication: Singular does not deduplicate incoming events. Both platforms must implement server-side deduplication. Verify that neither platform sends duplicate events to Singular during retries or error recovery.",
+      "severity": "medium",
+      "impact": "Duplicate events in Singular inflate attribution metrics, revenue reporting, and partner postback counts, leading to inaccurate campaign performance data."
+    }
+  ],
+  "notes": "Singular is a shared cloud destination in the Attribution category. Both Segment and RudderStack support Singular as a cloud-mode (server-side) destination via their respective Transformer services, mapping track events to Singular's S2S EVENT API (https://s2s.singular.net/api/v1/evt). Singular is primarily used for mobile app attribution, campaign optimization, and ROI reporting. The integration supports two main event types: standard in-app events (mapped via the 'n' and 'e' parameters) and revenue events (with additional 'amt' and 'cur' parameters for purchase tracking). Device attribution relies on platform-specific identifiers (IDFA/IDFV for iOS, AIFA/ASID for Android) extracted from the event context. Singular's EVENT API uses GET requests with query parameters rather than POST requests with JSON bodies, which is unique among attribution platforms. The API does not support identify or group events — all user identification is handled through device identifiers attached to event calls. Key parity focus areas: (1) device identifier extraction and platform detection logic, (2) revenue field extraction and currency handling, (3) ATT authorization status mapping on iOS, (4) locale format conversion, (5) standard event name mapping. Refer to gap report §Attribution (~17% category coverage with ~6 RudderStack connectors including AppsFlyer, Branch, Adjust, and Singular)."
+}
