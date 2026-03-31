@@ -1,0 +1,466 @@
+{
+  "destination_type": "MOENGAGE",
+  "destination_tier": "cloud",
+  "category": "Marketing Automation, Analytics",
+  "segment_slug": "moengage",
+  "segment_new_slug": "actions-moengage",
+  "rudderstack_docs": "https://www.rudderstack.com/docs/destinations/streaming-destinations/moengage/",
+  "segment_docs": "https://segment.com/docs/connections/destinations/catalog/actions-moengage/",
+  "authentication": {
+    "method": "basic_auth",
+    "headers": {
+      "Authorization": "Basic <base64_encoded_data_api_id:data_api_key>",
+      "Content-Type": "application/json"
+    },
+    "notes": "Both Segment and RudderStack authenticate with MoEngage using Basic Authentication. The credentials are a Base64-encoded string of DATA_API_ID:DATA_API_KEY (also referred to as Workspace ID and API Key). The Data API ID is the same as the MoEngage Workspace ID. Credentials are obtained from the MoEngage Dashboard under Settings > Account > APIs. The API endpoint URL includes a data center identifier (e.g., api-01, api-02, api-03) that varies per client workspace."
+  },
+  "event_types": ["track", "identify", "page"],
+  "segment_reference_payloads": {
+    "track": {
+      "description": "Segment track calls are sent to MoEngage's Create Event API. The event name maps to the action field within the actions array. Event properties are mapped to the attributes object within each action. The userId is mapped to customer_id for user identification. Timestamps are converted to Unix epoch seconds for the user_time and current_time fields. MoEngage supports String, Integer, Long, Double, Float, Boolean, Date, GeoLocation, JSON Object, and JSON Array data types in event attributes.",
+      "api_endpoint": "POST https://api-0X.moengage.com/v1/event/{app_id}",
+      "payload": {
+        "type": "event",
+        "customer_id": "user_123",
+        "actions": [
+          {
+            "action": "Product Purchased",
+            "attributes": {
+              "product_name": "Premium Widget",
+              "brand": "Acme Corp",
+              "category": "Electronics",
+              "price": 49.99,
+              "currency": "USD",
+              "quantity": 1
+            },
+            "platform": "WEB",
+            "app_version": "1.0.0",
+            "user_time": "1740484800",
+            "current_time": "1740484800"
+          }
+        ]
+      },
+      "notes": "Segment sends track events to MoEngage's Create Event API endpoint. The event name becomes the action field, and all event properties are sent as attributes. The customer_id is derived from the Segment userId. If Identity Resolution is enabled on the MoEngage workspace, identifiers are sent in a user_identifiers object instead of the top-level customer_id. Timestamps are converted to Unix epoch seconds. MoEngage supports batch actions within a single request — multiple events can be sent in the actions array. The data center number (X) in the endpoint URL is configured per workspace."
+    },
+    "identify": {
+      "description": "Segment identify calls are sent to MoEngage's Track User API. The userId maps to customer_id. User traits are sent in the attributes object, with standard traits mapped to MoEngage's built-in user attribute names. MoEngage creates a new user if the customer_id does not exist, or updates the existing user profile with the provided attributes.",
+      "api_endpoint": "POST https://api-0X.moengage.com/v1/customer/{app_id}",
+      "payload": {
+        "type": "customer",
+        "customer_id": "user_123",
+        "attributes": {
+          "first_name": "John",
+          "last_name": "Doe",
+          "name": "John Doe",
+          "email": "john.doe@example.com",
+          "moe_email": "john.doe@example.com",
+          "phone": "+15551234567",
+          "gender": "male",
+          "birthday": "1995-06-15T00:00:00Z",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "platforms": [
+            {
+              "platform": "WEB",
+              "active": "true"
+            }
+          ]
+        }
+      },
+      "notes": "Segment sends identify calls to MoEngage's Track User API to create or update user profiles. The userId maps to customer_id. Standard traits (firstName, lastName, email, phone) are mapped to MoEngage's built-in attribute names (first_name, last_name, moe_email, phone). Custom traits are passed through as custom user attributes. The moe_email field is a MoEngage-specific attribute for email that enables email channel targeting. Date values must follow ISO 8601 format. If the customer_id does not exist in MoEngage, a new user profile is created automatically."
+    },
+    "page": {
+      "description": "Segment page calls are mapped to MoEngage events. The page name and category are combined to create the event action name. Page properties are mapped to event attributes. Page views are tracked as regular events in MoEngage since MoEngage does not have a dedicated page view API — all page tracking flows through the Create Event API.",
+      "api_endpoint": "POST https://api-0X.moengage.com/v1/event/{app_id}",
+      "payload": {
+        "type": "event",
+        "customer_id": "user_123",
+        "actions": [
+          {
+            "action": "Viewed Home page",
+            "attributes": {
+              "name": "Home",
+              "url": "https://www.example.com/home",
+              "path": "/home",
+              "title": "Home Page - Example Site",
+              "referrer": "https://www.google.com",
+              "search": ""
+            },
+            "platform": "WEB",
+            "app_version": "1.0.0",
+            "user_time": "1740484800",
+            "current_time": "1740484800"
+          }
+        ]
+      },
+      "notes": "Segment maps page calls to MoEngage event tracking. The event action name is constructed as 'Viewed {name} page' (or 'Viewed {category} {name} page' if category is present). Page properties such as url, path, title, referrer, and search are sent as event attributes. Since MoEngage does not have a native page view concept, page calls are indistinguishable from track calls at the MoEngage API level. Timestamps follow the same Unix epoch second conversion as track events."
+    }
+  },
+  "rudderstack_expected_payloads": {
+    "track": {
+      "description": "RudderStack track calls are transformed and sent to MoEngage's Create Event API. The event name maps to the action field. Event properties are mapped to the attributes object. The userId is mapped to customer_id. RudderStack's transformer handles timestamp conversion to Unix epoch seconds and maps context fields to MoEngage platform-specific fields. When MoEngage Identity Resolution is enabled, RudderStack sends user_identifiers instead of customer_id.",
+      "api_endpoint": "POST https://api-0X.moengage.com/v1/event/{app_id}",
+      "payload": {
+        "type": "event",
+        "customer_id": "user_123",
+        "actions": [
+          {
+            "action": "Product Purchased",
+            "attributes": {
+              "product_name": "Premium Widget",
+              "brand": "Acme Corp",
+              "category": "Electronics",
+              "price": 49.99,
+              "currency": "USD",
+              "quantity": 1
+            },
+            "platform": "WEB",
+            "app_version": "1.0.0",
+            "user_time": "1740484800",
+            "current_time": "1740484800"
+          }
+        ]
+      },
+      "payload_with_identity_resolution": {
+        "type": "event",
+        "user_identifiers": {
+          "customer_id": "user_123",
+          "moe_email": "john.doe@example.com"
+        },
+        "actions": [
+          {
+            "action": "Product Purchased",
+            "attributes": {
+              "product_name": "Premium Widget",
+              "brand": "Acme Corp",
+              "category": "Electronics",
+              "price": 49.99,
+              "currency": "USD",
+              "quantity": 1
+            },
+            "platform": "WEB",
+            "app_version": "1.0.0",
+            "user_time": "1740484800",
+            "current_time": "1740484800"
+          }
+        ]
+      },
+      "notes": "RudderStack sends track events to MoEngage's Create Event API. The transformation is handled by the RudderStack Transformer service. The event name maps to actions[].action and properties map to actions[].attributes. The userId is mapped to customer_id. RudderStack derives the platform field from context.device.type or context.os.name (e.g., 'ANDROID', 'iOS', 'WEB'). The app_version is extracted from context.app.version. Timestamps (originalTimestamp) are converted to Unix epoch seconds for user_time and current_time. When the MoEngage Identity Resolution feature is enabled in the dashboard, RudderStack sends identifiers via user_identifiers instead of the top-level customer_id. RudderStack additionally supports anonymousId-based tracking by using it as a fallback for customer_id when userId is not present."
+    },
+    "identify": {
+      "description": "RudderStack identify calls are transformed and sent to MoEngage's Track User API. User traits are mapped to MoEngage user attributes. Standard traits (firstName, lastName, email, phone, birthday) are mapped to MoEngage's built-in attribute names. Custom traits pass through as custom attributes. The userId maps to customer_id, with anonymousId used as a fallback when userId is not available.",
+      "api_endpoint": "POST https://api-0X.moengage.com/v1/customer/{app_id}",
+      "payload": {
+        "type": "customer",
+        "customer_id": "user_123",
+        "attributes": {
+          "first_name": "John",
+          "last_name": "Doe",
+          "name": "John Doe",
+          "email": "john.doe@example.com",
+          "moe_email": "john.doe@example.com",
+          "phone": "+15551234567",
+          "gender": "male",
+          "birthday": "1995-06-15T00:00:00Z",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "platforms": [
+            {
+              "platform": "WEB",
+              "active": "true"
+            }
+          ]
+        }
+      },
+      "payload_with_identity_resolution": {
+        "type": "customer",
+        "user_identifiers": {
+          "customer_id": "user_123",
+          "moe_email": "john.doe@example.com"
+        },
+        "attributes": {
+          "first_name": "John",
+          "last_name": "Doe",
+          "name": "John Doe",
+          "phone": "+15551234567",
+          "gender": "male",
+          "birthday": "1995-06-15T00:00:00Z",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "platforms": [
+            {
+              "platform": "WEB",
+              "active": "true"
+            }
+          ]
+        }
+      },
+      "notes": "RudderStack sends identify calls to MoEngage's Track User API. The RudderStack Transformer maps standard traits to MoEngage built-in attribute names: traits.firstName → first_name, traits.lastName → last_name, traits.email → email and moe_email (duplicated for email channel targeting), traits.phone → phone, traits.birthday → birthday. Custom traits are passed through as-is. The customer_id is derived from userId (preferred) or anonymousId (fallback). When MoEngage Identity Resolution is enabled, RudderStack sends user_identifiers with configured identifiers (customer_id, moe_email, moe_mobile, etc.) instead of the top-level customer_id. MoEngage creates a new user if the customer_id does not exist or updates the existing user profile."
+    },
+    "page": {
+      "description": "RudderStack page calls are transformed into MoEngage events via the Create Event API. The page name and category are combined to construct the event action name. Page properties are mapped to event attributes. This mapping follows the same pattern as track events since MoEngage does not have a dedicated page view endpoint.",
+      "api_endpoint": "POST https://api-0X.moengage.com/v1/event/{app_id}",
+      "payload": {
+        "type": "event",
+        "customer_id": "user_123",
+        "actions": [
+          {
+            "action": "Viewed Home page",
+            "attributes": {
+              "name": "Home",
+              "url": "https://www.example.com/home",
+              "path": "/home",
+              "title": "Home Page - Example Site",
+              "referrer": "https://www.google.com",
+              "search": ""
+            },
+            "platform": "WEB",
+            "app_version": "1.0.0",
+            "user_time": "1740484800",
+            "current_time": "1740484800"
+          }
+        ]
+      },
+      "notes": "RudderStack maps page calls to MoEngage events through the Create Event API. The RudderStack Transformer constructs the action name as 'Viewed {name} page' (or 'Viewed {category} {name} page' when category is present). Standard page properties (url, path, title, referrer, search) are sent as event attributes. The customer_id is derived from userId or anonymousId. The platform, app_version, user_time, and current_time fields follow the same derivation rules as track events. RudderStack and Segment produce functionally identical MoEngage payloads for page calls."
+    }
+  },
+  "field_mappings": {
+    "customer_id_derivation": {
+      "segment_field": "userId",
+      "rudderstack_field": "userId (primary), anonymousId (fallback)",
+      "moengage_field": "customer_id",
+      "description": "Both Segment and RudderStack map the userId to MoEngage's customer_id, which is the primary user identifier in MoEngage. The customer_id is used to create or look up user profiles. On receiving a Data API request, MoEngage checks if a user with the given customer_id exists — if not, a new user profile is created. RudderStack additionally supports falling back to anonymousId when userId is not available, allowing anonymous user tracking before identification.",
+      "parity_status": "FUNCTIONAL_MATCH",
+      "gap_detail": "RudderStack supports anonymousId fallback for customer_id derivation, enabling anonymous user tracking. Segment's cloud-mode integration also maps userId to customer_id. MoEngage's Data API documentation states anonymous events require a customer_id or configured user_identifiers."
+    },
+    "user_attribute_mapping": {
+      "segment_approach": "Segment maps identify traits to MoEngage user attributes. Standard traits (firstName, lastName, email, phone, birthday) are mapped to MoEngage built-in attribute names. Custom traits pass through as custom user attributes.",
+      "rudderstack_approach": "RudderStack maps identify traits to MoEngage user attributes using the same convention. Standard traits are mapped to built-in names: firstName→first_name, lastName→last_name, email→email+moe_email, phone→phone, birthday→birthday. Custom traits pass through as custom user attributes.",
+      "moengage_field": "attributes (in Track User API payload)",
+      "description": "Both platforms map user traits to MoEngage's user attributes object within the Track User API. MoEngage has built-in attributes (first_name, last_name, moe_email, phone, gender, birthday) that are recognized by the platform for native features like email campaigns and push notifications. Custom attributes are stored alongside built-in attributes. The moe_email attribute specifically enables MoEngage's email channel targeting. Date attributes must be in ISO 8601 format.",
+      "parity_status": "MATCH",
+      "gap_detail": "Both platforms map standard traits to the same MoEngage built-in attribute names. The trait-to-attribute mapping is functionally identical."
+    },
+    "event_tracking_format": {
+      "segment_approach": "Segment maps track event name to actions[].action and properties to actions[].attributes. Timestamps are converted to Unix epoch seconds for user_time and current_time fields.",
+      "rudderstack_approach": "RudderStack maps track event name to actions[].action and properties to actions[].attributes. The RudderStack Transformer converts originalTimestamp to Unix epoch seconds. The platform field is derived from context.device.type or context.os.name.",
+      "moengage_field": "actions[] (in Create Event API payload)",
+      "description": "Both platforms use MoEngage's Create Event API with the actions array structure. Each event maps to one entry in the actions array with action (event name), attributes (event properties), platform, app_version, user_time, and current_time fields. MoEngage supports batch event submission — multiple actions can be included in a single API call. The platform field accepts values like 'ANDROID', 'iOS', 'WEB', 'TV'. Both Segment and RudderStack derive platform from the event context.",
+      "parity_status": "MATCH",
+      "gap_detail": "Both platforms produce the same Create Event API payload structure. The action and attributes mapping is identical."
+    },
+    "timestamp_handling": {
+      "segment_field": "timestamp (ISO 8601)",
+      "rudderstack_field": "originalTimestamp (ISO 8601)",
+      "moengage_field": "user_time, current_time (Unix epoch seconds)",
+      "description": "MoEngage's Create Event API expects timestamps as Unix epoch seconds (string format). Both Segment and RudderStack convert their respective ISO 8601 timestamp fields to epoch seconds. Segment uses the timestamp field, while RudderStack uses originalTimestamp. The user_time represents when the event occurred on the user's device, and current_time represents the server-side receipt time. Both are typically set to the same epoch value from the source event timestamp.",
+      "parity_status": "MATCH",
+      "gap_detail": "Both platforms convert ISO 8601 timestamps to Unix epoch seconds. The field names differ at the source level (timestamp vs originalTimestamp) but produce identical MoEngage API payloads."
+    },
+    "platform_derivation": {
+      "segment_approach": "Segment derives the platform from the source library context (analytics.js → WEB, analytics-android → ANDROID, analytics-ios → iOS).",
+      "rudderstack_approach": "RudderStack derives the platform from context.device.type or context.os.name (web → WEB, android → ANDROID, ios → iOS).",
+      "moengage_field": "actions[].platform",
+      "description": "MoEngage uses the platform field to categorize events by device type. Both platforms derive the platform value from their respective event context metadata. The platform value affects MoEngage's session tracking and analytics segmentation. Supported values include ANDROID, iOS, WEB, TV, and custom platform strings.",
+      "parity_status": "FUNCTIONAL_MATCH",
+      "gap_detail": "Both platforms derive the platform field from event context. The derivation logic differs slightly (library name vs device type) but produces the same MoEngage platform values."
+    },
+    "identity_resolution_support": {
+      "segment_approach": "Segment supports MoEngage's Identity Resolution feature by sending configured identifiers in the user_identifiers object when enabled.",
+      "rudderstack_approach": "RudderStack supports MoEngage's Unified Identity feature. When enabled in the dashboard, identifiers (customer_id, moe_email, moe_mobile, anonymousId) are sent via user_identifiers instead of the top-level customer_id.",
+      "moengage_field": "user_identifiers",
+      "description": "MoEngage's Identity Resolution feature allows multiple identifiers to be used for user matching beyond the basic customer_id. When enabled, the API accepts a user_identifiers object containing one or more identifiers (customer_id, moe_email, moe_mobile, custom identifiers). Both Segment and RudderStack support this feature by conditionally sending user_identifiers when Identity Resolution is configured. RudderStack additionally supports including anonymousId as an identifier for anonymous user tracking.",
+      "parity_status": "FUNCTIONAL_MATCH",
+      "gap_detail": "Both platforms support MoEngage Identity Resolution. RudderStack provides an explicit dashboard toggle for enabling this feature and supports anonymousId as an additional identifier type."
+    },
+    "data_center_configuration": {
+      "segment_approach": "Segment configures the MoEngage data center region during destination setup. The data center determines the API endpoint URL prefix (api-01, api-02, api-03, etc.).",
+      "rudderstack_approach": "RudderStack requires the MoEngage Region (data center) to be configured in the destination settings. This determines the API endpoint URL (e.g., https://api-01.moengage.com for DC-01).",
+      "moengage_field": "API endpoint URL prefix (api-0X)",
+      "description": "MoEngage maintains multiple geographically distributed data centers. Each workspace is assigned to a specific data center, and all API requests must be directed to the correct endpoint. The data center number (X) appears in the API URL as api-0X.moengage.com. Both Segment and RudderStack require this configuration during destination setup. Misconfigured data centers result in authentication failures.",
+      "parity_status": "MATCH",
+      "gap_detail": "Both platforms handle data center configuration identically. The data center is configured once during setup and applied to all API requests."
+    }
+  },
+  "parity_summary": {
+    "overall_status": "HIGH_PARITY",
+    "track_parity": "MATCH",
+    "identify_parity": "MATCH",
+    "page_parity": "MATCH",
+    "known_gaps": [
+      {
+        "gap_id": "MOENGAGE-001",
+        "severity": "LOW",
+        "description": "Segment has both a classic ('moengage') and an actions-based ('actions-moengage') destination variant. The actions-based variant uses Segment's newer architecture with configurable field mappings per action. RudderStack has a single MoEngage destination with fixed transformer-based field mapping.",
+        "impact": "Segment's actions-based variant provides more granular control over field mappings through the Segment UI. RudderStack's transformer handles mapping automatically. No functional payload difference for standard use cases."
+      },
+      {
+        "gap_id": "MOENGAGE-002",
+        "severity": "LOW",
+        "description": "RudderStack supports anonymousId fallback for customer_id when userId is not present. This enables tracking of anonymous users before they are identified. Segment's cloud-mode integration requires userId for user identification in MoEngage.",
+        "impact": "RudderStack users can track anonymous users in MoEngage using anonymousId. When the user later identifies, the anonymous profile can be merged. This provides better pre-identification user tracking."
+      },
+      {
+        "gap_id": "MOENGAGE-003",
+        "severity": "INFO",
+        "description": "RudderStack provides explicit dashboard toggles for MoEngage Identity Resolution enablement, including anonymousId as an identifier option. Segment handles Identity Resolution configuration through MoEngage's own dashboard integration.",
+        "impact": "Configuration approach differs but the resulting API payloads are functionally equivalent when Identity Resolution is enabled."
+      },
+      {
+        "gap_id": "MOENGAGE-004",
+        "severity": "INFO",
+        "description": "RudderStack supports both cloud mode (server-to-server via Transformer) and device mode (native MoEngage SDK integration) for Android, iOS, and Web. Segment also supports both connection modes. Device mode payloads are handled directly by the MoEngage SDK and are outside the scope of this payload parity comparison.",
+        "impact": "Both platforms support identical connection modes. This payload comparison focuses on cloud mode (server-to-server) payloads only."
+      },
+      {
+        "gap_id": "MOENGAGE-005",
+        "severity": "LOW",
+        "description": "MoEngage Data API supports batch event submission with multiple actions in a single request. Both Segment and RudderStack typically send one event per action entry, but the batch capability is available if needed for throughput optimization.",
+        "impact": "Both platforms can leverage batch event submission. No parity difference — the capability is determined by MoEngage's API, not the sending platform."
+      }
+    ],
+    "matching_features": [
+      "Customer ID mapping (userId → customer_id)",
+      "User attribute mapping (identify traits → Track User API attributes)",
+      "Event tracking (track event → Create Event API actions)",
+      "Page view tracking (page → Create Event API with constructed action name)",
+      "Standard trait mapping to MoEngage built-in attributes (first_name, last_name, moe_email, phone, birthday)",
+      "Timestamp conversion (ISO 8601 → Unix epoch seconds)",
+      "Platform derivation from event context",
+      "Data center configuration for API endpoint routing",
+      "Basic Authentication (Data API ID + Data API Key)",
+      "MoEngage Identity Resolution / Unified Identity support",
+      "User profile auto-creation on first API call",
+      "Custom attribute passthrough for identify traits",
+      "Custom event attribute passthrough for track properties",
+      "Date attribute ISO 8601 format support",
+      "Device mode SDK integration for Android, iOS, and Web"
+    ]
+  },
+  "source_event_fixtures": {
+    "track_event": {
+      "type": "track",
+      "userId": "user_123",
+      "event": "Product Purchased",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "product_name": "Premium Widget",
+        "brand": "Acme Corp",
+        "category": "Electronics",
+        "price": 49.99,
+        "currency": "USD",
+        "quantity": 1
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.48.0"
+        },
+        "app": {
+          "version": "1.0.0"
+        },
+        "device": {
+          "type": "web"
+        },
+        "os": {
+          "name": "Windows",
+          "version": "10"
+        },
+        "browser": {
+          "name": "Chrome",
+          "version": "121.0.0.0"
+        },
+        "ip": "192.168.1.1",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0"
+      },
+      "messageId": "msg-track-moengage-001",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    },
+    "identify_event": {
+      "type": "identify",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "traits": {
+        "firstName": "John",
+        "lastName": "Doe",
+        "email": "john.doe@example.com",
+        "phone": "+15551234567",
+        "gender": "male",
+        "birthday": "1995-06-15",
+        "plan": "premium",
+        "company": "Acme Corp"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.48.0"
+        },
+        "app": {
+          "version": "1.0.0"
+        },
+        "device": {
+          "type": "web"
+        },
+        "os": {
+          "name": "Windows",
+          "version": "10"
+        },
+        "browser": {
+          "name": "Chrome",
+          "version": "121.0.0.0"
+        },
+        "ip": "192.168.1.1",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0",
+        "locale": "en-US",
+        "timezone": "America/New_York"
+      },
+      "messageId": "msg-identify-moengage-001",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    },
+    "page_event": {
+      "type": "page",
+      "userId": "user_123",
+      "name": "Home",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "name": "Home",
+        "url": "https://www.example.com/home",
+        "path": "/home",
+        "title": "Home Page - Example Site",
+        "referrer": "https://www.google.com",
+        "search": ""
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.48.0"
+        },
+        "app": {
+          "version": "1.0.0"
+        },
+        "device": {
+          "type": "web"
+        },
+        "os": {
+          "name": "Windows",
+          "version": "10"
+        },
+        "browser": {
+          "name": "Chrome",
+          "version": "121.0.0.0"
+        },
+        "ip": "192.168.1.1",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0"
+      },
+      "messageId": "msg-page-moengage-001",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    }
+  },
+  "notes": "MoEngage is a shared cloud destination present in both RudderStack and Segment catalogs. Categories: Marketing Automation, Analytics. MoEngage is an intelligent customer engagement platform that enables personalized communication across push notifications, email, SMS, in-app messaging, and web push channels. Both platforms use MoEngage's Data API (Track User API for identify calls, Create Event API for track and page calls) for server-to-server cloud-mode integration. The primary integration pattern for both platforms is: (1) userId maps to MoEngage's customer_id for user identification; (2) identify traits are mapped to MoEngage user attributes via the Track User API, with standard traits mapped to built-in attribute names (first_name, last_name, moe_email, phone, birthday); (3) track event names map to the action field and properties map to attributes in the Create Event API; (4) page calls are converted to MoEngage events with a constructed action name ('Viewed {name} page'). Authentication uses Basic Auth with Base64-encoded Data API ID and Data API Key. The API endpoint includes a data center identifier (api-0X.moengage.com) configured per workspace. Segment has both a classic ('moengage') and newer actions-based ('actions-moengage') destination variant. RudderStack provides a single MoEngage destination supporting both cloud mode and device mode (native SDK) for Android, iOS, and Web. Payload-level parity is high — the core data flow (userId→customer_id, traits→attributes, event→action) produces functionally identical MoEngage API payloads from both platforms. Both platforms support MoEngage's Identity Resolution feature for multi-identifier user matching."
+}
