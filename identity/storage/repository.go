@@ -183,7 +183,7 @@ func (r *PostgresRepository) GetSegment(ctx context.Context, id int64) (*GraphSe
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, nil //nolint:nilnil // nil,nil signals "not found" per repository contract
 		}
 		r.logger.Errorn("Error getting segment",
 			logger.NewIntField("id", id),
@@ -426,7 +426,7 @@ func (r *PostgresRepository) LookupByExternalID(ctx context.Context, workspaceID
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, nil //nolint:nilnil // nil,nil signals "not found" per repository contract
 		}
 		r.logger.Errorn("Error looking up segment by external ID",
 			logger.NewStringField("workspaceID", workspaceID),
@@ -689,7 +689,7 @@ func (r *PostgresRepository) GetProfileData(ctx context.Context, segmentID int64
 		return nil, fmt.Errorf("getting profile data segment: %w", err)
 	}
 	if seg == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil // nil,nil signals "not found" per repository contract
 	}
 
 	// Query external IDs for this segment
