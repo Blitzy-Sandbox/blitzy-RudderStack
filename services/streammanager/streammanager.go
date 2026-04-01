@@ -7,6 +7,7 @@ import (
 	"github.com/rudderlabs/rudder-go-kit/config"
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
 	"github.com/rudderlabs/rudder-server/services/streammanager/amazonmsk"
+	"github.com/rudderlabs/rudder-server/services/streammanager/azureeventhub"
 	"github.com/rudderlabs/rudder-server/services/streammanager/bqstream"
 	"github.com/rudderlabs/rudder-server/services/streammanager/common"
 	"github.com/rudderlabs/rudder-server/services/streammanager/eventbridge"
@@ -31,6 +32,8 @@ func NewProducer(destination *backendconfig.DestinationT, opts common.Opts) (com
 	switch destination.DestinationDefinition.Name {
 	case "AZURE_EVENT_HUB":
 		return kafka.NewProducerForAzureEventHubs(destination, opts)
+	case "AZURE_EVENT_HUB_EXTENDED":
+		return azureeventhub.NewProducer(destination, opts)
 	case "CONFLUENT_CLOUD":
 		return kafka.NewProducerForConfluentCloud(destination, opts)
 	case "EVENTBRIDGE":
