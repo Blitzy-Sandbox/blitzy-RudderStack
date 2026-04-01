@@ -94,6 +94,14 @@ func (m *mockGraphService) Health(_ context.Context) error {
 	return m.healthErr
 }
 
+// Run is a no-op implementation of graph.Service.Run for the test mock.
+// The real implementation blocks until ctx is cancelled; the mock returns
+// immediately since lifecycle management is not under test here.
+func (m *mockGraphService) Run(_ context.Context) error { return nil }
+
+// Stop is a no-op implementation of graph.Service.Stop for the test mock.
+func (m *mockGraphService) Stop() {}
+
 // mockCache implements the ProfileCache interface with an in-memory store.
 // It supports hit/miss tracking and error injection hooks.
 type mockCache struct {
