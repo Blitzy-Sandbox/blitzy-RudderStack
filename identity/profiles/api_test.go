@@ -522,6 +522,13 @@ func TestGetProfileMetadata_Success(t *testing.T) {
 			SegmentID:   "uuid-segment-1",
 			CreatedAt:   createdAt,
 		},
+		ExternalIDs: []storage.ExternalID{
+			{ID: 100, ExternalIDType: "user_id", ExternalIDValue: "u1"},
+		},
+		Traits: []storage.Trait{
+			{ID: 200, Key: "name", Value: "Alice"},
+			{ID: 201, Key: "plan", Value: "enterprise"},
+		},
 	}
 
 	router := h.Routes()
@@ -532,9 +539,12 @@ func TestGetProfileMetadata_Success(t *testing.T) {
 	var meta MetadataResponse
 	err := jsonrs.Unmarshal(rr.Body.Bytes(), &meta)
 	require.NoError(t, err)
-	require.Equal(t, int64(1), meta.SegmentID)
+	require.Equal(t, int64(1), meta.ID)
+	require.Equal(t, "uuid-segment-1", meta.SegmentID)
 	require.Equal(t, "ws-1", meta.WorkspaceID)
-	require.Contains(t, meta.CreatedAt, "2025-03-20")
+	require.Equal(t, createdAt, meta.CreatedAt)
+	require.Equal(t, 1, meta.IdentifierCount)
+	require.Equal(t, 2, meta.TraitCount)
 }
 
 func TestGetProfileMetadata_NotFound(t *testing.T) {
@@ -727,8 +737,9 @@ func TestGetProfile_ContentType(t *testing.T) {
 }
 
 func TestWriteError(t *testing.T) {
+	h, _, _ := newTestHandler(t)
 	rr := httptest.NewRecorder()
-	writeError(rr, http.StatusBadRequest, "bad_request", "test error message")
+	h.writeError(rr, http.StatusBadRequest, "bad_request", "test error message")
 
 	require.Equal(t, http.StatusBadRequest, rr.Code)
 	require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
@@ -741,9 +752,10 @@ func TestWriteError(t *testing.T) {
 }
 
 func TestWriteJSON(t *testing.T) {
+	h, _, _ := newTestHandler(t)
 	rr := httptest.NewRecorder()
 	data := map[string]string{"key": "value"}
-	writeJSON(rr, http.StatusOK, data)
+	h.writeJSON(rr, http.StatusOK, data)
 
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
@@ -755,6 +767,8 @@ func TestWriteJSON(t *testing.T) {
 }
 
 func TestParseProfileID(t *testing.T) {
+	h, _, _ := newTestHandler(t)
+
 	testCases := []struct {
 		name      string
 		id        string
@@ -778,7 +792,7 @@ func TestParseProfileID(t *testing.T) {
 			rctx.URLParams.Add("id", tc.id)
 			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 
-			id, err := parseProfileID(r)
+			id, err := h.parseProfileID(r)
 			if tc.wantError {
 				require.Error(t, err)
 			} else {
@@ -818,6 +832,8 @@ func TestGetProfile_CacheSetError_StillReturnsData(t *testing.T) {
 }
 
 // TestGetProfileTraits_GraphError tests error propagation from graph service.
+// The traits endpoint uses GetProfileData for existence checking, so we inject
+// the error on getProfileDataErr.
 func TestGetProfileTraits_GraphError(t *testing.T) {
 	h, gs, _ := newTestHandler(t)
 	gs.getSegmentTraitsErr = errors.New("database error")
