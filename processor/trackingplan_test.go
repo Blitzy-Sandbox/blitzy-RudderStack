@@ -3,6 +3,7 @@ package processor
 import (
 	"testing"
 
+	"github.com/rudderlabs/rudder-server/processor/enforcement"
 	"github.com/rudderlabs/rudder-server/processor/types"
 
 	"github.com/stretchr/testify/assert"
@@ -48,7 +49,7 @@ func TestReportViolations(t *testing.T) {
 			},
 		}
 
-		enhanceWithViolation(response, trackingPlanId, trackingPlanVersion)
+		enhanceWithViolation(response, trackingPlanId, trackingPlanVersion, enforcement.Mode(""))
 		for _, event := range eventsFromTransformerResponse(&response) {
 			eventContext, castOk := event.Output["context"].(map[string]any)
 			assert.True(t, castOk)
@@ -101,7 +102,7 @@ func TestReportViolations(t *testing.T) {
 			},
 		}
 
-		enhanceWithViolation(response, trackingPlanId, trackingPlanVersion)
+		enhanceWithViolation(response, trackingPlanId, trackingPlanVersion, enforcement.Mode(""))
 		for _, event := range eventsFromTransformerResponse(&response) {
 			_, castOk := event.Output["context"].(map[string]any)
 			assert.False(t, castOk)
@@ -196,7 +197,7 @@ func TestReportViolations(t *testing.T) {
 		trackingPlanId := "tp_2BFrdaslxH9A7B2hSDFKxw8wPN6knOb57"
 		trackingPlanVersion := 1
 
-		enhanceWithViolation(response, trackingPlanId, trackingPlanVersion)
+		enhanceWithViolation(response, trackingPlanId, trackingPlanVersion, enforcement.Mode(""))
 		for _, event := range eventsFromTransformerResponse(&response) {
 			eventContext, castOk := event.Output["context"].(map[string]any)
 			assert.True(t, castOk)
