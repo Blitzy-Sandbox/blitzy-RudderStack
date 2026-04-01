@@ -32,8 +32,6 @@ func NewProducer(destination *backendconfig.DestinationT, opts common.Opts) (com
 	switch destination.DestinationDefinition.Name {
 	case "AZURE_EVENT_HUB":
 		return kafka.NewProducerForAzureEventHubs(destination, opts)
-	case "AZURE_EVENT_HUB_EXTENDED":
-		return azureeventhub.NewProducer(destination, opts)
 	case "CONFLUENT_CLOUD":
 		return kafka.NewProducerForConfluentCloud(destination, opts)
 	case "EVENTBRIDGE":
@@ -58,12 +56,14 @@ func NewProducer(destination *backendconfig.DestinationT, opts common.Opts) (com
 		return googlecloudfunction.NewProducer(destination, opts)
 	case "WUNDERKIND":
 		return wunderkind.NewProducer(config.Default, destination, opts)
-	case "AMAZON_MSK":
-		return amazonmsk.NewProducer(destination, opts)
+	case "AZURE_EVENT_HUB_EXTENDED":
+		return azureeventhub.NewProducer(destination, opts)
 	case "APACHE_PULSAR":
 		return pulsar.NewProducer(destination, opts)
 	case "REDIS_STREAM":
 		return redisstream.NewProducer(destination, opts)
+	case "AMAZON_MSK":
+		return amazonmsk.NewProducer(destination, opts)
 	default:
 		return nil, fmt.Errorf("no provider configured for StreamManager") // 404, "No provider configured for StreamManager", ""
 	}
