@@ -2,7 +2,10 @@ package gateway
 
 import (
 	"context"
+	"crypto/subtle"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -213,21 +216,108 @@ func (gw *Handle) callType(callType string, delegate http.HandlerFunc) http.Hand
 	}
 }
 
-// requireBearerAuth is a middleware that enforces the presence of a valid Authorization
-// header with a Bearer token format on management API endpoints. This provides gateway-level
-// authentication as a defense-in-depth layer to ensure management endpoints (Protocols,
-// Profiles, Monitoring) are not publicly accessible without credentials.
+// bearerTokenValidator is a pluggable token validation function used by requireBearerAuth.
+// It receives the raw bearer token string and returns the validated workspace ID and nil
+// error on success, or an empty string and error if the token is invalid.
 //
-// The middleware validates the header format only (Bearer <token> with non-empty token).
-// Actual token validation and authorization is delegated to the internal handler, which
-// has access to workspace context and backend-config for token verification.
+// The default implementation validates against the RUDDER_ADMIN_TOKEN environment variable
+// (or config key "adminToken"). In production deployments this should be replaced with
+// JWT signature verification or a token-store lookup via SetBearerTokenValidator.
 //
-// Returns HTTP 401 Unauthorized with WWW-Authenticate challenge if the Authorization
-// header is missing, malformed, or contains an empty token.
-// requireBearerAuth wraps handler with Bearer token authentication check.
-// Used by webProtocolsHandler, webProfilesHandler, webMonitoringHandler —
-// these handler factory methods are defined but awaiting route mounting in
-// handle_lifecycle.go (future checkpoint).
+// This design allows the gateway to enforce real token validation at the middleware level
+// while remaining testable and configurable for different deployment scenarios.
+var bearerTokenValidator func(token string) (workspaceID string, err error)
+
+// init sets the default bearer token validator which checks against the configured
+// admin token. This provides actual credential verification rather than format-only
+// checks, preventing unauthorized access to management API endpoints.
+func init() {
+	bearerTokenValidator = defaultBearerTokenValidator
+}
+
+// defaultBearerTokenValidator validates a bearer token against the server's configured
+// admin token. The admin token is read from the RUDDER_ADMIN_TOKEN environment variable
+// or the "adminToken" config key, consistent with the existing admin authentication
+// pattern in admin/admin.go.
+//
+// Returns the token as a workspace identifier on success (admin tokens are workspace-agnostic),
+// or an error if the token does not match.
+func defaultBearerTokenValidator(token string) (string, error) {
+	// Read the admin token from environment or config. This is the same credential
+	// used by the admin RPC interface in admin/admin.go for server management.
+	adminToken := strings.TrimSpace(getAdminToken())
+	if adminToken == "" {
+		// If no admin token is configured, reject all bearer tokens to prevent
+		// accidental open access. Operators must explicitly configure an admin token
+		// to enable management API access.
+		return "", fmt.Errorf("management API authentication not configured: set RUDDER_ADMIN_TOKEN")
+	}
+	if !hmacEqual(token, adminToken) {
+		return "", fmt.Errorf("invalid bearer token")
+	}
+	// Admin tokens are workspace-agnostic; return "admin" as the workspace context.
+	return "admin", nil
+}
+
+// getAdminToken reads the admin token from environment variable or returns empty string.
+// Uses os.Getenv directly to avoid circular dependency on config package during init.
+func getAdminToken() string {
+	if v := strings.TrimSpace(os.Getenv("RUDDER_ADMIN_TOKEN")); v != "" {
+		return v
+	}
+	// Fallback: check the legacy config key used by admin/admin.go
+	if v := strings.TrimSpace(os.Getenv("RSERVER_ADMIN_TOKEN")); v != "" {
+		return v
+	}
+	return ""
+}
+
+// hmacEqual performs a constant-time comparison of two strings to prevent
+// timing-based side-channel attacks on token validation.
+func hmacEqual(a, b string) bool {
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
+
+// SetBearerTokenValidator replaces the default bearer token validator with a custom
+// implementation. This enables JWT-based validation, external token store lookups,
+// or other authentication strategies in production deployments.
+//
+// The validator function receives the raw bearer token string and must return:
+//   - (workspaceID, nil) if the token is valid — workspaceID is set in request context
+//   - ("", error) if the token is invalid — the error message is NOT exposed to clients
+//
+// Thread-safety: This function should be called during server initialization before
+// any HTTP requests are served. It is NOT safe for concurrent use with active requests.
+func SetBearerTokenValidator(validator func(token string) (workspaceID string, err error)) {
+	if validator != nil {
+		bearerTokenValidator = validator
+	}
+}
+
+// BearerAuthWorkspaceKey is the context key for the workspace ID extracted from
+// a validated bearer token. Downstream handlers can retrieve it via:
+//
+//	workspaceID := r.Context().Value(gateway.BearerAuthWorkspaceKey).(string)
+type bearerAuthWorkspaceKeyType struct{}
+
+// BearerAuthWorkspaceKey is the context key used to store the workspace ID
+// derived from a validated bearer token.
+var BearerAuthWorkspaceKey = bearerAuthWorkspaceKeyType{}
+
+// requireBearerAuth is a middleware that enforces bearer token authentication on
+// management API endpoints (Functions, Protocols, Profiles, Monitoring).
+//
+// The middleware performs REAL token validation — not just format checking:
+//  1. Extracts the Bearer token from the Authorization header
+//  2. Validates the token via bearerTokenValidator (default: admin token check)
+//  3. On success: stores the validated workspace ID in request context and delegates
+//  4. On failure: returns HTTP 401 with WWW-Authenticate challenge
+//
+// Returns HTTP 401 Unauthorized if:
+//   - Authorization header is missing
+//   - Authorization header does not start with "Bearer "
+//   - Bearer token is empty
+//   - Token validation fails (invalid credentials)
 func requireBearerAuth(delegate http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -236,12 +326,29 @@ func requireBearerAuth(delegate http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "Authorization header required", http.StatusUnauthorized)
 			return
 		}
-		if !strings.HasPrefix(authHeader, "Bearer ") || strings.TrimSpace(authHeader[7:]) == "" {
+		if !strings.HasPrefix(authHeader, "Bearer ") {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="RudderStack API"`)
 			http.Error(w, "Invalid or missing Bearer token", http.StatusUnauthorized)
 			return
 		}
-		delegate.ServeHTTP(w, r)
+		token := strings.TrimSpace(authHeader[7:])
+		if token == "" {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="RudderStack API"`)
+			http.Error(w, "Invalid or missing Bearer token", http.StatusUnauthorized)
+			return
+		}
+
+		// Perform actual token validation — not just format checking.
+		workspaceID, err := bearerTokenValidator(token)
+		if err != nil {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="RudderStack API", error="invalid_token"`)
+			http.Error(w, "Invalid or expired Bearer token", http.StatusUnauthorized)
+			return
+		}
+
+		// Store validated workspace ID in request context for downstream handlers.
+		ctx := context.WithValue(r.Context(), BearerAuthWorkspaceKey, workspaceID)
+		delegate.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
 

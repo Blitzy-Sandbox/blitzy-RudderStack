@@ -25,10 +25,10 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-
 
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
@@ -241,6 +241,9 @@ func NewHandler(log logger.Logger, repo FunctionRepository, rt FunctionRuntime, 
 func (h *Handler) createFunction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	// Apply body size limit to prevent memory exhaustion from oversized payloads.
+	r.Body = http.MaxBytesReader(w, r.Body, maxManagementBodySize)
+
 	var req createFunctionRequest
 	if err := jsonrs.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.writeErrorResponse(w, http.StatusBadRequest, "invalid request body: "+err.Error())
@@ -297,8 +300,8 @@ func (h *Handler) createFunction(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getFunction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
-	if id == "" {
-		h.writeErrorResponse(w, http.StatusBadRequest, "function id is required")
+	if err := validateNumericID(id); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -335,8 +338,8 @@ func (h *Handler) getFunction(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) updateFunction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
-	if id == "" {
-		h.writeErrorResponse(w, http.StatusBadRequest, "function id is required")
+	if err := validateNumericID(id); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -345,6 +348,9 @@ func (h *Handler) updateFunction(w http.ResponseWriter, r *http.Request) {
 		h.writeErrorResponse(w, http.StatusBadRequest, "workspaceId query parameter is required")
 		return
 	}
+
+	// Apply body size limit to prevent memory exhaustion from oversized payloads.
+	r.Body = http.MaxBytesReader(w, r.Body, maxManagementBodySize)
 
 	var req updateFunctionRequest
 	if err := jsonrs.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -419,8 +425,8 @@ func (h *Handler) updateFunction(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) deleteFunction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
-	if id == "" {
-		h.writeErrorResponse(w, http.StatusBadRequest, "function id is required")
+	if err := validateNumericID(id); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -531,10 +537,13 @@ func (h *Handler) listFunctions(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) testFunction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
-	if id == "" {
-		h.writeErrorResponse(w, http.StatusBadRequest, "function id is required")
+	if err := validateNumericID(id); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	// Apply body size limit to prevent memory exhaustion from oversized test payloads.
+	r.Body = http.MaxBytesReader(w, r.Body, maxManagementBodySize)
 
 	var req testFunctionRequest
 	if err := jsonrs.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -597,14 +606,65 @@ type setSecretRequest struct {
 	Value string `json:"value"`
 }
 
+// verifyFunctionWorkspaceOwnership checks that the function identified by functionID
+// belongs to the specified workspace. This is a critical security check for secrets
+// endpoints to prevent cross-workspace data access. The function record is retrieved
+// from the repository and its workspace_id is compared against the provided workspace.
+//
+// Returns the function if ownership is verified, or writes an error response and returns nil.
+func (h *Handler) verifyFunctionWorkspaceOwnership(w http.ResponseWriter, r *http.Request, functionID, workspaceID string) *functionsstorage.Function {
+	fn, err := h.repo.Get(r.Context(), functionID, workspaceID)
+	if err != nil {
+		if errors.Is(err, functionsstorage.ErrFunctionNotFound) {
+			h.writeErrorResponse(w, http.StatusNotFound, "function not found or not accessible in this workspace")
+			return nil
+		}
+		h.log.Errorn("failed to verify function ownership", obskit.Error(err))
+		h.writeErrorResponse(w, http.StatusInternalServerError, "failed to verify function access")
+		return nil
+	}
+	return fn
+}
+
+// maskSecretValue returns a masked representation of a secret value for safe display
+// in API responses. Only the last 4 characters are shown (if the value is long enough),
+// preceded by asterisks. This prevents exposure of full secret values while allowing
+// operators to identify which secret is configured.
+func maskSecretValue(value string) string {
+	if len(value) <= 4 {
+		return "****"
+	}
+	return "****" + value[len(value)-4:]
+}
+
 // setSecret handles PUT /v1/functions/{id}/secrets — create or update a secret.
-// Validates the request body, then delegates to SecretsManager.Set.
+// Validates the request body and verifies workspace ownership of the function
+// before delegating to SecretsManager.Set.
 //
 // Response: HTTP 204 No Content on success.
-// Errors: HTTP 400 (invalid input), HTTP 500 (server error).
+// Errors: HTTP 400 (invalid input), HTTP 404 (function not found), HTTP 500 (server error).
 func (h *Handler) setSecret(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	functionID := chi.URLParam(r, "id")
+	if err := validateNumericID(functionID); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	workspaceID := r.URL.Query().Get("workspaceId")
+	if workspaceID == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspaceId query parameter is required")
+		return
+	}
+
+	// Verify the function belongs to the requesting workspace before allowing
+	// secrets operations. This prevents cross-workspace secret manipulation.
+	if fn := h.verifyFunctionWorkspaceOwnership(w, r, functionID, workspaceID); fn == nil {
+		return
+	}
+
+	// Apply body size limit to prevent memory exhaustion from oversized payloads.
+	r.Body = http.MaxBytesReader(w, r.Body, maxManagementBodySize)
 
 	var req setSecretRequest
 	if err := jsonrs.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -629,13 +689,30 @@ func (h *Handler) setSecret(w http.ResponseWriter, r *http.Request) {
 }
 
 // getSecret handles GET /v1/functions/{id}/secrets/{key} — retrieve a single secret.
+// Returns masked secret values (e.g., "****5678") to prevent plaintext exposure.
+// Verifies workspace ownership before allowing access.
 //
-// Response: HTTP 200 with JSON {"key": "...", "value": "..."}.
-// Errors: HTTP 404 (secret not found), HTTP 500 (server error).
+// Response: HTTP 200 with JSON {"key": "...", "value": "****XXXX"}.
+// Errors: HTTP 400 (invalid input), HTTP 404 (secret or function not found), HTTP 500 (server error).
 func (h *Handler) getSecret(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	functionID := chi.URLParam(r, "id")
+	if err := validateNumericID(functionID); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	key := chi.URLParam(r, "key")
+
+	workspaceID := r.URL.Query().Get("workspaceId")
+	if workspaceID == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspaceId query parameter is required")
+		return
+	}
+
+	// Verify workspace ownership before allowing secrets access.
+	if fn := h.verifyFunctionWorkspaceOwnership(w, r, functionID, workspaceID); fn == nil {
+		return
+	}
 
 	value, err := h.secrets.Get(ctx, functionID, key)
 	if err != nil {
@@ -647,16 +724,35 @@ func (h *Handler) getSecret(w http.ResponseWriter, r *http.Request) {
 		h.writeErrorResponse(w, http.StatusInternalServerError, "failed to get secret")
 		return
 	}
-	h.writeJSONResponse(w, http.StatusOK, map[string]string{"key": key, "value": value})
+	// Return masked value — plaintext secrets are only available internally
+	// to the Functions runtime during execution, never via external API.
+	h.writeJSONResponse(w, http.StatusOK, map[string]string{"key": key, "value": maskSecretValue(value)})
 }
 
 // getAllSecrets handles GET /v1/functions/{id}/secrets — list all secrets for a function.
+// Returns only secret key names with masked values to prevent plaintext exposure.
+// Verifies workspace ownership before allowing access.
 //
-// Response: HTTP 200 with JSON object mapping key names to decrypted values.
-// Errors: HTTP 500 (server error).
+// Response: HTTP 200 with JSON object mapping key names to masked values.
+// Errors: HTTP 400 (invalid input), HTTP 404 (function not found), HTTP 500 (server error).
 func (h *Handler) getAllSecrets(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	functionID := chi.URLParam(r, "id")
+	if err := validateNumericID(functionID); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	workspaceID := r.URL.Query().Get("workspaceId")
+	if workspaceID == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspaceId query parameter is required")
+		return
+	}
+
+	// Verify workspace ownership before allowing secrets access.
+	if fn := h.verifyFunctionWorkspaceOwnership(w, r, functionID, workspaceID); fn == nil {
+		return
+	}
 
 	secrets, err := h.secrets.GetAll(ctx, functionID)
 	if err != nil {
@@ -667,17 +763,39 @@ func (h *Handler) getAllSecrets(w http.ResponseWriter, r *http.Request) {
 	if secrets == nil {
 		secrets = make(map[string]string)
 	}
-	h.writeJSONResponse(w, http.StatusOK, secrets)
+	// Mask all secret values — plaintext secrets are only available internally
+	// to the Functions runtime during execution, never via external API.
+	maskedSecrets := make(map[string]string, len(secrets))
+	for k, v := range secrets {
+		maskedSecrets[k] = maskSecretValue(v)
+	}
+	h.writeJSONResponse(w, http.StatusOK, maskedSecrets)
 }
 
 // deleteSecret handles DELETE /v1/functions/{id}/secrets/{key} — delete a single secret.
+// Verifies workspace ownership before allowing deletion.
 //
 // Response: HTTP 204 No Content.
-// Errors: HTTP 500 (server error).
+// Errors: HTTP 400 (invalid input), HTTP 404 (function or secret not found), HTTP 500 (server error).
 func (h *Handler) deleteSecret(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	functionID := chi.URLParam(r, "id")
+	if err := validateNumericID(functionID); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	key := chi.URLParam(r, "key")
+
+	workspaceID := r.URL.Query().Get("workspaceId")
+	if workspaceID == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "workspaceId query parameter is required")
+		return
+	}
+
+	// Verify workspace ownership before allowing secret deletion.
+	if fn := h.verifyFunctionWorkspaceOwnership(w, r, functionID, workspaceID); fn == nil {
+		return
+	}
 
 	if err := h.secrets.Delete(ctx, functionID, key); err != nil {
 		if errors.Is(err, functionssecrets.ErrSecretNotFound) {
@@ -722,14 +840,26 @@ func (h *Handler) writeErrorResponse(w http.ResponseWriter, statusCode int, mess
 // Validation Helpers
 // ---------------------------------------------------------------------------
 
+// maxManagementBodySize is the maximum allowed request body size for management API
+// endpoints (Functions CRUD). This prevents memory exhaustion from oversized payloads.
+// Functions code bodies are limited to 1MB, which is generous for transformation code.
+const maxManagementBodySize = 1 * 1024 * 1024 // 1 MB
+
 // validateCreateRequest validates the create function request body.
 // Returns a descriptive error for the first validation failure encountered.
+// Includes null byte detection to prevent PostgreSQL text column errors.
 func validateCreateRequest(req *createFunctionRequest) error {
 	if req.Name == "" {
 		return fmt.Errorf("name is required")
 	}
+	if containsNullByte(req.Name) {
+		return fmt.Errorf("name contains invalid characters (null bytes)")
+	}
 	if req.WorkspaceID == "" {
 		return fmt.Errorf("workspaceId is required")
+	}
+	if containsNullByte(req.WorkspaceID) {
+		return fmt.Errorf("workspaceId contains invalid characters (null bytes)")
 	}
 	if req.Type == "" {
 		return fmt.Errorf("type is required")
@@ -740,5 +870,33 @@ func validateCreateRequest(req *createFunctionRequest) error {
 	if req.Code == "" {
 		return fmt.Errorf("code is required")
 	}
+	if containsNullByte(req.Code) {
+		return fmt.Errorf("code contains invalid characters (null bytes)")
+	}
 	return nil
+}
+
+// validateNumericID checks that the given ID string is a valid positive numeric
+// identifier. Returns a descriptive error if the ID is empty, non-numeric, or
+// not a valid positive integer. This prevents SQL injection via path parameters
+// and ensures PostgreSQL BIGINT columns receive valid input.
+func validateNumericID(id string) error {
+	if id == "" {
+		return fmt.Errorf("id is required")
+	}
+	parsed, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid id format: must be a numeric value")
+	}
+	if parsed <= 0 {
+		return fmt.Errorf("invalid id: must be a positive integer")
+	}
+	return nil
+}
+
+// containsNullByte checks if a string contains null bytes (\x00) which are
+// rejected by PostgreSQL text columns. Detecting null bytes in the validation
+// layer prevents unhandled 500 errors from the database driver.
+func containsNullByte(s string) bool {
+	return strings.Contains(s, "\x00")
 }

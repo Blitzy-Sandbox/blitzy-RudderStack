@@ -163,7 +163,7 @@ func Test_CreateTrackingPlan(t *testing.T) {
 			createFn: func(_ context.Context, workspaceID string, req api.CreateTrackingPlanRequest) (string, error) {
 				require.Equal(t, testWorkspaceID, workspaceID)
 				require.Equal(t, "My Tracking Plan", req.Name)
-				return "tp-001", nil
+				return "1", nil
 			},
 		}
 		h := newTestHandler(svc)
@@ -183,7 +183,7 @@ func Test_CreateTrackingPlan(t *testing.T) {
 		var resp api.CreateResponse
 		err = jsonrs.NewDecoder(rec.Body).Decode(&resp)
 		require.NoError(t, err)
-		assert.Equal(t, "tp-001", resp.ID)
+		assert.Equal(t, "1", resp.ID)
 	})
 
 	t.Run("InvalidJSON", func(t *testing.T) {
@@ -319,7 +319,7 @@ func Test_GetTrackingPlan(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		expectedTP := &api.TrackingPlanResponse{
-			ID:                "tp-001",
+			ID:                "1",
 			WorkspaceID:       testWorkspaceID,
 			Name:              "My Tracking Plan",
 			Schema:            []byte(`{"type":"object"}`),
@@ -331,20 +331,20 @@ func Test_GetTrackingPlan(t *testing.T) {
 		svc := &mockTrackingPlanService{
 			getFn: func(_ context.Context, workspaceID, id string) (*api.TrackingPlanResponse, error) {
 				require.Equal(t, testWorkspaceID, workspaceID)
-				require.Equal(t, "tp-001", id)
+				require.Equal(t, "1", id)
 				return expectedTP, nil
 			},
 		}
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusOK, rec.Code)
 		var resp api.TrackingPlanResponse
 		err := jsonrs.NewDecoder(rec.Body).Decode(&resp)
 		require.NoError(t, err)
-		assert.Equal(t, "tp-001", resp.ID)
+		assert.Equal(t, "1", resp.ID)
 		assert.Equal(t, testWorkspaceID, resp.WorkspaceID)
 		assert.Equal(t, "My Tracking Plan", resp.Name)
 		assert.Equal(t, 3, resp.Version)
@@ -357,7 +357,7 @@ func Test_GetTrackingPlan(t *testing.T) {
 		svc := &mockTrackingPlanService{
 			getFn: func(_ context.Context, _, _ string) (*api.TrackingPlanResponse, error) {
 				return &api.TrackingPlanResponse{
-					ID:          "tp-003",
+					ID:          "3",
 					WorkspaceID: testWorkspaceID,
 					Name:        "Minimal Plan",
 					Version:     1,
@@ -370,13 +370,13 @@ func Test_GetTrackingPlan(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-003", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/3", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusOK, rec.Code)
 		var resp api.TrackingPlanResponse
 		err := jsonrs.NewDecoder(rec.Body).Decode(&resp)
 		require.NoError(t, err)
-		assert.Equal(t, "tp-003", resp.ID)
+		assert.Equal(t, "3", resp.ID)
 		require.Nil(t, resp.Schema)
 		require.Nil(t, resp.EnforcementConfig)
 	})
@@ -390,7 +390,7 @@ func Test_GetTrackingPlan(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-999", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/999", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusNotFound, rec.Code)
 		var errResp errorResponse
@@ -409,7 +409,7 @@ func Test_GetTrackingPlan(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusInternalServerError, rec.Code)
 		var errResp errorResponse
@@ -429,7 +429,7 @@ func Test_GetTrackingPlan(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001", nil, "")
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1", nil, "")
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	})
@@ -451,7 +451,7 @@ func Test_ListTrackingPlans(t *testing.T) {
 				require.Equal(t, testWorkspaceID, workspaceID)
 				return []api.TrackingPlanResponse{
 					{
-						ID:          "tp-001",
+						ID:          "1",
 						WorkspaceID: testWorkspaceID,
 						Name:        "Plan A",
 						Version:     1,
@@ -459,7 +459,7 @@ func Test_ListTrackingPlans(t *testing.T) {
 						UpdatedAt:   now,
 					},
 					{
-						ID:          "tp-002",
+						ID:          "2",
 						WorkspaceID: testWorkspaceID,
 						Name:        "Plan B",
 						Version:     2,
@@ -554,7 +554,7 @@ func Test_UpdateTrackingPlan(t *testing.T) {
 		svc := &mockTrackingPlanService{
 			updateFn: func(_ context.Context, workspaceID, id string, req api.UpdateTrackingPlanRequest) error {
 				require.Equal(t, testWorkspaceID, workspaceID)
-				require.Equal(t, "tp-001", id)
+				require.Equal(t, "1", id)
 				require.Equal(t, "Updated Plan", req.Name)
 				return nil
 			},
@@ -569,7 +569,7 @@ func Test_UpdateTrackingPlan(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		rec := doRequest(t, router, http.MethodPut, "/tracking-plans/tp-001", body, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodPut, "/tracking-plans/1", body, testWorkspaceID)
 
 		require.Equal(t, http.StatusOK, rec.Code)
 		var resp okResponse
@@ -589,7 +589,7 @@ func Test_UpdateTrackingPlan(t *testing.T) {
 
 		body, _ := jsonrs.Marshal(api.UpdateTrackingPlanRequest{Name: "Updated"})
 
-		rec := doRequest(t, router, http.MethodPut, "/tracking-plans/tp-999", body, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodPut, "/tracking-plans/999", body, testWorkspaceID)
 
 		require.Equal(t, http.StatusNotFound, rec.Code)
 		var errResp errorResponse
@@ -608,7 +608,7 @@ func Test_UpdateTrackingPlan(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodPut, "/tracking-plans/tp-001", []byte(`{broken`), testWorkspaceID)
+		rec := doRequest(t, router, http.MethodPut, "/tracking-plans/1", []byte(`{broken`), testWorkspaceID)
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 		var errResp errorResponse
@@ -629,7 +629,7 @@ func Test_UpdateTrackingPlan(t *testing.T) {
 
 		body, _ := jsonrs.Marshal(api.UpdateTrackingPlanRequest{Name: "Test"})
 
-		rec := doRequest(t, router, http.MethodPut, "/tracking-plans/tp-001", body, "")
+		rec := doRequest(t, router, http.MethodPut, "/tracking-plans/1", body, "")
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	})
@@ -648,7 +648,7 @@ func Test_UpdateTrackingPlan(t *testing.T) {
 			Schema: []byte(`invalid-schema`),
 		})
 
-		rec := doRequest(t, router, http.MethodPut, "/tracking-plans/tp-001", body, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodPut, "/tracking-plans/1", body, testWorkspaceID)
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	})
@@ -666,14 +666,14 @@ func Test_DeleteTrackingPlan(t *testing.T) {
 		svc := &mockTrackingPlanService{
 			deleteFn: func(_ context.Context, workspaceID, id string) error {
 				require.Equal(t, testWorkspaceID, workspaceID)
-				require.Equal(t, "tp-001", id)
+				require.Equal(t, "1", id)
 				return nil
 			},
 		}
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodDelete, "/tracking-plans/tp-001", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodDelete, "/tracking-plans/1", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusNoContent, rec.Code)
 		// 204 No Content should have no body.
@@ -689,7 +689,7 @@ func Test_DeleteTrackingPlan(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodDelete, "/tracking-plans/tp-999", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodDelete, "/tracking-plans/999", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusNotFound, rec.Code)
 		var errResp errorResponse
@@ -707,7 +707,7 @@ func Test_DeleteTrackingPlan(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodDelete, "/tracking-plans/tp-001", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodDelete, "/tracking-plans/1", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
@@ -722,7 +722,7 @@ func Test_DeleteTrackingPlan(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodDelete, "/tracking-plans/tp-001", nil, "")
+		rec := doRequest(t, router, http.MethodDelete, "/tracking-plans/1", nil, "")
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	})
@@ -742,11 +742,11 @@ func Test_GetVersionHistory(t *testing.T) {
 		svc := &mockTrackingPlanService{
 			getVersionsFn: func(_ context.Context, workspaceID, trackingPlanID string) ([]api.TrackingPlanVersionResponse, error) {
 				require.Equal(t, testWorkspaceID, workspaceID)
-				require.Equal(t, "tp-001", trackingPlanID)
+				require.Equal(t, "1", trackingPlanID)
 				return []api.TrackingPlanVersionResponse{
 					{
 						ID:             "v-001",
-						TrackingPlanID: "tp-001",
+						TrackingPlanID: "1",
 						Version:        1,
 						Schema:         []byte(`{"type":"object"}`),
 						Changelog:      "Initial version",
@@ -754,7 +754,7 @@ func Test_GetVersionHistory(t *testing.T) {
 					},
 					{
 						ID:             "v-002",
-						TrackingPlanID: "tp-001",
+						TrackingPlanID: "1",
 						Version:        2,
 						Schema:         []byte(`{"type":"object","required":["event"]}`),
 						Changelog:      "Added required event field",
@@ -766,7 +766,7 @@ func Test_GetVersionHistory(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001/versions", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1/versions", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusOK, rec.Code)
 		var resp []api.TrackingPlanVersionResponse
@@ -788,7 +788,7 @@ func Test_GetVersionHistory(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001/versions", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1/versions", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusOK, rec.Code)
 		var resp []api.TrackingPlanVersionResponse
@@ -807,7 +807,7 @@ func Test_GetVersionHistory(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001/versions", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1/versions", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusNotFound, rec.Code)
 		var errResp errorResponse
@@ -826,7 +826,7 @@ func Test_GetVersionHistory(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001/versions", nil, "")
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1/versions", nil, "")
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	})
@@ -845,7 +845,7 @@ func Test_CSVImport(t *testing.T) {
 		svc := &mockTrackingPlanService{
 			importCSVFn: func(_ context.Context, workspaceID, trackingPlanID string, data []byte) error {
 				require.Equal(t, testWorkspaceID, workspaceID)
-				require.Equal(t, "tp-001", trackingPlanID)
+				require.Equal(t, "1", trackingPlanID)
 				require.Equal(t, csvData, data)
 				return nil
 			},
@@ -853,7 +853,7 @@ func Test_CSVImport(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodPost, "/tracking-plans/tp-001/import", csvData, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodPost, "/tracking-plans/1/import", csvData, testWorkspaceID)
 
 		require.Equal(t, http.StatusOK, rec.Code)
 		var resp okResponse
@@ -871,7 +871,7 @@ func Test_CSVImport(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodPost, "/tracking-plans/tp-001/import", []byte("bad,csv\ndata"), testWorkspaceID)
+		rec := doRequest(t, router, http.MethodPost, "/tracking-plans/1/import", []byte("bad,csv\ndata"), testWorkspaceID)
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 		var errResp errorResponse
@@ -890,7 +890,7 @@ func Test_CSVImport(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodPost, "/tracking-plans/tp-001/import", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodPost, "/tracking-plans/1/import", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 		var errResp errorResponse
@@ -908,7 +908,7 @@ func Test_CSVImport(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodPost, "/tracking-plans/tp-001/import", []byte("col1,col2\nval1,val2"), testWorkspaceID)
+		rec := doRequest(t, router, http.MethodPost, "/tracking-plans/1/import", []byte("col1,col2\nval1,val2"), testWorkspaceID)
 
 		require.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
@@ -923,7 +923,7 @@ func Test_CSVImport(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodPost, "/tracking-plans/tp-001/import", []byte("some,csv"), "")
+		rec := doRequest(t, router, http.MethodPost, "/tracking-plans/1/import", []byte("some,csv"), "")
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	})
@@ -942,14 +942,14 @@ func Test_CSVExport(t *testing.T) {
 		svc := &mockTrackingPlanService{
 			exportCSVFn: func(_ context.Context, workspaceID, trackingPlanID string) ([]byte, error) {
 				require.Equal(t, testWorkspaceID, workspaceID)
-				require.Equal(t, "tp-001", trackingPlanID)
+				require.Equal(t, "1", trackingPlanID)
 				return expectedCSV, nil
 			},
 		}
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001/export", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1/export", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, "text/csv", rec.Header().Get("Content-Type"))
@@ -966,7 +966,7 @@ func Test_CSVExport(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001/export", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1/export", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusNotFound, rec.Code)
 	})
@@ -980,7 +980,7 @@ func Test_CSVExport(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001/export", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1/export", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
@@ -995,7 +995,7 @@ func Test_CSVExport(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001/export", nil, "")
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1/export", nil, "")
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	})
@@ -1014,7 +1014,7 @@ func Test_WorkspaceIsolation(t *testing.T) {
 		svc := &mockTrackingPlanService{
 			createFn: func(_ context.Context, workspaceID string, _ api.CreateTrackingPlanRequest) (string, error) {
 				capturedWsID = workspaceID
-				return "tp-001", nil
+				return "1", nil
 			},
 		}
 		h := newTestHandler(svc)
@@ -1041,11 +1041,11 @@ func Test_WorkspaceIsolation(t *testing.T) {
 		h := newTestHandler(svc)
 
 		// Build request with chi route context injected directly.
-		req := httptest.NewRequest(http.MethodGet, "/tracking-plans/tp-direct", nil)
+		req := httptest.NewRequest(http.MethodGet, "/tracking-plans/42", nil)
 		req.Header.Set(api.WorkspaceIDHeader, "ws-direct-test")
 
 		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("id", "tp-direct")
+		rctx.URLParams.Add("id", "42")
 		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
 		rec := httptest.NewRecorder()
@@ -1053,7 +1053,7 @@ func Test_WorkspaceIsolation(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.Equal(t, "ws-direct-test", capturedWsID)
-		require.Equal(t, "tp-direct", capturedID)
+		require.Equal(t, "42", capturedID)
 	})
 
 	t.Run("ListPassesWorkspaceID", func(t *testing.T) {
@@ -1084,7 +1084,7 @@ func Test_WorkspaceIsolation(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodDelete, "/tracking-plans/tp-001", nil, "ws-delete-test")
+		rec := doRequest(t, router, http.MethodDelete, "/tracking-plans/1", nil, "ws-delete-test")
 
 		require.Equal(t, http.StatusNoContent, rec.Code)
 		require.Equal(t, "ws-delete-test", capturedWsID)
@@ -1107,7 +1107,7 @@ func Test_ErrorResponseFormat(t *testing.T) {
 	h := newTestHandler(svc)
 	router := newTestRouter(h)
 
-	rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001", nil, testWorkspaceID)
+	rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1", nil, testWorkspaceID)
 
 	require.Equal(t, http.StatusNotFound, rec.Code)
 
@@ -1153,7 +1153,7 @@ func Test_SuccessResponseContentType(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
-		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/tp-001/export", nil, testWorkspaceID)
+		rec := doRequest(t, router, http.MethodGet, "/tracking-plans/1/export", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusOK, rec.Code)
 		// CSV export should use text/csv, not application/json.

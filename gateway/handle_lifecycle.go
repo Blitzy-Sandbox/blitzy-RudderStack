@@ -576,6 +576,21 @@ func (gw *Handle) StartWebHandler(ctx context.Context) error {
 				gw.inFlightRequests.Done()
 			})
 		},
+		// Security headers middleware — sets standard security response headers on ALL
+		// responses to mitigate common web vulnerability classes:
+		//   - X-Content-Type-Options: nosniff — prevents MIME-type sniffing attacks
+		//   - X-Frame-Options: DENY — prevents clickjacking via iframe embedding
+		//   - Cache-Control: no-store — prevents caching of sensitive API responses
+		// These headers are applied globally as a defense-in-depth measure for all
+		// endpoints (health, management APIs, event ingestion, replay).
+		func(h http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("X-Content-Type-Options", "nosniff")
+				w.Header().Set("X-Frame-Options", "DENY")
+				w.Header().Set("Cache-Control", "no-store")
+				h.ServeHTTP(w, r)
+			})
+		},
 		chiware.StatMiddleware(ctx, stats.Default, component),
 		middleware.LimitConcurrentRequests(gw.conf.maxConcurrentRequests),
 		middleware.UncompressMiddleware,
@@ -676,10 +691,15 @@ func (gw *Handle) StartWebHandler(ctx context.Context) error {
 	srvMux.Get("/version", withContentType("application/json; charset=utf-8", gw.versionHandler))
 	srvMux.Get("/robots.txt", gw.robotsHandler)
 
+	// CORS configuration: Allow broad origins for SDK ingestion compatibility
+	// (RudderStack JS SDK runs in any browser origin), but disable credentials
+	// to prevent malicious cross-origin sites from making cookie-based
+	// authenticated requests. Bearer tokens must be explicitly set by callers.
+	// AllowedHeaders restricted to only the headers used by SDKs and management APIs.
 	c := cors.New(cors.Options{
 		AllowOriginFunc:  func(_ string) bool { return true },
-		AllowCredentials: true,
-		AllowedHeaders:   []string{"*"},
+		AllowCredentials: false,
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Rudder-Workspace-Id", "AnonymousId"},
 		MaxAge:           900, // 15 mins
 	})
 	if diagnostics.EnableServerStartedMetric {

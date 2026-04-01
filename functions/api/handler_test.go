@@ -155,7 +155,7 @@ func (m *mockSecretsManager) DeleteAll(ctx context.Context, functionID string) e
 
 // newTestHandler creates a complete HTTP handler for the Functions API with
 // mock dependencies. The handler is mounted at /v1/functions to match the
-// Gateway mount point, enabling test URLs like /v1/functions/func-123.
+// Gateway mount point, enabling test URLs like /v1/functions/123.
 func newTestHandler(t *testing.T, repo api.FunctionRepository, rt api.FunctionRuntime, secrets api.SecretsManager) http.Handler {
 	t.Helper()
 	h := api.NewHandler(logger.NOP, repo, rt, secrets)
@@ -274,10 +274,10 @@ func TestHandler_GetFunction(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	repo := &mockFunctionRepository{
 		getFn: func(_ context.Context, id string, workspaceID string) (*functionsstorage.Function, error) {
-			require.Equal(t, "func-123", id)
+			require.Equal(t, "123", id)
 			require.Equal(t, "ws-123", workspaceID)
 			return &functionsstorage.Function{
-				ID:          "func-123",
+				ID:          "123",
 				WorkspaceID: "ws-123",
 				Name:        "My Function",
 				Type:        "source",
@@ -290,13 +290,13 @@ func TestHandler_GetFunction(t *testing.T) {
 	}
 	handler := newTestHandler(t, repo, &mockFunctionRuntime{}, &mockSecretsManager{})
 
-	rec := doRequest(t, handler, http.MethodGet, "/v1/functions/func-123?workspaceId=ws-123", "")
+	rec := doRequest(t, handler, http.MethodGet, "/v1/functions/123?workspaceId=ws-123", "")
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 	var result api.FunctionModel
 	require.NoError(t, jsonrs.NewDecoder(rec.Body).Decode(&result))
-	require.Equal(t, "func-123", result.ID)
+	require.Equal(t, "123", result.ID)
 	require.Equal(t, "ws-123", result.WorkspaceID)
 	require.Equal(t, "My Function", result.Name)
 	require.Equal(t, "source", result.Type)
@@ -314,7 +314,7 @@ func TestHandler_GetFunction_NotFound(t *testing.T) {
 	}
 	handler := newTestHandler(t, repo, &mockFunctionRuntime{}, &mockSecretsManager{})
 
-	rec := doRequest(t, handler, http.MethodGet, "/v1/functions/nonexistent?workspaceId=ws-123", "")
+	rec := doRequest(t, handler, http.MethodGet, "/v1/functions/999999?workspaceId=ws-123", "")
 	require.Equal(t, http.StatusNotFound, rec.Code)
 
 	var errResp errorResponse
@@ -333,7 +333,7 @@ func TestHandler_GetFunction_RepoError(t *testing.T) {
 	}
 	handler := newTestHandler(t, repo, &mockFunctionRuntime{}, &mockSecretsManager{})
 
-	rec := doRequest(t, handler, http.MethodGet, "/v1/functions/func-123?workspaceId=ws-123", "")
+	rec := doRequest(t, handler, http.MethodGet, "/v1/functions/123?workspaceId=ws-123", "")
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
 
 	var errResp errorResponse
@@ -354,7 +354,7 @@ func TestHandler_UpdateFunction(t *testing.T) {
 	repo := &mockFunctionRepository{
 		getFn: func(_ context.Context, _ string, _ string) (*functionsstorage.Function, error) {
 			return &functionsstorage.Function{
-				ID:          "func-123",
+				ID:          "123",
 				WorkspaceID: "ws-123",
 				Name:        "Original Name",
 				Type:        "source",
@@ -375,13 +375,13 @@ func TestHandler_UpdateFunction(t *testing.T) {
 	handler := newTestHandler(t, repo, &mockFunctionRuntime{}, &mockSecretsManager{})
 
 	body := `{"name":"Updated Name","code":"new code"}`
-	rec := doRequest(t, handler, http.MethodPut, "/v1/functions/func-123?workspaceId=ws-123", body)
+	rec := doRequest(t, handler, http.MethodPut, "/v1/functions/123?workspaceId=ws-123", body)
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 	var result api.FunctionModel
 	require.NoError(t, jsonrs.NewDecoder(rec.Body).Decode(&result))
-	require.Equal(t, "func-123", result.ID)
+	require.Equal(t, "123", result.ID)
 	require.Equal(t, "Updated Name", result.Name)
 	require.Equal(t, "new code", result.Code)
 	require.Equal(t, 2, result.Version, "version should be incremented")
@@ -400,7 +400,7 @@ func TestHandler_UpdateFunction_NotFound(t *testing.T) {
 	handler := newTestHandler(t, repo, &mockFunctionRuntime{}, &mockSecretsManager{})
 
 	body := `{"name":"Updated Name"}`
-	rec := doRequest(t, handler, http.MethodPut, "/v1/functions/nonexistent?workspaceId=ws-123", body)
+	rec := doRequest(t, handler, http.MethodPut, "/v1/functions/999999?workspaceId=ws-123", body)
 	require.Equal(t, http.StatusNotFound, rec.Code)
 
 	var errResp errorResponse
@@ -414,7 +414,7 @@ func TestHandler_UpdateFunction_NotFound(t *testing.T) {
 func TestHandler_UpdateFunction_InvalidBody(t *testing.T) {
 	handler := newTestHandler(t, &mockFunctionRepository{}, &mockFunctionRuntime{}, &mockSecretsManager{})
 
-	rec := doRequest(t, handler, http.MethodPut, "/v1/functions/func-123?workspaceId=ws-123", `{invalid json`)
+	rec := doRequest(t, handler, http.MethodPut, "/v1/functions/123?workspaceId=ws-123", `{invalid json`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 
 	var errResp errorResponse
@@ -436,7 +436,7 @@ func TestHandler_DeleteFunction(t *testing.T) {
 	secretsDeleteCalled := false
 	repo := &mockFunctionRepository{
 		deleteFn: func(_ context.Context, id string, workspaceID string) error {
-			require.Equal(t, "func-123", id)
+			require.Equal(t, "123", id)
 			require.Equal(t, "ws-123", workspaceID)
 			deleteCalled = true
 			return nil
@@ -444,14 +444,14 @@ func TestHandler_DeleteFunction(t *testing.T) {
 	}
 	secrets := &mockSecretsManager{
 		deleteAllFn: func(_ context.Context, functionID string) error {
-			require.Equal(t, "func-123", functionID)
+			require.Equal(t, "123", functionID)
 			secretsDeleteCalled = true
 			return nil
 		},
 	}
 	handler := newTestHandler(t, repo, &mockFunctionRuntime{}, secrets)
 
-	rec := doRequest(t, handler, http.MethodDelete, "/v1/functions/func-123?workspaceId=ws-123", "")
+	rec := doRequest(t, handler, http.MethodDelete, "/v1/functions/123?workspaceId=ws-123", "")
 	require.Equal(t, http.StatusNoContent, rec.Code)
 	require.True(t, deleteCalled, "repository delete should be called")
 	require.True(t, secretsDeleteCalled, "secrets deleteAll should be called")
@@ -467,7 +467,7 @@ func TestHandler_DeleteFunction_NotFound(t *testing.T) {
 	}
 	handler := newTestHandler(t, repo, &mockFunctionRuntime{}, &mockSecretsManager{})
 
-	rec := doRequest(t, handler, http.MethodDelete, "/v1/functions/nonexistent?workspaceId=ws-123", "")
+	rec := doRequest(t, handler, http.MethodDelete, "/v1/functions/999999?workspaceId=ws-123", "")
 	require.Equal(t, http.StatusNotFound, rec.Code)
 
 	var errResp errorResponse
@@ -606,13 +606,13 @@ func TestHandler_TestFunction(t *testing.T) {
 	}
 	secrets := &mockSecretsManager{
 		getAllFn: func(_ context.Context, functionID string) (map[string]string, error) {
-			require.Equal(t, "func-123", functionID)
+			require.Equal(t, "123", functionID)
 			return map[string]string{"API_KEY": "test-key"}, nil
 		},
 	}
 	rt := &mockFunctionRuntime{
 		executeFn: func(_ context.Context, fn *functionsruntime.FunctionDef, event json.RawMessage, settings map[string]string) (*functionsruntime.ExecutionResult, error) {
-			require.Equal(t, "func-123", fn.ID)
+			require.Equal(t, "123", fn.ID)
 			require.Equal(t, "test-key", settings["API_KEY"])
 			return &functionsruntime.ExecutionResult{
 				Events: []json.RawMessage{
@@ -625,7 +625,7 @@ func TestHandler_TestFunction(t *testing.T) {
 	handler := newTestHandler(t, repo, rt, secrets)
 
 	body := `{"event":{"type":"track","event":"Purchase","userId":"u1","properties":{"price":42}}}`
-	rec := doRequest(t, handler, http.MethodPost, "/v1/functions/func-123/test?workspaceId=ws-123", body)
+	rec := doRequest(t, handler, http.MethodPost, "/v1/functions/123/test?workspaceId=ws-123", body)
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
@@ -644,7 +644,7 @@ func TestHandler_TestFunction_NotFound(t *testing.T) {
 	handler := newTestHandler(t, repo, &mockFunctionRuntime{}, &mockSecretsManager{})
 
 	body := `{"event":{"type":"track"}}`
-	rec := doRequest(t, handler, http.MethodPost, "/v1/functions/nonexistent/test?workspaceId=ws-123", body)
+	rec := doRequest(t, handler, http.MethodPost, "/v1/functions/999999/test?workspaceId=ws-123", body)
 	require.Equal(t, http.StatusNotFound, rec.Code)
 
 	var errResp errorResponse
@@ -684,7 +684,7 @@ func TestHandler_TestFunction_RuntimeError(t *testing.T) {
 	handler := newTestHandler(t, repo, rt, secrets)
 
 	body := `{"event":{"type":"track"}}`
-	rec := doRequest(t, handler, http.MethodPost, "/v1/functions/func-123/test?workspaceId=ws-123", body)
+	rec := doRequest(t, handler, http.MethodPost, "/v1/functions/123/test?workspaceId=ws-123", body)
 	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 
 	var errResp errorResponse
@@ -713,7 +713,7 @@ func TestHandler_TestFunction_InvalidPayload(t *testing.T) {
 	}
 	handler := newTestHandler(t, repo, &mockFunctionRuntime{}, &mockSecretsManager{})
 
-	rec := doRequest(t, handler, http.MethodPost, "/v1/functions/func-123/test?workspaceId=ws-123", `{invalid json`)
+	rec := doRequest(t, handler, http.MethodPost, "/v1/functions/123/test?workspaceId=ws-123", `{invalid json`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 
 	var errResp errorResponse

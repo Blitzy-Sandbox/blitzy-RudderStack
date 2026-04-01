@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -41,7 +42,30 @@ const (
 	// This limit prevents memory exhaustion from excessively large uploads,
 	// following security best practice for unbounded body reads.
 	maxCSVBodySize = 10 * 1024 * 1024 // 10 MB
+
+	// maxProtocolsBodySize is the maximum allowed size for tracking plan management
+	// JSON request bodies (10 MB). Tracking plan schemas can be large (JSON Schema
+	// draft-07 with many event types) so we allow a generous but bounded limit.
+	maxProtocolsBodySize int64 = 10 * 1024 * 1024 // 10 MB
 )
+
+// validateTrackingPlanID validates that the provided ID string is a valid positive
+// integer, suitable for use as a BIGSERIAL primary key. This prevents SQL-level
+// type errors and potential information leakage when non-numeric strings are
+// passed as IDs to PostgreSQL BIGINT columns.
+func validateTrackingPlanID(id string) error {
+	if id == "" {
+		return fmt.Errorf("tracking plan ID is required")
+	}
+	n, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid tracking plan ID format: must be a numeric identifier")
+	}
+	if n <= 0 {
+		return fmt.Errorf("invalid tracking plan ID: must be a positive integer")
+	}
+	return nil
+}
 
 // ---------------------------------------------------------------------------
 // Request and Response Types
@@ -186,6 +210,9 @@ func (h *Handler) CreateTrackingPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Apply body size limit to prevent memory exhaustion from oversized payloads.
+	r.Body = http.MaxBytesReader(w, r.Body, maxProtocolsBodySize)
+
 	// Parse the JSON request body using jsonrs (mandated by depguard).
 	var req CreateTrackingPlanRequest
 	if err := jsonrs.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -220,9 +247,13 @@ func (h *Handler) CreateTrackingPlan(w http.ResponseWriter, r *http.Request) {
 // Success response (200): Full TrackingPlanResponse JSON
 // Error responses: 400 (missing workspace), 404 (not found), 500 (internal)
 func (h *Handler) GetTrackingPlan(w http.ResponseWriter, r *http.Request) {
-	// Extract the tracking plan ID from the chi URL parameter,
-	// consistent with warehouse/backfill/handler.go:161.
+	// Extract and validate the tracking plan ID from the chi URL parameter.
+	// Numeric validation prevents SQL type errors and potential info leakage.
 	id := chi.URLParam(r, "id")
+	if err := validateTrackingPlanID(id); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	// Extract and validate workspace ID.
 	workspaceID, ok := extractWorkspaceID(r)
@@ -282,13 +313,21 @@ func (h *Handler) ListTrackingPlans(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateTrackingPlan(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 
-	// Extract tracking plan ID and workspace ID.
+	// Extract and validate tracking plan ID.
 	id := chi.URLParam(r, "id")
+	if err := validateTrackingPlanID(id); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	workspaceID, ok := extractWorkspaceID(r)
 	if !ok {
 		h.writeErrorResponse(w, http.StatusBadRequest, "missing workspace ID header")
 		return
 	}
+
+	// Apply body size limit to prevent memory exhaustion from oversized payloads.
+	r.Body = http.MaxBytesReader(w, r.Body, maxProtocolsBodySize)
 
 	// Parse the JSON request body.
 	var req UpdateTrackingPlanRequest
@@ -312,8 +351,13 @@ func (h *Handler) UpdateTrackingPlan(w http.ResponseWriter, r *http.Request) {
 // Success response: 204 No Content (no body)
 // Error responses: 400 (missing workspace), 404 (not found), 500 (internal)
 func (h *Handler) DeleteTrackingPlan(w http.ResponseWriter, r *http.Request) {
-	// Extract tracking plan ID and workspace ID.
+	// Extract and validate tracking plan ID.
 	id := chi.URLParam(r, "id")
+	if err := validateTrackingPlanID(id); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	workspaceID, ok := extractWorkspaceID(r)
 	if !ok {
 		h.writeErrorResponse(w, http.StatusBadRequest, "missing workspace ID header")
@@ -336,8 +380,13 @@ func (h *Handler) DeleteTrackingPlan(w http.ResponseWriter, r *http.Request) {
 // Success response (200): JSON array of TrackingPlanVersionResponse
 // Error responses: 400 (missing workspace), 404 (not found), 500 (internal)
 func (h *Handler) GetVersionHistory(w http.ResponseWriter, r *http.Request) {
-	// Extract tracking plan ID and workspace ID.
+	// Extract and validate tracking plan ID.
 	id := chi.URLParam(r, "id")
+	if err := validateTrackingPlanID(id); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	workspaceID, ok := extractWorkspaceID(r)
 	if !ok {
 		h.writeErrorResponse(w, http.StatusBadRequest, "missing workspace ID header")
@@ -368,8 +417,13 @@ func (h *Handler) GetVersionHistory(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 
-	// Extract tracking plan ID and workspace ID.
+	// Extract and validate tracking plan ID.
 	id := chi.URLParam(r, "id")
+	if err := validateTrackingPlanID(id); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	workspaceID, ok := extractWorkspaceID(r)
 	if !ok {
 		h.writeErrorResponse(w, http.StatusBadRequest, "missing workspace ID header")
@@ -408,8 +462,13 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 // Success response (200): CSV file download
 // Error responses: 400 (missing workspace), 404 (not found), 500 (internal)
 func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
-	// Extract tracking plan ID and workspace ID.
+	// Extract and validate tracking plan ID.
 	id := chi.URLParam(r, "id")
+	if err := validateTrackingPlanID(id); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	workspaceID, ok := extractWorkspaceID(r)
 	if !ok {
 		h.writeErrorResponse(w, http.StatusBadRequest, "missing workspace ID header")
