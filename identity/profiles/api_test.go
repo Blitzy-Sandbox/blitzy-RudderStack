@@ -179,7 +179,13 @@ func executeRequest(t *testing.T, handler http.Handler, path string) *httptest.R
 	t.Helper()
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, path, nil)
-	handler.ServeHTTP(rr, req)
+	// Mount the handler under /v1/profiles to simulate the gateway mount
+	// prefix (gateway/handle_lifecycle.go mounts Profiles under /v1/profiles).
+	// Routes() returns relative paths so they work correctly when chi strips
+	// the prefix during Mount — this wrapper ensures tests use production URLs.
+	mux := chi.NewRouter()
+	mux.Mount("/v1/profiles", handler)
+	mux.ServeHTTP(rr, req)
 	return rr
 }
 

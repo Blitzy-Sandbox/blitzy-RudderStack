@@ -108,7 +108,9 @@ func (m *mockFunctionRuntime) Execute(ctx context.Context, fn *functionsruntime.
 // pointer fields. Unconfigured calls return safe defaults (empty map / nil error).
 type mockSecretsManager struct {
 	getAllFn    func(ctx context.Context, functionID string) (map[string]string, error)
-	setFn       func(ctx context.Context, functionID string, key string, value string) error
+	setFn      func(ctx context.Context, functionID string, key string, value string) error
+	getFn      func(ctx context.Context, functionID string, key string) (string, error)
+	deleteFn   func(ctx context.Context, functionID string, key string) error
 	deleteAllFn func(ctx context.Context, functionID string) error
 }
 
@@ -122,6 +124,20 @@ func (m *mockSecretsManager) GetAll(ctx context.Context, functionID string) (map
 func (m *mockSecretsManager) Set(ctx context.Context, functionID string, key string, value string) error {
 	if m.setFn != nil {
 		return m.setFn(ctx, functionID, key, value)
+	}
+	return nil
+}
+
+func (m *mockSecretsManager) Get(ctx context.Context, functionID string, key string) (string, error) {
+	if m.getFn != nil {
+		return m.getFn(ctx, functionID, key)
+	}
+	return "", nil
+}
+
+func (m *mockSecretsManager) Delete(ctx context.Context, functionID string, key string) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, functionID, key)
 	}
 	return nil
 }
@@ -172,7 +188,9 @@ func doRequest(t *testing.T, handler http.Handler, method, path string, body str
 // POST /v1/functions with a valid JSON body.
 func TestHandler_CreateFunction(t *testing.T) {
 	repo := &mockFunctionRepository{
-		createFn: func(_ context.Context, _ *functionsstorage.Function) error {
+		createFn: func(_ context.Context, fn *functionsstorage.Function) error {
+			// Simulate DB-generated BIGSERIAL primary key (repository.Create sets fn.ID)
+			fn.ID = "42"
 			return nil
 		},
 	}
@@ -186,7 +204,8 @@ func TestHandler_CreateFunction(t *testing.T) {
 
 	var result api.FunctionModel
 	require.NoError(t, jsonrs.NewDecoder(rec.Body).Decode(&result))
-	require.NotEmpty(t, result.ID, "ID should be a generated UUID")
+	require.NotEmpty(t, result.ID, "ID should be set by repository (DB-generated BIGSERIAL)")
+	require.Equal(t, "42", result.ID)
 	require.Equal(t, "ws-123", result.WorkspaceID)
 	require.Equal(t, "My Source Function", result.Name)
 	require.Equal(t, "source", result.Type)

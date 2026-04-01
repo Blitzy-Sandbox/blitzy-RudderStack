@@ -13,6 +13,7 @@ package api_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -262,9 +263,12 @@ func Test_CreateTrackingPlan(t *testing.T) {
 		h := newTestHandler(svc)
 		router := newTestRouter(h)
 
+		// Use valid JSON that represents an invalid schema — the mock service
+		// will return ErrInvalidSchema regardless, so the value just needs to be
+		// valid JSON to pass the request body decoder.
 		body, _ := jsonrs.Marshal(api.CreateTrackingPlanRequest{
 			Name:   "Bad Schema Plan",
-			Schema: []byte(`not-valid-schema`),
+			Schema: json.RawMessage(`{"invalid": true}`),
 		})
 
 		rec := doRequest(t, router, http.MethodPost, "/tracking-plans", body, testWorkspaceID)

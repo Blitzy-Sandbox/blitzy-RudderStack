@@ -195,24 +195,28 @@ func NewHandler(
 
 // Routes returns a chi.Router with all Profiles API endpoints registered.
 // The router is intended to be mounted at the appropriate prefix in the
-// Gateway's main HTTP server (gateway/handle_http.go).
+// Gateway's main HTTP server (gateway/handle_http.go). Route paths are
+// relative — the caller is responsible for mounting the returned router
+// under the appropriate prefix (e.g., "/v1/profiles" or "/profiles").
 //
-// Endpoints:
+// When mounted under the Gateway's chi router at /v1/profiles (via the
+// internalHttpHandlers map), chi strips the prefix before dispatching to
+// this router, so routes must be defined without the /v1/profiles prefix.
 //
-//	GET /v1/profiles/{id}              — Full profile (segment + external_ids + traits)
-//	GET /v1/profiles/{id}/traits       — Profile traits only
-//	GET /v1/profiles/{id}/events       — Profile events (initial: empty array)
-//	GET /v1/profiles/{id}/external_ids — External identifiers
-//	GET /v1/profiles/{id}/metadata     — Profile metadata with summary counts
+// Endpoints (relative, mounted at /v1/profiles):
+//
+//	GET /{id}              — Full profile (segment + external_ids + traits)
+//	GET /{id}/traits       — Profile traits only
+//	GET /{id}/events       — Profile events (initial: empty array)
+//	GET /{id}/external_ids — External identifiers
+//	GET /{id}/metadata     — Profile metadata with summary counts
 func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Route("/v1/profiles", func(r chi.Router) {
-		r.Get("/{id}", h.getProfile)
-		r.Get("/{id}/traits", h.getProfileTraits)
-		r.Get("/{id}/events", h.getProfileEvents)
-		r.Get("/{id}/external_ids", h.getProfileExternalIDs)
-		r.Get("/{id}/metadata", h.getProfileMetadata)
-	})
+	r.Get("/{id}", h.getProfile)
+	r.Get("/{id}/traits", h.getProfileTraits)
+	r.Get("/{id}/events", h.getProfileEvents)
+	r.Get("/{id}/external_ids", h.getProfileExternalIDs)
+	r.Get("/{id}/metadata", h.getProfileMetadata)
 	return r
 }
 

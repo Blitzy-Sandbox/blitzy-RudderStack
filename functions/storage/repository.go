@@ -118,10 +118,13 @@ func (r *Repository) Create(ctx context.Context, fn *Function) error {
 		settingsArg = []byte(fn.Settings)
 	}
 
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO `+functionsTableName+` (`+functionsColumns+`)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		fn.ID,
+	// The `id` column is BIGSERIAL (auto-increment) so we omit it from the
+	// INSERT and use RETURNING to capture the generated value.
+	var generatedID int64
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO `+functionsTableName+
+			` (workspace_id, name, type, code, version, settings, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
 		fn.WorkspaceID,
 		fn.Name,
 		fn.Type,
@@ -130,10 +133,11 @@ func (r *Repository) Create(ctx context.Context, fn *Function) error {
 		settingsArg,
 		fn.CreatedAt,
 		fn.UpdatedAt,
-	)
+	).Scan(&generatedID)
 	if err != nil {
 		return fmt.Errorf("creating function: %w", err)
 	}
+	fn.ID = fmt.Sprintf("%d", generatedID)
 
 	r.log.Debugn("created function",
 		logger.NewStringField("functionID", fn.ID),

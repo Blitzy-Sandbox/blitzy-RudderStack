@@ -28,13 +28,14 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
+
 
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
 
 	functionsruntime "github.com/rudderlabs/rudder-server/functions/runtime"
+	functionssecrets "github.com/rudderlabs/rudder-server/functions/secrets"
 	functionsstorage "github.com/rudderlabs/rudder-server/functions/storage"
 )
 
@@ -98,11 +99,17 @@ type FunctionRuntime interface {
 // Per-function secrets are encrypted at rest following the security requirements
 // in AAP Rule 0.7.7.
 type SecretsManager interface {
+	// Get retrieves a single decrypted secret value for the given function and key.
+	Get(ctx context.Context, functionID string, key string) (string, error)
+
 	// GetAll retrieves all secrets for the given function ID as a key-value map.
 	GetAll(ctx context.Context, functionID string) (map[string]string, error)
 
 	// Set stores or updates a single secret key-value pair for the given function.
 	Set(ctx context.Context, functionID string, key string, value string) error
+
+	// Delete removes a single secret by function ID and key.
+	Delete(ctx context.Context, functionID string, key string) error
 
 	// DeleteAll removes all secrets associated with the given function ID.
 	DeleteAll(ctx context.Context, functionID string) error
@@ -247,7 +254,8 @@ func (h *Handler) createFunction(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	storageFn := &functionsstorage.Function{
-		ID:          uuid.New().String(),
+		// ID is omitted — the database generates a BIGSERIAL primary key.
+		// The storage layer sets fn.ID after INSERT via RETURNING id.
 		WorkspaceID: req.WorkspaceID,
 		Name:        req.Name,
 		Type:        req.Type,
@@ -577,6 +585,110 @@ func (h *Handler) testFunction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSONResponse(w, http.StatusOK, result)
+}
+
+// ---------------------------------------------------------------------------
+// Secrets Handlers (E-019)
+// ---------------------------------------------------------------------------
+
+// setSecretRequest is the JSON body for PUT /v1/functions/{id}/secrets.
+type setSecretRequest struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// setSecret handles PUT /v1/functions/{id}/secrets — create or update a secret.
+// Validates the request body, then delegates to SecretsManager.Set.
+//
+// Response: HTTP 204 No Content on success.
+// Errors: HTTP 400 (invalid input), HTTP 500 (server error).
+func (h *Handler) setSecret(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	functionID := chi.URLParam(r, "id")
+
+	var req setSecretRequest
+	if err := jsonrs.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+	if req.Key == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "key is required")
+		return
+	}
+	if req.Value == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "value is required")
+		return
+	}
+
+	if err := h.secrets.Set(ctx, functionID, req.Key, req.Value); err != nil {
+		h.log.Errorn("failed to set secret", obskit.Error(err))
+		h.writeErrorResponse(w, http.StatusInternalServerError, "failed to set secret")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// getSecret handles GET /v1/functions/{id}/secrets/{key} — retrieve a single secret.
+//
+// Response: HTTP 200 with JSON {"key": "...", "value": "..."}.
+// Errors: HTTP 404 (secret not found), HTTP 500 (server error).
+func (h *Handler) getSecret(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	functionID := chi.URLParam(r, "id")
+	key := chi.URLParam(r, "key")
+
+	value, err := h.secrets.Get(ctx, functionID, key)
+	if err != nil {
+		if errors.Is(err, functionssecrets.ErrSecretNotFound) {
+			h.writeErrorResponse(w, http.StatusNotFound, "secret not found")
+			return
+		}
+		h.log.Errorn("failed to get secret", obskit.Error(err))
+		h.writeErrorResponse(w, http.StatusInternalServerError, "failed to get secret")
+		return
+	}
+	h.writeJSONResponse(w, http.StatusOK, map[string]string{"key": key, "value": value})
+}
+
+// getAllSecrets handles GET /v1/functions/{id}/secrets — list all secrets for a function.
+//
+// Response: HTTP 200 with JSON object mapping key names to decrypted values.
+// Errors: HTTP 500 (server error).
+func (h *Handler) getAllSecrets(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	functionID := chi.URLParam(r, "id")
+
+	secrets, err := h.secrets.GetAll(ctx, functionID)
+	if err != nil {
+		h.log.Errorn("failed to list secrets", obskit.Error(err))
+		h.writeErrorResponse(w, http.StatusInternalServerError, "failed to list secrets")
+		return
+	}
+	if secrets == nil {
+		secrets = make(map[string]string)
+	}
+	h.writeJSONResponse(w, http.StatusOK, secrets)
+}
+
+// deleteSecret handles DELETE /v1/functions/{id}/secrets/{key} — delete a single secret.
+//
+// Response: HTTP 204 No Content.
+// Errors: HTTP 500 (server error).
+func (h *Handler) deleteSecret(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	functionID := chi.URLParam(r, "id")
+	key := chi.URLParam(r, "key")
+
+	if err := h.secrets.Delete(ctx, functionID, key); err != nil {
+		if errors.Is(err, functionssecrets.ErrSecretNotFound) {
+			h.writeErrorResponse(w, http.StatusNotFound, "secret not found")
+			return
+		}
+		h.log.Errorn("failed to delete secret", obskit.Error(err))
+		h.writeErrorResponse(w, http.StatusInternalServerError, "failed to delete secret")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ---------------------------------------------------------------------------

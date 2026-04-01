@@ -219,6 +219,16 @@ func (e *AlertEngine) Start(ctx context.Context) error {
 		return nil
 	}
 
+	// Safety check: if critical dependencies were not provided (e.g., the
+	// engine was constructed via the simplified NewEngine constructor from
+	// runner.go), disable the evaluation loop gracefully instead of
+	// panicking on nil dereference at e.ruleRepo.ListEnabled().
+	if e.ruleRepo == nil {
+		e.logger.Warnn("Alerting engine enabled but ruleRepo is nil — skipping evaluation loop. " +
+			"Wire a RuleRepository implementation to activate alerting.")
+		return nil
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	e.mu.Lock()

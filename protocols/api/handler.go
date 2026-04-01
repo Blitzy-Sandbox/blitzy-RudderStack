@@ -17,6 +17,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -48,39 +49,39 @@ const (
 
 // CreateTrackingPlanRequest represents the JSON body for creating a new tracking plan.
 type CreateTrackingPlanRequest struct {
-	Name              string `json:"name"`
-	Schema            []byte `json:"schema"`             // JSON Schema draft-07 definition
-	EnforcementConfig []byte `json:"enforcement_config"` // Block/Omit/Allow per source per call type
+	Name              string          `json:"name"`
+	Schema            json.RawMessage `json:"schema"`             // JSON Schema draft-07 definition
+	EnforcementConfig json.RawMessage `json:"enforcement_config"` // Block/Omit/Allow per source per call type
 }
 
 // UpdateTrackingPlanRequest represents the JSON body for updating an existing tracking plan.
 type UpdateTrackingPlanRequest struct {
-	Name              string `json:"name,omitempty"`
-	Schema            []byte `json:"schema,omitempty"`
-	EnforcementConfig []byte `json:"enforcement_config,omitempty"`
+	Name              string          `json:"name,omitempty"`
+	Schema            json.RawMessage `json:"schema,omitempty"`
+	EnforcementConfig json.RawMessage `json:"enforcement_config,omitempty"`
 	Changelog         string `json:"changelog,omitempty"` // Human-readable description of changes for version history
 }
 
 // TrackingPlanResponse represents a tracking plan in API responses.
 type TrackingPlanResponse struct {
-	ID                string    `json:"id"`
-	WorkspaceID       string    `json:"workspace_id"`
-	Name              string    `json:"name"`
-	Schema            []byte    `json:"schema"`
-	Version           int       `json:"version"`
-	EnforcementConfig []byte    `json:"enforcement_config"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID                string          `json:"id"`
+	WorkspaceID       string          `json:"workspace_id"`
+	Name              string          `json:"name"`
+	Schema            json.RawMessage `json:"schema"`
+	Version           int             `json:"version"`
+	EnforcementConfig json.RawMessage `json:"enforcement_config"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
 }
 
 // TrackingPlanVersionResponse represents a tracking plan version in API responses.
 type TrackingPlanVersionResponse struct {
-	ID             string    `json:"id"`
-	TrackingPlanID string    `json:"tracking_plan_id"`
-	Version        int       `json:"version"`
-	Schema         []byte    `json:"schema"`
-	Changelog      string    `json:"changelog"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID             string          `json:"id"`
+	TrackingPlanID string          `json:"tracking_plan_id"`
+	Version        int             `json:"version"`
+	Schema         json.RawMessage `json:"schema"`
+	Changelog      string          `json:"changelog"`
+	CreatedAt      time.Time       `json:"created_at"`
 }
 
 // CreateResponse is the response returned after successfully creating a tracking plan.

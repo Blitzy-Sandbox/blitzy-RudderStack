@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/rudderlabs/rudder-schemas/go/stream"
 
 	"golang.org/x/sync/errgroup"
@@ -20,13 +21,22 @@ import (
 	"github.com/rudderlabs/rudder-server/app/cluster"
 	"github.com/rudderlabs/rudder-server/archiver"
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
+	functionsapi "github.com/rudderlabs/rudder-server/functions/api"
+	functionsruntime "github.com/rudderlabs/rudder-server/functions/runtime"
+	functionssecrets "github.com/rudderlabs/rudder-server/functions/secrets"
+	functionsstorage "github.com/rudderlabs/rudder-server/functions/storage"
 	"github.com/rudderlabs/rudder-server/gateway"
 	gwThrottler "github.com/rudderlabs/rudder-server/gateway/throttler"
+	identitygraph "github.com/rudderlabs/rudder-server/identity/graph"
+	identityprofiles "github.com/rudderlabs/rudder-server/identity/profiles"
+	identitystorage "github.com/rudderlabs/rudder-server/identity/storage"
 	drain_config "github.com/rudderlabs/rudder-server/internal/drain-config"
 	"github.com/rudderlabs/rudder-server/internal/pulsar"
 	"github.com/rudderlabs/rudder-server/jobsdb"
 	"github.com/rudderlabs/rudder-server/jobsdb/bench"
 	"github.com/rudderlabs/rudder-server/processor"
+	protocolsapi "github.com/rudderlabs/rudder-server/protocols/api"
+	protocolsstorage "github.com/rudderlabs/rudder-server/protocols/storage"
 	"github.com/rudderlabs/rudder-server/router"
 	"github.com/rudderlabs/rudder-server/router/batchrouter"
 	routerManager "github.com/rudderlabs/rudder-server/router/manager"
@@ -399,18 +409,60 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 		return fmt.Errorf("monitoring dashboard start: %v", err)
 	}
 	defer monitoringDashboard.Stop()
-	monitoringMux := http.NewServeMux()
-	monitoringMux.HandleFunc("/dashboard", monitoringDashboard.DashboardHandler)
+	// Use a chi.Router instead of http.ServeMux for the monitoring sub-router.
+	// chi.Mount strips the route prefix via rctx.RoutePath, but http.ServeMux
+	// reads r.URL.Path directly (which retains the full path), causing a 404.
+	// A chi.Router correctly reads rctx.RoutePath for prefix-stripped matching.
+	monitoringRouter := chi.NewRouter()
+	monitoringRouter.Get("/dashboard", monitoringDashboard.DashboardHandler)
+
+	// Build the internal HTTP handlers map with all feature API routers.
+	internalHandlers := map[string]http.Handler{
+		"/drain":         drainConfigManager.DrainConfigHttpHandler(),
+		"/v1/monitoring": monitoringRouter,
+	}
+
+	// Wire Functions management CRUD API (E-018) and Functions Secrets API (E-019).
+	// Requires a database connection for persistence. The Functions runtime engine
+	// handles test-invocation of user-defined functions via the /test endpoint.
+	if jobsdbPool != nil {
+		gwLog := a.log.Child("functions")
+		fnRepo := functionsstorage.New(jobsdbPool, gwLog)
+		fnRuntime := functionsruntime.New(config, gwLog, statsFactory)
+		fnSecrets := functionssecrets.New(config, gwLog, jobsdbPool)
+		internalHandlers["/v1/functions"] = functionsapi.NewRouter(gwLog, fnRepo, fnRuntime, fnSecrets)
+		a.log.Infon("Functions API wired into gateway internal handlers")
+	}
+
+	// Wire Protocols / Tracking Plan management API (E-024).
+	// The protocolsapi.Service adapts the storage repository to the
+	// TrackingPlanService interface expected by the HTTP handler.
+	if jobsdbPool != nil {
+		tpRepo := protocolsstorage.NewRepository(jobsdbPool)
+		tpService := protocolsapi.NewService(tpRepo)
+		tpHandler := protocolsapi.NewHandler(a.log.Child("protocols"), tpService)
+		internalHandlers["/v1/protocols"] = protocolsapi.NewRouter(tpHandler)
+		a.log.Infon("Protocols API wired into gateway internal handlers")
+	}
+
+	// Wire Profiles REST API (E-027). Requires identity graph service backed
+	// by PostgreSQL. Cache is nil (NoopCache) — direct graph queries are used.
+	if jobsdbPool != nil {
+		idRepo := identitystorage.NewPostgresRepository(jobsdbPool, a.log.Child("identity-storage"))
+		graphSvc := identitygraph.NewService(idRepo, config, a.log.Child("identity-graph"), statsFactory)
+		profilesHandler, profilesErr := identityprofiles.NewHandler(graphSvc, nil, config, a.log.Child("profiles"), statsFactory)
+		if profilesErr != nil {
+			a.log.Warnn("Failed to create profiles handler — Profiles API will not be available", obskit.Error(profilesErr))
+		} else {
+			internalHandlers["/v1/profiles"] = profilesHandler.Routes()
+			a.log.Infon("Profiles API wired into gateway internal handlers")
+		}
+	}
 
 	gw := gateway.Handle{}
 	err = gw.Setup(ctx, config, logger.NewLogger().Child("gateway"), statsFactory, a.app, backendconfig.DefaultBackendConfig,
 		gwWODB, rateLimiter, a.versionHandler, rsourcesService, transformerFeaturesService, sourceHandle,
-		streamMsgValidator, gateway.WithInternalHttpHandlers(
-			map[string]http.Handler{
-				"/drain":         drainConfigManager.DrainConfigHttpHandler(),
-				"/v1/monitoring": monitoringMux,
-			},
-		))
+		streamMsgValidator, gateway.WithInternalHttpHandlers(internalHandlers))
 	if err != nil {
 		return fmt.Errorf("could not setup gateway: %w", err)
 	}
