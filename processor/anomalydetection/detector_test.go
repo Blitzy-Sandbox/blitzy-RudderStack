@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rudderlabs/rudder-go-kit/logger"
+	"github.com/rudderlabs/rudder-go-kit/stats"
 	"github.com/rudderlabs/rudder-go-kit/stats/memstats"
 
 	"github.com/rudderlabs/rudder-server/processor/anomalydetection"
@@ -878,4 +879,238 @@ func TestDetector_Observe_WithPopulatedResponse(t *testing.T) {
 
 	metrics := store.GetByName("anomaly_unknown_events")
 	require.Len(t, metrics, 1, "anomaly detection should work regardless of response content")
+}
+
+// ============================================================================
+// Anomaly Type Constants and Struct Verification
+// ============================================================================
+
+func TestDetector_AnomalyTypeConstants(t *testing.T) {
+	// Verify the string values of anomaly type constants
+	require.Equal(t, "unknown_event", anomalydetection.AnomalyTypeUnknownEvent)
+	require.Equal(t, "unexpected_property", anomalydetection.AnomalyTypeUnexpectedProperty)
+
+	// Constants must be distinct
+	assert.NotEqual(t, anomalydetection.AnomalyTypeUnknownEvent, anomalydetection.AnomalyTypeUnexpectedProperty)
+}
+
+func TestDetector_AnomalyStruct(t *testing.T) {
+	// Verify the Anomaly struct can be constructed with expected field values
+	a := anomalydetection.Anomaly{
+		Type:           anomalydetection.AnomalyTypeUnknownEvent,
+		SourceID:       "src-1",
+		EventName:      "Unknown Event",
+		EventType:      "track",
+		PropertyName:   "",
+		TrackingPlanID: "tp-001",
+	}
+	assert.NotNil(t, a)
+	assert.Equal(t, anomalydetection.AnomalyTypeUnknownEvent, a.Type)
+	assert.True(t, a.PropertyName == "", "PropertyName should be empty for unknown event anomalies")
+	assert.False(t, a.SourceID == "", "SourceID should not be empty")
+
+	// Verify unexpected property anomaly struct
+	b := anomalydetection.Anomaly{
+		Type:           anomalydetection.AnomalyTypeUnexpectedProperty,
+		SourceID:       "src-1",
+		EventName:      "Order Completed",
+		EventType:      "track",
+		PropertyName:   "badField",
+		TrackingPlanID: "tp-001",
+	}
+	assert.NotNil(t, b)
+	assert.Equal(t, anomalydetection.AnomalyTypeUnexpectedProperty, b.Type)
+	assert.False(t, b.PropertyName == "", "PropertyName should be set for unexpected property anomalies")
+	assert.True(t, b.EventName == "Order Completed")
+}
+
+// ============================================================================
+// No False Positives — Comprehensive (Phase 4 spec requirements)
+// ============================================================================
+
+func TestDetector_NoFalsePositives_TenValidEvents(t *testing.T) {
+	// Use logger.NewLogger pattern and explicit stats.Stats interface reference
+	store, err := memstats.New()
+	require.NoError(t, err)
+	var statsFactory stats.Stats = store
+	log := logger.NewLogger().Child("test").Child("anomalydetection")
+	tracker := anomalydetection.NewTracker(anomalydetection.DefaultTrackerConfig())
+	d := anomalydetection.NewDetector(log, statsFactory, tracker)
+	require.NotNil(t, d)
+	d.UpdateSchemas(sampleSchemas())
+
+	// Send exactly 10 well-formed events matching the tracking plan schema
+	events := []types.TransformerEvent{
+		makeTrackEvent("Order Completed", map[string]any{"orderId": "o1", "total": 10.0}, "tp-001"),
+		makeTrackEvent("Order Completed", map[string]any{"orderId": "o2", "total": 20.0, "revenue": 15.0}, "tp-001"),
+		makeTrackEvent("Order Completed", map[string]any{"orderId": "o3", "total": 30.0, "currency": "USD"}, "tp-001"),
+		makeTrackEvent("Product Viewed", map[string]any{"productId": "p1", "name": "Widget A", "price": 1.0, "category": "Electronics"}, "tp-001"),
+		makeTrackEvent("Product Viewed", map[string]any{"productId": "p2", "name": "Widget B", "price": 2.0, "category": "Books"}, "tp-001"),
+		makeTrackEvent("Product Viewed", map[string]any{"productId": "p3", "name": "Widget C", "price": 3.0, "category": "Clothing"}, "tp-001"),
+		makeTrackEvent("Cart Updated", map[string]any{"cartId": "c1", "products": []string{"p1"}}, "tp-001"),
+		makeTrackEvent("Cart Updated", map[string]any{"cartId": "c2", "products": []string{"p2", "p3"}}, "tp-001"),
+		makeTrackEvent("Order Completed", map[string]any{"orderId": "o4", "total": 40.0, "products": []string{"p1", "p2"}}, "tp-001"),
+		makeTrackEvent("Product Viewed", map[string]any{"productId": "p4", "name": "Widget D"}, "tp-001"),
+	}
+
+	d.Observe("source-1", events, emptyResponse())
+
+	allMetrics := store.GetAll()
+	assert.Len(t, allMetrics, 0, "no anomalies expected for 10 valid events matching schema")
+	assert.Zero(t, len(allMetrics))
+	assert.True(t, len(allMetrics) == 0, "zero metrics emitted for valid events")
+	assert.False(t, len(allMetrics) > 0, "should not have any metrics for valid events")
+}
+
+func TestDetector_NoFalsePositives_IdentifyEvent(t *testing.T) {
+	d, store := newTestDetectorWithStore(t, nil)
+	d.UpdateSchemas(sampleSchemas())
+
+	// "identify" events don't have the "event" property — should not trigger anomaly
+	event := types.TransformerEvent{
+		Message: types.SingularEventT{
+			"type": "identify",
+			"traits": map[string]any{
+				"email": "user@example.com",
+				"name":  "Test User",
+			},
+		},
+		Metadata: types.Metadata{
+			TrackingPlanID: "tp-001",
+			EventType:      "identify",
+		},
+	}
+	d.Observe("source-1", []types.TransformerEvent{event}, emptyResponse())
+
+	allMetrics := store.GetAll()
+	assert.Len(t, allMetrics, 0, "identify events should not trigger any anomalies")
+	assert.True(t, len(allMetrics) == 0)
+}
+
+func TestDetector_NoFalsePositives_PageEvent(t *testing.T) {
+	d, store := newTestDetectorWithStore(t, nil)
+	d.UpdateSchemas(sampleSchemas())
+
+	// "page" events use "name" field instead of "event" — should not trigger anomaly
+	event := types.TransformerEvent{
+		Message: types.SingularEventT{
+			"type": "page",
+			"name": "Home",
+			"properties": map[string]any{
+				"url":   "https://example.com",
+				"title": "Home Page",
+			},
+		},
+		Metadata: types.Metadata{
+			TrackingPlanID: "tp-001",
+			EventType:      "page",
+		},
+	}
+	d.Observe("source-1", []types.TransformerEvent{event}, emptyResponse())
+
+	allMetrics := store.GetAll()
+	assert.Len(t, allMetrics, 0, "page events should not trigger any anomalies")
+	assert.False(t, len(allMetrics) > 0)
+}
+
+// ============================================================================
+// Response with ValidationErrors (spec Phase 7 — ObserveWithFailedEvents)
+// ============================================================================
+
+func TestDetector_Observe_ResponseWithValidationErrors(t *testing.T) {
+	d, store := newTestDetectorWithStore(t, nil)
+	d.UpdateSchemas(sampleSchemas())
+
+	events := []types.TransformerEvent{
+		makeTrackEvent("Unknown Event", nil, "tp-001"),
+	}
+
+	// Construct response with both Events and FailedEvents including ValidationErrors
+	response := types.Response{
+		Events: []types.TransformerResponse{
+			{
+				Output:     map[string]any{"type": "track", "event": "Unknown Event"},
+				Metadata:   types.Metadata{TrackingPlanID: "tp-001"},
+				StatusCode: 200,
+			},
+		},
+		FailedEvents: []types.TransformerResponse{
+			{
+				Output:     map[string]any{"type": "track", "event": "Another Unknown"},
+				Metadata:   types.Metadata{TrackingPlanID: "tp-001"},
+				StatusCode: 400,
+				Error:      "validation failed",
+				ValidationErrors: []types.ValidationError{
+					{
+						Type:    "unknown_event",
+						Message: "Event 'Another Unknown' is not defined in tracking plan",
+					},
+					{
+						Type:     "unexpected_property",
+						Message:  "Property 'badField' is not defined",
+						Property: "badField",
+					},
+				},
+			},
+		},
+	}
+
+	// Observe processes events, not response content; response is retained for future use
+	d.Observe("source-1", events, response)
+
+	metrics := store.GetByName("anomaly_unknown_events")
+	require.Equal(t, 1, len(metrics), "one unknown event metric batch should be emitted")
+	assert.Equal(t, float64(1), metrics[0].Value)
+}
+
+// ============================================================================
+// NewDetector with explicit logger.NewLogger and stats.Stats interface
+// ============================================================================
+
+func TestDetector_WithNewLoggerAndStatsInterface(t *testing.T) {
+	store, err := memstats.New()
+	require.NoError(t, err)
+
+	// Explicitly reference stats.Stats interface type and logger.NewLogger()
+	var s stats.Stats = store
+	log := logger.NewLogger().Child("test-detector")
+	d := anomalydetection.NewDetector(log, s, nil)
+	require.NotNil(t, d, "detector should be created with stats.Stats interface and NewLogger")
+
+	d.UpdateSchemas(sampleSchemas())
+	events := []types.TransformerEvent{
+		makeTrackEvent("Unknown Event", nil, "tp-001"),
+	}
+	d.Observe("source-1", events, emptyResponse())
+
+	metrics := store.GetByName("anomaly_unknown_events")
+	assert.NotNil(t, metrics, "metrics slice should not be nil")
+	assert.Len(t, metrics, 1)
+	require.Equal(t, float64(1), metrics[0].Value)
+}
+
+// ============================================================================
+// Observe — Nil-equivalent Response (spec Phase 7)
+// ============================================================================
+
+func TestDetector_Observe_NilEquivalentResponse(t *testing.T) {
+	d, store := newTestDetectorWithStore(t, nil)
+	d.UpdateSchemas(sampleSchemas())
+
+	events := []types.TransformerEvent{
+		makeTrackEvent("Unknown Event", nil, "tp-001"),
+	}
+
+	// Pass a response with nil/empty slices — should handle gracefully
+	nilResponse := types.Response{
+		Events:       nil,
+		FailedEvents: nil,
+	}
+	require.NotPanics(t, func() {
+		d.Observe("source-1", events, nilResponse)
+	})
+
+	metrics := store.GetByName("anomaly_unknown_events")
+	assert.Len(t, metrics, 1, "anomaly detection should work with nil response slices")
+	assert.Equal(t, float64(1), metrics[0].Value)
 }
