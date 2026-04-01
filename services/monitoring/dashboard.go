@@ -171,6 +171,7 @@ type DashboardService struct {
 	retentionPeriod   time.Duration
 	ticker            *time.Ticker
 	cancel            context.CancelFunc
+	done              chan struct{} // closed when aggregationLoop exits
 }
 
 // NewDashboardService creates a new DashboardService. Configuration is read
@@ -224,6 +225,7 @@ func (ds *DashboardService) Start(ctx context.Context) error {
 	derivedCtx, cancel := context.WithCancel(ctx)
 	ds.cancel = cancel
 	ds.ticker = time.NewTicker(ds.aggregationWindow)
+	ds.done = make(chan struct{})
 
 	go ds.aggregationLoop(derivedCtx)
 
@@ -232,10 +234,14 @@ func (ds *DashboardService) Start(ctx context.Context) error {
 }
 
 // Stop gracefully shuts down the background aggregation goroutine and releases
-// ticker resources.
+// ticker resources. It blocks until the aggregation goroutine has fully exited,
+// ensuring safe re-use of the service via a subsequent Start call.
 func (ds *DashboardService) Stop() {
 	if ds.cancel != nil {
 		ds.cancel()
+	}
+	if ds.done != nil {
+		<-ds.done // wait for aggregationLoop goroutine to exit
 	}
 	if ds.ticker != nil {
 		ds.ticker.Stop()
@@ -246,6 +252,7 @@ func (ds *DashboardService) Stop() {
 // aggregationLoop runs in its own goroutine, triggered by the ticker. Each
 // tick recomputes derived metrics and evicts stale destinations.
 func (ds *DashboardService) aggregationLoop(ctx context.Context) {
+	defer close(ds.done)
 	for {
 		select {
 		case <-ctx.Done():
