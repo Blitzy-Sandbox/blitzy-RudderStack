@@ -6,6 +6,7 @@ import (
 
 	"github.com/rudderlabs/rudder-go-kit/config"
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
+	"github.com/rudderlabs/rudder-server/services/streammanager/amazonmsk"
 	"github.com/rudderlabs/rudder-server/services/streammanager/bqstream"
 	"github.com/rudderlabs/rudder-server/services/streammanager/common"
 	"github.com/rudderlabs/rudder-server/services/streammanager/eventbridge"
@@ -52,6 +53,8 @@ func NewProducer(destination *backendconfig.DestinationT, opts common.Opts) (com
 		return googlecloudfunction.NewProducer(destination, opts)
 	case "WUNDERKIND":
 		return wunderkind.NewProducer(config.Default, destination, opts)
+	case "AMAZON_MSK":
+		return amazonmsk.NewProducer(destination, opts)
 	default:
 		return nil, fmt.Errorf("no provider configured for StreamManager") // 404, "No provider configured for StreamManager", ""
 	}
