@@ -18,6 +18,7 @@ import (
 	"github.com/rudderlabs/rudder-server/services/streammanager/kinesis"
 	"github.com/rudderlabs/rudder-server/services/streammanager/lambda"
 	"github.com/rudderlabs/rudder-server/services/streammanager/personalize"
+	"github.com/rudderlabs/rudder-server/services/streammanager/pulsar"
 	"github.com/rudderlabs/rudder-server/services/streammanager/redisstream"
 	"github.com/rudderlabs/rudder-server/services/streammanager/wunderkind"
 )
@@ -56,6 +57,8 @@ func NewProducer(destination *backendconfig.DestinationT, opts common.Opts) (com
 		return wunderkind.NewProducer(config.Default, destination, opts)
 	case "AMAZON_MSK":
 		return amazonmsk.NewProducer(destination, opts)
+	case "APACHE_PULSAR":
+		return pulsar.NewProducer(destination, opts)
 	case "REDIS_STREAM":
 		return redisstream.NewProducer(destination, opts)
 	default:
