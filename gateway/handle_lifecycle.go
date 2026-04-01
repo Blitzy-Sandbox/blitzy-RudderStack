@@ -670,6 +670,12 @@ func (gw *Handle) StartWebHandler(ctx context.Context) error {
 		// Monitoring dashboard API (E-036)
 		r.Mount("/monitoring", gw.webMonitoringHandler())
 
+		// Pipeline profiling API (E-039) — exposes /pipeline and /capacity sub-endpoints
+		r.Mount("/profiling", gw.webProfilingHandler())
+
+		// Alerting rules API (E-037) — exposes /rules CRUD sub-endpoints
+		r.Mount("/alerts", gw.webAlertingHandler())
+
 		// Advanced replay with source/date-range/destination filtering and dry-run (E-038)
 		r.Post("/replay", gw.webAdvancedReplayHandler())
 	})

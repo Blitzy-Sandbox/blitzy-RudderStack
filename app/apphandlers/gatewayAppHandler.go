@@ -33,11 +33,15 @@ import (
 	"github.com/rudderlabs/rudder-server/jobsdb"
 	protocolsapi "github.com/rudderlabs/rudder-server/protocols/api"
 	protocolsstorage "github.com/rudderlabs/rudder-server/protocols/storage"
+	"github.com/rudderlabs/rudder-server/services/alerting"
 	sourcedebugger "github.com/rudderlabs/rudder-server/services/debugger/source"
 	"github.com/rudderlabs/rudder-server/services/monitoring"
+	"github.com/rudderlabs/rudder-server/services/profiling"
 	"github.com/rudderlabs/rudder-server/services/transformer"
 	"github.com/rudderlabs/rudder-server/utils/misc"
 	"github.com/rudderlabs/rudder-server/utils/types/deployment"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // gatewayApp is the type for Gateway type implementation
@@ -209,17 +213,57 @@ func (a *gatewayApp) StartRudderCore(ctx context.Context, _ func(), options *app
 	}
 
 	// Wire Profiles REST API (E-027). Requires identity graph service backed
-	// by PostgreSQL. Cache is nil (NoopCache) — direct graph queries are used.
+	// by PostgreSQL with Redis caching for sub-200ms responses under production load.
 	if jobsdbPool != nil {
 		idRepo := identitystorage.NewPostgresRepository(jobsdbPool, a.log.Child("identity-storage"))
 		graphSvc := identitygraph.NewService(idRepo, config, a.log.Child("identity-graph"), statsFactory)
-		profilesHandler, profilesErr := identityprofiles.NewHandler(graphSvc, nil, config, a.log.Child("profiles"), statsFactory)
+
+		// Create Redis client for profile caching (E-027).
+		// Redis address is read from Identity.redis.address config key with
+		// fallback to localhost:6379 matching docker-compose.yml.
+		var profileCache identityprofiles.ProfileCache
+		redisAddr := config.GetString("Identity.redis.address", "localhost:6379")
+		redisDB := config.GetInt("Identity.redis.db", 0)
+		redisPassword := config.GetString("Identity.redis.password", "")
+		redisPoolSize := config.GetInt("Identity.redis.poolSize", 10)
+		redisClient := redis.NewClient(&redis.Options{
+			Addr:     redisAddr,
+			Password: redisPassword,
+			DB:       redisDB,
+			PoolSize: redisPoolSize,
+		})
+		profileCache = identityprofiles.NewRedisProfileCache(redisClient, config, a.log.Child("profiles-cache"))
+		a.log.Infon("Redis profile cache created",
+			logger.NewStringField("addr", redisAddr),
+			logger.NewIntField("db", int64(redisDB)),
+		)
+
+		profilesHandler, profilesErr := identityprofiles.NewHandler(graphSvc, profileCache, config, a.log.Child("profiles"), statsFactory)
 		if profilesErr != nil {
 			a.log.Warnn("Failed to create profiles handler — Profiles API will not be available", obskit.Error(profilesErr))
 		} else {
 			internalHandlers["/v1/profiles"] = profilesHandler.Routes()
 			a.log.Infon("Profiles API wired into gateway internal handlers")
 		}
+	}
+
+	// Wire Pipeline Profiling API (E-039). Exposes /pipeline and /capacity
+	// sub-endpoints for runtime pipeline performance profiling and capacity planning.
+	{
+		profilingProfiler := profiling.NewProfiler()
+		profilingCapacity := profiling.NewCapacityPlanner(profilingProfiler)
+		profilingRouter := chi.NewRouter()
+		profilingRouter.Get("/pipeline", profilingProfiler.Handler())
+		profilingRouter.Get("/capacity", profilingCapacity.Handler())
+		internalHandlers["/v1/profiling"] = profilingRouter
+		a.log.Infon("Profiling API wired into gateway internal handlers")
+	}
+
+	// Wire Alerting Rules API (E-037). Exposes /rules CRUD sub-endpoints.
+	{
+		alertEngine := alerting.NewAlertEngine(config, a.log.Child("alerting"), nil, nil, nil)
+		internalHandlers["/v1/alerts"] = alertEngine.Handler()
+		a.log.Infon("Alerting API wired into gateway internal handlers")
 	}
 
 	err = gw.Setup(ctx, config, logger.NewLogger().Child("gateway"), statsFactory, a.app, backendconfig.DefaultBackendConfig,

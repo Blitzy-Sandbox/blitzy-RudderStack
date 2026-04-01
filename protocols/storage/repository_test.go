@@ -454,10 +454,10 @@ func TestList_MultipleResults(t *testing.T) {
 		AddRow("tp-2", "ws-001", "Plan B", nil, 2, string(sampleEnforcementConfig()), now.Add(-time.Hour), now)
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns+" FROM "+trackingPlansTable+" WHERE workspace_id")).
-		WithArgs("ws-001").
+		WithArgs("ws-001", 100, 0).
 		WillReturnRows(rows)
 
-	plans, err := repo.List(ctx, "ws-001")
+	plans, err := repo.List(ctx, "ws-001", 100, 0)
 	require.NoError(t, err)
 	require.Len(t, plans, 2)
 	require.Equal(t, "Plan A", plans[0].Name)
@@ -473,10 +473,10 @@ func TestList_EmptyResult(t *testing.T) {
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns+" FROM "+trackingPlansTable+" WHERE workspace_id")).
-		WithArgs("ws-empty").
+		WithArgs("ws-empty", 100, 0).
 		WillReturnRows(sqlmock.NewRows(trackingPlanCols()))
 
-	plans, err := repo.List(ctx, "ws-empty")
+	plans, err := repo.List(ctx, "ws-empty", 100, 0)
 	require.NoError(t, err)
 	require.NotNil(t, plans, "List should return non-nil empty slice, not nil")
 	require.Empty(t, plans)
@@ -488,10 +488,10 @@ func TestList_DBError(t *testing.T) {
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns)).
-		WithArgs("ws-err").
+		WithArgs("ws-err", 100, 0).
 		WillReturnError(fmt.Errorf("table does not exist"))
 
-	_, err := repo.List(ctx, "ws-err")
+	_, err := repo.List(ctx, "ws-err", 100, 0)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "listing tracking plans")
 	require.NoError(t, mock.ExpectationsWereMet())

@@ -153,8 +153,8 @@ type TrackingPlanService interface {
 	// Delete removes a tracking plan and all its versions.
 	Delete(ctx context.Context, workspaceID, id string) error
 
-	// List returns all tracking plans for a workspace.
-	List(ctx context.Context, workspaceID string) ([]TrackingPlanResponse, error)
+	// List returns tracking plans for a workspace with pagination support.
+	List(ctx context.Context, workspaceID string, limit, offset int) ([]TrackingPlanResponse, error)
 
 	// GetVersions returns the version history for a tracking plan.
 	GetVersions(ctx context.Context, workspaceID, trackingPlanID string) ([]TrackingPlanVersionResponse, error)
@@ -273,10 +273,19 @@ func (h *Handler) GetTrackingPlan(w http.ResponseWriter, r *http.Request) {
 	h.writeJSONResponse(w, http.StatusOK, tp)
 }
 
+// defaultTrackingPlansLimit is the default maximum number of tracking plans
+// returned per list request when no limit query parameter is provided.
+const defaultTrackingPlansLimit = 100
+
 // ListTrackingPlans handles GET /tracking-plans requests.
-// It returns all tracking plans for the workspace identified by the workspace ID header.
+// It returns tracking plans for the workspace with pagination support via
+// limit and offset query parameters.
 //
-// Success response (200): JSON array of TrackingPlanResponse (empty [] if none)
+// Query Parameters:
+//   - limit: Maximum number of tracking plans to return (default: 100)
+//   - offset: Number of tracking plans to skip (default: 0)
+//
+// Success response (200): JSON object with tracking_plans array, total, limit, offset
 // Error responses: 400 (missing workspace), 500 (internal)
 func (h *Handler) ListTrackingPlans(w http.ResponseWriter, r *http.Request) {
 	// Extract and validate workspace ID.
@@ -286,8 +295,22 @@ func (h *Handler) ListTrackingPlans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Query the service for all tracking plans in this workspace.
-	plans, err := h.service.List(r.Context(), workspaceID)
+	// Parse pagination parameters from query string.
+	limit := defaultTrackingPlansLimit
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	// Query the service for tracking plans in this workspace with pagination.
+	plans, err := h.service.List(r.Context(), workspaceID, limit, offset)
 	if err != nil {
 		h.handleServiceError(w, err)
 		return
@@ -300,7 +323,19 @@ func (h *Handler) ListTrackingPlans(w http.ResponseWriter, r *http.Request) {
 		plans = []TrackingPlanResponse{}
 	}
 
-	h.writeJSONResponse(w, http.StatusOK, plans)
+	// Return paginated response with metadata.
+	resp := struct {
+		TrackingPlans []TrackingPlanResponse `json:"tracking_plans"`
+		Total         int                    `json:"total"`
+		Limit         int                    `json:"limit"`
+		Offset        int                    `json:"offset"`
+	}{
+		TrackingPlans: plans,
+		Total:         len(plans),
+		Limit:         limit,
+		Offset:        offset,
+	}
+	h.writeJSONResponse(w, http.StatusOK, resp)
 }
 
 // UpdateTrackingPlan handles PUT /tracking-plans/{id} requests.

@@ -447,14 +447,19 @@ func TestGetProfileEvents_Success(t *testing.T) {
 	now := time.Now()
 	gs.profiles[1] = &storage.ProfileData{
 		Segment: storage.GraphSegment{ID: 1, WorkspaceID: "ws-1", SegmentID: "seg-1", CreatedAt: now},
+		ExternalIDs: []storage.ExternalID{
+			{ID: 1, GraphID: 1, WorkspaceID: "ws-1", ExternalIDType: "user_id", ExternalIDValue: "user-123", CreatedAt: now, CreatedSource: "web"},
+		},
+		Traits: []storage.Trait{
+			{ID: 1, GraphID: 1, Key: "name", Value: "Alice", UpdatedAt: now},
+		},
 	}
 
 	router := h.Routes()
 	rr := executeRequest(t, router, "/v1/profiles/1/events")
 
-	// Events endpoint returns 501 Not Implemented — deferred to a future sprint
-	// per Finding #9 resolution (events retrieval from identity graph).
-	require.Equal(t, http.StatusNotImplemented, rr.Code)
+	// Events endpoint derives activity events from identity data (external IDs and traits).
+	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
 }
 
@@ -739,12 +744,7 @@ func TestGetProfile_ContentType(t *testing.T) {
 	for _, ep := range endpoints {
 		t.Run(ep, func(t *testing.T) {
 			rr := executeRequest(t, router, ep)
-			if ep == "/v1/profiles/1/events" {
-				// Events endpoint returns 501 Not Implemented (deferred).
-				require.Equal(t, http.StatusNotImplemented, rr.Code)
-			} else {
-				require.Equal(t, http.StatusOK, rr.Code)
-			}
+			require.Equal(t, http.StatusOK, rr.Code)
 			require.Equal(t, "application/json", rr.Header().Get("Content-Type"),
 				"endpoint %s should return application/json", ep)
 		})

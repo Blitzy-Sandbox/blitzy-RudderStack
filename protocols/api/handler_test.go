@@ -44,7 +44,7 @@ type mockTrackingPlanService struct {
 	getFn         func(ctx context.Context, workspaceID, id string) (*api.TrackingPlanResponse, error)
 	updateFn      func(ctx context.Context, workspaceID, id string, req api.UpdateTrackingPlanRequest) error
 	deleteFn      func(ctx context.Context, workspaceID, id string) error
-	listFn        func(ctx context.Context, workspaceID string) ([]api.TrackingPlanResponse, error)
+	listFn        func(ctx context.Context, workspaceID string, limit, offset int) ([]api.TrackingPlanResponse, error)
 	getVersionsFn func(ctx context.Context, workspaceID, trackingPlanID string) ([]api.TrackingPlanVersionResponse, error)
 	importCSVFn   func(ctx context.Context, workspaceID, trackingPlanID string, csvData []byte) error
 	exportCSVFn   func(ctx context.Context, workspaceID, trackingPlanID string) ([]byte, error)
@@ -72,8 +72,8 @@ func (m *mockTrackingPlanService) Delete(ctx context.Context, workspaceID, id st
 }
 
 // List delegates to the configured listFn.
-func (m *mockTrackingPlanService) List(ctx context.Context, workspaceID string) ([]api.TrackingPlanResponse, error) {
-	return m.listFn(ctx, workspaceID)
+func (m *mockTrackingPlanService) List(ctx context.Context, workspaceID string, limit, offset int) ([]api.TrackingPlanResponse, error) {
+	return m.listFn(ctx, workspaceID, limit, offset)
 }
 
 // GetVersions delegates to the configured getVersionsFn.
@@ -108,6 +108,15 @@ type errorResponse struct {
 // used by UpdateTrackingPlan and ImportCSV handlers.
 type okResponse struct {
 	Status string `json:"status"`
+}
+
+// paginatedTrackingPlansResponse mirrors the paginated envelope returned
+// by ListTrackingPlans after adding limit/offset support (Issue 4).
+type paginatedTrackingPlansResponse struct {
+	TrackingPlans []api.TrackingPlanResponse `json:"tracking_plans"`
+	Total         int                        `json:"total"`
+	Limit         int                        `json:"limit"`
+	Offset        int                        `json:"offset"`
 }
 
 // ---------------------------------------------------------------------------
@@ -447,7 +456,7 @@ func Test_ListTrackingPlans(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		svc := &mockTrackingPlanService{
-			listFn: func(_ context.Context, workspaceID string) ([]api.TrackingPlanResponse, error) {
+			listFn: func(_ context.Context, workspaceID string, _, _ int) ([]api.TrackingPlanResponse, error) {
 				require.Equal(t, testWorkspaceID, workspaceID)
 				return []api.TrackingPlanResponse{
 					{
@@ -475,17 +484,17 @@ func Test_ListTrackingPlans(t *testing.T) {
 		rec := doRequest(t, router, http.MethodGet, "/tracking-plans", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusOK, rec.Code)
-		var resp []api.TrackingPlanResponse
+		var resp paginatedTrackingPlansResponse
 		err := jsonrs.NewDecoder(rec.Body).Decode(&resp)
 		require.NoError(t, err)
-		assert.Len(t, resp, 2)
-		assert.Equal(t, "Plan A", resp[0].Name)
-		assert.Equal(t, "Plan B", resp[1].Name)
+		assert.Len(t, resp.TrackingPlans, 2)
+		assert.Equal(t, "Plan A", resp.TrackingPlans[0].Name)
+		assert.Equal(t, "Plan B", resp.TrackingPlans[1].Name)
 	})
 
 	t.Run("Empty", func(t *testing.T) {
 		svc := &mockTrackingPlanService{
-			listFn: func(_ context.Context, _ string) ([]api.TrackingPlanResponse, error) {
+			listFn: func(_ context.Context, _ string, _, _ int) ([]api.TrackingPlanResponse, error) {
 				// Return nil; handler should nil-coalesce to empty slice
 				// to ensure JSON serializes as [] not null.
 				return nil, nil
@@ -497,16 +506,16 @@ func Test_ListTrackingPlans(t *testing.T) {
 		rec := doRequest(t, router, http.MethodGet, "/tracking-plans", nil, testWorkspaceID)
 
 		require.Equal(t, http.StatusOK, rec.Code)
-		var resp []api.TrackingPlanResponse
+		var resp paginatedTrackingPlansResponse
 		err := jsonrs.NewDecoder(rec.Body).Decode(&resp)
 		require.NoError(t, err)
-		require.NotNil(t, resp)
-		assert.Empty(t, resp)
+		require.NotNil(t, resp.TrackingPlans)
+		assert.Empty(t, resp.TrackingPlans)
 	})
 
 	t.Run("MissingWorkspaceHeader", func(t *testing.T) {
 		svc := &mockTrackingPlanService{
-			listFn: func(_ context.Context, _ string) ([]api.TrackingPlanResponse, error) {
+			listFn: func(_ context.Context, _ string, _, _ int) ([]api.TrackingPlanResponse, error) {
 				t.Fatal("List should not be called when workspace header is missing")
 				return nil, errors.New("unreachable")
 			},
@@ -525,7 +534,7 @@ func Test_ListTrackingPlans(t *testing.T) {
 
 	t.Run("ServiceError", func(t *testing.T) {
 		svc := &mockTrackingPlanService{
-			listFn: func(_ context.Context, _ string) ([]api.TrackingPlanResponse, error) {
+			listFn: func(_ context.Context, _ string, _, _ int) ([]api.TrackingPlanResponse, error) {
 				return nil, errors.New("unexpected error")
 			},
 		}
@@ -1059,7 +1068,7 @@ func Test_WorkspaceIsolation(t *testing.T) {
 	t.Run("ListPassesWorkspaceID", func(t *testing.T) {
 		var capturedWsID string
 		svc := &mockTrackingPlanService{
-			listFn: func(_ context.Context, workspaceID string) ([]api.TrackingPlanResponse, error) {
+			listFn: func(_ context.Context, workspaceID string, _, _ int) ([]api.TrackingPlanResponse, error) {
 				capturedWsID = workspaceID
 				return []api.TrackingPlanResponse{}, nil
 			},
@@ -1131,7 +1140,7 @@ func Test_ErrorResponseFormat(t *testing.T) {
 func Test_SuccessResponseContentType(t *testing.T) {
 	t.Run("JSONEndpoint", func(t *testing.T) {
 		svc := &mockTrackingPlanService{
-			listFn: func(_ context.Context, _ string) ([]api.TrackingPlanResponse, error) {
+			listFn: func(_ context.Context, _ string, _, _ int) ([]api.TrackingPlanResponse, error) {
 				return []api.TrackingPlanResponse{}, nil
 			},
 		}

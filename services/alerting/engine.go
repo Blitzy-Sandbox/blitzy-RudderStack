@@ -20,10 +20,14 @@ package alerting
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/rudderlabs/rudder-go-kit/config"
+	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
 )
@@ -468,4 +472,210 @@ func (e *AlertEngine) buildMetricSnapshot() MetricSnapshot {
 		JobsDBQueueDepth:        0,
 		CollectedAt:             time.Now(),
 	}
+}
+
+// ---------------------------------------------------------------------------
+// HTTP API Handler — CRUD for alert rules (E-037)
+// ---------------------------------------------------------------------------
+
+// defaultAlertRulesLimit is the default maximum number of alert rules returned
+// per list request when no limit query parameter is provided.
+const defaultAlertRulesLimit = 100
+
+// Handler returns an http.Handler that exposes CRUD endpoints for alert rules.
+// The handler uses chi for routing and delegates to the RuleRepository for
+// persistence. If the RuleRepository is nil (engine created via simplified
+// NewEngine constructor), all endpoints return 503 Service Unavailable.
+//
+// Routes:
+//
+//	GET    /rules          — list alert rules (paginated via limit/offset)
+//	POST   /rules          — create a new alert rule
+//	GET    /rules/{id}     — get a single alert rule by ID
+//	PUT    /rules/{id}     — update an alert rule
+//	DELETE /rules/{id}     — delete an alert rule
+func (e *AlertEngine) Handler() http.Handler {
+	r := chi.NewRouter()
+
+	r.Route("/rules", func(r chi.Router) {
+		r.Get("/", e.listRulesHandler)
+		r.Post("/", e.createRuleHandler)
+		r.Get("/{id}", e.getRuleHandler)
+		r.Put("/{id}", e.updateRuleHandler)
+		r.Delete("/{id}", e.deleteRuleHandler)
+	})
+
+	return r
+}
+
+// listRulesHandler handles GET /rules — lists alert rules for the workspace
+// with pagination support via limit and offset query parameters.
+func (e *AlertEngine) listRulesHandler(w http.ResponseWriter, r *http.Request) {
+	if e.ruleRepo == nil {
+		e.writeErrorJSON(w, http.StatusServiceUnavailable, "alerting rule repository not configured")
+		return
+	}
+
+	workspaceID := r.Header.Get("X-Rudder-Workspace-Id")
+	if workspaceID == "" {
+		e.writeErrorJSON(w, http.StatusBadRequest, "missing X-Rudder-Workspace-Id header")
+		return
+	}
+
+	limit := defaultAlertRulesLimit
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	rules, err := e.ruleRepo.List(r.Context(), workspaceID)
+	if err != nil {
+		e.logger.Errorn("Error listing alert rules", obskit.Error(err))
+		e.writeErrorJSON(w, http.StatusInternalServerError, "failed to list alert rules")
+		return
+	}
+
+	// Apply in-memory pagination to the full list.
+	total := len(rules)
+	if offset >= total {
+		rules = []AlertRule{}
+	} else {
+		end := offset + limit
+		if end > total {
+			end = total
+		}
+		rules = rules[offset:end]
+	}
+
+	resp := struct {
+		Rules  []AlertRule `json:"rules"`
+		Total  int         `json:"total"`
+		Limit  int         `json:"limit"`
+		Offset int         `json:"offset"`
+	}{
+		Rules:  rules,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}
+	// Ensure rules is never nil so JSON produces [] not null.
+	if resp.Rules == nil {
+		resp.Rules = []AlertRule{}
+	}
+	e.writeJSON(w, http.StatusOK, resp)
+}
+
+// createRuleHandler handles POST /rules — creates a new alert rule.
+func (e *AlertEngine) createRuleHandler(w http.ResponseWriter, r *http.Request) {
+	if e.ruleRepo == nil {
+		e.writeErrorJSON(w, http.StatusServiceUnavailable, "alerting rule repository not configured")
+		return
+	}
+
+	var rule AlertRule
+	if err := jsonrs.NewDecoder(r.Body).Decode(&rule); err != nil {
+		e.writeErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("invalid JSON body: %s", err.Error()))
+		return
+	}
+
+	if err := rule.Validate(); err != nil {
+		e.writeErrorJSON(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	id, err := e.ruleRepo.Create(r.Context(), rule)
+	if err != nil {
+		e.logger.Errorn("Error creating alert rule", obskit.Error(err))
+		e.writeErrorJSON(w, http.StatusInternalServerError, "failed to create alert rule")
+		return
+	}
+
+	rule.ID = id
+	e.writeJSON(w, http.StatusCreated, rule)
+}
+
+// getRuleHandler handles GET /rules/{id} — returns a single alert rule.
+func (e *AlertEngine) getRuleHandler(w http.ResponseWriter, r *http.Request) {
+	if e.ruleRepo == nil {
+		e.writeErrorJSON(w, http.StatusServiceUnavailable, "alerting rule repository not configured")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	rule, err := e.ruleRepo.Get(r.Context(), id)
+	if err != nil {
+		e.logger.Errorn("Error getting alert rule", logger.NewStringField("id", id), obskit.Error(err))
+		e.writeErrorJSON(w, http.StatusNotFound, fmt.Sprintf("alert rule %s not found", id))
+		return
+	}
+
+	e.writeJSON(w, http.StatusOK, rule)
+}
+
+// updateRuleHandler handles PUT /rules/{id} — updates an existing alert rule.
+func (e *AlertEngine) updateRuleHandler(w http.ResponseWriter, r *http.Request) {
+	if e.ruleRepo == nil {
+		e.writeErrorJSON(w, http.StatusServiceUnavailable, "alerting rule repository not configured")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+
+	var rule AlertRule
+	if err := jsonrs.NewDecoder(r.Body).Decode(&rule); err != nil {
+		e.writeErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("invalid JSON body: %s", err.Error()))
+		return
+	}
+
+	rule.ID = id
+	if err := rule.Validate(); err != nil {
+		e.writeErrorJSON(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := e.ruleRepo.Update(r.Context(), rule); err != nil {
+		e.logger.Errorn("Error updating alert rule", logger.NewStringField("id", id), obskit.Error(err))
+		e.writeErrorJSON(w, http.StatusInternalServerError, "failed to update alert rule")
+		return
+	}
+
+	e.writeJSON(w, http.StatusOK, rule)
+}
+
+// deleteRuleHandler handles DELETE /rules/{id} — deletes an alert rule.
+func (e *AlertEngine) deleteRuleHandler(w http.ResponseWriter, r *http.Request) {
+	if e.ruleRepo == nil {
+		e.writeErrorJSON(w, http.StatusServiceUnavailable, "alerting rule repository not configured")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if err := e.ruleRepo.Delete(r.Context(), id); err != nil {
+		e.logger.Errorn("Error deleting alert rule", logger.NewStringField("id", id), obskit.Error(err))
+		e.writeErrorJSON(w, http.StatusInternalServerError, "failed to delete alert rule")
+		return
+	}
+
+	e.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// writeJSON serializes v as JSON and writes it to the response with the given status code.
+func (e *AlertEngine) writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	if err := jsonrs.NewEncoder(w).Encode(v); err != nil {
+		e.logger.Errorn("Error encoding JSON response", obskit.Error(err))
+	}
+}
+
+// writeErrorJSON writes a JSON error response with the given status code and message.
+func (e *AlertEngine) writeErrorJSON(w http.ResponseWriter, status int, message string) {
+	e.writeJSON(w, status, map[string]string{"error": message})
 }

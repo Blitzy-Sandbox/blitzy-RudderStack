@@ -332,17 +332,25 @@ func (r *Repository) Delete(ctx context.Context, workspaceID string, id string) 
 	return nil
 }
 
-// List returns all tracking plans for the given workspace ordered by created_at
-// descending (most recent first). Returns an empty non-nil slice if no tracking
-// plans exist for the workspace, following the warehouse/backfill/repository.go
-// ListBySource pattern.
-func (r *Repository) List(ctx context.Context, workspaceID string) ([]TrackingPlan, error) {
+// List returns tracking plans for the given workspace ordered by created_at
+// descending (most recent first) with pagination support via limit and offset.
+// If limit is <= 0, a default of 100 is used. If offset is < 0, it defaults to 0.
+// Returns an empty non-nil slice if no tracking plans exist for the workspace,
+// following the warehouse/backfill/repository.go ListBySource pattern.
+func (r *Repository) List(ctx context.Context, workspaceID string, limit, offset int) ([]TrackingPlan, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT `+trackingPlanColumns+`
 		FROM `+trackingPlansTable+`
 		WHERE workspace_id = $1
-		ORDER BY created_at DESC`,
-		workspaceID,
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3`,
+		workspaceID, limit, offset,
 	)
 	if err != nil {
 		pkgLogger.Errorn("Error listing tracking plans",

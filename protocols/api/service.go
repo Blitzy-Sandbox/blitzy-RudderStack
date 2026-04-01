@@ -30,7 +30,7 @@ type trackingPlanRepository interface {
 	GetByWorkspace(ctx context.Context, workspaceID, id string) (storage.TrackingPlan, error)
 	Update(ctx context.Context, tp storage.TrackingPlan) error
 	Delete(ctx context.Context, workspaceID, id string) error
-	List(ctx context.Context, workspaceID string) ([]storage.TrackingPlan, error)
+	List(ctx context.Context, workspaceID string, limit, offset int) ([]storage.TrackingPlan, error)
 	GetVersions(ctx context.Context, trackingPlanID string) ([]storage.TrackingPlanVersion, error)
 	CreateVersion(ctx context.Context, v storage.TrackingPlanVersion) (string, error)
 }
@@ -152,9 +152,11 @@ func (s *Service) Delete(ctx context.Context, workspaceID, id string) error {
 	return nil
 }
 
-// List returns all tracking plans for a workspace.
-func (s *Service) List(ctx context.Context, workspaceID string) ([]TrackingPlanResponse, error) {
-	plans, err := s.repo.List(ctx, workspaceID)
+// List returns tracking plans for a workspace with pagination support.
+// If limit is <= 0, the storage layer applies a default of 100.
+// If offset is < 0, it defaults to 0.
+func (s *Service) List(ctx context.Context, workspaceID string, limit, offset int) ([]TrackingPlanResponse, error) {
+	plans, err := s.repo.List(ctx, workspaceID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("listing tracking plans: %w", err)
 	}

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -383,12 +384,33 @@ func (h *Handler) getProfileTraits(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, resp)
 }
 
-// getProfileEvents handles GET /v1/profiles/{id}/events — returns events.
+// profileEvent represents a single identity-related event in the profile's timeline.
+// Events are derived from the profile's external identifiers and traits — each
+// creation, merge, or trait update generates an event entry.
+type profileEvent struct {
+	Type      string    `json:"type"`
+	Timestamp time.Time `json:"timestamp"`
+	Source    string    `json:"source,omitempty"`
+	Details   any       `json:"details,omitempty"`
+}
+
+// defaultProfileEventsLimit is the default maximum number of events returned
+// per page when no limit query parameter is provided.
+const defaultProfileEventsLimit = 100
+
+// getProfileEvents handles GET /v1/profiles/{id}/events — returns identity
+// events for a profile with pagination support.
 //
-// Event history for profiles is served from the identity graph's associated
-// event metadata. The initial implementation returns an empty JSON array since
-// full event retrieval from JobsDB is outside the identity package scope.
-// Future iterations will integrate with the event archival system.
+// Events are derived from the profile's identity activity:
+//   - External identifier additions (type: "identify")
+//   - Identity merges (type: "merge")
+//   - Trait updates (type: "trait_update")
+//
+// Query Parameters:
+//   - limit: Maximum number of events to return (default: 100)
+//   - offset: Number of events to skip (default: 0)
+//
+// Events are ordered by timestamp descending (most recent first).
 func (h *Handler) getProfileEvents(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -413,15 +435,102 @@ func (h *Handler) getProfileEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.logger.Debugn("Events endpoint called — event retrieval not yet implemented",
-		logger.NewIntField("segmentID", segmentID),
-		logger.NewStringField("endpoint", "events"),
-	)
+	// Parse pagination parameters.
+	limit := defaultProfileEventsLimit
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if parsed, parseErr := strconv.Atoi(v); parseErr == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if parsed, parseErr := strconv.Atoi(v); parseErr == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
 
-	// Event retrieval from the event archival system is not yet integrated.
-	// Return 501 Not Implemented per REST API conventions, indicating the
-	// endpoint is recognized but the feature is deferred to a future sprint.
-	h.writeError(w, http.StatusNotImplemented, "not_implemented", "event retrieval is not yet available")
+	// Build events from the profile's identity activity.
+	events := h.buildProfileEvents(profileData)
+
+	// Sort by timestamp descending (most recent first).
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].Timestamp.After(events[j].Timestamp)
+	})
+
+	// Apply pagination.
+	total := len(events)
+	if offset >= total {
+		events = []profileEvent{}
+	} else {
+		end := offset + limit
+		if end > total {
+			end = total
+		}
+		events = events[offset:end]
+	}
+
+	resp := struct {
+		Events []profileEvent `json:"events"`
+		Total  int            `json:"total"`
+		Limit  int            `json:"limit"`
+		Offset int            `json:"offset"`
+	}{
+		Events: events,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}
+	// Ensure events is never nil so JSON produces [] not null.
+	if resp.Events == nil {
+		resp.Events = []profileEvent{}
+	}
+	h.writeJSON(w, http.StatusOK, resp)
+}
+
+// buildProfileEvents constructs a chronological event timeline from the
+// profile's external identifiers and traits. Each external identifier addition
+// generates an "identify" event, each merge generates a "merge" event, and
+// each trait generates a "trait_update" event using its updated_at timestamp.
+func (h *Handler) buildProfileEvents(profile *storage.ProfileData) []profileEvent {
+	events := make([]profileEvent, 0, len(profile.ExternalIDs)+len(profile.Traits))
+
+	for _, eid := range profile.ExternalIDs {
+		events = append(events, profileEvent{
+			Type:      "identify",
+			Timestamp: eid.CreatedAt,
+			Source:    eid.CreatedSource,
+			Details: map[string]string{
+				"external_id_type":  eid.ExternalIDType,
+				"external_id_value": eid.ExternalIDValue,
+			},
+		})
+		// If the external ID was merged from another segment, add a merge event.
+		if eid.MergedAt != nil {
+			events = append(events, profileEvent{
+				Type:      "merge",
+				Timestamp: *eid.MergedAt,
+				Source:    eid.CreatedSource,
+				Details: map[string]string{
+					"external_id_type":  eid.ExternalIDType,
+					"external_id_value": eid.ExternalIDValue,
+					"action":            "merged",
+				},
+			})
+		}
+	}
+
+	for _, trait := range profile.Traits {
+		events = append(events, profileEvent{
+			Type:      "trait_update",
+			Timestamp: trait.UpdatedAt,
+			Details: map[string]string{
+				"key":   trait.Key,
+				"value": trait.Value,
+			},
+		})
+	}
+
+	return events
 }
 
 // getProfileExternalIDs handles GET /v1/profiles/{id}/external_ids — returns

@@ -133,6 +133,38 @@ func (gw *Handle) webMonitoringHandler() http.HandlerFunc {
 	}))
 }
 
+// webProfilingHandler - handler for pipeline performance profiling API (E-039)
+// This handler delegates to the profiling API router registered via the services/profiling package.
+// Exposes /pipeline (profiler report) and /capacity (capacity planning report) sub-endpoints.
+// Bearer token authentication is enforced at the gateway level via requireBearerAuth;
+// the internal handler may perform additional authorization checks.
+func (gw *Handle) webProfilingHandler() http.HandlerFunc {
+	return requireBearerAuth(withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
+		// Delegate to the profiling API handler registered in gw.internalHttpHandlers
+		if handler, ok := gw.internalHttpHandlers["/v1/profiling"]; ok {
+			handler.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "Profiling API not configured", http.StatusServiceUnavailable)
+	}))
+}
+
+// webAlertingHandler - handler for configurable alerting rules API (E-037)
+// This handler delegates to the alerting API router registered via the services/alerting package.
+// Exposes /rules CRUD sub-endpoints for alert rule management.
+// Bearer token authentication is enforced at the gateway level via requireBearerAuth;
+// the internal handler may perform additional authorization checks.
+func (gw *Handle) webAlertingHandler() http.HandlerFunc {
+	return requireBearerAuth(withContentType("application/json; charset=utf-8", func(w http.ResponseWriter, r *http.Request) {
+		// Delegate to the alerting API handler registered in gw.internalHttpHandlers
+		if handler, ok := gw.internalHttpHandlers["/v1/alerts"]; ok {
+			handler.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "Alerting API not configured", http.StatusServiceUnavailable)
+	}))
+}
+
 // webAdvancedReplayHandler - handler for advanced replay with source/date-range/destination filtering and dry-run (E-038)
 // Extends the base replay handler with additional filter parameters parsed from HTTP headers:
 // X-Replay-Source-Filter, X-Replay-Start-Date, X-Replay-End-Date, X-Replay-Destination-Filter, X-Replay-Dry-Run.
