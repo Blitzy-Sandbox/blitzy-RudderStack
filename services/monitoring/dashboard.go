@@ -174,6 +174,12 @@ type DashboardService struct {
 	done              chan struct{} // closed when aggregationLoop exits
 }
 
+// Dashboard is a type alias for DashboardService. It is exported for use by
+// runner/runner.go where the Runner struct field is typed as *monitoring.Dashboard.
+// This alias avoids a naming break while maintaining the descriptive DashboardService
+// name in the monitoring package's own code.
+type Dashboard = DashboardService
+
 // NewDashboardService creates a new DashboardService. Configuration is read
 // from the provided config.Config following the rudder-go-kit configuration
 // pattern. Config keys match the Monitoring section in config.yaml:
@@ -188,6 +194,12 @@ type DashboardService struct {
 // RegisterDashboard so that recording helpers in metrics.go automatically
 // bridge Prometheus writes into the in-memory dashboard state.
 func NewDashboardService(conf *config.Config, log logger.Logger) *DashboardService {
+	if conf == nil {
+		conf = config.Default
+	}
+	if log == nil {
+		log = pkgLogger
+	}
 	aggregationWindow := conf.GetDurationVar(
 		10, time.Second,
 		"Monitoring.dashboard.refreshInterval",
@@ -211,9 +223,33 @@ func NewDashboardService(conf *config.Config, log logger.Logger) *DashboardServi
 	return ds
 }
 
+// NewDashboard creates a new Dashboard (alias for DashboardService) with the
+// standard 3-argument constructor signature expected by runner/runner.go (E-036).
+// The stats parameter is accepted for API uniformity but not used — the
+// DashboardService bridges Prometheus metrics to in-memory state internally
+// via RegisterDashboard / metrics.go helpers. If stats is needed in the future,
+// it can be wired here without changing the runner.
+func NewDashboard(conf *config.Config, log logger.Logger, _ interface{}) *Dashboard {
+	return NewDashboardService(conf, log)
+}
+
 // ---------------------------------------------------------------------------
-// Lifecycle — Start / Stop
+// Lifecycle — Start / Stop / Run
 // ---------------------------------------------------------------------------
+
+// Run starts the dashboard service and blocks until ctx is cancelled.
+// This is the lifecycle method called by runner/runner.go's errgroup to
+// start the monitoring dashboard as a managed goroutine alongside the
+// existing Gateway, Processor, Router, and Warehouse services.
+func (ds *DashboardService) Run(ctx context.Context) error {
+	if err := ds.Start(ctx); err != nil {
+		return err
+	}
+	// Block until context cancellation — mirrors the pattern in
+	// identity/graph/graph.go:Run.
+	<-ctx.Done()
+	return ctx.Err()
+}
 
 // Start launches a background goroutine that periodically:
 //   - computes throughput (events/sec) per destination

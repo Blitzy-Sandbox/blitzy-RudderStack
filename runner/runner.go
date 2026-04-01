@@ -27,12 +27,16 @@ import (
 	"github.com/rudderlabs/rudder-server/app"
 	"github.com/rudderlabs/rudder-server/app/apphandlers"
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
+	functionsruntime "github.com/rudderlabs/rudder-server/functions/runtime"
+	identitygraph "github.com/rudderlabs/rudder-server/identity/graph"
 	"github.com/rudderlabs/rudder-server/info"
 	"github.com/rudderlabs/rudder-server/router/customdestinationmanager"
 	"github.com/rudderlabs/rudder-server/rruntime"
 	"github.com/rudderlabs/rudder-server/services/alert"
+	"github.com/rudderlabs/rudder-server/services/alerting"
 	"github.com/rudderlabs/rudder-server/services/controlplane"
 	"github.com/rudderlabs/rudder-server/services/diagnostics"
+	"github.com/rudderlabs/rudder-server/services/monitoring"
 	"github.com/rudderlabs/rudder-server/services/streammanager/kafka"
 	"github.com/rudderlabs/rudder-server/utils/crash"
 	"github.com/rudderlabs/rudder-server/utils/misc"
@@ -62,6 +66,14 @@ type Runner struct {
 	logger                    logger.Logger
 	appHandler                apphandlers.AppHandler
 	gracefulShutdownTimeout   time.Duration
+
+	// New service instances for feature expansion (Sprint 4-10).
+	// Each field remains nil when its feature flag is disabled, ensuring
+	// zero overhead and full backward compatibility with existing behaviour.
+	functionsRuntime  *functionsruntime.Engine // Functions runtime engine (E-015/E-016/E-017)
+	identityService   identitygraph.Service    // Identity graph service (E-026)
+	monitoringService *monitoring.Dashboard    // Monitoring dashboard (E-036)
+	alertingEngine    *alerting.Engine         // Alerting rules engine (E-037)
 }
 
 // New creates and initializes a new Runner
@@ -175,6 +187,47 @@ func (r *Runner) Run(ctx context.Context, shutdownFn func(), args []string) int 
 	}
 	backendconfig.DefaultBackendConfig.StartWithIDs(ctx, "")
 
+	// Initialize new services before database preparation.
+	// CRITICAL: These services must initialize BEFORE the Processor starts
+	// to ensure pipeline hooks are available (AAP Section 0.4.1).
+	// Each service is gated by canStartServer() AND its own config flag,
+	// defaulting to disabled for full backward compatibility (AAP Section 0.7.6).
+
+	// Initialize Functions runtime (E-015: Source Functions, E-016: Destination Functions, E-017: Insert Functions)
+	if r.canStartServer() && config.GetBool("Functions.enabled", false) {
+		r.functionsRuntime = functionsruntime.NewEngine(
+			config.Default,
+			logger.NewLogger().Child("functions"),
+			stats.Default,
+		)
+		r.logger.Infon("Functions runtime initialized")
+	}
+
+	// Initialize Identity service (E-026: Real-time identity graph)
+	if r.canStartServer() && config.GetBool("Identity.enabled", false) {
+		r.identityService = identitygraph.NewService(
+			config.Default,
+			logger.NewLogger().Child("identity"),
+			stats.Default,
+		)
+		r.logger.Infon("Identity service initialized")
+	}
+
+	// Initialize Monitoring and Alerting services (E-036, E-037)
+	if r.canStartServer() && config.GetBool("Monitoring.enabled", false) {
+		r.monitoringService = monitoring.NewDashboard(
+			config.Default,
+			logger.NewLogger().Child("monitoring"),
+			stats.Default,
+		)
+		r.alertingEngine = alerting.NewEngine(
+			config.Default,
+			logger.NewLogger().Child("alerting"),
+			stats.Default,
+		)
+		r.logger.Infon("Monitoring and alerting services initialized")
+	}
+
 	// Prepare databases in sequential order, so that failure in one doesn't affect others (leaving dirty schema migration state)
 	if r.canStartServer() {
 		if err := r.appHandler.Setup(); err != nil {
@@ -241,6 +294,50 @@ func (r *Runner) Run(ctx context.Context, shutdownFn func(), args []string) int 
 		}))
 	}
 
+	// Start new services in errgroup (Sprint 4-10).
+	// Each service is nil-guarded: only started when its respective config flag was
+	// enabled and canStartServer() was true during initialization above.
+
+	// Start Functions runtime (E-015: Source Functions, E-016: Destination Functions, E-017: Insert Functions)
+	if r.functionsRuntime != nil {
+		g.Go(crash.Wrapper(func() error {
+			if err := r.functionsRuntime.Run(ctx); err != nil {
+				return fmt.Errorf("functions runtime: %w", err)
+			}
+			return nil
+		}))
+	}
+
+	// Start Identity service (E-026: Real-time identity graph)
+	if r.identityService != nil {
+		g.Go(crash.Wrapper(func() error {
+			if err := r.identityService.Run(ctx); err != nil {
+				return fmt.Errorf("identity service: %w", err)
+			}
+			return nil
+		}))
+	}
+
+	// Start Monitoring dashboard (E-036: Per-destination delivery metrics)
+	if r.monitoringService != nil {
+		g.Go(crash.Wrapper(func() error {
+			if err := r.monitoringService.Run(ctx); err != nil {
+				return fmt.Errorf("monitoring dashboard: %w", err)
+			}
+			return nil
+		}))
+	}
+
+	// Start Alerting engine (E-037: Configurable alerting rules)
+	if r.alertingEngine != nil {
+		g.Go(crash.Wrapper(func() error {
+			if err := r.alertingEngine.Run(ctx); err != nil {
+				return fmt.Errorf("alerting engine: %w", err)
+			}
+			return nil
+		}))
+	}
+
 	// Start warehouse
 	// initialize warehouse service after core to handle non-normal recovery modes
 	if r.canStartWarehouse() {
@@ -261,6 +358,22 @@ func (r *Runner) Run(ctx context.Context, shutdownFn func(), args []string) int 
 
 		r.logger.Infon("Attempting to shutdown gracefully")
 		backendconfig.DefaultBackendConfig.Stop()
+
+		// Stop new services (Sprint 4-10) in reverse initialization order.
+		// Each stop is nil-guarded to be safe when the service was not configured.
+		if r.alertingEngine != nil {
+			r.alertingEngine.Stop()
+		}
+		if r.monitoringService != nil {
+			r.monitoringService.Stop()
+		}
+		if r.identityService != nil {
+			r.identityService.Stop()
+		}
+		if r.functionsRuntime != nil {
+			r.functionsRuntime.Stop()
+		}
+
 		close(shutdownDone)
 	}()
 

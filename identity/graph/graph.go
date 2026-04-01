@@ -66,6 +66,14 @@ type Service interface {
 	// Health returns nil if the service is healthy, error otherwise.
 	// Checks connectivity to the underlying storage layer.
 	Health(ctx context.Context) error
+
+	// Run starts the service lifecycle. Blocks until ctx is cancelled or Stop is called.
+	// Used by runner/runner.go for errgroup-based lifecycle management.
+	Run(ctx context.Context) error
+
+	// Stop gracefully stops the service and releases held resources.
+	// Used by runner/runner.go for graceful shutdown.
+	Stop()
 }
 
 // graphStats tracks performance and behaviour metrics for the identity graph service.
@@ -162,6 +170,60 @@ func New(
 	}
 
 	return g, nil
+}
+
+// NewService creates a new identity graph Service with a simplified constructor
+// signature suitable for runner/runner.go lifecycle management (E-026).
+//
+// This is the runner-facing constructor that creates an IdentityGraph with
+// deferred storage initialization — the underlying repository connection is
+// established in Run(ctx) rather than at construction time, because the
+// database connection pool may not yet be available when the runner calls
+// this constructor during early startup.
+//
+// Parameters mirror the pattern used by other Runner-managed services:
+//
+//	conf: Reloadable configuration (config.Default in runner)
+//	log: Scoped logger (logger.NewLogger().Child("identity") in runner)
+//	statsFactory: Metrics factory (stats.Default in runner)
+func NewService(
+	conf *config.Config,
+	log logger.Logger,
+	statsFactory stats.Stats,
+) Service {
+	if conf == nil {
+		conf = config.Default
+	}
+	if log == nil {
+		log = pkgLogger
+	}
+	s := settings.DefaultSettings()
+	g := &IdentityGraph{
+		settings: s,
+		conf:     conf,
+		logger:   log.Child("graph"),
+	}
+	// Create a resolver without a repository — it will be set when Run is called
+	// and the storage layer becomes available.
+	g.resolver = NewResolver(nil, s, log, statsFactory)
+
+	// Initialize stats following processor/trackingplan.go:155-159 pattern.
+	if statsFactory != nil {
+		tags := stats.Tags{"module": "identity", "component": "graph"}
+		g.stats.eventsProcessed = statsFactory.NewTaggedStat(
+			"identity_events_processed", stats.CountType, tags,
+		)
+		g.stats.eventsErrored = statsFactory.NewTaggedStat(
+			"identity_events_errored", stats.CountType, tags,
+		)
+		g.stats.processTime = statsFactory.NewTaggedStat(
+			"identity_process_time", stats.TimerType, tags,
+		)
+		g.stats.noIdentifiers = statsFactory.NewTaggedStat(
+			"identity_no_identifiers", stats.CountType, tags,
+		)
+	}
+	return g
 }
 
 // ProcessEvent extracts identifiers from an incoming event and performs

@@ -117,6 +117,10 @@ type AlertEngine struct {
 	mu sync.RWMutex
 }
 
+// Engine is a type alias for AlertEngine. Exported for use by runner/runner.go
+// where the Runner struct field is typed as *alerting.Engine.
+type Engine = AlertEngine
+
 // NewAlertEngine creates a new AlertEngine with the provided dependencies.
 //
 // Parameters:
@@ -140,6 +144,9 @@ func NewAlertEngine(
 	ruleRepo RuleRepository,
 	metricCollector MetricCollector,
 ) *AlertEngine {
+	if conf == nil {
+		conf = config.Default
+	}
 	if log == nil {
 		log = pkgLogger
 	}
@@ -161,9 +168,35 @@ func NewAlertEngine(
 	}
 }
 
+// NewEngine creates a new Engine (alias for AlertEngine) using the simplified
+// 3-argument constructor signature expected by runner/runner.go (E-037).
+//
+// The runner does not have notification channels, a rule repository, or a
+// metric collector at construction time — those are infrastructure-level
+// dependencies wired later. This constructor creates the engine with empty
+// defaults so the lifecycle (Run/Stop) operates correctly, and the evaluation
+// loop self-disables via the config check in Start when rules/collectors are absent.
+func NewEngine(conf *config.Config, log logger.Logger, _ interface{}) *Engine {
+	return NewAlertEngine(conf, log, nil, nil, nil)
+}
+
 // ---------------------------------------------------------------------------
-// Lifecycle Methods — Start, Stop
+// Lifecycle Methods — Start, Stop, Run
 // ---------------------------------------------------------------------------
+
+// Run starts the alerting engine and blocks until ctx is cancelled.
+// This is the lifecycle method called by runner/runner.go's errgroup to
+// start the alerting engine as a managed goroutine alongside the existing
+// Gateway, Processor, Router, and Warehouse services.
+func (e *AlertEngine) Run(ctx context.Context) error {
+	if err := e.Start(ctx); err != nil {
+		return err
+	}
+	// Block until context cancellation — same lifecycle pattern as
+	// identity/graph/graph.go:Run and services/monitoring/dashboard.go:Run.
+	<-ctx.Done()
+	return ctx.Err()
+}
 
 // Start begins the periodic evaluation loop in a background goroutine.
 // The loop runs until the provided context is cancelled or Stop is called.

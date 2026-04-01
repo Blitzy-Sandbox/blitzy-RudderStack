@@ -147,6 +147,12 @@ type Engine struct {
 //
 // Pattern reference: processor/internal/transformer/user_transformer/user_transformer.go:42-48
 func New(conf *config.Config, log logger.Logger, statsFactory stats.Stats) *Engine {
+	if conf == nil {
+		conf = config.Default
+	}
+	if log == nil {
+		log = logger.NewLogger().Child("functions")
+	}
 	childLog := log.Child("functions_runtime")
 
 	// Read the Transformer URL from configuration, following the two-level
@@ -185,14 +191,22 @@ func New(conf *config.Config, log logger.Logger, statsFactory stats.Stats) *Engi
 // Lifecycle: Run / Stop
 // ---------------------------------------------------------------------------
 
+// NewEngine is an alias for New, providing a longer-form constructor name
+// for use in contexts where the package alias makes the shorter name ambiguous
+// (e.g., runner/runner.go uses functionsruntime.NewEngine).
+func NewEngine(conf *config.Config, log logger.Logger, statsFactory stats.Stats) *Engine {
+	return New(conf, log, statsFactory)
+}
+
 // Run starts the engine's lifecycle. It blocks until the provided context is
 // cancelled or Stop is called. When no functions are configured, the engine
 // acts as a no-op (AAP Rule 0.7.6 — backward compatibility).
-func (e *Engine) Run(ctx context.Context) {
+// Returns nil on clean shutdown or the context error on cancellation.
+func (e *Engine) Run(ctx context.Context) error {
 	e.mu.Lock()
 	if e.running {
 		e.mu.Unlock()
-		return
+		return nil
 	}
 	childCtx, cancel := context.WithCancel(ctx)
 	e.cancel = cancel
@@ -212,6 +226,7 @@ func (e *Engine) Run(ctx context.Context) {
 	e.wg.Wait()
 
 	e.log.Infon("Functions runtime engine stopped")
+	return nil
 }
 
 // Stop gracefully shuts down the engine, cancelling any background work and
