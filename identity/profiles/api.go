@@ -409,24 +409,42 @@ func (h *Handler) getProfileEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.logger.Debugn("Events endpoint called — returning empty array (initial implementation)",
+	h.logger.Debugn("Events endpoint called — event retrieval not yet implemented",
 		logger.NewIntField("segmentID", segmentID),
 		logger.NewStringField("endpoint", "events"),
 	)
 
-	// Return empty JSON array — full event store integration to follow.
-	h.writeJSON(w, http.StatusOK, make([]any, 0))
+	// Event retrieval from the event archival system is not yet integrated.
+	// Return 501 Not Implemented per REST API conventions, indicating the
+	// endpoint is recognized but the feature is deferred to a future sprint.
+	h.writeError(w, http.StatusNotImplemented, "not_implemented", "event retrieval is not yet available")
 }
 
 // getProfileExternalIDs handles GET /v1/profiles/{id}/external_ids — returns
 // all external identifiers linked to the identity segment.
-// Returns an empty JSON array [] if the profile has no external IDs.
+// Returns 404 if the profile does not exist (per AAP E-027 requirement:
+// "Verify proper error responses (404 for missing profile)").
 func (h *Handler) getProfileExternalIDs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	segmentID, err := h.parseProfileID(r)
 	if err != nil {
 		h.writeError(w, http.StatusBadRequest, "invalid_id", err.Error())
+		return
+	}
+
+	// Verify that the profile segment exists before returning external IDs.
+	profileData, fetchErr := h.fetchProfileFromGraph(ctx, segmentID)
+	if fetchErr != nil {
+		h.logger.Errorn("Error checking profile existence for external IDs",
+			logger.NewIntField("segmentID", segmentID),
+			obskit.Error(fetchErr),
+		)
+		h.writeError(w, http.StatusInternalServerError, "internal_error", "failed to fetch external IDs")
+		return
+	}
+	if profileData == nil {
+		h.writeError(w, http.StatusNotFound, "not_found", fmt.Sprintf("profile %d not found", segmentID))
 		return
 	}
 

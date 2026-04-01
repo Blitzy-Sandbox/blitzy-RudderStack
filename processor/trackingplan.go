@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	"github.com/rudderlabs/rudder-go-kit/stats"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/rudderlabs/rudder-server/jobsdb"
 	"github.com/rudderlabs/rudder-server/processor/enforcement"
 	"github.com/rudderlabs/rudder-server/processor/types"
+	schema "github.com/rudderlabs/rudder-server/protocols/schema"
 	reportingtypes "github.com/rudderlabs/rudder-server/utils/types"
 )
 
@@ -271,16 +273,106 @@ func (proc *Handle) shouldUseLocalValidation(events []types.TransformerEvent) bo
 	return sv == "draft-07"
 }
 
-// validateEventsLocally performs local JSON Schema draft-07 validation without calling
-// the external Transformer service. Uses protocols/schema/validator for validation.
-// Supports: required fields, regex patterns, nested objects, enum values, full type enforcement.
+// validateEventsLocally performs local JSON Schema draft-07 validation without
+// calling the external Transformer service (E-020). Uses the protocols/schema
+// package backed by santhosh-tekuri/jsonschema/v5 for full draft-07 support:
+// required fields, regex patterns, nested objects, enum values, full type enforcement.
 //
-// Currently delegates to the Transformer as a fallback until the protocols/schema package
-// is fully integrated. This ensures a safe rollout path for local validation.
+// Schema extraction: the "schema" key in MergedTpConfig holds the JSON Schema
+// definition for the event type. This is populated by backend-config via
+// DgSourceTrackingPlanConfigT.GetMergedConfig(). If the schema is absent or
+// invalid, the method falls back to the Transformer for backward compatibility.
+//
+// Response format matches the Transformer contract exactly:
+//   - Events with no violations → types.TransformerResponse{StatusCode: 200, Output: event.Message}
+//   - Events with violations → types.TransformerResponse{StatusCode: 400, ValidationErrors: [...]}
 func (proc *Handle) validateEventsLocally(events []types.TransformerEvent) types.Response {
-	// Delegate to Transformer until protocols/schema/validator integration is complete (E-020).
-	// This fallback ensures no behavioral change until the local validator is production-ready.
-	return proc.transformerClients.TrackingPlan().Validate(context.TODO(), events)
+	if len(events) == 0 {
+		return types.Response{}
+	}
+
+	// Extract the JSON Schema from MergedTpConfig. The "schema" key holds the
+	// tracking plan's JSON Schema definition for this event type.
+	mergedTpConfig := events[0].Metadata.MergedTpConfig
+	schemaRaw, hasSchema := mergedTpConfig["schema"]
+	if !hasSchema {
+		// No schema in config — fall back to Transformer for backward compatibility.
+		proc.logger.Debugn("No schema in MergedTpConfig, falling back to Transformer")
+		return proc.transformerClients.TrackingPlan().Validate(context.TODO(), events)
+	}
+
+	// Serialize the schema to JSON bytes for the validator.
+	schemaBytes, marshalErr := jsonrs.Marshal(schemaRaw)
+	if marshalErr != nil {
+		proc.logger.Warnn("Failed to marshal tracking plan schema, falling back to Transformer",
+			logger.NewStringField("error", marshalErr.Error()),
+		)
+		return proc.transformerClients.TrackingPlan().Validate(context.TODO(), events)
+	}
+
+	// Compile the JSON Schema once for the entire batch.
+	compiled, compileErr := schema.CompileSchema(schemaBytes)
+	if compileErr != nil {
+		proc.logger.Warnn("Failed to compile tracking plan schema, falling back to Transformer",
+			logger.NewStringField("error", compileErr.Error()),
+		)
+		return proc.transformerClients.TrackingPlan().Validate(context.TODO(), events)
+	}
+
+	// Validate each event and build the response matching Transformer output format.
+	// SingularEventT is already map[string]any — no type assertion needed.
+	var response types.Response
+	for _, event := range events {
+		eventMessage := map[string]any(event.Message)
+
+		validationErrors, validateErr := schema.ValidateWithCompiled(compiled, eventMessage)
+		if validateErr != nil {
+			// Internal validation error — pass event through as success to avoid
+			// blocking the pipeline on infrastructure failures.
+			proc.logger.Warnn("Schema validation internal error, passing event through",
+				logger.NewStringField("error", validateErr.Error()),
+				logger.NewStringField("messageId", event.Metadata.MessageID),
+			)
+			response.Events = append(response.Events, types.TransformerResponse{
+				Output:     eventMessage,
+				Metadata:   event.Metadata,
+				StatusCode: 200,
+			})
+			continue
+		}
+
+		if len(validationErrors) == 0 {
+			// Event passes validation — add to success events.
+			response.Events = append(response.Events, types.TransformerResponse{
+				Output:     eventMessage,
+				Metadata:   event.Metadata,
+				StatusCode: 200,
+			})
+		} else {
+			// Event has validation violations — convert to processor format.
+			procErrors := make([]types.ValidationError, len(validationErrors))
+			for i, ve := range validationErrors {
+				procErrors[i] = types.ValidationError{
+					Type:     ve.Constraint,
+					Message:  ve.Message,
+					Property: ve.FieldPath,
+					Meta: map[string]string{
+						"expectedType": ve.ExpectedType,
+						"actualValue":  ve.ActualValue,
+					},
+				}
+			}
+			response.FailedEvents = append(response.FailedEvents, types.TransformerResponse{
+				Output:           eventMessage,
+				Metadata:         event.Metadata,
+				StatusCode:       400,
+				Error:            "event validation failed against tracking plan schema",
+				ValidationErrors: procErrors,
+			})
+		}
+	}
+
+	return response
 }
 
 // forwardBlockedEvents routes blocked events to an alternative source for debugging (E-023).

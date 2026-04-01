@@ -85,6 +85,14 @@ type graphStats struct {
 	noIdentifiers   stats.Measurement
 }
 
+// CacheInvalidator is a callback function type for invalidating cached profile data
+// after identity graph mutations. This decouples the graph package from the profiles
+// cache package, avoiding circular dependencies (profiles depends on graph).
+//
+// The runner wires this callback after both graph and profiles services are created.
+// When nil, cache invalidation is skipped (no-op).
+type CacheInvalidator func(ctx context.Context, segmentID int64) error
+
 // IdentityGraph implements the Service interface for real-time identity resolution.
 // It is the core service that manages the identity graph, coordinating between
 // the Resolver (resolution logic), storage.Repository (persistence), and
@@ -94,13 +102,23 @@ type graphStats struct {
 // The RWMutex protects the settings field; read operations (ProcessEvent, queries)
 // acquire RLock while write operations (UpdateSettings) acquire Lock.
 type IdentityGraph struct {
-	mu       sync.RWMutex
-	repo     storage.Repository
-	resolver *Resolver
-	settings *settings.ResolutionSettings
-	conf     *config.Config
-	logger   logger.Logger
-	stats    graphStats
+	mu               sync.RWMutex
+	repo             storage.Repository
+	resolver         *Resolver
+	settings         *settings.ResolutionSettings
+	conf             *config.Config
+	logger           logger.Logger
+	stats            graphStats
+	cacheInvalidator CacheInvalidator
+}
+
+// SetCacheInvalidator sets the callback used to invalidate cached profile data
+// after identity graph mutations. This is called by the runner after both the
+// graph service and the profile cache are initialized.
+func (g *IdentityGraph) SetCacheInvalidator(fn CacheInvalidator) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.cacheInvalidator = fn
 }
 
 // New creates a new IdentityGraph service.
@@ -172,21 +190,22 @@ func New(
 	return g, nil
 }
 
-// NewService creates a new identity graph Service with a simplified constructor
-// signature suitable for runner/runner.go lifecycle management (E-026).
+// NewService creates a new identity graph Service with storage repository
+// suitable for runner/runner.go lifecycle management (E-026).
 //
-// This is the runner-facing constructor that creates an IdentityGraph with
-// deferred storage initialization — the underlying repository connection is
-// established in Run(ctx) rather than at construction time, because the
-// database connection pool may not yet be available when the runner calls
-// this constructor during early startup.
+// The repo parameter is required and must not be nil — it provides the
+// PostgreSQL-backed persistence layer from identity/storage. The runner is
+// responsible for initializing the PostgresRepository before calling this
+// constructor.
 //
-// Parameters mirror the pattern used by other Runner-managed services:
+// Parameters:
 //
-//	conf: Reloadable configuration (config.Default in runner)
-//	log: Scoped logger (logger.NewLogger().Child("identity") in runner)
-//	statsFactory: Metrics factory (stats.Default in runner)
+//	repo: PostgreSQL-backed persistence layer (must not be nil).
+//	conf: Reloadable configuration (config.Default in runner).
+//	log: Scoped logger (logger.NewLogger().Child("identity") in runner).
+//	statsFactory: Metrics factory (stats.Default in runner).
 func NewService(
+	repo storage.Repository,
 	conf *config.Config,
 	log logger.Logger,
 	statsFactory stats.Stats,
@@ -199,13 +218,13 @@ func NewService(
 	}
 	s := settings.DefaultSettings()
 	g := &IdentityGraph{
+		repo:     repo,
 		settings: s,
 		conf:     conf,
 		logger:   log.Child("graph"),
 	}
-	// Create a resolver without a repository — it will be set when Run is called
-	// and the storage layer becomes available.
-	g.resolver = NewResolver(nil, s, log, statsFactory)
+	// Create the resolver with the provided repository for identity lookups.
+	g.resolver = NewResolver(repo, s, log, statsFactory)
 
 	// Initialize stats following processor/trackingplan.go:155-159 pattern.
 	if statsFactory != nil {
@@ -266,7 +285,7 @@ func (g *IdentityGraph) ProcessEvent(ctx context.Context, workspaceID string, ev
 		if g.stats.noIdentifiers != nil {
 			g.stats.noIdentifiers.Increment()
 		}
-		return &ResolutionResult{Strategy: StrategyNewMatch}, nil //nolint:nilnil // no identifiers means no resolution
+		return &ResolutionResult{Strategy: StrategyNewMatch}, nil
 	}
 
 	// Step 2: Filter blocked identifiers using resolution settings.
@@ -276,7 +295,7 @@ func (g *IdentityGraph) ProcessEvent(ctx context.Context, workspaceID string, ev
 		g.logger.Debugn("All identifiers filtered by blocked value rules",
 			logger.NewStringField("workspaceID", workspaceID),
 		)
-		return &ResolutionResult{Strategy: StrategyNewMatch}, nil //nolint:nilnil // all identifiers filtered
+		return &ResolutionResult{Strategy: StrategyNewMatch}, nil
 	}
 
 	// Step 3: Sort by priority for deterministic resolution order.
@@ -297,7 +316,11 @@ func (g *IdentityGraph) ProcessEvent(ctx context.Context, workspaceID string, ev
 		return nil, fmt.Errorf("identity resolution: %w", err)
 	}
 
-	// Step 5: Record success metrics.
+	// Step 5: Invalidate cached profile data for all affected segments.
+	// This ensures the Profiles API serves fresh data after identity graph mutations.
+	g.invalidateAffectedSegments(ctx, result)
+
+	// Step 6: Record success metrics.
 	if g.stats.eventsProcessed != nil {
 		g.stats.eventsProcessed.Increment()
 	}
@@ -310,6 +333,37 @@ func (g *IdentityGraph) ProcessEvent(ctx context.Context, workspaceID string, ev
 	)
 
 	return result, nil
+}
+
+// invalidateAffectedSegments invalidates cached profile data for all segments
+// affected by an identity resolution operation. For multi-match merges, this
+// includes both the surviving target segment and all merged source segments.
+// Cache invalidation errors are logged but not propagated — they do not
+// affect the correctness of the identity graph mutation itself.
+func (g *IdentityGraph) invalidateAffectedSegments(ctx context.Context, result *ResolutionResult) {
+	if g.cacheInvalidator == nil || result == nil {
+		return
+	}
+
+	// Always invalidate the primary segment.
+	if result.SegmentID > 0 {
+		if err := g.cacheInvalidator(ctx, result.SegmentID); err != nil {
+			g.logger.Warnn("Failed to invalidate cache for primary segment",
+				logger.NewIntField("segmentID", result.SegmentID),
+				obskit.Error(err),
+			)
+		}
+	}
+
+	// For multi-match merges, also invalidate all merged source segments.
+	for _, mergedID := range result.MergedSegmentIDs {
+		if err := g.cacheInvalidator(ctx, mergedID); err != nil {
+			g.logger.Warnn("Failed to invalidate cache for merged segment",
+				logger.NewIntField("segmentID", mergedID),
+				obskit.Error(err),
+			)
+		}
+	}
 }
 
 // ResolveIdentity looks up the identity segment for a specific external identifier.

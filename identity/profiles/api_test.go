@@ -446,14 +446,10 @@ func TestGetProfileEvents_Success(t *testing.T) {
 	router := h.Routes()
 	rr := executeRequest(t, router, "/v1/profiles/1/events")
 
-	require.Equal(t, http.StatusOK, rr.Code)
-	// Events storage is separate — returns empty array
+	// Events endpoint returns 501 Not Implemented — deferred to a future sprint
+	// per Finding #9 resolution (events retrieval from identity graph).
+	require.Equal(t, http.StatusNotImplemented, rr.Code)
 	require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
-
-	var events []interface{}
-	err := jsonrs.Unmarshal(rr.Body.Bytes(), &events)
-	require.NoError(t, err)
-	require.Len(t, events, 0)
 }
 
 func TestGetProfileEvents_NotFound(t *testing.T) {
@@ -737,7 +733,12 @@ func TestGetProfile_ContentType(t *testing.T) {
 	for _, ep := range endpoints {
 		t.Run(ep, func(t *testing.T) {
 			rr := executeRequest(t, router, ep)
-			require.Equal(t, http.StatusOK, rr.Code)
+			if ep == "/v1/profiles/1/events" {
+				// Events endpoint returns 501 Not Implemented (deferred).
+				require.Equal(t, http.StatusNotImplemented, rr.Code)
+			} else {
+				require.Equal(t, http.StatusOK, rr.Code)
+			}
 			require.Equal(t, "application/json", rr.Header().Get("Content-Type"),
 				"endpoint %s should return application/json", ep)
 		})
@@ -853,8 +854,11 @@ func TestGetProfileTraits_GraphError(t *testing.T) {
 }
 
 // TestGetProfileExternalIDs_GraphError tests error propagation for external IDs.
+// The mock must contain a profile for the requested segment so the existence
+// check passes and the GetSegmentIdentifiers error path is reached.
 func TestGetProfileExternalIDs_GraphError(t *testing.T) {
 	h, gs, _ := newTestHandler(t)
+	gs.profiles[1] = &storage.ProfileData{Segment: storage.GraphSegment{ID: 1}}
 	gs.getSegmentIdentifiersErr = errors.New("database error")
 
 	router := h.Routes()

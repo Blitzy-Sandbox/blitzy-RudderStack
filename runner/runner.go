@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -29,6 +30,7 @@ import (
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
 	functionsruntime "github.com/rudderlabs/rudder-server/functions/runtime"
 	identitygraph "github.com/rudderlabs/rudder-server/identity/graph"
+	identitystorage "github.com/rudderlabs/rudder-server/identity/storage"
 	"github.com/rudderlabs/rudder-server/info"
 	"github.com/rudderlabs/rudder-server/router/customdestinationmanager"
 	"github.com/rudderlabs/rudder-server/rruntime"
@@ -72,6 +74,7 @@ type Runner struct {
 	// zero overhead and full backward compatibility with existing behaviour.
 	functionsRuntime  *functionsruntime.Engine // Functions runtime engine (E-015/E-016/E-017)
 	identityService   identitygraph.Service    // Identity graph service (E-026)
+	identityDB        *sql.DB                  // Database pool for identity graph — closed on shutdown
 	monitoringService *monitoring.Dashboard    // Monitoring dashboard (E-036)
 	alertingEngine    *alerting.Engine         // Alerting rules engine (E-037)
 }
@@ -203,29 +206,53 @@ func (r *Runner) Run(ctx context.Context, shutdownFn func(), args []string) int 
 		r.logger.Infon("Functions runtime initialized")
 	}
 
-	// Initialize Identity service (E-026: Real-time identity graph)
+	// Initialize Identity service (E-026: Real-time identity graph).
+	// sql.Open creates a lazy database pool — no TCP connection is established
+	// until the first query, which happens in Run() after r.appHandler.Setup()
+	// has completed schema migrations. This avoids the timing issue where
+	// NewService is called before database setup.
 	if r.canStartServer() && config.GetBool("Identity.enabled", false) {
-		r.identityService = identitygraph.NewService(
-			config.Default,
-			logger.NewLogger().Child("identity"),
-			stats.Default,
-		)
-		r.logger.Infon("Identity service initialized")
+		identityDSN := misc.GetConnectionString(config.Default, "identity")
+		identityDB, err := sql.Open("postgres", identityDSN)
+		if err != nil {
+			r.logger.Errorn("Failed to create identity database pool", obskit.Error(err))
+		} else {
+			r.identityDB = identityDB
+			identityRepo := identitystorage.NewPostgresRepository(
+				identityDB,
+				logger.NewLogger().Child("identity.storage"),
+			)
+			r.identityService = identitygraph.NewService(
+				identityRepo,
+				config.Default,
+				logger.NewLogger().Child("identity"),
+				stats.Default,
+			)
+			r.logger.Infon("Identity service initialized with PostgreSQL repository")
+		}
 	}
 
-	// Initialize Monitoring and Alerting services (E-036, E-037)
-	if r.canStartServer() && config.GetBool("Monitoring.enabled", false) {
+	// Initialize Monitoring dashboard (E-036: Per-destination delivery metrics).
+	// Gated by Monitoring.dashboard.enabled matching config.yaml keys.
+	if r.canStartServer() && config.GetBool("Monitoring.dashboard.enabled", false) {
 		r.monitoringService = monitoring.NewDashboard(
 			config.Default,
 			logger.NewLogger().Child("monitoring"),
 			stats.Default,
 		)
+		r.logger.Infon("Monitoring dashboard initialized")
+	}
+
+	// Initialize Alerting engine (E-037: Configurable alerting rules).
+	// Independently gated by Monitoring.alerting.enabled so alerting can be
+	// enabled/disabled without affecting the monitoring dashboard.
+	if r.canStartServer() && config.GetBool("Monitoring.alerting.enabled", false) {
 		r.alertingEngine = alerting.NewEngine(
 			config.Default,
 			logger.NewLogger().Child("alerting"),
 			stats.Default,
 		)
-		r.logger.Infon("Monitoring and alerting services initialized")
+		r.logger.Infon("Alerting engine initialized")
 	}
 
 	// Prepare databases in sequential order, so that failure in one doesn't affect others (leaving dirty schema migration state)
@@ -369,6 +396,9 @@ func (r *Runner) Run(ctx context.Context, shutdownFn func(), args []string) int 
 		}
 		if r.identityService != nil {
 			r.identityService.Stop()
+		}
+		if r.identityDB != nil {
+			_ = r.identityDB.Close()
 		}
 		if r.functionsRuntime != nil {
 			r.functionsRuntime.Stop()

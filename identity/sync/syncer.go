@@ -491,9 +491,18 @@ func (s *Syncer) processBatch(ctx context.Context, batch []ChangeEvent) {
 	}
 
 	// Step 3: Send profiles to downstream destinations with retry.
-	s.sendWithRetry(ctx, profiles)
+	if sendErr := s.sendWithRetry(ctx, profiles); sendErr != nil {
+		// Delivery failed after all retries — do NOT advance the checkpoint.
+		// The failed batch will be re-fetched and retried on the next sync cycle
+		// or after service restart, preventing silent data loss.
+		s.logger.Errorn("Skipping checkpoint due to send failure — batch will be retried",
+			logger.NewIntField("profileCount", int64(len(profiles))),
+			obskit.Error(sendErr),
+		)
+		return
+	}
 
-	// Step 4: Checkpoint the last processed event ID.
+	// Step 4: Checkpoint the last processed event ID only on successful delivery.
 	lastEventID := batch[len(batch)-1].ID
 	if err := s.changeListener.Checkpoint(ctx, lastEventID); err != nil {
 		s.logger.Errorn("Error checkpointing sync progress",
@@ -556,7 +565,11 @@ func (s *Syncer) deduplicateEvents(batch []ChangeEvent) []ChangeEvent {
 // sendWithRetry attempts to send profiles to downstream destinations with
 // configurable retry logic using exponential backoff (1s, 2s, 4s, ...).
 // Respects context cancellation during backoff waits.
-func (s *Syncer) sendWithRetry(ctx context.Context, profiles []*storage.ProfileData) {
+//
+// Returns nil on success. Returns an error after all retries are exhausted,
+// enabling the caller to make checkpointing decisions based on delivery outcome.
+// This prevents data loss by ensuring failed batches are not checkpointed past.
+func (s *Syncer) sendWithRetry(ctx context.Context, profiles []*storage.ProfileData) error {
 	sendStart := time.Now()
 	defer func() {
 		if s.stats.sendTime != nil {
@@ -571,7 +584,7 @@ func (s *Syncer) sendWithRetry(ctx context.Context, profiles []*storage.ProfileD
 			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
 			select {
 			case <-ctx.Done():
-				return
+				return ctx.Err()
 			case <-time.After(backoff):
 			}
 
@@ -589,11 +602,11 @@ func (s *Syncer) sendWithRetry(ctx context.Context, profiles []*storage.ProfileD
 
 		err = s.sender.SendBatch(ctx, profiles)
 		if err == nil {
-			return // Success.
+			return nil // Success.
 		}
 	}
 
-	// All retries exhausted.
+	// All retries exhausted — return error so caller does NOT advance checkpoint.
 	s.logger.Errorn("Profile sync failed after all retries",
 		logger.NewIntField("maxRetries", int64(s.maxRetries)),
 		logger.NewIntField("profileCount", int64(len(profiles))),
@@ -604,4 +617,5 @@ func (s *Syncer) sendWithRetry(ctx context.Context, profiles []*storage.ProfileD
 			s.stats.eventsFailed.Increment()
 		}
 	}
+	return fmt.Errorf("profile sync failed after %d retries: %w", s.maxRetries, err)
 }

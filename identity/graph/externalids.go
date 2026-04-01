@@ -33,10 +33,12 @@ func (p IdentifierPair) Key() string {
 	return p.Type + ":" + p.Value
 }
 
-// DefaultExternalIDTypes lists the 14 default external identifier types
-// supported by the identity resolution system, matching Segment Unify defaults.
-// Custom types are also supported — this list represents the well-known defaults
-// per refs/segment-docs/src/unify/identity-resolution/externalids.md.
+// DefaultExternalIDTypes lists all default external identifier types supported
+// by the identity resolution system, matching Segment Unify defaults per AAP
+// requirement E-028. Includes ALL 12+ types listed in Segment documentation
+// (refs/segment-docs/src/unify/identity-resolution/externalids.md) plus
+// additional non-standard types for broader coverage.
+// Custom types beyond this list are also accepted by the resolver.
 var DefaultExternalIDTypes = []string{
 	"user_id",
 	"email",
@@ -52,6 +54,9 @@ var DefaultExternalIDTypes = []string{
 	"braze_id",
 	"mailchimp_id",
 	"amp_id",
+	"fb_external_id",
+	"intercom_user_id",
+	"amplitude_id",
 }
 
 // defaultExternalIDTypeSet provides O(1) lookup for known external ID types.

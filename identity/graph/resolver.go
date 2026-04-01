@@ -238,20 +238,17 @@ func (r *Resolver) newMatch(ctx context.Context, workspaceID string, identifiers
 
 	newIdentifiers := make([]IdentifierPair, 0, len(identifiers))
 
+	// Track identifiers added within this invocation so that per-type limit
+	// checks account for all additions — not just what exists in the DB.
+	// For a brand-new segment the DB starts empty, so this local counter is
+	// the sole source of truth for the limit check.
+	addedPerType := make(map[string]int, len(identifiers))
+
 	// Add each identifier as an external ID, respecting per-type limits.
 	for _, id := range identifiers {
-		// Check if adding this identifier would exceed the configured limit.
-		existingIDs, lookupErr := r.repo.GetExternalIDsBySegment(ctx, segmentID)
-		if lookupErr != nil {
-			r.logger.Errorn("Error checking existing identifiers for new segment",
-				logger.NewIntField("segmentID", segmentID),
-				obskit.Error(lookupErr),
-			)
-			continue
-		}
-
-		typeCount := countIDsOfType(existingIDs, id.Type)
-		// ExceedsLimit uses count >= MaxCount semantics, so pass the existing count:
+		// Count = identifiers of this type already added in this invocation.
+		typeCount := addedPerType[id.Type]
+		// ExceedsLimit uses count >= MaxCount semantics, so pass the current count:
 		// if we're already at or over the limit, don't add more.
 		if r.settings != nil && r.settings.ExceedsLimit(id.Type, typeCount) {
 			r.logger.Debugn("Identifier limit exceeded, skipping",
@@ -279,6 +276,7 @@ func (r *Resolver) newMatch(ctx context.Context, workspaceID string, identifiers
 			)
 			continue
 		}
+		addedPerType[id.Type]++
 		newIdentifiers = append(newIdentifiers, id)
 	}
 
@@ -306,6 +304,11 @@ func (r *Resolver) singleMatch(ctx context.Context, segmentID int64, identifiers
 
 	newIdentifiers := make([]IdentifierPair, 0)
 
+	// Track identifiers added within this invocation so that per-type limit
+	// checks account for all additions during this Resolve() call — not just
+	// the count from the initial DB snapshot.
+	addedPerType := make(map[string]int, len(identifiers))
+
 	// Only add identifiers that don't already exist in the segment.
 	for _, id := range identifiers {
 		key := id.Type + ":" + id.Value
@@ -313,8 +316,8 @@ func (r *Resolver) singleMatch(ctx context.Context, segmentID int64, identifiers
 			continue // Already associated with this segment.
 		}
 
-		// Check limits before adding.
-		typeCount := countIDsOfType(existingIDs, id.Type)
+		// Check limits: DB count + count added within this invocation.
+		typeCount := countIDsOfType(existingIDs, id.Type) + addedPerType[id.Type]
 		if r.settings != nil && r.settings.ExceedsLimit(id.Type, typeCount) {
 			r.logger.Debugn("Identifier limit exceeded, skipping",
 				logger.NewStringField("identifierType", id.Type),
@@ -342,6 +345,7 @@ func (r *Resolver) singleMatch(ctx context.Context, segmentID int64, identifiers
 			)
 			continue
 		}
+		addedPerType[id.Type]++
 		newIdentifiers = append(newIdentifiers, id)
 	}
 
@@ -402,13 +406,16 @@ func (r *Resolver) multiMatch(ctx context.Context, matchedSegmentIDs []int64, id
 	}
 
 	newIdentifiers := make([]IdentifierPair, 0)
+	// Track identifiers added within this invocation for accurate limit checks.
+	addedPerType := make(map[string]int, len(identifiers))
 	for _, id := range identifiers {
 		key := id.Type + ":" + id.Value
 		if _, exists := existingSet[key]; exists {
 			continue
 		}
 
-		typeCount := countIDsOfType(existingIDs, id.Type)
+		// DB count + count added within this invocation.
+		typeCount := countIDsOfType(existingIDs, id.Type) + addedPerType[id.Type]
 		if r.settings != nil && r.settings.ExceedsLimit(id.Type, typeCount) {
 			if r.stats.limitExceeded != nil {
 				r.stats.limitExceeded.Increment()
@@ -429,6 +436,7 @@ func (r *Resolver) multiMatch(ctx context.Context, matchedSegmentIDs []int64, id
 			)
 			continue
 		}
+		addedPerType[id.Type]++
 		newIdentifiers = append(newIdentifiers, id)
 	}
 

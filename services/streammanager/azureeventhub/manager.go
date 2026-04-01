@@ -254,8 +254,17 @@ func (c *azureEventHubHTTPClient) SendEventDataBatch(ctx context.Context, batch 
 	// Set partition key via BrokerProperties header for enhanced partition routing.
 	// This is the native Azure Event Hub mechanism for controlling partition assignment,
 	// providing more explicit control than the Kafka protocol variant.
+	//
+	// SECURITY: Use jsonrs.Marshal to construct the JSON header value instead of
+	// fmt.Sprintf to prevent JSON injection — partitionKey is derived from
+	// user-controlled event fields (userId) and may contain special characters
+	// such as double quotes, backslashes, or Unicode escapes.
 	if partitionKey != "" {
-		req.Header.Set("BrokerProperties", fmt.Sprintf(`{"PartitionKey":"%s"}`, partitionKey))
+		brokerProps, marshalErr := jsonrs.Marshal(map[string]string{"PartitionKey": partitionKey})
+		if marshalErr != nil {
+			return fmt.Errorf("failed to marshal BrokerProperties: %w", marshalErr)
+		}
+		req.Header.Set("BrokerProperties", string(brokerProps))
 	}
 
 	resp, err := c.httpClient.Do(req)
