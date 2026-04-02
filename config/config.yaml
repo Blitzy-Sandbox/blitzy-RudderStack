@@ -386,6 +386,10 @@ Identity:
     maxMergeDepth: 100
     # Maximum number of identities per graph segment
     maxIdentitiesPerSegment: 100000
+    # Interval between identity graph metrics refresh cycles (duration, e.g. 60s, 5m).
+    # Controls how frequently graph size and merge-chain depth metrics are
+    # recomputed and emitted to the stats backend.
+    metricsRefreshInterval: 60s
   profiles:
     # Enable Redis-backed profile caching for sub-200ms API responses
     cacheEnabled: true
@@ -411,6 +415,12 @@ Identity:
     interval: 30s
     # Maximum batch size for profile sync
     batchSize: 100
+    # Interval in milliseconds between internal flush cycles that persist
+    # buffered profile change events to the sync outbox table (integer, ms).
+    FlushIntervalMS: 1000
+    # Maximum number of delivery retries for a single profile sync event
+    # before it is moved to the dead-letter queue (integer).
+    MaxRetries: 3
   resolution:
     # Blocked identifier values (regex patterns) to prevent merge-all scenarios
     blockedValues: []
@@ -426,6 +436,16 @@ Identity:
       - email
       - phone
       - anonymous_id
+    # Default limit applied when no explicit per-type limit is configured.
+    # maxCount is the maximum number of new external IDs that may be linked
+    # to a single identity within the specified timeWindow.
+    defaultLimit:
+      # Maximum count of new external IDs allowed per identity within
+      # the configured time window (integer). Set to 0 to disable.
+      maxCount: 5
+      # Time window over which the maxCount limit is enforced.
+      # Valid values: "weekly", "monthly", "annually", "ever".
+      timeWindow: "monthly"
 # ====================================================================
 # Sprint 8-10: Operational Tooling and Monitoring (E-036 to E-039)
 # ====================================================================
