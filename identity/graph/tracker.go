@@ -19,7 +19,6 @@ package graph
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -43,9 +42,6 @@ type Tracker struct {
 	conf *config.Config
 	// logger is a scoped structured logger for the tracker.
 	logger logger.Logger
-
-	// mu protects the workspace-level gauge snapshots during periodic refresh.
-	mu sync.RWMutex
 
 	// done signals the background refresh goroutine to stop.
 	done chan struct{}

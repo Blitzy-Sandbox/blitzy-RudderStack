@@ -73,7 +73,7 @@ func (s *Service) Create(ctx context.Context, workspaceID string, req CreateTrac
 	})
 	if vErr != nil {
 		// Log but do not fail — the plan itself was created successfully.
-		return id, nil
+		return id, nil //nolint:nilerr // version snapshot failure is non-critical
 	}
 	return id, nil
 }

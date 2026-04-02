@@ -31,12 +31,12 @@ import (
 // newTestRepo creates a Repository backed by go-sqlmock with regexp matching.
 // Uses logger.NOP to suppress log output during testing, following the same
 // pattern as protocols/storage/repository_test.go.
-func newTestRepo(t *testing.T) (*Repository, sqlmock.Sqlmock, *sql.DB) {
+func newTestRepo(t *testing.T) (*Repository, sqlmock.Sqlmock) {
 	t.Helper()
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
-	return New(db, logger.NOP), mock, db
+	return New(db, logger.NOP), mock
 }
 
 // fnCols returns the column names matching functionsColumns constant order.
@@ -76,7 +76,7 @@ func TestNew(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestCreate_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	fn := &Function{
@@ -107,7 +107,7 @@ func TestCreate_Success(t *testing.T) {
 }
 
 func TestCreate_NilSettings(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	fn := &Function{
@@ -135,7 +135,7 @@ func TestCreate_NilSettings(t *testing.T) {
 }
 
 func TestCreate_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	fn := &Function{
@@ -164,7 +164,7 @@ func TestCreate_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGet_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -190,7 +190,7 @@ func TestGet_Success(t *testing.T) {
 }
 
 func TestGet_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
@@ -206,7 +206,7 @@ func TestGet_NotFound(t *testing.T) {
 
 func TestGet_WrongWorkspace(t *testing.T) {
 	// Verifies multi-tenant isolation: request with wrong workspace returns not found.
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
@@ -221,7 +221,7 @@ func TestGet_WrongWorkspace(t *testing.T) {
 }
 
 func TestGet_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
@@ -236,7 +236,7 @@ func TestGet_DBError(t *testing.T) {
 }
 
 func TestGet_NullSettings(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -261,7 +261,7 @@ func TestGet_NullSettings(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestUpdate_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -291,7 +291,7 @@ func TestUpdate_Success(t *testing.T) {
 }
 
 func TestUpdate_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	fn := &Function{
@@ -316,7 +316,7 @@ func TestUpdate_NotFound(t *testing.T) {
 }
 
 func TestUpdate_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	fn := &Function{
@@ -342,7 +342,7 @@ func TestUpdate_DBError(t *testing.T) {
 }
 
 func TestUpdate_NilSettings(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -375,7 +375,7 @@ func TestUpdate_NilSettings(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestDelete_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM " + functionsTableName)).
@@ -388,7 +388,7 @@ func TestDelete_Success(t *testing.T) {
 }
 
 func TestDelete_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM " + functionsTableName)).
@@ -402,7 +402,7 @@ func TestDelete_NotFound(t *testing.T) {
 }
 
 func TestDelete_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM " + functionsTableName)).
@@ -416,7 +416,7 @@ func TestDelete_DBError(t *testing.T) {
 }
 
 func TestDelete_RowsAffectedError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM " + functionsTableName)).
@@ -434,7 +434,7 @@ func TestDelete_RowsAffectedError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestList_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -458,7 +458,7 @@ func TestList_Success(t *testing.T) {
 }
 
 func TestList_WithTypeFilter(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -477,7 +477,7 @@ func TestList_WithTypeFilter(t *testing.T) {
 }
 
 func TestList_WithPagination(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id .+ LIMIT .+ OFFSET").
@@ -492,7 +492,7 @@ func TestList_WithPagination(t *testing.T) {
 }
 
 func TestList_EmptyResult(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id").
@@ -507,7 +507,7 @@ func TestList_EmptyResult(t *testing.T) {
 }
 
 func TestList_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id").
@@ -522,7 +522,7 @@ func TestList_DBError(t *testing.T) {
 }
 
 func TestList_WithTypeFilterAndPagination(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -545,7 +545,7 @@ func TestList_WithTypeFilterAndPagination(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGetByVersion_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -568,7 +568,7 @@ func TestGetByVersion_Success(t *testing.T) {
 }
 
 func TestGetByVersion_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
@@ -583,7 +583,7 @@ func TestGetByVersion_NotFound(t *testing.T) {
 }
 
 func TestGetByVersion_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
@@ -602,7 +602,7 @@ func TestGetByVersion_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestScanFunction_ValidSettingsJSON(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -623,7 +623,7 @@ func TestScanFunction_ValidSettingsJSON(t *testing.T) {
 }
 
 func TestScanFunction_EmptyStringSettings(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -651,7 +651,7 @@ func TestScanFunction_EmptyStringSettings(t *testing.T) {
 func TestCreate_SetsVersionAndTimestamps(t *testing.T) {
 	// Verify that Create always sets version=1 regardless of input,
 	// and sets both CreatedAt and UpdatedAt timestamps.
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	fn := &Function{
@@ -684,7 +684,7 @@ func TestCreate_SetsVersionAndTimestamps(t *testing.T) {
 
 func TestList_DefaultLimitApplied(t *testing.T) {
 	// Verify that a zero Limit defaults to defaultListLimit (100).
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id .+ LIMIT").
@@ -698,7 +698,7 @@ func TestList_DefaultLimitApplied(t *testing.T) {
 
 func TestList_NegativeLimitDefaultsToDefault(t *testing.T) {
 	// Verify that a negative Limit defaults to defaultListLimit.
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id .+ LIMIT").
@@ -712,7 +712,7 @@ func TestList_NegativeLimitDefaultsToDefault(t *testing.T) {
 
 func TestList_ScanError(t *testing.T) {
 	// Verify that a scan error during row iteration is propagated correctly.
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	// Return a row with wrong number of columns to trigger a scan error.

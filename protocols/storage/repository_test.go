@@ -26,12 +26,12 @@ import (
 
 // newTestRepo creates a Repository backed by go-sqlmock with regexp matching.
 // The caller must defer db.Close() or use t.Cleanup.
-func newTestRepo(t *testing.T) (*Repository, sqlmock.Sqlmock, *sql.DB) {
+func newTestRepo(t *testing.T) (*Repository, sqlmock.Sqlmock) {
 	t.Helper()
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
-	return NewRepository(db), mock, db
+	return NewRepository(db), mock
 }
 
 // sampleSchema returns a minimal valid JSON Schema draft-07 for testing.
@@ -73,7 +73,7 @@ func TestNewRepository(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestCreate_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	tp := TrackingPlan{
@@ -95,7 +95,7 @@ func TestCreate_Success(t *testing.T) {
 }
 
 func TestCreate_InvalidSchemaJSON(t *testing.T) {
-	repo, _, _ := newTestRepo(t)
+	repo, _ := newTestRepo(t)
 	ctx := context.Background()
 
 	tp := TrackingPlan{
@@ -111,7 +111,7 @@ func TestCreate_InvalidSchemaJSON(t *testing.T) {
 }
 
 func TestCreate_InvalidEnforcementJSON(t *testing.T) {
-	repo, _, _ := newTestRepo(t)
+	repo, _ := newTestRepo(t)
 	ctx := context.Background()
 
 	tp := TrackingPlan{
@@ -128,7 +128,7 @@ func TestCreate_InvalidEnforcementJSON(t *testing.T) {
 }
 
 func TestCreate_EmptyOptionalFields(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	tp := TrackingPlan{
@@ -151,7 +151,7 @@ func TestCreate_EmptyOptionalFields(t *testing.T) {
 }
 
 func TestCreate_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	tp := TrackingPlan{
@@ -174,7 +174,7 @@ func TestCreate_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGet_Found(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Second)
 
@@ -197,7 +197,7 @@ func TestGet_Found(t *testing.T) {
 }
 
 func TestGet_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns+" FROM "+trackingPlansTable)).
@@ -210,7 +210,7 @@ func TestGet_NotFound(t *testing.T) {
 }
 
 func TestGet_NullableFields(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Second)
 
@@ -231,7 +231,7 @@ func TestGet_NullableFields(t *testing.T) {
 }
 
 func TestGet_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns)).
@@ -249,7 +249,7 @@ func TestGet_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGetByWorkspace_Found(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Second)
 
@@ -268,7 +268,7 @@ func TestGetByWorkspace_Found(t *testing.T) {
 }
 
 func TestGetByWorkspace_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns+" FROM "+trackingPlansTable+" WHERE workspace_id")).
@@ -281,7 +281,7 @@ func TestGetByWorkspace_NotFound(t *testing.T) {
 }
 
 func TestGetByWorkspace_WorkspaceIsolation(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	// Plan exists in ws-001 but request is for ws-002 — should return not found.
@@ -299,7 +299,7 @@ func TestGetByWorkspace_WorkspaceIsolation(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestUpdate_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	tp := TrackingPlan{
@@ -321,7 +321,7 @@ func TestUpdate_Success(t *testing.T) {
 }
 
 func TestUpdate_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	tp := TrackingPlan{
@@ -341,7 +341,7 @@ func TestUpdate_NotFound(t *testing.T) {
 }
 
 func TestUpdate_InvalidSchemaJSON(t *testing.T) {
-	repo, _, _ := newTestRepo(t)
+	repo, _ := newTestRepo(t)
 	ctx := context.Background()
 
 	tp := TrackingPlan{
@@ -358,7 +358,7 @@ func TestUpdate_InvalidSchemaJSON(t *testing.T) {
 }
 
 func TestUpdate_InvalidEnforcementJSON(t *testing.T) {
-	repo, _, _ := newTestRepo(t)
+	repo, _ := newTestRepo(t)
 	ctx := context.Background()
 
 	tp := TrackingPlan{
@@ -376,7 +376,7 @@ func TestUpdate_InvalidEnforcementJSON(t *testing.T) {
 }
 
 func TestUpdate_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	tp := TrackingPlan{
@@ -401,7 +401,7 @@ func TestUpdate_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestDelete_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM "+trackingPlansTable)).
@@ -414,7 +414,7 @@ func TestDelete_Success(t *testing.T) {
 }
 
 func TestDelete_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM "+trackingPlansTable)).
@@ -427,7 +427,7 @@ func TestDelete_NotFound(t *testing.T) {
 }
 
 func TestDelete_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM "+trackingPlansTable)).
@@ -445,7 +445,7 @@ func TestDelete_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestList_MultipleResults(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Second)
 
@@ -469,7 +469,7 @@ func TestList_MultipleResults(t *testing.T) {
 }
 
 func TestList_EmptyResult(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns+" FROM "+trackingPlansTable+" WHERE workspace_id")).
@@ -484,7 +484,7 @@ func TestList_EmptyResult(t *testing.T) {
 }
 
 func TestList_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns)).
@@ -502,7 +502,7 @@ func TestList_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestCreateVersion_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	v := TrackingPlanVersion{
@@ -523,7 +523,7 @@ func TestCreateVersion_Success(t *testing.T) {
 }
 
 func TestCreateVersion_InvalidSchemaJSON(t *testing.T) {
-	repo, _, _ := newTestRepo(t)
+	repo, _ := newTestRepo(t)
 	ctx := context.Background()
 
 	v := TrackingPlanVersion{
@@ -538,7 +538,7 @@ func TestCreateVersion_InvalidSchemaJSON(t *testing.T) {
 }
 
 func TestCreateVersion_EmptySchema(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	v := TrackingPlanVersion{
@@ -558,7 +558,7 @@ func TestCreateVersion_EmptySchema(t *testing.T) {
 }
 
 func TestCreateVersion_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	v := TrackingPlanVersion{
@@ -583,7 +583,7 @@ func TestCreateVersion_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGetVersions_MultipleResults(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Second)
 
@@ -608,7 +608,7 @@ func TestGetVersions_MultipleResults(t *testing.T) {
 }
 
 func TestGetVersions_Empty(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanVersionColumns+" FROM "+trackingPlanVersionsTable)).
@@ -623,7 +623,7 @@ func TestGetVersions_Empty(t *testing.T) {
 }
 
 func TestGetVersions_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanVersionColumns)).
@@ -641,7 +641,7 @@ func TestGetVersions_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGetVersion_Found(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Second)
 
@@ -663,7 +663,7 @@ func TestGetVersion_Found(t *testing.T) {
 }
 
 func TestGetVersion_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanVersionColumns+" FROM "+trackingPlanVersionsTable+" WHERE tracking_plan_id")).
@@ -676,7 +676,7 @@ func TestGetVersion_NotFound(t *testing.T) {
 }
 
 func TestGetVersion_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanVersionColumns)).
@@ -801,7 +801,7 @@ func TestConcurrentAccess(t *testing.T) {
 	// thread safety by running multiple sequential operations from separate
 	// goroutines that all share the same Repository instance. This confirms
 	// that the underlying *sql.DB connection pool is safe for concurrent use.
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Second)
 
@@ -840,7 +840,7 @@ func TestConcurrentAccess(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestCreate_ContextCancelled(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
@@ -863,7 +863,7 @@ func TestCreate_ContextCancelled(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestFullCRUDLifecycle(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Second)
 	schemaJSON := sampleSchema()

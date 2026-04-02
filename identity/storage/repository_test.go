@@ -28,12 +28,12 @@ import (
 
 // newTestRepo creates a PostgresRepository backed by go-sqlmock with regexp matching.
 // Uses logger.NOP to suppress log output, matching the protocols/storage test pattern.
-func newTestRepo(t *testing.T) (*PostgresRepository, sqlmock.Sqlmock, *sql.DB) {
+func newTestRepo(t *testing.T) (*PostgresRepository, sqlmock.Sqlmock) {
 	t.Helper()
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
-	return NewPostgresRepository(db, logger.NOP), mock, db
+	return NewPostgresRepository(db, logger.NOP), mock
 }
 
 // segCols returns column names for identity_graph SELECT queries.
@@ -87,7 +87,7 @@ func TestNewPostgresRepository_NilLogger(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestCreateSegment_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO " + tableIdentityGraph)).
@@ -101,7 +101,7 @@ func TestCreateSegment_Success(t *testing.T) {
 }
 
 func TestCreateSegment_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO " + tableIdentityGraph)).
@@ -120,7 +120,7 @@ func TestCreateSegment_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGetSegment_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -142,7 +142,7 @@ func TestGetSegment_Success(t *testing.T) {
 }
 
 func TestGetSegment_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, workspace_id, segment_id, created_at FROM " + tableIdentityGraph)).
@@ -156,7 +156,7 @@ func TestGetSegment_NotFound(t *testing.T) {
 }
 
 func TestGetSegment_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, workspace_id, segment_id, created_at FROM " + tableIdentityGraph)).
@@ -175,7 +175,7 @@ func TestGetSegment_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGetSegmentByWorkspace_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -198,7 +198,7 @@ func TestGetSegmentByWorkspace_Success(t *testing.T) {
 }
 
 func TestGetSegmentByWorkspace_Empty(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta(
@@ -214,7 +214,7 @@ func TestGetSegmentByWorkspace_Empty(t *testing.T) {
 }
 
 func TestGetSegmentByWorkspace_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta(
@@ -235,7 +235,7 @@ func TestGetSegmentByWorkspace_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestAddExternalID_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	eid := ExternalID{
@@ -257,7 +257,7 @@ func TestAddExternalID_Success(t *testing.T) {
 }
 
 func TestAddExternalID_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	eid := ExternalID{
@@ -284,7 +284,7 @@ func TestAddExternalID_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGetExternalIDsBySegment_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -322,7 +322,7 @@ func TestGetExternalIDsBySegment_Success(t *testing.T) {
 }
 
 func TestGetExternalIDsBySegment_Empty(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, graph_id, workspace_id, external_id_type, external_id_value, created_source, created_at, merged_at, merged_from FROM " + tableIdentityExternalIDs)).
@@ -336,7 +336,7 @@ func TestGetExternalIDsBySegment_Empty(t *testing.T) {
 }
 
 func TestGetExternalIDsBySegment_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, graph_id")).
@@ -355,7 +355,7 @@ func TestGetExternalIDsBySegment_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestLookupByExternalID_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -375,7 +375,7 @@ func TestLookupByExternalID_Success(t *testing.T) {
 }
 
 func TestLookupByExternalID_NotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT g.id, g.workspace_id, g.segment_id, g.created_at")).
@@ -389,7 +389,7 @@ func TestLookupByExternalID_NotFound(t *testing.T) {
 }
 
 func TestLookupByExternalID_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT g.id")).
@@ -408,7 +408,7 @@ func TestLookupByExternalID_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestSetTrait_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO " + tableIdentityTraits)).
@@ -423,7 +423,7 @@ func TestSetTrait_Success(t *testing.T) {
 func TestSetTrait_UpsertExisting(t *testing.T) {
 	// SetTrait uses ON CONFLICT ... DO UPDATE — verify it still succeeds when
 	// the key already exists for the graph segment (upsert path).
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO " + tableIdentityTraits)).
@@ -436,7 +436,7 @@ func TestSetTrait_UpsertExisting(t *testing.T) {
 }
 
 func TestSetTrait_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO " + tableIdentityTraits)).
@@ -454,7 +454,7 @@ func TestSetTrait_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGetTraits_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -477,7 +477,7 @@ func TestGetTraits_Success(t *testing.T) {
 }
 
 func TestGetTraits_Empty(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, graph_id, key, value, updated_at FROM " + tableIdentityTraits)).
@@ -491,7 +491,7 @@ func TestGetTraits_Empty(t *testing.T) {
 }
 
 func TestGetTraits_DBError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, graph_id, key, value, updated_at FROM " + tableIdentityTraits)).
@@ -510,7 +510,7 @@ func TestGetTraits_DBError(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestGetProfileData_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -552,7 +552,7 @@ func TestGetProfileData_Success(t *testing.T) {
 }
 
 func TestGetProfileData_SegmentNotFound(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	// GetSegment returns nil, nil for not found
@@ -567,7 +567,7 @@ func TestGetProfileData_SegmentNotFound(t *testing.T) {
 }
 
 func TestGetProfileData_EmptyExternalIDsAndTraits(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -603,7 +603,7 @@ func TestGetProfileData_EmptyExternalIDsAndTraits(t *testing.T) {
 }
 
 func TestGetProfileData_ExternalIDsError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	now := fixedTime()
@@ -673,7 +673,7 @@ func TestPing_Error(t *testing.T) {
 // --------------------------------------------------------------------------
 
 func TestWithTx_Success(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectBegin()
@@ -689,7 +689,7 @@ func TestWithTx_Success(t *testing.T) {
 }
 
 func TestWithTx_FnError_RollsBack(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectBegin()
@@ -705,7 +705,7 @@ func TestWithTx_FnError_RollsBack(t *testing.T) {
 }
 
 func TestWithTx_BeginError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectBegin().WillReturnError(errors.New("too many connections"))
@@ -719,7 +719,7 @@ func TestWithTx_BeginError(t *testing.T) {
 }
 
 func TestWithTx_CommitError(t *testing.T) {
-	repo, mock, _ := newTestRepo(t)
+	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
 	mock.ExpectBegin()
@@ -739,7 +739,7 @@ func TestWithTx_CommitError(t *testing.T) {
 
 func TestBulkAddExternalIDs_EmptyInput(t *testing.T) {
 	// BulkAddExternalIDs with empty slice should be a no-op.
-	repo, _, _ := newTestRepo(t)
+	repo, _ := newTestRepo(t)
 	ctx := context.Background()
 
 	err := repo.BulkAddExternalIDs(ctx, []ExternalID{})
@@ -748,7 +748,7 @@ func TestBulkAddExternalIDs_EmptyInput(t *testing.T) {
 
 func TestBulkSetTraits_EmptyInput(t *testing.T) {
 	// BulkSetTraits with empty slice should be a no-op.
-	repo, _, _ := newTestRepo(t)
+	repo, _ := newTestRepo(t)
 	ctx := context.Background()
 
 	err := repo.BulkSetTraits(ctx, []Trait{})
@@ -757,7 +757,7 @@ func TestBulkSetTraits_EmptyInput(t *testing.T) {
 
 func TestMergeSegments_EmptySourceIDs(t *testing.T) {
 	// MergeSegments with empty sourceSegmentIDs should be a no-op.
-	repo, _, _ := newTestRepo(t)
+	repo, _ := newTestRepo(t)
 	ctx := context.Background()
 
 	err := repo.MergeSegments(ctx, 100, []int64{})

@@ -19,22 +19,6 @@ func (gw *Handle) webReplayHandler() http.HandlerFunc {
 	return gw.callType("replay", gw.replaySourceIDAuth(gw.withWarehouseReplayTag(gw.webHandler())))
 }
 
-// webReplayAdvancedHandler handles advanced replay requests with source-level,
-// date-range, destination-level filtering and dry-run mode (E-038).
-// The handler chain adds withAdvancedReplayFilters (defined in handle_http_replay_advanced.go)
-// before the existing withWarehouseReplayTag middleware, enabling advanced filter parameters
-// to be injected into event context via HTTP headers:
-//
-//   - X-Replay-Source-Filter: Source ID to filter replay events
-//   - X-Replay-Start-Date / X-Replay-End-Date: Date range for replay window (RFC 3339)
-//   - X-Replay-Destination-Filter: Destination ID to target replay
-//   - X-Replay-Dry-Run: Preview mode without executing side effects
-//
-// This handler is intended for the /v1/replay/advanced endpoint.
-func (gw *Handle) webReplayAdvancedHandler() http.HandlerFunc {
-	return gw.callType("replay", gw.replaySourceIDAuth(gw.withAdvancedReplayFilters(gw.withWarehouseReplayTag(gw.webHandler()))))
-}
-
 // withWarehouseReplayTag is a middleware that detects the X-Warehouse-Replay HTTP header
 // and injects a warehouseOnly routing flag into each event's context within the request body.
 // This enables the Processor (processor/processor.go) to detect warehouse-targeted replay

@@ -14,18 +14,6 @@ import (
 	"github.com/rudderlabs/rudder-go-kit/logger"
 )
 
-// isDryRunReplay checks whether the incoming HTTP request is marked as a dry-run replay.
-// It reads the X-Replay-Dry-Run header and returns true when the header value is "true"
-// (case-insensitive comparison using strings.EqualFold, consistent with the boolean header
-// pattern used by withWarehouseReplayTag for X-Warehouse-Replay).
-//
-// This helper is intended for use by the Processor to detect dry-run mode on replay events
-// so that actual side effects (destination delivery, archival writes) can be skipped while
-// still returning a preview of what would be processed.
-func isDryRunReplay(r *http.Request) bool {
-	return strings.EqualFold(r.Header.Get("X-Replay-Dry-Run"), "true")
-}
-
 // injectReplayFilters injects advanced replay filter values into a JSON event body at the
 // given context path prefix (e.g. "context." for single events or "batch.0.context." for
 // batched events). Each non-empty filter value is set using sjson.SetBytes; errors from

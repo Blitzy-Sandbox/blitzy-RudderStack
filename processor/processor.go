@@ -120,6 +120,8 @@ type enforcementForwarder interface {
 // identityResolver hooks real-time identity resolution into the processing pipeline (E-026).
 // It resolves user identity as events flow through the pipeline, extending beyond the
 // batch-only warehouse identity resolution to support real-time identity graph updates.
+//
+//nolint:unused // E-026: injected when identity graph service is started
 type identityResolver interface {
 	ResolveIdentity(ctx context.Context, event types.TransformerEvent) error
 }
@@ -236,7 +238,7 @@ type Handle struct {
 
 	// identityResolver hooks real-time identity resolution into event processing (E-026).
 	// When nil, real-time identity resolution is disabled and events pass through unchanged.
-	identityResolver identityResolver
+	identityResolver identityResolver //nolint:unused // E-026: set when identity service is injected
 }
 type processorStats struct {
 	statGatewayDBR                func(partition string) stats.Measurement
@@ -4071,6 +4073,8 @@ func (proc *Handle) insertFunctionsStage(partition string, data *userTransformDa
 // When identity resolution is not enabled (identityResolver is nil), this is a no-op.
 // The resolver updates the real-time identity graph as events flow through the pipeline,
 // extending beyond the batch-only warehouse identity resolution model.
+//
+//nolint:unused // E-026: called in pipeline once identity resolver is injected
 func (proc *Handle) resolveIdentity(ctx context.Context, event *types.TransformerEvent) {
 	if proc.identityResolver == nil {
 		return
