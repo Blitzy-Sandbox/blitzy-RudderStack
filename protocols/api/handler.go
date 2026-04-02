@@ -30,6 +30,9 @@ import (
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
+
+	"github.com/rudderlabs/rudder-server/processor/enforcement"
+	protocolsschema "github.com/rudderlabs/rudder-server/protocols/schema"
 )
 
 const (
@@ -65,6 +68,111 @@ func validateTrackingPlanID(id string) error {
 		return fmt.Errorf("invalid tracking plan ID: must be a positive integer")
 	}
 	return nil
+}
+
+// validateTrackingPlanSchema validates that the provided schema (if non-nil and
+// non-empty) is a valid JSON object that can be compiled as a JSON Schema draft-07
+// definition by the protocols/schema package.
+//
+// Validation rules:
+//  1. If schema is nil or empty, it is considered valid (optional field).
+//  2. The schema must be valid JSON.
+//  3. The schema must be a JSON object (not a string, number, array, or boolean).
+//  4. The schema must successfully compile as a JSON Schema draft-07 definition.
+//
+// Returns a human-readable error describing the validation failure.
+func validateTrackingPlanSchema(schema json.RawMessage) error {
+	if len(schema) == 0 || string(schema) == "null" {
+		return nil // Schema is optional; nil/null means no schema provided.
+	}
+
+	// Step 1: Ensure the schema is valid JSON.
+	if !jsonrs.Valid(schema) {
+		return fmt.Errorf("schema must be valid JSON")
+	}
+
+	// Step 2: Ensure the schema is a JSON object (not a string, number, array, etc.).
+	// json.RawMessage preserves the raw bytes; a JSON object starts with '{'.
+	for i := 0; i < len(schema); i++ {
+		b := schema[i]
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' {
+			continue
+		}
+		if b != '{' {
+			return fmt.Errorf("schema must be a JSON object, not a %s", jsonTypeDescription(b))
+		}
+		break
+	}
+
+	// Step 3: Attempt to compile as JSON Schema draft-07.
+	if _, err := protocolsschema.CompileSchema(schema); err != nil {
+		return fmt.Errorf("schema is not a valid JSON Schema: %s", err.Error())
+	}
+
+	return nil
+}
+
+// validateEnforcementConfig validates that the provided enforcement configuration
+// (if non-nil and non-empty) contains only valid enforcement mode values.
+//
+// The enforcement config is expected to be a JSON object with optional keys:
+//   - "global": The source-level enforcement mode (block/omit/allow)
+//   - Per-call-type keys (track, identify, group, page, screen): Override modes
+//
+// Unknown keys are allowed for forward compatibility. Only string values that
+// correspond to known mode keys (global or call types) are validated.
+func validateEnforcementConfig(raw json.RawMessage) error {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil // Enforcement config is optional.
+	}
+
+	// Ensure the config is a JSON object.
+	var config map[string]interface{}
+	if err := jsonrs.Unmarshal(raw, &config); err != nil {
+		return fmt.Errorf("enforcement_config must be a JSON object: %s", err.Error())
+	}
+
+	// Build a set of keys that represent mode values for validation.
+	modeKeys := map[string]bool{"global": true}
+	for _, ct := range enforcement.SupportedCallTypes {
+		modeKeys[ct] = true
+	}
+
+	// Validate that mode-bearing keys have valid enforcement mode values.
+	for key, val := range config {
+		if !modeKeys[key] {
+			continue // Unknown keys are allowed for forward compatibility.
+		}
+		strVal, ok := val.(string)
+		if !ok {
+			return fmt.Errorf("enforcement_config.%s must be a string (one of block, omit, allow)", key)
+		}
+		if !enforcement.IsValidMode(enforcement.Mode(strVal)) {
+			return fmt.Errorf("enforcement_config.%s has invalid mode %q: must be one of block, omit, allow", key, strVal)
+		}
+	}
+
+	return nil
+}
+
+// jsonTypeDescription returns a human-readable description of a JSON value type
+// based on its first non-whitespace byte.
+func jsonTypeDescription(firstByte byte) string {
+	switch firstByte {
+	case '"':
+		return "string"
+	case '[':
+		return "array"
+	case 't', 'f':
+		return "boolean"
+	case 'n':
+		return "null"
+	default:
+		if (firstByte >= '0' && firstByte <= '9') || firstByte == '-' {
+			return "number"
+		}
+		return "unknown type"
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -226,6 +334,22 @@ func (h *Handler) CreateTrackingPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate schema if provided — must be a valid JSON Schema draft-07 object.
+	// This prevents invalid schemas from being stored in the database and ensures
+	// that any schema persisted can be compiled for event validation (E-020).
+	if err := validateTrackingPlanSchema(req.Schema); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("invalid schema: %s", err.Error()))
+		return
+	}
+
+	// Validate enforcement configuration if provided — mode values must be
+	// one of block/omit/allow (E-022). This prevents misconfiguration that could
+	// cause unexpected pipeline behavior when enforcement is activated.
+	if err := validateEnforcementConfig(req.EnforcementConfig); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("invalid enforcement_config: %s", err.Error()))
+		return
+	}
+
 	// Delegate to the service layer for business logic and persistence.
 	// The workspace ID is passed directly to enforce multi-tenant isolation
 	// at the storage layer, ensuring tracking plans are scoped to their workspace.
@@ -368,6 +492,18 @@ func (h *Handler) UpdateTrackingPlan(w http.ResponseWriter, r *http.Request) {
 	var req UpdateTrackingPlanRequest
 	if err := jsonrs.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.writeErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("invalid JSON request body: %s", err.Error()))
+		return
+	}
+
+	// Validate schema if provided in the update payload.
+	if err := validateTrackingPlanSchema(req.Schema); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("invalid schema: %s", err.Error()))
+		return
+	}
+
+	// Validate enforcement config if provided in the update payload.
+	if err := validateEnforcementConfig(req.EnforcementConfig); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("invalid enforcement_config: %s", err.Error()))
 		return
 	}
 

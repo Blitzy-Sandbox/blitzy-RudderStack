@@ -4,7 +4,7 @@
 // - protoc             v3.21.12
 // source: proto/identity/profiles.proto
 
-package proto
+package identityproto
 
 import (
 	context "context"
@@ -19,11 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ProfilesService_GetProfile_FullMethodName            = "/proto.ProfilesService/GetProfile"
-	ProfilesService_GetProfileTraits_FullMethodName      = "/proto.ProfilesService/GetProfileTraits"
-	ProfilesService_GetProfileEvents_FullMethodName      = "/proto.ProfilesService/GetProfileEvents"
-	ProfilesService_GetProfileExternalIds_FullMethodName = "/proto.ProfilesService/GetProfileExternalIds"
-	ProfilesService_GetProfileMetadata_FullMethodName    = "/proto.ProfilesService/GetProfileMetadata"
+	ProfilesService_GetProfile_FullMethodName            = "/identity.ProfilesService/GetProfile"
+	ProfilesService_GetProfileTraits_FullMethodName      = "/identity.ProfilesService/GetProfileTraits"
+	ProfilesService_GetProfileEvents_FullMethodName      = "/identity.ProfilesService/GetProfileEvents"
+	ProfilesService_GetProfileExternalIds_FullMethodName = "/identity.ProfilesService/GetProfileExternalIds"
+	ProfilesService_GetProfileMetadata_FullMethodName    = "/identity.ProfilesService/GetProfileMetadata"
 )
 
 // ProfilesServiceClient is the client API for ProfilesService service.
@@ -252,7 +252,7 @@ func _ProfilesService_GetProfileMetadata_Handler(srv interface{}, ctx context.Co
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ProfilesService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "proto.ProfilesService",
+	ServiceName: "identity.ProfilesService",
 	HandlerType: (*ProfilesServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

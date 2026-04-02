@@ -449,8 +449,11 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 		a.log.Infon("Protocols API wired into gateway internal handlers")
 	}
 
-	// Wire Profiles REST API (E-027). Requires identity graph service backed
-	// by PostgreSQL with Redis caching for sub-200ms responses under production load.
+	// Wire Profiles REST and gRPC APIs (E-027). Requires identity graph service
+	// backed by PostgreSQL with Redis caching for sub-200ms responses under
+	// production load. The gRPC server is started alongside the REST API to
+	// provide high-performance inter-service communication.
+	var profilesGRPCSrv *identityprofiles.GRPCServer
 	if jobsdbPool != nil {
 		idRepo := identitystorage.NewPostgresRepository(jobsdbPool, a.log.Child("identity-storage"))
 		graphSvc := identitygraph.NewService(idRepo, config, a.log.Child("identity-graph"), statsFactory)
@@ -481,6 +484,15 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 		} else {
 			internalHandlers["/v1/profiles"] = profilesHandler.Routes()
 			a.log.Infon("Profiles API wired into gateway internal handlers")
+		}
+
+		// Wire Profiles gRPC server (E-027) for high-performance inter-service
+		// communication. Uses the same graph.Service as the REST handler.
+		var grpcErr error
+		profilesGRPCSrv, grpcErr = identityprofiles.NewGRPCServer(graphSvc, config, a.log.Child("profiles"))
+		if grpcErr != nil {
+			a.log.Warnn("Failed to create profiles gRPC server — gRPC Profiles API will not be available", obskit.Error(grpcErr))
+			profilesGRPCSrv = nil
 		}
 	}
 
@@ -523,6 +535,15 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 	g.Go(func() error {
 		return gw.StartWebHandler(ctx)
 	})
+
+	// Start Profiles gRPC server (E-027) for high-performance inter-service
+	// communication. Runs alongside the REST API on a separate TCP port
+	// (default 50051, configurable via Identity.Profiles.gRPC.port).
+	if profilesGRPCSrv != nil {
+		g.Go(func() error {
+			return profilesGRPCSrv.Start(ctx)
+		})
+	}
 
 	g.Go(func() error {
 		// This should happen only after setupDatabaseTables() is called and journal table migrations are done

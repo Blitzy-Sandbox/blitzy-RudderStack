@@ -845,12 +845,21 @@ func (h *Handler) writeErrorResponse(w http.ResponseWriter, statusCode int, mess
 // Functions code bodies are limited to 1MB, which is generous for transformation code.
 const maxManagementBodySize = 1 * 1024 * 1024 // 1 MB
 
+// maxFunctionNameLength is the maximum allowed length for a function name.
+// This matches the VARCHAR(256) constraint on the functions table's name column
+// and prevents database constraint errors from surfacing as HTTP 500.
+const maxFunctionNameLength = 256
+
 // validateCreateRequest validates the create function request body.
 // Returns a descriptive error for the first validation failure encountered.
-// Includes null byte detection to prevent PostgreSQL text column errors.
+// Includes null byte detection to prevent PostgreSQL text column errors
+// and name length validation to match the database VARCHAR(256) constraint.
 func validateCreateRequest(req *createFunctionRequest) error {
 	if req.Name == "" {
 		return fmt.Errorf("name is required")
+	}
+	if len(req.Name) > maxFunctionNameLength {
+		return fmt.Errorf("name must be %d characters or fewer", maxFunctionNameLength)
 	}
 	if containsNullByte(req.Name) {
 		return fmt.Errorf("name contains invalid characters (null bytes)")

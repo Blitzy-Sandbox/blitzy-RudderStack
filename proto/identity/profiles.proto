@@ -1,8 +1,8 @@
 syntax = "proto3";
-package proto;
+package identity;
 import "google/protobuf/timestamp.proto";
 
-option go_package = ".;proto";
+option go_package = "github.com/rudderlabs/rudder-server/proto/identity;identityproto";
 
 // ProfilesService defines the gRPC API for the Identity Resolution Profiles subsystem.
 // This service provides sub-200ms profile lookups by any identifier type, supporting
