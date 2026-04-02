@@ -2,8 +2,8 @@
 # syntax=docker/dockerfile:1
 
 # GO_VERSION is updated automatically to match go.mod, see Makefile
-ARG GO_VERSION=1.26.0
-ARG GO_VERSION_SHA256=sha256:d4c4845f5d60c6a974c6000ce58ae079328d03ab7f721a0734277e69905473e5
+ARG GO_VERSION=1.26.1
+ARG GO_VERSION_SHA256=sha256:2389ebfa5b7f43eeafbd6be0c3700cc46690ef842ad962f6c5bd6be49ed82039
 ARG ALPINE_VERSION=3.23
 ARG ALPINE_VERSION_SHA256=sha256:51183f2cfa6320055da30872f211093f9ff1d3cf06f39a0bdb212314c5dc7375
 FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION}@${GO_VERSION_SHA256} AS builder 
@@ -46,6 +46,8 @@ FROM alpine:${ALPINE_VERSION}@${ALPINE_VERSION_SHA256}
 RUN apk --no-cache upgrade && \
     apk --no-cache add tzdata ca-certificates postgresql-client curl bash
 
+RUN addgroup -S rudder && adduser -S rudder -G rudder
+
 COPY --from=builder rudder-server/rudder-server .
 COPY --from=builder rudder-server/build/wait-for-go/wait-for-go .
 COPY --from=builder rudder-server/build/regulation-worker .
@@ -56,6 +58,8 @@ COPY build/docker-entrypoint.sh /
 COPY build/wait-for /
 COPY scripts/generate-event /scripts/generate-event
 COPY scripts/batch.json /scripts/batch.json
+
+USER rudder
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["/rudder-server"]
