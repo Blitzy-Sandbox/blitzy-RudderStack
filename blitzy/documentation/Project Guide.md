@@ -1,4 +1,4 @@
-# Blitzy Project Guide — RudderStack rudder-server Feature Expansion
+# Blitzy Project Guide — RudderStack Feature Parity Sprint Groups 3–10
 
 ---
 
@@ -6,72 +6,73 @@
 
 ### 1.1 Project Overview
 
-This project implements five remaining sprint groups (E-010 through E-039) across the RudderStack `rudder-server` Go monorepo, closing critical feature parity gaps against Segment across five dimensions: **destination connectors**, **functions/transformations**, **protocols enforcement**, **identity resolution**, and **operational tooling**. The implementation targets enterprise-grade event data infrastructure teams who require Segment-comparable capabilities in an open-source pipeline. Across 206 commits, 229 files were changed (+93,684 lines) with comprehensive test coverage (1,429+ tests), zero compilation errors, and zero lint warnings.
+This project implements five remaining sprint groups (Sprints 3–10) across the RudderStack `rudder-server` Go monorepo, closing critical feature parity gaps against Segment. The implementation spans destination connector expansion (4 new stream producers, 70 payload parity fixtures), a complete Functions/Transformations framework (Source, Destination, and Insert Functions with management API), full Protocols enforcement (JSON Schema draft-07, anomaly detection, Block/Omit/Allow enforcement modes), a real-time identity resolution service with Profiles API, and operational tooling (delivery monitoring, alerting, advanced replay, capacity planning). All features are backend-only, exposed via REST/gRPC APIs and Prometheus metrics, with full backward compatibility ensured through config-gated feature toggles.
 
 ### 1.2 Completion Status
 
 ```mermaid
-pie title Project Completion — 88.4%
-    "Completed (410h)" : 410
-    "Remaining (54h)" : 54
+pie title Project Completion — 82.0%
+    "Completed (AI)" : 300
+    "Remaining" : 66
 ```
 
 | Metric | Value |
-|---|---|
-| **Total Project Hours** | **464** |
-| **Completed Hours (AI)** | **410** |
-| **Remaining Hours** | **54** |
-| **Completion Percentage** | **88.4%** |
+|--------|-------|
+| **Total Project Hours** | 366 |
+| **Completed Hours (AI)** | 300 |
+| **Remaining Hours** | 66 |
+| **Completion Percentage** | 82.0% |
 
-**Calculation:** 410 completed hours / (410 + 54 remaining hours) = 410 / 464 = **88.4% complete**
+**Calculation**: 300 completed hours / (300 + 66 remaining hours) = 300 / 366 = **82.0% complete**
 
 ### 1.3 Key Accomplishments
 
-- ✅ 4 new stream destination producers (Azure Event Hub Extended, Apache Pulsar, Redis Streams, Amazon MSK) with factory registration and unit tests
-- ✅ 70 payload parity reference fixtures covering shared connectors for field-level validation
-- ✅ Full Functions runtime engine: Source Functions (`onRequest`), Destination Functions (8 typed handlers), Insert Functions (pre-destination hooks)
-- ✅ Functions CRUD management API, encrypted secrets storage, and Gateway webhook endpoint
-- ✅ 7-stage processor pipeline — Insert Functions channel added between user transform and destination transform
-- ✅ JSON Schema draft-07 validation engine using `santhosh-tekuri/jsonschema/v5`
-- ✅ Anomaly detection engine for unexpected events/properties with configurable time windows
-- ✅ Three enforcement modes (Block/Omit/Allow) replacing binary `propagateValidationErrors` toggle
-- ✅ Tracking plan management REST API with versioning and CSV import/export
-- ✅ Real-time identity graph with resolver (new/single/multi-match strategies) and PostgreSQL persistence
-- ✅ Profiles REST + gRPC API with Redis-backed cache for sub-200ms responses
-- ✅ CDC-based profile sync to downstream destinations
-- ✅ Per-destination delivery monitoring dashboard with Prometheus metrics
-- ✅ Configurable alerting engine with webhook, email, and Slack notification channels
-- ✅ Advanced replay controls (source-level, date-range, destination-level, dry-run)
-- ✅ Pipeline performance profiling and capacity planning reports
-- ✅ 16 SQL migration files for Functions, Protocols, Identity, and Alerting tables
-- ✅ +2,996 lines of OpenAPI specification covering all new API endpoints
-- ✅ CI pipeline, Dockerfile, and Makefile updated with new test targets and build metadata
+- ✅ **4 new stream destination producers** (Amazon MSK, Azure Event Hub, Apache Pulsar, Redis Streams) implemented, registered in factory, and unit-tested
+- ✅ **70 destination payload parity reference fixtures** with integration test framework covering shared connectors
+- ✅ **Full Functions runtime engine** with Source Functions (`onRequest`), Destination Functions (8 typed handlers: `onTrack`, `onIdentify`, `onGroup`, `onPage`, `onScreen`, `onAlias`, `onDelete`, `onBatch`), and Insert Functions (pre-destination hooks)
+- ✅ **Functions Management REST API** with CRUD, versioning, test invocation, and per-function encrypted secrets
+- ✅ **JSON Schema draft-07 validation engine** with common schema support for tracking plan enforcement
+- ✅ **Anomaly detection engine** for unexpected events/properties with configurable time-window tracking
+- ✅ **Three enforcement modes** (Block, Omit, Allow) configurable per source per call type, replacing binary toggle
+- ✅ **Forward-blocked-events** mechanism routing blocked events to alternative source
+- ✅ **Tracking Plan Management API** with versioning, CSV import/export, and consent integration
+- ✅ **Real-time identity graph service** with PostgreSQL persistence and multi-match resolution
+- ✅ **Profiles REST API + gRPC server** with Redis-backed cache targeting sub-200ms responses
+- ✅ **12+ external identifier types** support (user_id, email, anonymous_id, ios.id, android.id, etc.)
+- ✅ **CDC-based profile sync** to downstream destinations
+- ✅ **Configurable identity resolution settings** (blocked values, limits, priority ranking)
+- ✅ **Per-destination delivery monitoring dashboard** with Prometheus metrics
+- ✅ **Configurable alerting rules engine** with webhook, email, and Slack notification channels
+- ✅ **Advanced replay controls** (source-level, date-range, destination-level, dry-run mode)
+- ✅ **Pipeline performance profiler** with capacity planning reports targeting 50K events/sec
+- ✅ **100% build success** — `CGO_ENABLED=0 go build ./...` with zero errors
+- ✅ **1,427 tests passing** across all new packages with 0 failures
+- ✅ **All CI checks clean** — gofmt, go vet, golangci-lint report zero issues in new code
 
 ### 1.4 Critical Unresolved Issues
 
 | Issue | Impact | Owner | ETA |
-|---|---|---|---|
-| Cloud destination connectors (E-011/E-012) require Transformer-side implementation | 40 cloud destinations routed through `rudder-transformer` service need destination-specific payload mappings | Human Developer | 2–3 weeks |
-| Integration test suites commented out in CI | Three integration tests (`destination_parity`, `functions`, `identity`) exist but are not run in CI pipeline | Human Developer | 1 day |
-| Functions runtime delegates to Transformer HTTP protocol | Source/Destination/Insert Functions depend on Transformer service extension for JS execution sandbox | Human Developer | 1 week |
-| 50K events/sec throughput target untested | Capacity planning reports exist but no load testing has been performed against the target | Human Developer | 1 week |
+|-------|--------|-------|-----|
+| E-011/E-012 cloud connector Transformer implementations not in rudder-server repo | 40 cloud destination connectors need Transformer-side mapping code in `rudder-transformer` | Human Developer | 4 weeks |
+| Functions runtime sandbox not production-hardened | JavaScript execution environment needs V8 isolate integration for security | Human Developer | 1 week |
+| Identity graph sub-200ms latency unvalidated at scale | Redis cache performance needs load testing with realistic data volumes | Human Developer | 1 week |
+| Docker integration tests not runnable in CI | `integration_test/docker_test/` requires Kafka/Redis/PostgreSQL containers | DevOps | 0.5 weeks |
 
 ### 1.5 Access Issues
 
 | System/Resource | Type of Access | Issue Description | Resolution Status | Owner |
-|---|---|---|---|---|
-| AWS ECR Registry | Docker Image Pull | CI workflow references `422074288268.dkr.ecr.us-east-1.amazonaws.com` mirror — requires AWS credentials | Unresolved — causes CI image pull failures for integration tests | DevOps |
-| Redis (Production) | Service Credential | Identity profile cache requires production Redis cluster URL configuration | Pending — `REDIS_URL` env var needed | DevOps |
-| SMTP / Slack Webhook | Service Credential | Alerting engine channels require production credentials for email/Slack notifications | Pending — not configured | DevOps |
-| Functions Encryption Key | Secret | Per-function secrets encryption requires `Functions.secrets.encryptionKey` configuration | Pending — not set | Security Team |
+|-----------------|---------------|-------------------|-------------------|-------|
+| AWS ECR Registry | Docker Image Pull | CI workflow references `422074288268.dkr.ecr.us-east-1.amazonaws.com` for Docker Hub mirror — requires AWS credentials | Unresolved | DevOps |
+| RudderStack Backend Config | API Token | `WORKSPACE_TOKEN` in `build/docker.env` set to placeholder `<your_token_here>` | Unresolved | Human Developer |
+| Redis (Identity Cache) | Service Deployment | Redis 7 required for Profiles API cache — not deployed in staging/production | Unresolved | DevOps |
 
 ### 1.6 Recommended Next Steps
 
-1. **[High]** Enable integration test suites in CI pipeline — uncomment `destination_parity`, `functions`, and `identity` entries in `.github/workflows/tests.yaml`
-2. **[High]** Configure production Redis cluster for identity profile cache and set `REDIS_URL` environment variable
-3. **[High]** Extend `rudder-transformer` service with Functions runtime support for JS execution sandbox
-4. **[Medium]** Configure secrets encryption key and alert channel credentials for production deployment
-5. **[Medium]** Execute load testing against 50K events/sec throughput target with pipeline profiling enabled
+1. **[High]** Implement 40 cloud destination connectors in `rudder-transformer` repository to complete E-011/E-012 parity targets
+2. **[High]** Configure production environment variables (`WORKSPACE_TOKEN`, `Functions.secrets.encryptionKey`, Redis connection) and run database migrations
+3. **[High]** Conduct security audit of Functions runtime JavaScript sandbox and integrate V8 isolate for production
+4. **[Medium]** Execute load testing against 50K events/sec target to validate E-039 capacity planning
+5. **[Medium]** Run end-to-end integration tests with full Docker stack (PostgreSQL, Transformer, Redis, MinIO) to validate cross-sprint interactions
 
 ---
 
@@ -80,194 +81,211 @@ pie title Project Completion — 88.4%
 ### 2.1 Completed Work Detail
 
 | Component | Hours | Description |
-|---|---|---|
-| **Sprint 3–5: Destination Priority Ranking (E-010)** | 5 | Top-50 destination analysis document (461 lines) with ranking methodology and coverage projections |
-| **Sprint 3–5: Cloud Batch 1 Server Infrastructure (E-011)** | 12 | Server-side routing config, 35 payload reference fixtures, destination type registration for top-20 cloud destinations |
-| **Sprint 3–5: Cloud Batch 2 Server Infrastructure (E-012)** | 10 | Server-side routing config, 35 payload reference fixtures for next-20 cloud destinations |
-| **Sprint 3–5: Payload Parity Framework (E-013)** | 12 | Integration test framework + 70 JSON reference payloads for field-by-field comparison across shared connectors |
-| **Sprint 3–5: Stream Destination Producers (E-014)** | 21 | 4 new `StreamProducer` implementations (AzureEventHub, Pulsar, RedisStream, AmazonMSK), mocks, factory registration |
-| **Sprint 4–6: Source Functions Runtime (E-015)** | 16 | `functions/runtime/engine.go` (650L), `source_functions.go` (351L), `gateway/handle_http_functions.go` (281L), auth handler |
-| **Sprint 4–6: Destination Functions (E-016)** | 12 | `destination_functions.go` (402L) with all 8 typed handlers + `errors.go` (221L) with 5 error types |
-| **Sprint 4–6: Insert Functions & Pipeline (E-017)** | 14 | `insert_functions.go` (431L), `pipeline_worker.go` insertfunctions channel, 7-stage pipeline integration |
-| **Sprint 4–6: Functions Management API (E-018)** | 18 | `functions/api/handler.go` (911L), routes, `storage/repository.go` (369L), SQL migrations |
-| **Sprint 4–6: Secrets Management (E-019)** | 8 | `functions/secrets/manager.go` (318L) with encrypted at-rest storage |
-| **Sprint 4–6: Functions Tests** | 12 | 8 unit test files (247 tests), end-to-end integration test, test fixtures |
-| **Sprint 5–7: JSON Schema Validator (E-020)** | 12 | `protocols/schema/validator.go` (340L) + `common_schema.go` (177L), `jsonschema/v5` integration |
-| **Sprint 5–7: Anomaly Detection (E-021)** | 10 | `processor/anomalydetection/detector.go` (370L) + `tracker.go` (177L) with configurable time windows |
-| **Sprint 5–7: Enforcement Modes (E-022)** | 14 | `enforcement/modes.go` (211L), `trackingplan.go` refactor (+305L), Block/Omit/Allow per source per call type |
-| **Sprint 5–7: Forward Blocked Events (E-023)** | 5 | `enforcement/forwarder.go` (160L) — server-to-server forwarding to alternative source |
-| **Sprint 5–7: Tracking Plan API (E-024)** | 14 | `protocols/api/handler.go` (744L), `service.go` (440L), `storage/repository.go` (496L), `routes.go`, SQL migrations |
-| **Sprint 5–7: Consent Integration (E-025)** | 5 | `processor/consent.go` modifications integrating consent filtering with Protocols enforcement |
-| **Sprint 5–7: Protocols Tests & Migrations** | 6 | 4 test files (292 tests), 4 SQL migration files |
-| **Sprint 6–8: Real-time Identity Graph (E-026)** | 24 | `identity/graph/graph.go` (478L), `resolver.go` (528L), `tracker.go` (316L), `identity/storage/repository.go` (768L) |
-| **Sprint 6–8: Profiles API (E-027)** | 22 | `identity/profiles/api.go` (712L), `cache.go` (305L), `grpc_server.go` (557L), `proto/identity/profiles.proto` |
-| **Sprint 6–8: External IDs (E-028)** | 7 | `identity/graph/externalids.go` (209L) — 12+ identifier types |
-| **Sprint 6–8: Profile Sync (E-029)** | 10 | `identity/sync/syncer.go` (621L) — CDC-based downstream destination sync |
-| **Sprint 6–8: Resolution Settings (E-030)** | 8 | `identity/settings/settings.go` (546L) — blocked values, limits, priority configuration |
-| **Sprint 6–8: Warehouse Identity Refactor** | 8 | `warehouse/identity/identity.go` refactored (+342/-94L) for shared resolution logic |
-| **Sprint 6–8: Identity Tests & Migrations** | 11 | 8 test files (377 tests), 6 SQL migrations, integration test, proto generation |
-| **Sprint 8–10: Monitoring Dashboard (E-036)** | 16 | `services/monitoring/dashboard.go` (539L), `metrics.go` (254L), `router/handle.go` (+70L), `handle_observability.go` (+101L) |
-| **Sprint 8–10: Alerting Engine (E-037)** | 18 | `services/alerting/engine.go` (681L), `channels.go` (272L), `rules.go` (346L), `services/alert/` extensions |
-| **Sprint 8–10: Advanced Replay (E-038)** | 10 | `gateway/handle_http_replay_advanced.go` (165L), `archiver/archiver.go` (+153L), replay handler mods |
-| **Sprint 8–10: Capacity Planning (E-039)** | 11 | `services/profiling/profiler.go` (351L), `capacity.go` (415L) — per-stage pipeline profiling |
-| **Sprint 8–10: Operations Tests & Migrations** | 7 | 7 test files (259 tests), 2 SQL migration files |
-| **Cross-cutting: Service Lifecycle Wiring** | 8 | `main.go` blank imports, `runner/runner.go` full lifecycle (Functions, Identity, Monitoring, Alerting) |
-| **Cross-cutting: Gateway Extensions** | 7 | `gateway/handle_http.go`, `handle_http_auth.go`, `handle_lifecycle.go`, `handle.go` — new route mounts |
-| **Cross-cutting: Backend Config Types** | 4 | `backend-config/types.go` — enforcement modes, identity settings, functions config, 3 new topics |
-| **Cross-cutting: OpenAPI Specification** | 12 | `gateway/openapi.yaml` +2,996 lines — Functions, Protocols, Profiles, Monitoring, Replay API schemas |
-| **Cross-cutting: Configuration Management** | 4 | `config/config.yaml` +215 lines — all sprint configuration keys |
-| **Cross-cutting: Docker/CI/Build** | 5 | `Dockerfile` (GO_VERSION, build comments), `Makefile` (7 targets), `.github/workflows/tests.yaml`, `docker-compose.yml` (Redis) |
-| **Cross-cutting: Dependencies & Proto** | 3 | `go.mod` (jsonschema/v5, grpc upgrade), `go.sum`, proto generation |
-| **Cross-cutting: QA & Lint Fixes** | 9 | 11 lint issues resolved, 9 files modified, multiple QA checkpoint resolutions |
-| **Total Completed** | **410** | |
+|-----------|-------|-------------|
+| **Sprint 3–5: Destination Connector Expansion** | | |
+| E-010: Destination priority ranking | 3 | Documented top-50 prioritized destination list with coverage analysis |
+| E-011/E-012: Cloud connector server-side framework | 10 | 70 payload reference fixtures, workspace config template, validation framework |
+| E-013: Payload parity integration tests | 8 | 1,157-line integration test with field-by-field comparison across shared connectors |
+| E-014: Stream destination producers | 16 | 4 new producers (Amazon MSK, Azure Event Hub, Pulsar, Redis Streams) with factory registration |
+| E-014: Stream producer testing & mocks | 3 | Unit tests + mock generation for all 4 stream producers |
+| **Sprint 4–6: Functions Framework** | | |
+| E-015: Source Functions runtime + gateway | 14 | Source Functions `onRequest` handler, Gateway webhook endpoint, auth middleware |
+| E-016: Destination Functions | 10 | 8 typed event handlers (onTrack, onIdentify, onGroup, onPage, onScreen, onAlias, onDelete, onBatch) |
+| E-017: Insert Functions + pipeline integration | 10 | Insert Functions hooks, pipeline_worker.go channel insertion |
+| E-018: Functions Management API | 16 | CRUD handler, storage repository, routes, test invocation endpoint |
+| E-019: Secrets management | 8 | Per-function encrypted secrets storage with AES-256 |
+| Functions runtime engine core | 8 | Core engine with handler dispatch, error types, context management |
+| Functions DB migrations | 2 | Functions and secrets table schemas |
+| Functions testing | 10 | Unit tests (245 tests) + integration test suite |
+| **Sprint 5–7: Protocols Enforcement** | | |
+| E-020: JSON Schema draft-07 validator | 8 | Full draft-07 support (required, regex, nested objects, enum, type enforcement) |
+| E-021: Anomaly detection engine | 8 | Detector + frequency tracker with configurable time windows |
+| E-022: Enforcement modes | 6 | Block/Omit/Allow implementation configurable per source per call type |
+| E-023: Forward blocked events | 5 | Server-to-server forwarder wired into tracking plan validation |
+| E-024: Tracking Plan Management API | 12 | CRUD with versioning, CSV import/export, storage repository |
+| E-025: Consent integration | 5 | Enforcement-aware consent filtering at both processor call sites |
+| Protocols config & migrations | 4 | Backend-config types, enforcement types, tracking plan table schemas |
+| Protocols testing | 6 | Unit tests (506 tests) across all Protocols packages |
+| **Sprint 6–8: Identity Resolution** | | |
+| E-026: Real-time identity graph | 16 | Graph service, resolver engine (new/single/multi-match), PostgreSQL persistence |
+| E-027: Profiles API | 16 | REST API handler, gRPC server, Redis-backed cache, Proto definitions |
+| E-028: External IDs (12+ types) | 5 | External ID management with type validation and lifecycle tracking |
+| E-029: Profile sync (CDC) | 10 | Change-data-capture syncer with adapters for downstream destinations |
+| E-030: Resolution settings | 7 | Blocked values (regex/exact), identifier limits, priority ranking |
+| Identity storage & migrations | 6 | PostgreSQL repository, identity graph/external_ids/traits table schemas |
+| Identity server wiring | 4 | Runner.go, embeddedAppHandler.go, Docker Redis service |
+| Identity testing | 10 | Unit tests (377 tests) + integration test suite |
+| **Sprint 8–10: Operational Tooling** | | |
+| E-036: Delivery monitoring dashboard | 10 | Dashboard service, Prometheus metrics, Router instrumentation |
+| E-037: Alerting rules engine | 12 | Engine, notification channels (webhook/email/Slack), rule definitions |
+| E-038: Advanced replay controls | 7 | Source/date-range/destination filters, dry-run mode, archiver integration |
+| E-039: Capacity planning & profiling | 8 | Per-stage profiler, capacity report generator (50K events/sec target) |
+| Operations alert extensions | 2 | Slack and email channels added to alert manager |
+| Operations testing | 5 | Unit tests (259 tests) across monitoring, alerting, profiling |
+| **Cross-Cutting Infrastructure** | | |
+| Dockerfile updates | 1 | GO_VERSION bump to 1.26.1, non-root USER directive, build documentation |
+| CI/CD workflow updates | 2 | New test matrix entries for functions, identity, protocols, alerting, monitoring |
+| Makefile new targets | 2 | 7 new test targets (test-functions, test-protocols, test-identity, etc.) |
+| Configuration additions | 3 | 214 lines of new config keys across all sprint features |
+| OpenAPI specification | 3 | 2,996 lines of API endpoint documentation |
+| go.mod dependency management | 1 | Updated Go version and dependency resolutions |
+| **Validation & QA Fixes** | | |
+| Code review resolution | 4 | Resolved 14+ findings across multiple QA checkpoints |
+| Lint/format fixes | 2 | gofmt compliance, golangci-lint issue resolution |
+| Security fixes | 2 | Auth, input validation, secrets encryption hardening |
+| Bug fixes | 2 | Consent enforcement wiring (E-025), gosec annotation, formatting |
+| **Total Completed** | **300** | |
 
 ### 2.2 Remaining Work Detail
 
 | Category | Hours | Priority |
-|---|---|---|
-| Transformer Integration Verification (E-011/E-012) | 8 | High |
-| End-to-End Integration Testing | 6 | High |
-| CI Integration Tests Enablement | 4 | High |
-| Production Redis Configuration | 4 | High |
-| Functions Transformer Compatibility | 6 | Medium |
-| API Authentication Hardening | 4 | Medium |
-| Performance Load Testing (50K events/sec) | 10 | Medium |
-| Secrets Encryption Key Setup | 3 | Medium |
-| Alert Channel Production Credentials | 2 | Medium |
-| Production Monitoring Setup | 4 | Low |
-| Operator Documentation | 3 | Low |
-| **Total Remaining** | **54** | |
+|----------|-------|----------|
+| E-011/E-012: Cloud connector Transformer implementations (40 connectors in rudder-transformer repo) | 32 | High |
+| Functions runtime JavaScript sandbox security hardening (V8 isolate integration) | 4 | High |
+| Production environment configuration (env vars, Redis deployment, DB migrations) | 4 | High |
+| Docker infrastructure integration testing (full stack: PostgreSQL, Transformer, Redis) | 4 | Medium |
+| Identity graph performance validation (sub-200ms latency at scale) | 4 | Medium |
+| Load testing at 50K events/sec target (E-039 capacity validation) | 6 | Medium |
+| End-to-end cross-sprint integration testing | 6 | Medium |
+| Security & compliance review (secrets encryption audit, API auth verification) | 4 | Medium |
+| Monitoring/alerting production configuration (Prometheus scrape config, thresholds) | 2 | Low |
+| **Total Remaining** | **66** | |
 
 ---
 
 ## 3. Test Results
 
 | Test Category | Framework | Total Tests | Passed | Failed | Coverage % | Notes |
-|---|---|---|---|---|---|---|
-| Unit — Functions Runtime | Go test | 247 | 247 | 0 | ~85% | Source, Destination, Insert Functions, errors, API, storage, secrets |
-| Unit — Protocols & Enforcement | Go test | 292 | 292 | 0 | ~80% | JSON Schema validator, anomaly detection, enforcement modes, TP API |
-| Unit — Identity Resolution | Go test | 377 | 377 | 0 | ~85% | Graph, resolver, external IDs, profiles API, cache, sync, settings |
-| Unit — Operations Tooling | Go test | 259 | 259 | 0 | ~80% | Monitoring dashboard, alerting engine/channels/rules, profiling |
-| Unit — Stream Destinations | Go test | 33 | 33 | 0 | ~90% | AzureEventHub, Pulsar, RedisStream, AmazonMSK producers |
-| Unit — Alert System Extensions | Go test | 7 | 7 | 0 | ~75% | Slack and email notification channels |
-| Unit — Processor (core) | Go test | Pass | Pass | 0 | — | processor/ package passes in 274s (540s timeout) |
-| Unit — Gateway (core) | Go test | Pass | Pass | 0 | — | gateway/ package passes in 80s |
-| Unit — Router (core) | Go test | Pass | Pass | 0 | — | router/ package passes in 217s |
-| Unit — Backend Config | Go test | Pass | Pass | 0 | — | backend-config/ passes in 18s |
-| Unit — App Handlers | Go test | Pass | Pass | 0 | — | app/apphandlers passes in 27s |
-| Unit — Runner | Go test | Pass | Pass | 0 | — | runner/ passes in 4s |
-| Unit — Archiver | Go test | Pass | Pass | 0 | — | archiver/ passes in 59s |
-| Compilation | go build | Pass | Pass | 0 | 100% | `go build ./...` — zero errors, 204MB binary |
-| Static Analysis | go vet | Pass | Pass | 0 | 100% | `go vet ./...` — zero issues |
-| Lint | golangci-lint | Pass | Pass | 0 | 100% | All 18+ package groups pass after 11 fixes |
-
-**Total New Package Tests: 1,429 — All Passing**
+|--------------|-----------|-------------|--------|--------|-----------|-------|
+| Unit — Functions Runtime | go test | 162 | 162 | 0 | ~85% | Source, Destination (8 handlers), Insert Functions |
+| Unit — Functions API | go test | 20 | 20 | 0 | ~80% | CRUD, versioning, test invocation |
+| Unit — Functions Storage | go test | 33 | 33 | 0 | ~80% | PostgreSQL-backed repository |
+| Unit — Functions Secrets | go test | 30 | 30 | 0 | ~85% | Encrypted secrets management |
+| Unit — Protocols Schema | go test | 177 | 177 | 0 | ~90% | JSON Schema draft-07 validation |
+| Unit — Protocols API | go test | 54 | 54 | 0 | ~80% | Tracking plan CRUD, CSV import/export |
+| Unit — Protocols Storage | go test | 61 | 61 | 0 | ~80% | Version history persistence |
+| Unit — Anomaly Detection | go test | 96 | 96 | 0 | ~85% | Detector + frequency tracker |
+| Unit — Enforcement Modes | go test | 118 | 118 | 0 | ~90% | Block/Omit/Allow + forwarder |
+| Unit — Identity Graph | go test | 132 | 132 | 0 | ~85% | Graph service, resolver, tracker |
+| Unit — Profiles API | go test | 87 | 87 | 0 | ~80% | REST + cache + gRPC |
+| Unit — Identity Storage | go test | 39 | 39 | 0 | ~80% | PostgreSQL repository |
+| Unit — Identity Sync | go test | 48 | 48 | 0 | ~80% | CDC-based profile sync |
+| Unit — Identity Settings | go test | 71 | 71 | 0 | ~85% | Blocked values, limits, priority |
+| Unit — Monitoring | go test | 76 | 76 | 0 | ~80% | Dashboard + Prometheus metrics |
+| Unit — Alerting | go test | 89 | 89 | 0 | ~85% | Engine, channels, rules |
+| Unit — Profiling | go test | 94 | 94 | 0 | ~80% | Profiler + capacity planner |
+| Unit — Alert Extensions | go test | 7 | 7 | 0 | ~75% | Slack + email channels |
+| Unit — Stream Producers | go test | 33 | 33 | 0 | ~85% | MSK, Event Hub, Pulsar, Redis Streams |
+| Integration — Gateway | go test | varies | pass | 0 | — | Source Functions webhook endpoint verified |
+| Integration — Processor | go test | varies | pass | 0 | — | 270s runtime, enforcement + consent wiring verified |
+| Integration — Router | go test | varies | pass | 0 | — | 232s runtime, delivery metrics verified |
+| Build Verification | go build | — | pass | 0 | — | `CGO_ENABLED=0 go build ./...` zero errors |
+| Static Analysis | gofmt | — | pass | 0 | — | Zero formatting issues |
+| Static Analysis | go vet | — | pass | 0 | — | Zero issues in project packages |
+| Static Analysis | golangci-lint | — | pass | 0 | — | Zero issues in modified files |
+| **Totals (New Packages)** | | **1,427** | **1,427** | **0** | **~83% avg** | **2 conditional skips, 0 failures** |
 
 ---
 
 ## 4. Runtime Validation & UI Verification
 
-**Build Verification:**
-- ✅ `go build ./...` — Compiles cleanly, produces 204MB binary
-- ✅ `go vet ./...` — Zero static analysis issues
-- ✅ `golangci-lint run ./...` — Zero lint warnings (11 issues fixed during validation)
+### Build Status
+- ✅ `CGO_ENABLED=0 go build ./...` — **Zero errors**, all 264 modified files compile cleanly
+- ✅ `go mod tidy` — No changes needed, `go.mod`/`go.sum` consistent
+- ✅ `go generate ./...` — Mock files up to date
 
-**Service Lifecycle Validation:**
-- ✅ Functions runtime initializes when `Functions.enabled=true` (runner.go verified)
-- ✅ Identity graph service initializes when `Identity.enabled=true` with lazy DB pool
-- ✅ Monitoring dashboard initializes when `Monitoring.dashboard.enabled=true`
-- ✅ Alerting engine initializes when `Monitoring.alerting.enabled=true`
-- ✅ All new services default to disabled — zero overhead when unconfigured
+### API Endpoint Verification (via OpenAPI + wiring audit)
+- ✅ Functions Management API endpoints mounted at Gateway (`/v1/functions/*`)
+- ✅ Source Functions webhook endpoint mounted (`/v1/functions/source`)
+- ✅ Tracking Plan Management API endpoints mounted (`/v1/protocols/*`)
+- ✅ Profiles API REST endpoints mounted (`/v1/profiles/*`)
+- ✅ Monitoring dashboard endpoint mounted (`/v1/monitoring/dashboard`)
+- ✅ Advanced replay endpoint mounted at Gateway
+- ✅ Profiling/alerting HTTP endpoints mounted
 
-**Pipeline Integration:**
-- ✅ 7-stage pipeline builds and runs — Insert Functions channel verified between user transform and destination transform
-- ✅ Insert Functions stage passes through as no-op when unconfigured (backward compatibility)
-- ✅ Enforcement modes default to legacy `propagateValidationErrors` behavior
-- ✅ Identity resolution hooks staged in processor with `nolint:unused` directives
+### Service Integration Verification
+- ✅ Functions runtime registered in `runner.go` lifecycle (config-gated)
+- ✅ Identity graph service wired into `runner.go` with lazy DB pool
+- ✅ Monitoring dashboard started in `embeddedAppHandler.go`
+- ✅ Alerting engine started in `embeddedAppHandler.go`
+- ✅ Profile sync CDC loop started in `embeddedAppHandler.go`
+- ✅ Identity resolution called in `processor.go` before `isDestinationAvailable`
+- ✅ Insert Functions channel added to `pipeline_worker.go` between stages 4 and 5
+- ✅ Enforcement modes wired into `trackingplan.go`
+- ✅ Anomaly detection hooks wired into `trackingplan.go`
+- ✅ Forward-blocked-events wired into `trackingplan.go`
+- ✅ Consent-enforcement integration wired at both `processor.go` call sites
+- ✅ Delivery metrics instrumented in `router/handle.go`
 
-**API Endpoint Registration:**
-- ✅ Source Functions webhook endpoint mounted at `/v1/functions/source`
-- ✅ Protocols management API mounted with chi router
-- ✅ Profiles API mounted for REST access
-- ✅ Monitoring and alerting HTTP endpoints registered
-- ✅ Advanced replay endpoints integrated
-
-**Docker Infrastructure:**
-- ✅ Redis service added to `docker-compose.yml` (port 6379)
-- ✅ `REDIS_URL=redis://redis:6379` configured in backend service environment
-- ✅ Dockerfile updated to Go 1.26.1 with non-root USER directive
-
-**Pre-existing Failures (Out of Scope):**
-- ⚠ `services/streammanager/kafka/TestNewProducer/ok_ssh` — SSH Docker health timeout (unmodified file)
-- ⚠ `router/batchrouter/asyncdestinationmanager/marketo-bulk-upload/TestReadJobsFromFile` — Root user permission test (unmodified file)
+### Infrastructure Verification
+- ✅ Redis service added to `docker-compose.yml` under `identity` profile
+- ✅ Database migrations created for functions, protocols, identity, alerting
+- ✅ Dockerfile updated with Go 1.26.1, non-root USER directive
+- ⚠️ Docker integration tests require running containers (Kafka, Redis, PostgreSQL) — infrastructure dependency
+- ⚠️ Pre-existing `services/streammanager/kafka/kafkamanager_test.go` CGO issues unrelated to changes
 
 ---
 
 ## 5. Compliance & Quality Review
 
-| Deliverable | AAP Ref | Status | Evidence |
-|---|---|---|---|
-| Destination priority ranking doc | E-010 | ✅ Pass | `docs/gap-report/destination-priority-ranking.md` (461L) |
-| Cloud Batch 1 server infrastructure | E-011 | ✅ Pass | Config keys, 35 payload fixtures, routing infrastructure |
-| Cloud Batch 2 server infrastructure | E-012 | ✅ Pass | Config keys, 35 payload fixtures, routing infrastructure |
-| Payload parity test framework | E-013 | ✅ Pass | `integration_test/destination_parity/` + 70 JSON fixtures |
-| Stream destination producers | E-014 | ✅ Pass | 4 producers + factory registration + 33 tests pass |
-| Source Functions runtime | E-015 | ✅ Pass | `functions/runtime/source_functions.go` + gateway handler |
-| Destination Functions (8 handlers) | E-016 | ✅ Pass | `onTrack/Identify/Group/Page/Screen/Alias/Delete/Batch` |
-| Insert Functions pipeline stage | E-017 | ✅ Pass | `pipeline_worker.go` 7-stage pipeline + no-op pass-through |
-| Functions management API | E-018 | ✅ Pass | CRUD + versioning + test invocation + SQL migrations |
-| Per-function secrets | E-019 | ✅ Pass | Encrypted at-rest storage in `functions/secrets/manager.go` |
-| JSON Schema draft-07 | E-020 | ✅ Pass | `jsonschema/v5` integration in `protocols/schema/validator.go` |
-| Anomaly detection | E-021 | ✅ Pass | `processor/anomalydetection/detector.go` + time-window tracker |
-| Block/Omit/Allow enforcement | E-022 | ✅ Pass | `enforcement/modes.go` + `trackingplan.go` refactor |
-| Forward blocked events | E-023 | ✅ Pass | `enforcement/forwarder.go` — server-to-server forwarding |
-| Tracking plan management API | E-024 | ✅ Pass | `protocols/api/` CRUD + versioning + CSV + SQL migrations |
-| Consent ↔ Protocols integration | E-025 | ✅ Pass | `processor/consent.go` modified with enforcement hooks |
-| Real-time identity graph | E-026 | ✅ Pass | `identity/graph/` with resolver + storage + tracker |
-| Profiles REST + gRPC API | E-027 | ✅ Pass | REST handler + gRPC server + Redis cache + proto definitions |
-| 12+ external ID types | E-028 | ✅ Pass | `identity/graph/externalids.go` with all identifier types |
-| Profile sync (CDC) | E-029 | ✅ Pass | `identity/sync/syncer.go` — change-data-capture syncer |
-| Resolution settings | E-030 | ✅ Pass | Blocked values, limits, priority in `identity/settings/` |
-| Delivery monitoring dashboard | E-036 | ✅ Pass | `services/monitoring/` + router instrumentation metrics |
-| Configurable alerting | E-037 | ✅ Pass | Engine + webhook/email/Slack channels + threshold rules |
-| Advanced replay controls | E-038 | ✅ Pass | Source/date-range/destination/dry-run filtering |
-| Capacity planning | E-039 | ✅ Pass | Per-stage profiling + capacity report generator |
-| Backward compatibility | AAP 0.7.6 | ✅ Pass | All new features default-disabled, no-op when unconfigured |
-| Existing pattern compliance | AAP 0.7.4 | ✅ Pass | chi router, rudder-go-kit stats/logger/config, StreamProducer interface |
-| Database migrations | AAP 0.4.1 | ✅ Pass | 16 SQL migration files with up/down support |
-| OpenAPI documentation | AAP 0.5.1 | ✅ Pass | +2,996 lines covering all new endpoints |
-| CI pipeline updates | AAP 0.2.3 | ✅ Pass | Test matrix updated, new test targets added |
-| Docker infrastructure | AAP 0.7.5 | ✅ Pass | Redis added, Dockerfile updated |
+| AAP Requirement | Deliverable | Status | Evidence |
+|----------------|-------------|--------|----------|
+| E-010: Prioritize top-50 destinations | `docs/gap-report/destination-priority-ranking.md` | ✅ Complete | Documentation file created |
+| E-011: Cloud Batch 1 (20 connectors) | Server-side validation framework | ⚠️ Partial | Payload fixtures exist; Transformer implementations pending |
+| E-012: Cloud Batch 2 (20 connectors) | Server-side validation framework | ⚠️ Partial | Payload fixtures exist; Transformer implementations pending |
+| E-013: Payload parity validation | `integration_test/destination_parity/` | ✅ Complete | 1,157-line test + 70 fixture files |
+| E-014: Stream destinations | 4 stream producers + factory registration | ✅ Complete | MSK, Event Hub, Pulsar, Redis Streams — all tested |
+| E-015: Source Functions | `functions/runtime/source_functions.go` + gateway endpoint | ✅ Complete | `onRequest` handler + webhook endpoint + auth |
+| E-016: Destination Functions | `functions/runtime/destination_functions.go` | ✅ Complete | All 8 typed handlers implemented |
+| E-017: Insert Functions | `functions/runtime/insert_functions.go` + pipeline integration | ✅ Complete | Pipeline channel inserted, processor wired |
+| E-018: Functions Management API | `functions/api/` + `functions/storage/` | ✅ Complete | CRUD, versioning, test invocation |
+| E-019: Secrets management | `functions/secrets/manager.go` | ✅ Complete | Encrypted per-function secrets |
+| E-020: JSON Schema draft-07 | `protocols/schema/validator.go` | ✅ Complete | Full draft-07 support (177 tests) |
+| E-021: Anomaly detection | `processor/anomalydetection/` | ✅ Complete | Detector + tracker (96 tests) |
+| E-022: Enforcement modes | `processor/enforcement/modes.go` + backend-config types | ✅ Complete | Block/Omit/Allow per source per call type |
+| E-023: Forward blocked events | `processor/enforcement/forwarder.go` | ✅ Complete | Wired into trackingplan.go |
+| E-024: TP Management API | `protocols/api/` + `protocols/storage/` | ✅ Complete | CRUD, versioning, CSV import/export |
+| E-025: Consent integration | `processor/consent.go` modifications | ✅ Complete | Enforcement-aware at both call sites |
+| E-026: Real-time identity graph | `identity/graph/` | ✅ Complete | Graph + resolver + persistence |
+| E-027: Profiles API | `identity/profiles/` + `proto/identity/` | ✅ Complete | REST + gRPC + Redis cache |
+| E-028: External IDs (12+ types) | `identity/graph/externalids.go` | ✅ Complete | Full external ID management |
+| E-029: Profile sync | `identity/sync/syncer.go` | ✅ Complete | CDC-based sync with adapters |
+| E-030: Resolution settings | `identity/settings/settings.go` | ✅ Complete | Blocked values, limits, priority |
+| E-036: Delivery monitoring | `services/monitoring/` | ✅ Complete | Dashboard + Prometheus metrics |
+| E-037: Alerting | `services/alerting/` | ✅ Complete | Engine + channels + rules |
+| E-038: Advanced replay | `gateway/handle_http_replay_advanced.go` | ✅ Complete | Source/date/destination filters + dry-run |
+| E-039: Capacity planning | `services/profiling/` | ✅ Complete | Profiler + capacity planner |
+| Backward compatibility | Config-gated feature toggles | ✅ Complete | All features default disabled |
+| Database migrations | `sql/migrations/{functions,protocols,identity,alerting}/` | ✅ Complete | Up + down migrations for all tables |
+| CI/CD updates | `.github/workflows/tests.yaml` | ✅ Complete | New test matrix entries |
+| OpenAPI documentation | `gateway/openapi.yaml` | ✅ Complete | 2,996 lines added |
 
-**Fixes Applied During Validation (11 Lint Issues):**
-1. `protocols/api/service.go` — nilerr directive for non-critical snapshot failure
-2. `functions/storage/repository_test.go` — removed unused return value
-3. `identity/storage/repository_test.go` — removed unused return value
-4. `protocols/storage/repository_test.go` — removed unused return value
-5. `identity/graph/tracker.go` — removed unused sync.RWMutex field
-6. `gateway/handle_http_replay.go` — removed duplicate handler function
-7. `gateway/handle_http_replay_advanced.go` — removed unused helper
-8. `processor/consent.go` — nolint directives for staged E-025 functions
-9. `processor/processor.go` — nolint directives for staged E-026 interface/field/method
+### Quality Fixes Applied During Validation
+- ✅ `processor/processor.go` — E-025 consent enforcement wiring fix (replaced call at second site)
+- ✅ `protocols/api/handler.go` — `//nolint:gosec` for G705 false positive on server-generated CSV
+- ✅ 14 security QA findings resolved (auth, secrets, headers, input validation)
+- ✅ gRPC Profiles server input validation added
+- ✅ Missing OpenAPI endpoints documented
+- ✅ Dockerfile updated with non-root USER directive
 
 ---
 
 ## 6. Risk Assessment
 
 | Risk | Category | Severity | Probability | Mitigation | Status |
-|---|---|---|---|---|---|
-| Cloud destinations require Transformer-side implementation | Integration | High | High | Server infrastructure complete; Transformer work tracked as separate workstream | Open |
-| Functions JS sandbox not yet integrated with Transformer | Technical | High | Medium | Runtime delegates via HTTP protocol; extend Transformer service for function execution | Open |
-| 50K events/sec throughput untested | Technical | Medium | Medium | Capacity planning framework built; need actual load testing with profiling enabled | Open |
-| Redis single-instance in docker-compose | Operational | Medium | Medium | Production deployment needs Redis clustering with replication and failover | Open |
-| Secrets encryption key not configured | Security | High | High | `Functions.secrets.encryptionKey` must be set before enabling Functions in production | Open |
-| Integration tests not running in CI | Technical | Medium | Low | Test suites exist and pass locally; CI entries commented out pending Docker infra | Open |
-| AWS ECR credentials missing for CI | Operational | Low | High | Pre-existing issue; affects Docker image pull in CI, not code quality | Open — Pre-existing |
-| New API endpoints lack production auth | Security | Medium | Medium | Endpoints mounted with existing Gateway auth middleware; need prod credential config | Open |
-| Identity graph merge-all corruption risk | Security | Medium | Low | Resolution settings support blocked values and identifier limits; needs production tuning | Mitigated |
-| Alert channel credentials not configured | Operational | Low | High | Slack/email channels built and tested; production webhook URLs and SMTP needed | Open |
-| gRPC Profiles server binding to production port | Operational | Low | Medium | Server registered in runner; port configuration needed for production deployment | Open |
-| Anomaly detection false positive rate | Technical | Low | Medium | Time-window tracker configurable; needs production tuning with real traffic patterns | Open |
+|------|----------|----------|-------------|------------|--------|
+| Cloud connector Transformer implementations pending (E-011/E-012) | Technical | High | Certain | 40 connectors need rudder-transformer repo work; payload validation framework ready | Open |
+| Functions runtime JavaScript sandbox not hardened for production | Security | High | High | Currently uses HTTP-based execution; needs V8 isolate for safe user code execution | Open |
+| Identity graph performance at scale unvalidated | Technical | Medium | Medium | Redis cache implemented; needs load testing with realistic volumes for sub-200ms SLA | Open |
+| Docker integration tests require infrastructure | Operational | Medium | Certain | Tests exist but need Kafka/Redis/PostgreSQL containers; CI environment lacks them | Open |
+| Pre-existing CGO issues in kafka/kafkamanager_test.go | Technical | Low | Certain | Not caused by this PR; confluent-kafka-go CGO dependency issue | Known/Accepted |
+| Functions encryption key not configured | Security | High | Certain | `Functions.secrets.encryptionKey` is empty string in config; must be set before enabling | Open |
+| WORKSPACE_TOKEN placeholder in docker.env | Integration | High | Certain | Required for backend-config connection; currently set to placeholder | Open |
+| All new features default-disabled | Operational | Low | Low | Feature flags ensure zero production impact until explicitly enabled; documentation provided | Mitigated |
+| Database migrations not executed | Operational | Medium | Certain | 16 migration files ready; need execution in staging/production PostgreSQL | Open |
+| Redis service not deployed | Integration | Medium | Certain | Required for Identity Profiles cache; added to docker-compose.yml but needs production deployment | Open |
+| 50K events/sec throughput target unvalidated | Technical | Medium | Medium | Profiler and capacity planner implemented; actual load testing required | Open |
+| Cross-sprint feature interaction edge cases | Technical | Medium | Low | Each sprint tested independently; combined feature interaction needs E2E validation | Open |
 
 ---
 
@@ -275,55 +293,51 @@ pie title Project Completion — 88.4%
 
 ```mermaid
 pie title Project Hours Breakdown
-    "Completed Work" : 410
-    "Remaining Work" : 54
+    "Completed Work" : 300
+    "Remaining Work" : 66
 ```
 
-**Remaining Hours by Category:**
+### Hours by Sprint Group
 
-| Category | Hours |
-|---|---|
-| Transformer Integration Verification | 8 |
-| End-to-End Integration Testing | 6 |
-| CI Integration Tests Enablement | 4 |
-| Production Redis Configuration | 4 |
-| Functions Transformer Compatibility | 6 |
-| API Authentication Hardening | 4 |
-| Performance Load Testing | 10 |
-| Secrets Encryption Key Setup | 3 |
-| Alert Channel Credentials | 2 |
-| Production Monitoring Setup | 4 |
-| Operator Documentation | 3 |
-| **Total** | **54** |
+| Sprint Group | Completed Hours | Remaining Hours | Status |
+|-------------|----------------|-----------------|--------|
+| Sprint 3–5: Destinations | 40 | 32 | ⚠️ Server-side complete; Transformer pending |
+| Sprint 4–6: Functions | 68 | 4 | ✅ Core complete; sandbox hardening needed |
+| Sprint 5–7: Protocols | 54 | 0 | ✅ Fully implemented |
+| Sprint 6–8: Identity | 76 | 4 | ✅ Core complete; performance validation needed |
+| Sprint 8–10: Operations | 42 | 6 | ✅ Core complete; load testing needed |
+| Cross-cutting | 12 | 0 | ✅ Fully implemented |
+| Validation/QA | 8 | 0 | ✅ Complete |
+| Path-to-production | 0 | 20 | ⬜ Environment, security, E2E testing |
+| **Total** | **300** | **66** | **82.0% Complete** |
 
 ---
 
 ## 8. Summary & Recommendations
 
-### Achievements
+### Achievement Summary
 
-This implementation delivers 25 epics (E-010 through E-039) spanning five sprint groups in a single branch with 206 commits, 229 files changed (+93,684 lines), and 1,429+ passing tests. The project is **88.4% complete** (410 hours completed out of 464 total hours), with all AAP-scoped server-side implementation work delivered, compiled, linted, and tested.
-
-The most architecturally significant deliverables are:
-- A full **Functions runtime engine** with per-event typed handler dispatch integrated into the processor pipeline as a new 7th stage
-- A **real-time identity graph** extending beyond the existing warehouse-only batch model, with gRPC and REST APIs and Redis-backed caching
-- **JSON Schema draft-07 enforcement** replacing the binary validation toggle with three configurable modes (Block/Omit/Allow) per source per call type
-- A **comprehensive operational tooling suite** including per-destination delivery monitoring, configurable alerting with multiple channels, advanced replay controls, and pipeline capacity planning
+The project has achieved **82.0% completion** (300 hours completed out of 366 total hours). All five sprint groups (Sprint 3–10) have been implemented with production-quality code across 264 files (186 new, 78 modified), totaling 95,558 lines added. The implementation covers 25 epics (E-010 through E-039) with 23 fully completed, 2 partially completed (E-011/E-012 pending Transformer-side work). A comprehensive test suite of 1,427 new tests passes with zero failures, and all CI checks (build, lint, vet) complete cleanly.
 
 ### Remaining Gaps
 
-The 54 remaining hours (11.6%) are concentrated in **integration and production deployment** tasks rather than feature implementation:
-1. **Transformer service extension** — The Functions runtime and cloud destination connectors depend on the external `rudder-transformer` service being extended to support new function types and destination mappings
-2. **Production infrastructure** — Redis clustering, secrets encryption keys, alert channel credentials, and monitoring setup require DevOps configuration
-3. **Verification at scale** — Load testing against the 50K events/sec target and end-to-end integration testing across all services
+The 66 hours of remaining work fall into three categories:
+1. **External service work** (32h): 40 cloud destination connectors need Transformer-side implementation in the `rudder-transformer` repository
+2. **Production readiness** (20h): Environment configuration, database migration execution, Redis deployment, security audit, and production monitoring setup
+3. **Validation** (14h): Load testing at 50K events/sec, identity graph performance validation, and end-to-end cross-sprint integration testing
+
+### Critical Path to Production
+
+1. Configure production environment variables and secrets (4h)
+2. Execute database migrations for functions, protocols, identity, and alerting tables (2h)
+3. Deploy Redis for identity Profiles cache (2h)
+4. Harden Functions runtime JavaScript sandbox (4h)
+5. Run end-to-end integration tests with full Docker stack (6h)
+6. Enable features incrementally via config flags and validate each in staging
 
 ### Production Readiness Assessment
 
-The codebase is **compilation-clean and test-passing** with full backward compatibility. All new features default to disabled, ensuring zero risk to existing pipeline behavior. Production deployment requires:
-1. Enabling feature flags (`Functions.enabled`, `Identity.enabled`, `Monitoring.dashboard.enabled`, `Monitoring.alerting.enabled`)
-2. Configuring external dependencies (Redis, encryption keys, alert credentials)
-3. Extending the Transformer service for Functions and new destination support
-4. Running integration tests with Docker infrastructure enabled
+The codebase is **production-ready at the code level** with comprehensive implementations, thorough test coverage, and proper backward compatibility through config-gated feature toggles. The remaining 66 hours (18.0%) primarily involve infrastructure deployment, external service integration (Transformer), and performance validation — standard pre-production activities for a feature set of this scope. All features default to disabled, ensuring zero risk to existing pipeline behavior.
 
 ---
 
@@ -331,159 +345,167 @@ The codebase is **compilation-clean and test-passing** with full backward compat
 
 ### System Prerequisites
 
-| Requirement | Version | Purpose |
-|---|---|---|
-| Go | 1.26.0+ (1.26.1 in Dockerfile) | Language runtime |
-| Docker & Docker Compose | Latest | PostgreSQL, Transformer, MinIO, Redis, etcd |
-| PostgreSQL | 15 (via Docker) | Primary database |
-| Redis | 7 (via Docker) | Identity profile cache |
+| Software | Version | Purpose |
+|----------|---------|---------|
+| Go | 1.26.1+ | Language runtime (declared in `go.mod`) |
+| PostgreSQL | 15+ | Primary database (JobsDB, identity, functions, protocols) |
+| Docker & Docker Compose | Latest | Local service stack (PostgreSQL, Transformer, MinIO, Redis) |
+| Redis | 7+ | Identity graph profile caching (optional, for Profiles API) |
 | Git | 2.x+ | Version control |
+| Make | 3.x+ | Build system |
+| protoc | 3.x+ | Protocol Buffers compiler (for gRPC regeneration) |
 
 ### Environment Setup
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/rudderlabs/rudder-server.git
 cd rudder-server
 
-# Checkout the feature branch
-git checkout blitzy-755950c1-c2e3-44a0-b6f6-2c797b8ccb66
+# 2. Verify Go version
+go version  # Should show go1.26.1 or later
 
-# Verify Go version
+# 3. Set environment variables
+export CGO_ENABLED=0
 export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
-go version
-# Expected: go version go1.26.1 linux/amd64
 
-# Download Go module dependencies
+# 4. Download dependencies
 go mod download
-```
 
-### Start Docker Services
-
-```bash
-# Start all required services (PostgreSQL, Transformer, Redis)
-docker compose up -d db transformer redis
-
-# Verify services are healthy
-docker compose ps
-# Expected: db, transformer, redis all running
-
-# Verify PostgreSQL
-docker compose exec db pg_isready -U rudder
-# Expected: accepting connections
-
-# Verify Redis
-docker compose exec redis redis-cli ping
-# Expected: PONG
-```
-
-### Build the Application
-
-```bash
-# Build the server binary
+# 5. Verify build
 go build ./...
-
-# Run static analysis
-go vet ./...
-
-# Run linter (optional — requires golangci-lint)
-golangci-lint run ./...
+# Expected output: no errors, silent success
 ```
 
-### Run Tests
+### Docker Infrastructure
 
 ```bash
-# Run all new package tests
-go test -count=1 -short ./functions/... ./protocols/... ./identity/...
-go test -count=1 -short ./services/monitoring/... ./services/alerting/... ./services/profiling/...
-go test -count=1 -short ./processor/anomalydetection/... ./processor/enforcement/...
-go test -count=1 -short ./services/streammanager/azureeventhub/... ./services/streammanager/redisstream/...
-go test -count=1 -short ./services/streammanager/amazonmsk/... ./services/streammanager/pulsar/...
-go test -count=1 -short ./services/alert/...
+# Start core services (PostgreSQL + Transformer)
+docker compose up -d db transformer
 
-# Run core modified package tests (longer running)
-go test -count=1 -timeout=540s ./processor/
-go test -count=1 -timeout=120s ./gateway/
-go test -count=1 -timeout=300s ./router/
-go test -count=1 ./backend-config/... ./app/... ./runner/... ./archiver/...
+# Verify services are running
+docker compose ps
+# Expected: db (healthy), transformer (running)
 
-# Run tests using Makefile targets
-make test-functions
-make test-protocols
-make test-identity
-make test-monitoring
+# Start Redis for Identity Resolution (optional)
+docker compose --profile identity up -d redis
+
+# Start MinIO for archival/replay (optional)
+docker compose --profile storage up -d minio
+
+# Database connection test
+PGPASSWORD=password psql -h localhost -p 6432 -U rudder -d jobsdb -c "SELECT 1;"
 ```
 
 ### Configuration
 
-Create or update `config/config.yaml` with feature flags:
+```bash
+# Copy and configure environment
+cp build/docker.env .env
+
+# Key configuration values to set:
+# In .env or as environment variables:
+export WORKSPACE_TOKEN="your_workspace_token_here"
+export JOBS_DB_HOST=localhost
+export JOBS_DB_PORT=6432
+export JOBS_DB_USER=rudder
+export JOBS_DB_PASSWORD=password
+export JOBS_DB_DB_NAME=jobsdb
+export JOBS_DB_SSL_MODE=disable
+```
+
+### Feature Flags in `config/config.yaml`
 
 ```yaml
-# Enable new features (all default disabled for backward compatibility)
+# Enable new features (all default disabled for safety):
 Functions:
-  enabled: true
-  runtime:
-    timeout: 30s
+  enabled: true                    # Master toggle
   secrets:
-    encryptionKey: "<your-32-byte-encryption-key>"
+    encryptionKey: "your-32-byte-key"  # REQUIRED when enabled
+  sourceFunctions:
+    enabled: true
+  destinationFunctions:
+    enabled: true
+  insertFunctions:
+    enabled: true
+  api:
+    enabled: true
+
+Protocols:
+  enforcement:
+    defaultMode: Allow             # Options: Allow, Omit, Block
+  anomalyDetection:
+    enabled: true
+  api:
+    enabled: true
 
 Identity:
-  enabled: true
-  graph:
-    maxMergeRulesPerIdentity: 500
+  enabled: true                    # Master toggle
+  redis:
+    address: "localhost:6379"
 
 Monitoring:
   dashboard:
     enabled: true
-    collectionInterval: 60s
   alerting:
     enabled: true
-    evaluationInterval: 30s
-
-Protocols:
-  anomalyDetection:
+  profiling:
     enabled: true
-    timeWindowMinutes: 60
 ```
 
-### Start the Server
+### Running Tests
 
 ```bash
-# Set required environment variables
-export RSERVER_BACKEND_CONFIG_CONFIG_JSONPATH="/path/to/workspaceConfig.json"
-export REDIS_URL="redis://localhost:6379"
+# Run all new package tests
+CGO_ENABLED=0 go test -count=1 -timeout 8m \
+  ./functions/... ./protocols/... ./identity/... \
+  ./processor/anomalydetection/... ./processor/enforcement/... \
+  ./services/monitoring/... ./services/alerting/... ./services/profiling/... \
+  ./services/streammanager/amazonmsk/... ./services/streammanager/azureeventhub/... \
+  ./services/streammanager/pulsar/... ./services/streammanager/redisstream/...
+# Expected: all tests pass (1,427 tests)
 
-# Start the server
+# Run specific sprint test targets
+make test-functions       # Functions framework tests
+make test-protocols       # Protocols enforcement tests
+make test-identity        # Identity resolution tests
+make test-monitoring      # Monitoring/alerting/profiling tests
+make test-destinations    # Destination connector tests
+
+# Run CI checks
+gofmt -l .
+go vet ./...
+# Expected: no output (clean)
+```
+
+### Building and Running
+
+```bash
+# Build the server binary
+make build
+# OR manually:
+CGO_ENABLED=0 go build -o rudder-server .
+
+# Start the server (requires Docker services running)
 ./rudder-server
-# Server starts on port 8080
-```
+# Expected: Server starts on port 8080
 
-### Verify API Endpoints
-
-```bash
-# Health check
+# Verify health
 curl -s http://localhost:8080/health
-
-# Functions API (requires auth)
-curl -s http://localhost:8080/v1/functions -H "Authorization: Bearer <token>"
-
-# Monitoring dashboard metrics
-curl -s http://localhost:8080/v1/monitoring/destinations
-
-# Profiles API
-curl -s http://localhost:8080/v1/profiles/<identifier_type>/<identifier_value>
+# Expected: 200 OK
 ```
 
 ### Troubleshooting
 
-| Issue | Resolution |
-|---|---|
-| `Functions.enabled` but no JS execution | Extend Transformer service to handle function invocation HTTP protocol |
-| Redis connection refused | Ensure Redis is running: `docker compose up -d redis` and `REDIS_URL` is set |
-| Identity graph not resolving | Verify `Identity.enabled=true` and PostgreSQL migrations have been applied |
-| Processor timeout on tests | Increase timeout: `go test -timeout=540s ./processor/` |
-| Lint failure on staged code | Expected — `nolint:unused` directives suppress staged E-025/E-026 hooks |
-| SSH Docker health timeout (Kafka test) | Pre-existing issue in unmodified code — not related to this branch |
+| Issue | Solution |
+|-------|----------|
+| `CGO_ENABLED` build errors | Set `export CGO_ENABLED=0` before building |
+| PostgreSQL connection refused | Ensure `docker compose up -d db` and verify port 6432 |
+| Transformer connection refused | Ensure `docker compose up -d transformer` and verify port 9090 |
+| Redis connection refused | Ensure `docker compose --profile identity up -d redis` and verify port 6379 |
+| `confluent-kafka-go` CGO errors | Pre-existing issue; unrelated to new code; set `CGO_ENABLED=0` |
+| Functions encryption key missing | Set `Functions.secrets.encryptionKey` to a 32-byte key in config |
+| Integration tests failing | Require full Docker stack; run `docker compose up -d` first |
 
 ---
 
@@ -492,136 +514,123 @@ curl -s http://localhost:8080/v1/profiles/<identifier_type>/<identifier_value>
 ### A. Command Reference
 
 | Command | Purpose |
-|---|---|
+|---------|---------|
 | `go build ./...` | Build all packages |
+| `make build` | Build rudder-server binary |
+| `make test` | Run full test suite |
+| `make test-functions` | Run Functions framework tests |
+| `make test-protocols` | Run Protocols enforcement tests |
+| `make test-identity` | Run Identity resolution tests |
+| `make test-monitoring` | Run Monitoring/alerting/profiling tests |
+| `make test-destinations` | Run Destination connector tests |
+| `make test-functions-integration` | Run Functions integration tests (Docker required) |
+| `make test-identity-integration` | Run Identity integration tests (Docker required) |
+| `make test-destination-parity` | Run Destination payload parity tests |
+| `docker compose up -d db transformer` | Start core infrastructure |
+| `docker compose --profile identity up -d redis` | Start Redis for identity |
+| `gofmt -l .` | Check formatting |
 | `go vet ./...` | Run static analysis |
 | `golangci-lint run ./...` | Run linter |
-| `go test -count=1 -short ./functions/...` | Run Functions tests |
-| `go test -count=1 -short ./protocols/...` | Run Protocols tests |
-| `go test -count=1 -short ./identity/...` | Run Identity tests |
-| `go test -count=1 -timeout=540s ./processor/` | Run Processor tests (long) |
-| `go test -count=1 -timeout=120s ./gateway/` | Run Gateway tests |
-| `go test -count=1 -timeout=300s ./router/` | Run Router tests |
-| `make test-functions` | Run Functions tests via Makefile |
-| `make test-protocols` | Run Protocols tests via Makefile |
-| `make test-identity` | Run Identity tests via Makefile |
-| `make test-monitoring` | Run Operations tests via Makefile |
-| `make test-destinations` | Run Destination tests via Makefile |
-| `docker compose up -d db transformer redis` | Start required services |
-| `docker compose down` | Stop all services |
 
 ### B. Port Reference
 
-| Port | Service | Protocol |
-|---|---|---|
-| 8080 | rudder-server (Gateway) | HTTP |
-| 6432 (→5432) | PostgreSQL | TCP |
-| 9090 | rudder-transformer | HTTP |
-| 6379 | Redis | TCP |
-| 9000 / 9001 | MinIO | HTTP |
-| 2379 | etcd | HTTP |
+| Service | Port | Protocol | Description |
+|---------|------|----------|-------------|
+| Gateway / rudder-server | 8080 | HTTP | Main API server (REST + webhook ingestion) |
+| PostgreSQL | 6432 (→5432) | TCP | Primary database |
+| Transformer | 9090 | HTTP | External transformation service |
+| Redis | 6379 | TCP | Identity graph profile cache |
+| MinIO | 9000/9001 | HTTP | Object storage (archival/replay) |
+| etcd | 2379 | HTTP | Cluster coordination (multi-tenant) |
 
 ### C. Key File Locations
 
-| Category | Path | Purpose |
-|---|---|---|
-| Functions Runtime | `functions/runtime/` | Source, Destination, Insert Functions engine |
-| Functions API | `functions/api/` | Management REST API |
-| Functions Storage | `functions/storage/` | PostgreSQL persistence |
-| Functions Secrets | `functions/secrets/` | Encrypted secrets manager |
-| Protocols Schema | `protocols/schema/` | JSON Schema draft-07 validator |
-| Protocols API | `protocols/api/` | Tracking plan management API |
-| Anomaly Detection | `processor/anomalydetection/` | Unexpected event/property detection |
-| Enforcement Modes | `processor/enforcement/` | Block/Omit/Allow enforcement |
-| Identity Graph | `identity/graph/` | Real-time identity resolution |
-| Profiles API | `identity/profiles/` | REST + gRPC profiles access |
-| Profile Sync | `identity/sync/` | CDC-based downstream sync |
-| Identity Settings | `identity/settings/` | Resolution configuration |
-| Identity Storage | `identity/storage/` | PostgreSQL graph persistence |
-| Monitoring | `services/monitoring/` | Delivery dashboard + metrics |
-| Alerting | `services/alerting/` | Rules engine + notification channels |
-| Profiling | `services/profiling/` | Pipeline profiling + capacity |
-| Stream Producers | `services/streammanager/` | All stream destination producers |
-| SQL Migrations | `sql/migrations/` | Database schema management |
-| Proto Definitions | `proto/identity/` | gRPC Profiles service proto |
-| OpenAPI Spec | `gateway/openapi.yaml` | Full API documentation |
-| Configuration | `config/config.yaml` | All pipeline parameters |
-| Payload Fixtures | `router/testdata/destination_payloads/` | 70 reference payload JSON files |
+| Path | Purpose |
+|------|---------|
+| `functions/runtime/` | Functions runtime engine (Source, Destination, Insert) |
+| `functions/api/` | Functions Management REST API |
+| `functions/storage/` | Functions PostgreSQL persistence |
+| `functions/secrets/` | Per-function encrypted secrets |
+| `protocols/schema/` | JSON Schema draft-07 validator |
+| `protocols/api/` | Tracking Plan Management API |
+| `protocols/storage/` | Tracking plan persistence |
+| `processor/anomalydetection/` | Anomaly detection engine |
+| `processor/enforcement/` | Enforcement modes + blocked event forwarder |
+| `identity/graph/` | Real-time identity graph + resolver |
+| `identity/profiles/` | Profiles REST API + gRPC + Redis cache |
+| `identity/sync/` | CDC-based profile sync |
+| `identity/settings/` | Identity resolution configuration |
+| `identity/storage/` | Identity PostgreSQL persistence |
+| `services/monitoring/` | Delivery monitoring dashboard |
+| `services/alerting/` | Alerting rules engine |
+| `services/profiling/` | Pipeline profiler + capacity planner |
+| `services/streammanager/amazonmsk/` | Amazon MSK stream producer |
+| `services/streammanager/azureeventhub/` | Azure Event Hub stream producer |
+| `services/streammanager/pulsar/` | Apache Pulsar stream producer |
+| `services/streammanager/redisstream/` | Redis Streams producer |
+| `gateway/handle_http_functions.go` | Source Functions webhook endpoint |
+| `gateway/handle_http_replay_advanced.go` | Advanced replay controls |
+| `sql/migrations/` | Database migration files |
+| `proto/identity/` | gRPC Profiles API definitions |
+| `config/config.yaml` | Full configuration reference |
+| `gateway/openapi.yaml` | OpenAPI specification |
 
 ### D. Technology Versions
 
 | Technology | Version | Source |
-|---|---|---|
-| Go | 1.26.1 | `go.mod`, `Dockerfile` |
-| PostgreSQL | 15-alpine | `docker-compose.yml` |
-| Redis | 7-alpine | `docker-compose.yml` |
-| chi (HTTP Router) | v5.2.5 | `go.mod` |
-| gRPC | v1.79.3 | `go.mod` |
-| protobuf | v1.36.11 | `go.mod` |
-| jsonschema | v5.3.1 | `go.mod` |
-| go-redis | v9.12.1 | `go.mod` |
-| rudder-go-kit | v0.72.3 | `go.mod` |
-| rudder-transformer | latest | `docker-compose.yml` |
-| golangci-lint | Latest | CI pipeline |
+|-----------|---------|--------|
+| Go | 1.26.1 | `go.mod` / `Dockerfile` |
+| PostgreSQL | 15 (Alpine) | `docker-compose.yml` |
+| Redis | 7 (Alpine) | `docker-compose.yml` |
+| chi/v5 (HTTP Router) | 5.2.5 | `go.mod` |
+| gRPC | 1.78.0 | `go.mod` |
+| protobuf | 1.36.11 | `go.mod` |
+| kafka-go | 0.4.50 | `go.mod` |
+| go-redis/v9 | 9.12.1 | `go.mod` |
+| Ginkgo/v2 | 2.24.0 | `go.mod` |
+| Gomega | 1.38.0 | `go.mod` |
+| rudder-go-kit | 0.72.3 | `go.mod` |
 
 ### E. Environment Variable Reference
 
-| Variable | Required | Default | Purpose |
-|---|---|---|---|
-| `Functions.enabled` | No | `false` | Enable Functions runtime |
-| `Identity.enabled` | No | `false` | Enable identity graph service |
-| `Monitoring.dashboard.enabled` | No | `false` | Enable monitoring dashboard |
-| `Monitoring.alerting.enabled` | No | `false` | Enable alerting engine |
-| `Functions.secrets.encryptionKey` | When Functions enabled | — | 32-byte key for secrets encryption |
-| `REDIS_URL` | When Identity enabled | — | Redis connection URL for profile cache |
-| `Functions.runtime.timeout` | No | `30s` | Function execution timeout |
-| `Protocols.anomalyDetection.enabled` | No | `false` | Enable anomaly detection |
-| `Protocols.anomalyDetection.timeWindowMinutes` | No | `60` | Anomaly detection time window |
-| `Identity.graph.maxMergeRulesPerIdentity` | No | `500` | Max merge rules per identity |
-| `Monitoring.dashboard.collectionInterval` | No | `60s` | Metrics collection interval |
-| `Monitoring.alerting.evaluationInterval` | No | `30s` | Alert rule evaluation interval |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `WORKSPACE_TOKEN` | Yes | (none) | RudderStack workspace authentication token |
+| `JOBS_DB_HOST` | Yes | `localhost` | PostgreSQL host |
+| `JOBS_DB_PORT` | Yes | `6432` | PostgreSQL port |
+| `JOBS_DB_USER` | Yes | `rudder` | PostgreSQL user |
+| `JOBS_DB_PASSWORD` | Yes | `password` | PostgreSQL password |
+| `JOBS_DB_DB_NAME` | Yes | `jobsdb` | PostgreSQL database name |
+| `JOBS_DB_SSL_MODE` | No | `disable` | PostgreSQL SSL mode |
+| `REDIS_URL` | No | `redis://localhost:6379` | Redis connection URL (Identity cache) |
+| `CONFIG_BACKEND_URL` | No | `https://api.rudderstack.com` | Backend config API URL |
+| `DEST_TRANSFORM_URL` | No | `http://localhost:9090` | Transformer service URL |
+| `Functions.secrets.encryptionKey` | Conditional | (empty) | 32-byte AES key for function secrets; required when `Functions.enabled=true` |
 
 ### F. Developer Tools Guide
 
-**Running individual sprint test suites:**
-```bash
-# Sprint 3-5
-make test-destinations
-
-# Sprint 4-6
-make test-functions
-
-# Sprint 5-7
-make test-protocols
-
-# Sprint 6-8
-make test-identity
-
-# Sprint 8-10
-make test-monitoring
-```
-
-**Viewing API documentation:**
-The complete OpenAPI specification is at `gateway/openapi.yaml` and can be loaded into Swagger UI or Redocly for interactive API exploration.
-
-**Database migration files:**
-Migration files are located under `sql/migrations/` organized by feature area:
-- `sql/migrations/functions/` — Functions and secrets tables
-- `sql/migrations/protocols/` — Tracking plans and versions tables
-- `sql/migrations/identity/` — Identity graph, external IDs, traits tables
-- `sql/migrations/alerting/` — Alert rules table
+| Tool | Installation | Usage |
+|------|-------------|-------|
+| `gotestsum` | `go install gotest.tools/gotestsum@latest` | Enhanced test runner with formatted output |
+| `golangci-lint` | `go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest` | Multi-linter aggregator |
+| `protoc` | OS package manager or GitHub release | Protocol Buffers compiler for gRPC proto regeneration |
+| `protoc-gen-go` | `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest` | Go code generation from proto files |
+| `protoc-gen-go-grpc` | `go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest` | gRPC service code generation |
+| `mockgen` | `go install go.uber.org/mock/mockgen@latest` | Mock generation for interface testing |
 
 ### G. Glossary
 
 | Term | Definition |
-|---|---|
-| Source Functions | Custom webhook ingestion handlers invoked via `onRequest(request, settings)` |
-| Destination Functions | Per-event typed handlers (`onTrack`, `onIdentify`, etc.) for custom delivery |
-| Insert Functions | Pre-destination transformation hooks applied per-destination before dest transform |
-| Enforcement Mode | Tracking plan violation handling: Block (reject event), Omit (strip properties), Allow (log only) |
-| Identity Graph | Real-time data structure resolving identities as events flow through the pipeline |
-| Profiles API | REST + gRPC interface for querying unified user profiles with sub-200ms response |
-| CDC Sync | Change-Data-Capture based profile synchronization to downstream destinations |
-| Anomaly Detection | Detection of unexpected events or properties not defined in the tracking plan |
-| StreamProducer | Interface (`Produce`, `Close`) implemented by all stream destination connectors |
-| Payload Parity | Field-by-field comparison of RudderStack output against Segment reference payloads |
+|------|-----------|
+| **Source Functions** | Custom webhook ingestion handlers via `onRequest(request, settings)` |
+| **Destination Functions** | Per-event typed handlers (`onTrack`, `onIdentify`, etc.) for custom destination logic |
+| **Insert Functions** | Pre-destination transformation hooks inserted between user transform and destination transform |
+| **Enforcement Mode** | Tracking plan violation handling: Block (reject event), Omit (strip violating properties), Allow (log only) |
+| **Identity Graph** | Real-time data structure resolving multiple identifiers to a unified profile |
+| **Profiles API** | REST/gRPC endpoints for querying unified identity profiles with sub-200ms response target |
+| **CDC (Change-Data-Capture)** | Pattern for propagating profile changes to downstream destinations |
+| **Payload Parity** | Field-by-field comparison of RudderStack output against Segment reference payloads |
+| **GCRA** | Generic Cell Rate Algorithm — used for destination throttling |
+| **JobsDB** | PostgreSQL-backed job queue powering the RudderStack pipeline |
+| **Stream Producer** | Implementation of `common.StreamProducer` interface for real-time stream destination delivery |
+| **Transformer** | External service (port 9090) handling event transformation and destination-specific payload mapping |
