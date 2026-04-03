@@ -5,10 +5,10 @@
 //
 // Cache Architecture:
 //
-//	1. GetProfile checks Redis for a cached profile
-//	2. On miss, the caller fetches from the identity graph via storage
-//	3. SetProfile populates the cache for future requests
-//	4. InvalidateProfile removes stale data when the identity graph is updated
+//  1. GetProfile checks Redis for a cached profile
+//  2. On miss, the caller fetches from the identity graph via storage
+//  3. SetProfile populates the cache for future requests
+//  4. InvalidateProfile removes stale data when the identity graph is updated
 //
 // Thread Safety:
 //

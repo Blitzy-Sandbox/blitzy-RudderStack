@@ -14,8 +14,8 @@ import (
 
 	"github.com/rudderlabs/rudder-go-kit/awsutil"
 	"github.com/rudderlabs/rudder-go-kit/config"
-	kafkaclient "github.com/rudderlabs/rudder-go-kit/kafkaclient"
 	"github.com/rudderlabs/rudder-go-kit/jsonrs"
+	kafkaclient "github.com/rudderlabs/rudder-go-kit/kafkaclient"
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	obskit "github.com/rudderlabs/rudder-observability-kit/go/labels"
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"

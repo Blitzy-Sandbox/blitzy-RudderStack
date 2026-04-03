@@ -149,8 +149,8 @@ func (lw *latencyWindow) size() int {
 // ---------------------------------------------------------------------------
 
 type internalDestinationState struct {
-	metrics  DestinationMetrics
-	latency  *latencyWindow
+	metrics   DestinationMetrics
+	latency   *latencyWindow
 	prevTotal int64 // previous (success + failure) used for throughput delta
 }
 

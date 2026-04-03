@@ -74,6 +74,10 @@ type Service interface {
 	// Stop gracefully stops the service and releases held resources.
 	// Used by runner/runner.go for graceful shutdown.
 	Stop()
+
+	// SetChangeEmitter sets a callback invoked after each successful identity
+	// resolution to emit CDC events (E-029). When nil, change emission is disabled.
+	SetChangeEmitter(fn ChangeEmitter)
 }
 
 // graphStats tracks performance and behaviour metrics for the identity graph service.
@@ -93,6 +97,15 @@ type graphStats struct {
 // When nil, cache invalidation is skipped (no-op).
 type CacheInvalidator func(ctx context.Context, segmentID int64) error
 
+// ChangeEmitter is a callback function type for emitting CDC events to the identity
+// sync subsystem (E-029). When a segment is created, merged, or updated during
+// ProcessEvent, the emitter publishes the segmentID and workspaceID so the Syncer
+// can propagate the profile to downstream destinations.
+//
+// The runner wires this callback at startup using identity/sync.ChannelChangeListener.Emit.
+// When nil, change emission is skipped (no-op).
+type ChangeEmitter func(segmentID int64, workspaceID string, strategy ResolutionStrategy, mergedIDs []int64)
+
 // IdentityGraph implements the Service interface for real-time identity resolution.
 // It is the core service that manages the identity graph, coordinating between
 // the Resolver (resolution logic), storage.Repository (persistence), and
@@ -110,6 +123,7 @@ type IdentityGraph struct {
 	logger           logger.Logger
 	stats            graphStats
 	cacheInvalidator CacheInvalidator
+	changeEmitter    ChangeEmitter
 }
 
 // SetCacheInvalidator sets the callback used to invalidate cached profile data
@@ -119,6 +133,16 @@ func (g *IdentityGraph) SetCacheInvalidator(fn CacheInvalidator) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.cacheInvalidator = fn
+}
+
+// SetChangeEmitter sets the callback used to emit CDC events to the identity
+// sync subsystem (E-029). The emitter is called after each successful ProcessEvent
+// resolution, enabling the Syncer to propagate profile updates to downstream
+// destinations in real-time.
+func (g *IdentityGraph) SetChangeEmitter(fn ChangeEmitter) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.changeEmitter = fn
 }
 
 // New creates a new IdentityGraph service.
@@ -319,6 +343,16 @@ func (g *IdentityGraph) ProcessEvent(ctx context.Context, workspaceID string, ev
 	// Step 5: Invalidate cached profile data for all affected segments.
 	// This ensures the Profiles API serves fresh data after identity graph mutations.
 	g.invalidateAffectedSegments(ctx, result)
+
+	// Step 5.5: Emit CDC event for identity sync (E-029).
+	// The change emitter notifies the Syncer that a segment was created/updated/merged,
+	// enabling real-time profile propagation to downstream destinations.
+	g.mu.RLock()
+	emitter := g.changeEmitter
+	g.mu.RUnlock()
+	if emitter != nil && result.SegmentID > 0 {
+		emitter(result.SegmentID, workspaceID, result.Strategy, result.MergedSegmentIDs)
+	}
 
 	// Step 6: Record success metrics.
 	if g.stats.eventsProcessed != nil {

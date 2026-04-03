@@ -697,13 +697,13 @@ func testIdempotentSynapse(t *testing.T) {
 		// to UCS-2 via str2ucs2, and truncates at byte level.
 
 		type diacriticTestCase struct {
-			name              string
-			input             string
-			varcharLength     int
-			expectDiacritics  bool
-			expectedType      string // "string" or "bytes"
-			expectedOutput    any
-			description       string
+			name             string
+			input            string
+			varcharLength    int
+			expectDiacritics bool
+			expectedType     string // "string" or "bytes"
+			expectedOutput   any
+			description      string
 		}
 
 		testCases := []diacriticTestCase{

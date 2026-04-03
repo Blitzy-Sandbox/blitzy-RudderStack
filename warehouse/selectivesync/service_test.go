@@ -79,8 +79,8 @@ func TestSelectiveSyncService_IsTableExcluded(t *testing.T) {
 		repo := &mockSelectiveSyncRepo{
 			getFn: func(_ context.Context, _, _ string) (*selectivesync.SelectiveSyncConfig, error) {
 				return &selectivesync.SelectiveSyncConfig{
-					SourceID:      sourceID,
-					DestinationID: destID,
+					SourceID:       sourceID,
+					DestinationID:  destID,
 					ExcludedTables: []string{"users", "tracks"},
 				}, nil
 			},
@@ -95,8 +95,8 @@ func TestSelectiveSyncService_IsTableExcluded(t *testing.T) {
 		repo := &mockSelectiveSyncRepo{
 			getFn: func(_ context.Context, _, _ string) (*selectivesync.SelectiveSyncConfig, error) {
 				return &selectivesync.SelectiveSyncConfig{
-					SourceID:      sourceID,
-					DestinationID: destID,
+					SourceID:       sourceID,
+					DestinationID:  destID,
 					ExcludedTables: []string{"users", "tracks"},
 				}, nil
 			},

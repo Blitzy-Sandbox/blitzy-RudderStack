@@ -119,7 +119,7 @@ func (m *BaseSchemaMapper) MapToSegmentSpec(event Event) ([]SegmentEvent, error)
 		AnonymousID:       anonymousID,
 		Context:           buildContext(m.SourceType),
 		Timestamp:         now.Format(time.RFC3339),
-		OriginalTimestamp:  originalTimestamp.Format(time.RFC3339),
+		OriginalTimestamp: originalTimestamp.Format(time.RFC3339),
 		SentAt:            now.Format(time.RFC3339),
 		Integrations:      map[string]interface{}{"All": true},
 	}

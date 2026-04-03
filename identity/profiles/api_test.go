@@ -32,15 +32,15 @@ type mockGraphService struct {
 	profiles map[int64]*storage.ProfileData
 
 	// Error injection hooks — set these to non-nil to simulate errors.
-	getProfileDataErr       error
+	getProfileDataErr        error
 	getSegmentIdentifiersErr error
-	getSegmentTraitsErr     error
-	healthErr               error
+	getSegmentTraitsErr      error
+	healthErr                error
 
 	// Call tracking
-	getProfileDataCalls       int
+	getProfileDataCalls        int
 	getSegmentIdentifiersCalls int
-	getSegmentTraitsCalls     int
+	getSegmentTraitsCalls      int
 }
 
 func newMockGraphService() *mockGraphService {
@@ -101,6 +101,8 @@ func (m *mockGraphService) Run(_ context.Context) error { return nil }
 
 // Stop is a no-op implementation of graph.Service.Stop for the test mock.
 func (m *mockGraphService) Stop() {}
+
+func (m *mockGraphService) SetChangeEmitter(_ graph.ChangeEmitter) {}
 
 // mockCache implements the ProfileCache interface with an in-memory store.
 // It supports hit/miss tracking and error injection hooks.
@@ -902,4 +904,3 @@ func TestMockCache_InterfaceCompliance(t *testing.T) {
 var (
 	_ ProfileCache = (*mockCache)(nil)
 )
-

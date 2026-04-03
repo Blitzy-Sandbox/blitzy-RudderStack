@@ -14,8 +14,8 @@ import (
 
 	kitctx "github.com/rudderlabs/rudder-go-kit/context"
 
-	_ "github.com/rudderlabs/rudder-server/functions/runtime"  // E-015/E-016/E-017: Functions runtime init registration
-	_ "github.com/rudderlabs/rudder-server/identity/graph"     // E-026: Identity graph service init registration
+	_ "github.com/rudderlabs/rudder-server/functions/runtime" // E-015/E-016/E-017: Functions runtime init registration
+	_ "github.com/rudderlabs/rudder-server/identity/graph"    // E-026: Identity graph service init registration
 	"github.com/rudderlabs/rudder-server/runner"
 )
 

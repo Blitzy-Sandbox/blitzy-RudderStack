@@ -111,7 +111,7 @@ func GetWindowDuration(window string) time.Duration {
 // Sourced from refs/segment-docs/src/unify/identity-resolution/identity-resolution-settings.md
 func DefaultBlockedValues() []BlockedValueRule {
 	return []BlockedValueRule{
-		{Type: "regex", Value: "^[0-]*$"},  // Zeroes and Dashes
+		{Type: "regex", Value: "^[0-]*$"},   // Zeroes and Dashes
 		{Type: "exact", Value: "-1"},        // Sentinel value
 		{Type: "exact", Value: "null"},      // Null string
 		{Type: "exact", Value: "anonymous"}, // Generic anonymous

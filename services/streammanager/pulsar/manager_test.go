@@ -25,13 +25,13 @@ var (
 // mockMessageID is a minimal implementation of pulsarclient.MessageID for test assertions.
 type mockMessageID struct{}
 
-func (mockMessageID) Serialize() []byte    { return []byte("mock") }
-func (mockMessageID) LedgerID() int64      { return 0 }
-func (mockMessageID) EntryID() int64       { return 0 }
-func (mockMessageID) BatchIdx() int32      { return 0 }
-func (mockMessageID) PartitionIdx() int32  { return 0 }
-func (mockMessageID) BatchSize() int32     { return 0 }
-func (mockMessageID) String() string       { return "mock-message-id" }
+func (mockMessageID) Serialize() []byte   { return []byte("mock") }
+func (mockMessageID) LedgerID() int64     { return 0 }
+func (mockMessageID) EntryID() int64      { return 0 }
+func (mockMessageID) BatchIdx() int32     { return 0 }
+func (mockMessageID) PartitionIdx() int32 { return 0 }
+func (mockMessageID) BatchSize() int32    { return 0 }
+func (mockMessageID) String() string      { return "mock-message-id" }
 
 // mockPulsarSender is a manual mock implementing the PulsarSender interface
 // defined in manager.go. It allows injecting custom Send and Close behavior

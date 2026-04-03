@@ -779,13 +779,13 @@ var _ = stats.NOP
 // ---------------------------------------------------------------------------
 
 type sfTestCredentials struct {
-	Account   string `json:"account"`
-	User      string `json:"user"`
-	Role      string `json:"role"`
-	Password  string `json:"password"`
-	Database  string `json:"database"`
-	Warehouse string `json:"warehouse"`
-	BucketName string `json:"bucketName"`
+	Account     string `json:"account"`
+	User        string `json:"user"`
+	Role        string `json:"role"`
+	Password    string `json:"password"`
+	Database    string `json:"database"`
+	Warehouse   string `json:"warehouse"`
+	BucketName  string `json:"bucketName"`
 	AccessKeyID string `json:"accessKeyID"`
 	AccessKey   string `json:"accessKey"`
 }

@@ -316,8 +316,9 @@ func (s *Syncer) Start(ctx context.Context) error {
 
 	s.running = true
 
-	// Launch background sync loop.
-	go s.syncLoop(syncCtx, eventCh)
+	// Launch background sync loop. syncCtx is derived from the caller's ctx via
+	// WithCancel above; cancel is stored in s.cancel and called in Stop().
+	go s.syncLoop(syncCtx, eventCh) //nolint:gosec // G118: syncCtx is request-scoped (derived from ctx); cancel stored in s.cancel
 
 	s.logger.Infon("Identity sync started",
 		logger.NewIntField("batchSize", int64(s.batchSize)),

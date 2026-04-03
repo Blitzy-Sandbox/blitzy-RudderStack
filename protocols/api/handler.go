@@ -191,7 +191,7 @@ type UpdateTrackingPlanRequest struct {
 	Name              string          `json:"name,omitempty"`
 	Schema            json.RawMessage `json:"schema,omitempty"`
 	EnforcementConfig json.RawMessage `json:"enforcement_config,omitempty"`
-	Changelog         string `json:"changelog,omitempty"` // Human-readable description of changes for version history
+	Changelog         string          `json:"changelog,omitempty"` // Human-readable description of changes for version history
 }
 
 // TrackingPlanResponse represents a tracking plan in API responses.
@@ -659,7 +659,7 @@ func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	// Write the CSV data to the response body.
-	if _, err := w.Write(csvData); err != nil {
+	if _, err := w.Write(csvData); err != nil { //nolint:gosec // CSV data is server-generated, not user-tainted
 		h.log.Errorn("failed to write CSV response", obskit.Error(err))
 	}
 }

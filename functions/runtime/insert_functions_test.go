@@ -530,6 +530,6 @@ func TestExecuteInsertFunction_SettingsPassedThrough(t *testing.T) {
 	require.NotNil(t, result)
 
 	// Verify merged settings were received by the Transformer
-	require.Equal(t, "base_value", receivedSettings["base_key"])                        // From FunctionDef.Settings
+	require.Equal(t, "base_value", receivedSettings["base_key"])                       // From FunctionDef.Settings
 	require.Equal(t, "https://enrich.example.com", receivedSettings["enrichment_api"]) // From call-level settings
 }

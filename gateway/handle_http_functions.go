@@ -26,10 +26,10 @@ import (
 // persisted in the jobs database. This prevents credentials, session tokens,
 // and authentication headers from leaking into event storage.
 var sensitiveHeaders = map[string]struct{}{
-	"Authorization":   {},
-	"Cookie":          {},
-	"Set-Cookie":      {},
-	"X-Functions-Token": {},
+	"Authorization":       {},
+	"Cookie":              {},
+	"Set-Cookie":          {},
+	"X-Functions-Token":   {},
 	"Proxy-Authorization": {},
 }
 

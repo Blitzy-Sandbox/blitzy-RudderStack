@@ -90,7 +90,7 @@ func TestCreateSegment_Success(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO " + tableIdentityGraph)).
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO "+tableIdentityGraph)).
 		WithArgs("ws-001", sqlmock.AnyArg(), sqlmock.AnyArg()). // workspace_id, segment_id (uuid), created_at
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(100)))
 
@@ -104,7 +104,7 @@ func TestCreateSegment_DBError(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO " + tableIdentityGraph)).
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO "+tableIdentityGraph)).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnError(errors.New("disk full"))
 
@@ -218,7 +218,7 @@ func TestGetSegmentByWorkspace_DBError(t *testing.T) {
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta(
-		"SELECT id, workspace_id, segment_id, created_at FROM " + tableIdentityGraph,
+		"SELECT id, workspace_id, segment_id, created_at FROM "+tableIdentityGraph,
 	)).
 		WithArgs("ws-001", 10, 0).
 		WillReturnError(errors.New("connection lost"))
@@ -246,7 +246,7 @@ func TestAddExternalID_Success(t *testing.T) {
 		CreatedSource:   "identify",
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO " + tableIdentityExternalIDs)).
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO "+tableIdentityExternalIDs)).
 		WithArgs(eid.GraphID, eid.WorkspaceID, eid.ExternalIDType, eid.ExternalIDValue, eid.CreatedSource, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(200)))
 
@@ -268,7 +268,7 @@ func TestAddExternalID_DBError(t *testing.T) {
 		CreatedSource:   "identify",
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO " + tableIdentityExternalIDs)).
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO "+tableIdentityExternalIDs)).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnError(errors.New("unique constraint violation"))
 
@@ -411,7 +411,7 @@ func TestSetTrait_Success(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO " + tableIdentityTraits)).
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO "+tableIdentityTraits)).
 		WithArgs(int64(100), "email", "user@example.com", sqlmock.AnyArg()). // graph_id, key, value, updated_at
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -426,7 +426,7 @@ func TestSetTrait_UpsertExisting(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO " + tableIdentityTraits)).
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO "+tableIdentityTraits)).
 		WithArgs(int64(100), "name", "Updated Name", sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 1)) // 1 row affected (updated)
 
@@ -439,7 +439,7 @@ func TestSetTrait_DBError(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO " + tableIdentityTraits)).
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO "+tableIdentityTraits)).
 		WithArgs(int64(100), "key", "val", sqlmock.AnyArg()).
 		WillReturnError(errors.New("constraint error"))
 

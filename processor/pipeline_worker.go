@@ -25,8 +25,9 @@ func newPipelineWorker(index int, partition string, h workerHandle, t *tracing.T
 		partition: partition,
 	}
 
-	// Initialize lifecycle context
-	w.lifecycle.ctx, w.lifecycle.cancel = context.WithCancel(context.Background())
+	// Initialize lifecycle context — cancel is stored in w.lifecycle.cancel and
+	// called during shutdown at w.lifecycle.cancel() in the Stop method.
+	w.lifecycle.ctx, w.lifecycle.cancel = context.WithCancel(context.Background()) //nolint:gosec // G118: cancel stored in struct and called in Stop()
 
 	bufSize := h.config().pipelineBufferedItems
 	w.channel.preprocess = make(chan subJob, bufSize)

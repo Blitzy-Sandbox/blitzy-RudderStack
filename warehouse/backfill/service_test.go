@@ -33,13 +33,13 @@ import (
 // interface. Each function field controls the return value of the corresponding
 // repository method, enabling isolated tests for every service code path.
 type mockBackfillRepo struct {
-	createFn              func(ctx context.Context, job backfill.BackfillJob) (int64, error)
-	getFn                 func(ctx context.Context, id int64) (backfill.BackfillJob, error)
-	updateStatusFn        func(ctx context.Context, id int64, status string) error
-	listBySourceFn        func(ctx context.Context, sourceID string) ([]backfill.BackfillJob, error)
-	getActiveCountFn      func(ctx context.Context) (int64, error)
-	createIfUnderLimitFn  func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error)
-	listActiveJobsFn      func(ctx context.Context) ([]backfill.BackfillJob, error)
+	createFn             func(ctx context.Context, job backfill.BackfillJob) (int64, error)
+	getFn                func(ctx context.Context, id int64) (backfill.BackfillJob, error)
+	updateStatusFn       func(ctx context.Context, id int64, status string) error
+	listBySourceFn       func(ctx context.Context, sourceID string) ([]backfill.BackfillJob, error)
+	getActiveCountFn     func(ctx context.Context) (int64, error)
+	createIfUnderLimitFn func(ctx context.Context, job backfill.BackfillJob, maxConcurrent int) (int64, error)
+	listActiveJobsFn     func(ctx context.Context) ([]backfill.BackfillJob, error)
 }
 
 func (m *mockBackfillRepo) Create(ctx context.Context, job backfill.BackfillJob) (int64, error) {

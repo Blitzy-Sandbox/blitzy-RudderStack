@@ -69,17 +69,17 @@ func Routes(h *Handler) chi.Router {
 	//
 	// Routes are registered WITHOUT the "/v1/functions" prefix — that prefix
 	// is applied when the Gateway mounts this router via srvMux.Mount().
-	r.Post("/", h.createFunction)       // POST /v1/functions — Create
-	r.Get("/", h.listFunctions)         // GET /v1/functions — List
-	r.Get("/{id}", h.getFunction)       // GET /v1/functions/{id} — Read
-	r.Put("/{id}", h.updateFunction)    // PUT /v1/functions/{id} — Update
-	r.Delete("/{id}", h.deleteFunction) // DELETE /v1/functions/{id} — Delete
+	r.Post("/", h.createFunction)        // POST /v1/functions — Create
+	r.Get("/", h.listFunctions)          // GET /v1/functions — List
+	r.Get("/{id}", h.getFunction)        // GET /v1/functions/{id} — Read
+	r.Put("/{id}", h.updateFunction)     // PUT /v1/functions/{id} — Update
+	r.Delete("/{id}", h.deleteFunction)  // DELETE /v1/functions/{id} — Delete
 	r.Post("/{id}/test", h.testFunction) // POST /v1/functions/{id}/test — Test invoke
 
 	// Secrets management (E-019)
-	r.Put("/{id}/secrets", h.setSecret)          // PUT /v1/functions/{id}/secrets — Set secret
-	r.Get("/{id}/secrets", h.getAllSecrets)       // GET /v1/functions/{id}/secrets — List all secrets
-	r.Get("/{id}/secrets/{key}", h.getSecret)     // GET /v1/functions/{id}/secrets/{key} — Get secret
+	r.Put("/{id}/secrets", h.setSecret)             // PUT /v1/functions/{id}/secrets — Set secret
+	r.Get("/{id}/secrets", h.getAllSecrets)         // GET /v1/functions/{id}/secrets — List all secrets
+	r.Get("/{id}/secrets/{key}", h.getSecret)       // GET /v1/functions/{id}/secrets/{key} — Get secret
 	r.Delete("/{id}/secrets/{key}", h.deleteSecret) // DELETE /v1/functions/{id}/secrets/{key} — Delete secret
 
 	return r

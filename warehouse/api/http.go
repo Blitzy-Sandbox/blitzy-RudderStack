@@ -112,10 +112,10 @@ type Api struct {
 	triggerStore  *sync.Map
 
 	// Sprint 7-9 feature handlers — nil-safe; routes are only registered when non-nil.
-	backfillH      backfillHandler       // E-032: Backfill API
-	healthMonitorH healthMonitorHandler  // E-033: Health Monitoring API
-	selectiveSyncH selectiveSyncHandler  // E-034: Selective Sync API
-	replayH        replayHandler         // E-035: Warehouse Replay API
+	backfillH      backfillHandler      // E-032: Backfill API
+	healthMonitorH healthMonitorHandler // E-033: Health Monitoring API
+	selectiveSyncH selectiveSyncHandler // E-034: Selective Sync API
+	replayH        replayHandler        // E-035: Warehouse Replay API
 
 	config struct {
 		healthTimeout       time.Duration

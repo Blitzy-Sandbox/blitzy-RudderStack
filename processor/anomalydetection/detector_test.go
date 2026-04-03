@@ -279,11 +279,11 @@ func TestDetector_Observe_MultipleUnknownEvents(t *testing.T) {
 	d.UpdateSchemas(sampleSchemas())
 
 	events := []types.TransformerEvent{
-		makeTrackEvent("Order Completed", nil, "tp-001"),   // known
-		makeTrackEvent("Checkout Started", nil, "tp-001"),  // unknown
-		makeTrackEvent("Product Viewed", nil, "tp-001"),    // known
-		makeTrackEvent("Coupon Applied", nil, "tp-001"),    // unknown
-		makeTrackEvent("Payment Failed", nil, "tp-001"),    // unknown
+		makeTrackEvent("Order Completed", nil, "tp-001"),  // known
+		makeTrackEvent("Checkout Started", nil, "tp-001"), // unknown
+		makeTrackEvent("Product Viewed", nil, "tp-001"),   // known
+		makeTrackEvent("Coupon Applied", nil, "tp-001"),   // unknown
+		makeTrackEvent("Payment Failed", nil, "tp-001"),   // unknown
 	}
 	d.Observe("source-1", events, emptyResponse())
 
@@ -345,11 +345,11 @@ func TestDetector_Observe_MultipleUnexpectedProperties(t *testing.T) {
 
 	events := []types.TransformerEvent{
 		makeTrackEvent("Order Completed", map[string]any{
-			"orderId":  "123",          // expected
-			"total":    99.99,          // expected
-			"discount": 10.0,           // unexpected
-			"coupon":   "SAVE10",       // unexpected
-			"referrer": "google.com",   // unexpected
+			"orderId":  "123",        // expected
+			"total":    99.99,        // expected
+			"discount": 10.0,         // unexpected
+			"coupon":   "SAVE10",     // unexpected
+			"referrer": "google.com", // unexpected
 		}, "tp-001"),
 	}
 	d.Observe("source-1", events, emptyResponse())

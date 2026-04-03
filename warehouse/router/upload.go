@@ -235,7 +235,7 @@ func (f *UploadJobFactory) NewUploadJob(ctx context.Context, dto *model.UploadJo
 		warehouse:            dto.Warehouse,
 		stagingFiles:         dto.StagingFiles,
 		selectiveSyncSvc:     f.selectiveSyncSvc, // E-034: propagate selective sync predicates
-		healthMonitor:        f.healthMonitor,     // E-033: propagate health monitor
+		healthMonitor:        f.healthMonitor,    // E-033: propagate health monitor
 
 		pendingTableUploadsRepo: repo.NewUploads(f.db, repo.WithStats(f.statsFactory)),
 		pendingTableUploads:     []model.PendingTableUpload{},

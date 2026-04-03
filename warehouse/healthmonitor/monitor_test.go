@@ -99,24 +99,24 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 		// Set up mock rows for GetHealthSummary.
 		// The query uses "since = r.now().Add(-24 * time.Hour)" as the parameter.
 		rows := sqlmock.NewRows(healthSummaryColumns()).AddRow(
-			"source-1",        // source_id
-			"dest-1",          // destination_id
-			"SNOWFLAKE",       // dest_type
-			"web",             // source_type
-			"workspace-1",     // workspace_id
-			"Source One",      // source_name
-			"Dest One",        // dest_name
-			int64(100),        // total_syncs
-			int64(95),         // successful_syncs
-			float64(5000),     // avg_duration_ms
-			float64(1000),     // min_duration_ms
-			float64(10000),    // max_duration_ms
-			float64(9500),     // p95_duration_ms
-			int64(50000),      // total_rows_synced
-			int64(100),        // total_rows_failed
-			fixedNow,          // last_sync
+			"source-1",         // source_id
+			"dest-1",           // destination_id
+			"SNOWFLAKE",        // dest_type
+			"web",              // source_type
+			"workspace-1",      // workspace_id
+			"Source One",       // source_name
+			"Dest One",         // dest_name
+			int64(100),         // total_syncs
+			int64(95),          // successful_syncs
+			float64(5000),      // avg_duration_ms
+			float64(1000),      // min_duration_ms
+			float64(10000),     // max_duration_ms
+			float64(9500),      // p95_duration_ms
+			int64(50000),       // total_rows_synced
+			int64(100),         // total_rows_failed
+			fixedNow,           // last_sync
 			"permission_error", // error_category
-			int64(2),          // schema_changes_count
+			int64(2),           // schema_changes_count
 		)
 		mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
@@ -238,24 +238,24 @@ func TestHealthMonitor_CollectMetrics(t *testing.T) {
 
 		// 20% error rate: 80 successful out of 100
 		rows := sqlmock.NewRows(healthSummaryColumns()).AddRow(
-			"source-2",        // source_id
-			"dest-2",          // destination_id
-			"BQ",              // dest_type
-			"android",         // source_type
-			"workspace-2",     // workspace_id
-			"Source Two",      // source_name
-			"Dest Two",        // dest_name
-			int64(100),        // total_syncs
-			int64(80),         // successful_syncs (20% failure)
-			float64(3000),     // avg_duration_ms
-			float64(500),      // min_duration_ms
-			float64(8000),     // max_duration_ms
-			float64(7500),     // p95_duration_ms
-			int64(30000),      // total_rows_synced
-			int64(200),        // total_rows_failed
-			fixedNow,          // last_sync
-			"",                // error_category
-			int64(0),          // schema_changes_count
+			"source-2",    // source_id
+			"dest-2",      // destination_id
+			"BQ",          // dest_type
+			"android",     // source_type
+			"workspace-2", // workspace_id
+			"Source Two",  // source_name
+			"Dest Two",    // dest_name
+			int64(100),    // total_syncs
+			int64(80),     // successful_syncs (20% failure)
+			float64(3000), // avg_duration_ms
+			float64(500),  // min_duration_ms
+			float64(8000), // max_duration_ms
+			float64(7500), // p95_duration_ms
+			int64(30000),  // total_rows_synced
+			int64(200),    // total_rows_failed
+			fixedNow,      // last_sync
+			"",            // error_category
+			int64(0),      // schema_changes_count
 		)
 		mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
@@ -458,24 +458,24 @@ func TestHealthMonitor_Run_PeriodicCollection(t *testing.T) {
 		// Each cycle: 1 GetHealthSummary query + 1 PurgeOldRecords exec.
 		for i := 0; i < 3; i++ {
 			summaryRows := sqlmock.NewRows(healthSummaryColumns()).AddRow(
-				"src-periodic",    // source_id
-				"dst-periodic",    // destination_id
-				"RS",              // dest_type
-				"ios",             // source_type
-				"ws-periodic",     // workspace_id
-				"Periodic Src",    // source_name
-				"Periodic Dst",    // dest_name
-				int64(10),         // total_syncs
-				int64(10),         // successful_syncs
-				float64(2000),     // avg_duration_ms
-				float64(1000),     // min_duration_ms
-				float64(3000),     // max_duration_ms
-				float64(2900),     // p95_duration_ms
-				int64(5000),       // total_rows_synced
-				int64(0),          // total_rows_failed
-				fixedNow,          // last_sync
-				"",                // error_category
-				int64(0),          // schema_changes_count
+				"src-periodic", // source_id
+				"dst-periodic", // destination_id
+				"RS",           // dest_type
+				"ios",          // source_type
+				"ws-periodic",  // workspace_id
+				"Periodic Src", // source_name
+				"Periodic Dst", // dest_name
+				int64(10),      // total_syncs
+				int64(10),      // successful_syncs
+				float64(2000),  // avg_duration_ms
+				float64(1000),  // min_duration_ms
+				float64(3000),  // max_duration_ms
+				float64(2900),  // p95_duration_ms
+				int64(5000),    // total_rows_synced
+				int64(0),       // total_rows_failed
+				fixedNow,       // last_sync
+				"",             // error_category
+				int64(0),       // schema_changes_count
 			)
 			mock.ExpectQuery("SELECT").WillReturnRows(summaryRows)
 

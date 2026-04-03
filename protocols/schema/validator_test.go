@@ -1393,7 +1393,7 @@ func Test_Validate_UnicodeProperties(t *testing.T) {
 
 	t.Run("unicode_property_names_valid", func(t *testing.T) {
 		event := map[string]any{
-			"名前":   "太郎",
+			"名前":  "太郎",
 			"メール": "taro@example.com",
 		}
 		errs, err := schema.Validate(schemaJSON, event)

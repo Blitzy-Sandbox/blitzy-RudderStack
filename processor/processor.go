@@ -36,6 +36,7 @@ import (
 	"github.com/rudderlabs/rudder-server/internal/enricher"
 	"github.com/rudderlabs/rudder-server/jobsdb"
 	"github.com/rudderlabs/rudder-server/processor/delayed"
+	"github.com/rudderlabs/rudder-server/processor/enforcement"
 	"github.com/rudderlabs/rudder-server/processor/eventfilter"
 	"github.com/rudderlabs/rudder-server/processor/integrations"
 	"github.com/rudderlabs/rudder-server/processor/internal/preprocessdelay"
@@ -121,9 +122,35 @@ type enforcementForwarder interface {
 // It resolves user identity as events flow through the pipeline, extending beyond the
 // batch-only warehouse identity resolution to support real-time identity graph updates.
 //
-//nolint:unused // E-026: injected when identity graph service is started
+// E-026: injected when identity graph service is started
 type identityResolver interface {
 	ResolveIdentity(ctx context.Context, event types.TransformerEvent) error
+}
+
+// insertFunctionExecutor executes Insert Functions against individual events (E-017).
+// The executor marshals the event to JSON, delegates execution to the functions runtime,
+// and returns the (possibly transformed) event payload or a drop signal.
+type insertFunctionExecutor interface {
+	ExecuteInsertFunction(ctx context.Context, fn *insertFunctionDef, event json.RawMessage, settings map[string]string) (*insertFunctionResult, error)
+}
+
+// insertFunctionDef is a local mirror of functions/runtime.FunctionDef used to avoid
+// a direct import cycle between processor and functions/runtime. Fields are populated
+// from the backend-config FunctionBinding data and the functions management store.
+type insertFunctionDef struct {
+	ID          string
+	WorkspaceID string
+	Name        string
+	Code        string
+	Version     int
+	Type        string
+	Settings    map[string]string
+}
+
+// insertFunctionResult mirrors functions/runtime.InsertFunctionResult.
+type insertFunctionResult struct {
+	Event   json.RawMessage
+	Dropped bool
 }
 
 // Handle is a handle to the processor module
@@ -228,6 +255,10 @@ type Handle struct {
 	// When false, the Insert Functions pipeline stage is a no-op pass-through.
 	functionsEnabled bool
 
+	// insertFnExecutor executes Insert Functions for the pipeline stage (E-017).
+	// When nil, the Insert Functions stage passes events through unchanged.
+	insertFnExecutor insertFunctionExecutor
+
 	// anomalyDetector detects unexpected events/properties not in the tracking plan (E-021).
 	// When nil, anomaly detection is disabled and no observation occurs.
 	anomalyDetector anomalyDetector
@@ -238,7 +269,7 @@ type Handle struct {
 
 	// identityResolver hooks real-time identity resolution into event processing (E-026).
 	// When nil, real-time identity resolution is disabled and events pass through unchanged.
-	identityResolver identityResolver //nolint:unused // E-026: set when identity service is injected
+	identityResolver identityResolver // E-026: set when identity service is injected
 }
 type processorStats struct {
 	statGatewayDBR                func(partition string) stats.Measurement
@@ -2109,6 +2140,20 @@ func (proc *Handle) preprocessStage(partition string, subJobs subJob, delay time
 			}
 		}
 		// REPORTING - GATEWAY metrics - END
+
+		// E-026: Resolve identity BEFORE the destination availability check.
+		// Sources with no destinations should still get identity resolved, since
+		// identity resolution enriches the identity graph regardless of downstream routing.
+		if proc.identityResolver != nil {
+			identityEvent := types.TransformerEvent{
+				Message:  event.singularEvent,
+				Metadata: *singularEventMetadata,
+			}
+			proc.resolveIdentity(proc.backgroundCtx, &identityEvent)
+			// Apply any enrichments the resolver may have made to the event message
+			event.singularEvent = identityEvent.Message
+		}
+
 		// Getting all the destinations which are enabled for this event.
 		// Event will be dropped if no valid destination is present
 		// if empty destinationID is passed in this fn all the destinations for the source are validated
@@ -2347,16 +2392,25 @@ func (proc *Handle) pretransformStage(partition string, preTrans *preTransformat
 			workspaceLibraries := proc.getWorkspaceLibraries(workspaceID)
 
 			for _, destType := range enabledDestTypes {
-				enabledDestinationsList := proc.getConsentFilteredDestinations(
+				// E-025: Use enforcement-aware consent filtering when an enforcement mode
+				// is configured via tracking plan config, otherwise fall back to the
+				// standard consent filter for full backward compatibility.
+				candidateDests := lo.Filter(proc.getEnabledDestinations(sourceId, destType), func(item backendconfig.DestinationT, index int) bool {
+					destId := preTrans.jobIDToSpecificDestMapOnly[event.Metadata.JobID]
+					if destId != "" {
+						return destId == item.ID
+					}
+					return destId == ""
+				})
+				enfMode := enforcement.ResolveModeFromConfig(
+					event.Metadata.MergedTpConfig,
+					event.Metadata.EventType,
+				)
+				enabledDestinationsList, _ := proc.getConsentFilteredDestinationsWithEnforcement(
 					singularEvent,
 					sourceId,
-					lo.Filter(proc.getEnabledDestinations(sourceId, destType), func(item backendconfig.DestinationT, index int) bool {
-						destId := preTrans.jobIDToSpecificDestMapOnly[event.Metadata.JobID]
-						if destId != "" {
-							return destId == item.ID
-						}
-						return destId == ""
-					}),
+					candidateDests,
+					enfMode,
 				)
 
 				// Adding a singular event multiple times if there are multiple destinations of same type
@@ -3911,7 +3965,9 @@ func (proc *Handle) isDestinationAvailable(event types.SingularEventT, sourceId,
 		return false
 	}
 
-	if enabledDestinationsList := lo.Filter(proc.getConsentFilteredDestinations(
+	// Use enforcement-aware consent filtering (E-025). Passing empty enforcement mode
+	// delegates to the original getConsentFilteredDestinations for full backward compatibility.
+	consentFiltered, _ := proc.getConsentFilteredDestinationsWithEnforcement(
 		event,
 		sourceId,
 		lo.Flatten(
@@ -3922,7 +3978,9 @@ func (proc *Handle) isDestinationAvailable(event types.SingularEventT, sourceId,
 				},
 			),
 		),
-	), func(dest backendconfig.DestinationT, index int) bool {
+		"", // empty enforcement mode falls back to legacy consent filter
+	)
+	if enabledDestinationsList := lo.Filter(consentFiltered, func(dest backendconfig.DestinationT, index int) bool {
 		return len(destinationID) == 0 || dest.ID == destinationID
 	}); len(enabledDestinationsList) == 0 {
 		proc.logger.Debugn("No destination to route this event to")
@@ -4066,6 +4124,95 @@ func (proc *Handle) insertFunctionsStage(partition string, data *userTransformDa
 	// Insert Functions execution is delegated to the Functions runtime when it has been
 	// initialized and registered with the processor. Events pass through unchanged when
 	// the runtime has not been initialized, preserving backward compatibility.
+	if proc.insertFnExecutor == nil {
+		return data
+	}
+
+	// Execute insert functions for each event in each output batch.
+	// For each event with an active insert-type function binding, marshal the
+	// SingularEventT (map[string]any) to json.RawMessage, execute the function,
+	// and unmarshal the result back into the event. Dropped events are removed
+	// from the batch.
+	for key, output := range data.userTransformAndFilterOutputs {
+		var kept []types.TransformerEvent
+		for i := range output.eventsToTransform {
+			event := output.eventsToTransform[i]
+			dest := &event.Destination
+
+			// Find the active insert function binding for this destination.
+			var activeBinding *backendconfig.FunctionBinding
+			for bi := range dest.FunctionBindings {
+				b := &dest.FunctionBindings[bi]
+				if b.FunctionType == "insert" && b.Enabled {
+					activeBinding = b
+					break
+				}
+			}
+
+			if activeBinding == nil {
+				// No insert function — pass through unchanged.
+				kept = append(kept, event)
+				continue
+			}
+
+			// Marshal the SingularEventT (map[string]any) to json.RawMessage
+			// for the functions runtime which expects JSON bytes.
+			eventJSON, marshalErr := jsonrs.Marshal(event.Message)
+			if marshalErr != nil {
+				proc.logger.Errorn("Failed to marshal event for insert function",
+					obskit.Error(marshalErr),
+					logger.NewStringField("functionId", activeBinding.FunctionID),
+				)
+				// On marshal error, pass event through unchanged to avoid data loss.
+				kept = append(kept, event)
+				continue
+			}
+
+			fnDef := &insertFunctionDef{
+				ID:          activeBinding.FunctionID,
+				WorkspaceID: event.Metadata.WorkspaceID,
+				Type:        "insert",
+			}
+
+			result, execErr := proc.insertFnExecutor.ExecuteInsertFunction(
+				context.TODO(), fnDef, json.RawMessage(eventJSON), nil,
+			)
+			if execErr != nil {
+				proc.logger.Errorn("Insert function execution failed",
+					obskit.Error(execErr),
+					logger.NewStringField("functionId", activeBinding.FunctionID),
+				)
+				// On execution error, pass event through unchanged to avoid data loss.
+				kept = append(kept, event)
+				continue
+			}
+
+			// If the insert function dropped the event, remove it from the pipeline.
+			if result.Dropped {
+				continue
+			}
+
+			// Unmarshal the (possibly transformed) result back into SingularEventT.
+			if len(result.Event) > 0 {
+				var transformed types.SingularEventT
+				if unmarshalErr := jsonrs.Unmarshal(result.Event, &transformed); unmarshalErr != nil {
+					proc.logger.Errorn("Failed to unmarshal insert function result",
+						obskit.Error(unmarshalErr),
+						logger.NewStringField("functionId", activeBinding.FunctionID),
+					)
+					// On unmarshal error, pass original event through.
+					kept = append(kept, event)
+					continue
+				}
+				event.Message = transformed
+			}
+			kept = append(kept, event)
+		}
+		updatedOutput := output
+		updatedOutput.eventsToTransform = kept
+		data.userTransformAndFilterOutputs[key] = updatedOutput
+	}
+
 	return data
 }
 
@@ -4073,8 +4220,6 @@ func (proc *Handle) insertFunctionsStage(partition string, data *userTransformDa
 // When identity resolution is not enabled (identityResolver is nil), this is a no-op.
 // The resolver updates the real-time identity graph as events flow through the pipeline,
 // extending beyond the batch-only warehouse identity resolution model.
-//
-//nolint:unused // E-026: called in pipeline once identity resolver is injected
 func (proc *Handle) resolveIdentity(ctx context.Context, event *types.TransformerEvent) {
 	if proc.identityResolver == nil {
 		return

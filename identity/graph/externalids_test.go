@@ -498,8 +498,8 @@ func TestFilterBlockedExternalIDs(t *testing.T) {
 	require.Nil(t, err, "SetIdentifierConfig should not error")
 
 	identifiers := []IdentifierPair{
-		{Type: "user_id", Value: "null"},       // blocked: exact match "null"
-		{Type: "user_id", Value: "valid-user"}, // not blocked
+		{Type: "user_id", Value: "null"},         // blocked: exact match "null"
+		{Type: "user_id", Value: "valid-user"},   // not blocked
 		{Type: "anonymous_id", Value: "000-000"}, // not blocked (no rules for anonymous_id)
 	}
 
@@ -548,7 +548,7 @@ func TestFilterBlockedExternalIDs_RegexBlocking(t *testing.T) {
 	require.Nil(t, err)
 
 	identifiers := []IdentifierPair{
-		{Type: "user_id", Value: "000-000"},     // blocked by regex
+		{Type: "user_id", Value: "000-000"},      // blocked by regex
 		{Type: "user_id", Value: "0000"},         // blocked by regex
 		{Type: "user_id", Value: "real-user-42"}, // not blocked
 	}

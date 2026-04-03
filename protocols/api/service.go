@@ -330,9 +330,9 @@ func csvToJSONSchema(data []byte) ([]byte, error) {
 
 	// Build JSON Schema.
 	type jsonSchemaEvent struct {
-		Type       string              `json:"type"`
-		Properties map[string]any      `json:"properties"`
-		Required   []string            `json:"required,omitempty"`
+		Type       string         `json:"type"`
+		Properties map[string]any `json:"properties"`
+		Required   []string       `json:"required,omitempty"`
 	}
 	schema := map[string]any{
 		"$schema": "http://json-schema.org/draft-07/schema#",

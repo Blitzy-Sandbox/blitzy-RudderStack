@@ -31,9 +31,9 @@ import (
 // enabling -race detection. Error injection hooks allow simulating storage failures.
 type mockRepository struct {
 	mu             sync.Mutex
-	segments       map[int64]*storage.GraphSegment  // primary key ID → segment
-	externalIDs    map[int64][]storage.ExternalID    // graphID → external IDs
-	traits         map[int64][]storage.Trait          // graphID → traits
+	segments       map[int64]*storage.GraphSegment // primary key ID → segment
+	externalIDs    map[int64][]storage.ExternalID  // graphID → external IDs
+	traits         map[int64][]storage.Trait       // graphID → traits
 	nextSegmentID  int64
 	nextExternalID int64
 	nextTraitID    int64
@@ -795,7 +795,7 @@ func TestResolver_BlockedValueSkipped(t *testing.T) {
 
 	result, err := r.Resolve(ctx, workspaceID, []IdentifierPair{
 		{Type: "user_id", Value: "null"},         // blocked — should be filtered out
-		{Type: "email", Value: "real@email.com"},  // not blocked — should be used
+		{Type: "email", Value: "real@email.com"}, // not blocked — should be used
 	})
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -888,9 +888,9 @@ func TestResolver_IdentifierLimitEnforced(t *testing.T) {
 	// Resolve: anon-1 triggers single match, attempt to add anon-4 (blocked by limit)
 	// and user-new (allowed, different type).
 	result, err := r.Resolve(ctx, workspaceID, []IdentifierPair{
-		{Type: "anonymous_id", Value: "anon-1"},  // existing — triggers single match
-		{Type: "anonymous_id", Value: "anon-4"},  // new but limit reached → rejected
-		{Type: "user_id", Value: "user-new"},      // new, different type → added
+		{Type: "anonymous_id", Value: "anon-1"}, // existing — triggers single match
+		{Type: "anonymous_id", Value: "anon-4"}, // new but limit reached → rejected
+		{Type: "user_id", Value: "user-new"},    // new, different type → added
 	})
 	require.NoError(t, err)
 	require.NotNil(t, result)

@@ -465,7 +465,7 @@ func Test_CommonSchema_RichValidEvent(t *testing.T) {
 		"userId":            "user-rich-42",
 		"event":             "Product Viewed",
 		"channel":           "web",
-		"originalTimestamp":  "2024-06-15T14:29:59.999Z",
+		"originalTimestamp": "2024-06-15T14:29:59.999Z",
 		"sentAt":            "2024-06-15T14:30:00.050Z",
 		"receivedAt":        "2024-06-15T14:30:00.200Z",
 		"context": map[string]any{
@@ -630,8 +630,8 @@ func Test_CommonSchema_MultipleViolations(t *testing.T) {
 	// not just the first one encountered.
 	event := map[string]any{
 		// Missing messageId (required)
-		"type":      42,          // wrong type (should be string/enum)
-		"timestamp": "not-a-ts",  // invalid format
+		"type":      42,         // wrong type (should be string/enum)
+		"timestamp": "not-a-ts", // invalid format
 	}
 
 	errs, err := schema.Validate(schema.CommonEventSchema, event)

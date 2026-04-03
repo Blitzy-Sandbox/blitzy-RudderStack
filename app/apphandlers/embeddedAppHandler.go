@@ -30,6 +30,7 @@ import (
 	identitygraph "github.com/rudderlabs/rudder-server/identity/graph"
 	identityprofiles "github.com/rudderlabs/rudder-server/identity/profiles"
 	identitystorage "github.com/rudderlabs/rudder-server/identity/storage"
+	identitysync "github.com/rudderlabs/rudder-server/identity/sync"
 	drain_config "github.com/rudderlabs/rudder-server/internal/drain-config"
 	"github.com/rudderlabs/rudder-server/internal/pulsar"
 	"github.com/rudderlabs/rudder-server/jobsdb"
@@ -42,10 +43,10 @@ import (
 	routerManager "github.com/rudderlabs/rudder-server/router/manager"
 	rtThrottler "github.com/rudderlabs/rudder-server/router/throttler"
 	schema_forwarder "github.com/rudderlabs/rudder-server/schema-forwarder"
+	"github.com/rudderlabs/rudder-server/services/alerting"
 	destinationdebugger "github.com/rudderlabs/rudder-server/services/debugger/destination"
 	sourcedebugger "github.com/rudderlabs/rudder-server/services/debugger/source"
 	transformationdebugger "github.com/rudderlabs/rudder-server/services/debugger/transformation"
-	"github.com/rudderlabs/rudder-server/services/alerting"
 	"github.com/rudderlabs/rudder-server/services/fileuploader"
 	"github.com/rudderlabs/rudder-server/services/monitoring"
 	"github.com/rudderlabs/rudder-server/services/profiling"
@@ -493,6 +494,63 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 		if grpcErr != nil {
 			a.log.Warnn("Failed to create profiles gRPC server — gRPC Profiles API will not be available", obskit.Error(grpcErr))
 			profilesGRPCSrv = nil
+		}
+
+		// Wire Identity Sync CDC loop (E-029). Starts the profile synchronization
+		// background loop that monitors the identity graph for changes and propagates
+		// profile updates to downstream destinations using change-data-capture patterns.
+		{
+			syncLog := a.log.Child("identity-sync")
+
+			// Create the ChannelChangeListener — the graph service emits CDC events
+			// into this listener after each successful identity resolution.
+			changeListener := identitysync.NewChannelChangeListener(
+				config.GetInt("Identity.Sync.ChangeBufferSize", 10000),
+				syncLog,
+			)
+
+			// Wire the change emitter callback into the graph service so that
+			// ProcessEvent publishes CDC events to the listener.
+			graphSvc.SetChangeEmitter(func(segmentID int64, workspaceID string, strategy identitygraph.ResolutionStrategy, mergedIDs []int64) {
+				ct := identitysync.ChangeTypeTraitUpdate // default
+				switch strategy {
+				case identitygraph.StrategyNewMatch:
+					ct = identitysync.ChangeTypeNewSegment
+				case identitygraph.StrategyMultiMatch:
+					ct = identitysync.ChangeTypeMerge
+				case identitygraph.StrategySingleMatch:
+					ct = identitysync.ChangeTypeTraitUpdate
+				}
+				changeListener.Emit(identitysync.ChangeEvent{
+					Type:             ct,
+					SegmentID:        segmentID,
+					WorkspaceID:      workspaceID,
+					MergedSegmentIDs: mergedIDs,
+					Timestamp:        time.Now(),
+				})
+			})
+
+			// Adapt graph service as ProfileAssembler and create log-based sender.
+			assembler := identitysync.NewFuncProfileAssembler(graphSvc.GetProfileData)
+			sender := identitysync.NewLogDestinationSender(syncLog)
+
+			syncer, syncErr := identitysync.New(changeListener, assembler, sender, config, syncLog, statsFactory)
+			if syncErr != nil {
+				a.log.Warnn("Failed to create identity syncer — CDC sync will not be available", obskit.Error(syncErr))
+			} else {
+				if startErr := syncer.Start(ctx); startErr != nil {
+					a.log.Warnn("Failed to start identity sync CDC loop", obskit.Error(startErr))
+				} else {
+					a.log.Infon("Identity sync CDC loop started (E-029)")
+					// Register shutdown hook: stop the syncer when the context is cancelled.
+					go func() {
+						<-ctx.Done()
+						if stopErr := syncer.Stop(); stopErr != nil {
+							a.log.Warnn("Error stopping identity sync CDC loop", obskit.Error(stopErr))
+						}
+					}()
+				}
+			}
 		}
 	}
 

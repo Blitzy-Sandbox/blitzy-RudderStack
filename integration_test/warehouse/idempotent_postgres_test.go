@@ -20,8 +20,8 @@ import (
 
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
 	"github.com/rudderlabs/rudder-server/utils/misc"
-	pgconnector "github.com/rudderlabs/rudder-server/warehouse/integrations/postgres"
 	sqlmiddleware "github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
+	pgconnector "github.com/rudderlabs/rudder-server/warehouse/integrations/postgres"
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )
 

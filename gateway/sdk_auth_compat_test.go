@@ -280,7 +280,7 @@ func TestWriteKeyBasicAuthCompatibility(t *testing.T) {
 			expectedBody:   response.NoWriteKeyInBasicAuth + "\n",
 		},
 		{
-			name: "Invalid write key not registered",
+			name:           "Invalid write key not registered",
 			setupWriteKeys: map[string]backendconfig.SourceT{},
 			buildRequest: func() *http.Request {
 				return newBasicAuthRequest("nonexistent-write-key", "")

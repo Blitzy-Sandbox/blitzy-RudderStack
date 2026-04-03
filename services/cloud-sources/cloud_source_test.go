@@ -47,10 +47,10 @@ func (m *mockPoller) GetCursor() string                       { return m.cursor 
 
 // mockWebhookReceiver is a minimal WebhookReceiver implementation for testing.
 type mockWebhookReceiver struct {
-	validateResult bool
-	validateErr    error
+	validateResult  bool
+	validateErr     error
 	transformResult []SegmentEvent
-	transformErr   error
+	transformErr    error
 }
 
 func (m *mockWebhookReceiver) Validate(_ *http.Request) (bool, error) {
@@ -481,7 +481,7 @@ func TestCloudSourceConfig(t *testing.T) {
 		cfg := WebhookConfig{
 			URL:               "https://gateway.example.com/v1/webhook",
 			HMACSecret:        "whsec_test_secret_synthetic_only",
-			SignatureHeader:    "X-Webhook-Signature",
+			SignatureHeader:   "X-Webhook-Signature",
 			ValidateSignature: true,
 		}
 		require.Equal(t, "https://gateway.example.com/v1/webhook", cfg.URL)
@@ -550,7 +550,7 @@ func TestCloudSourceConfig(t *testing.T) {
 			Webhook: WebhookConfig{
 				URL:               "https://gateway.example.com/v1/webhook/stripe",
 				HMACSecret:        "whsec_test_secret_synthetic",
-				SignatureHeader:    "Stripe-Signature",
+				SignatureHeader:   "Stripe-Signature",
 				ValidateSignature: true,
 			},
 		}
@@ -589,7 +589,7 @@ func TestCloudSourceConfig(t *testing.T) {
 			Enabled:     true,
 			Webhook: WebhookConfig{
 				URL:               "https://example.com/webhook",
-				SignatureHeader:    "X-Test-Sig",
+				SignatureHeader:   "X-Test-Sig",
 				ValidateSignature: true,
 			},
 		}
@@ -851,7 +851,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		mapper := NewBaseSchemaMapper("test")
 		receiver := NewBaseWebhookReceiver(WebhookConfig{
 			HMACSecret:        testSecret,
-			SignatureHeader:    "X-Webhook-Signature",
+			SignatureHeader:   "X-Webhook-Signature",
 			ValidateSignature: true,
 		}, "test", mapper, logger.NOP)
 
@@ -866,7 +866,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		mapper := NewBaseSchemaMapper("test")
 		receiver := NewBaseWebhookReceiver(WebhookConfig{
 			HMACSecret:        testSecret,
-			SignatureHeader:    "X-Webhook-Signature",
+			SignatureHeader:   "X-Webhook-Signature",
 			ValidateSignature: true,
 		}, "test", mapper, logger.NOP)
 
@@ -881,7 +881,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		mapper := NewBaseSchemaMapper("test")
 		receiver := NewBaseWebhookReceiver(WebhookConfig{
 			HMACSecret:        testSecret,
-			SignatureHeader:    "X-Webhook-Signature",
+			SignatureHeader:   "X-Webhook-Signature",
 			ValidateSignature: true,
 		}, "test", mapper, logger.NOP)
 
@@ -895,7 +895,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		mapper := NewBaseSchemaMapper("test")
 		receiver := NewBaseWebhookReceiver(WebhookConfig{
 			HMACSecret:        testSecret,
-			SignatureHeader:    "X-Webhook-Signature",
+			SignatureHeader:   "X-Webhook-Signature",
 			ValidateSignature: true,
 		}, "test", mapper, logger.NOP)
 
@@ -914,7 +914,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		mapper := NewBaseSchemaMapper("test")
 		receiver := NewBaseWebhookReceiver(WebhookConfig{
 			HMACSecret:        testSecret,
-			SignatureHeader:    "X-Webhook-Signature",
+			SignatureHeader:   "X-Webhook-Signature",
 			ValidateSignature: true,
 		}, "test", mapper, logger.NOP)
 
@@ -931,7 +931,7 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		mapper := NewBaseSchemaMapper("test")
 		receiver := NewBaseWebhookReceiver(WebhookConfig{
 			HMACSecret:        "", // No secret = skip validation
-			SignatureHeader:    "X-Webhook-Signature",
+			SignatureHeader:   "X-Webhook-Signature",
 			ValidateSignature: true,
 		}, "test", mapper, logger.NOP)
 
@@ -987,8 +987,8 @@ func TestBaseWebhookReceiver(t *testing.T) {
 		}, "stripe", mapper, logger.NOP)
 
 		payload := map[string]interface{}{
-			"id":   "evt-replay-001",
-			"type": "payment.created",
+			"id":     "evt-replay-001",
+			"type":   "payment.created",
 			"amount": float64(500),
 		}
 		payloadBytes, err := jsonrs.Marshal(payload)
@@ -1058,8 +1058,8 @@ func TestSchemaMapper(t *testing.T) {
 			SourceType: "stripe",
 			Timestamp:  time.Now(),
 			Data: map[string]interface{}{
-				"amount":   float64(2500),
-				"currency": "usd",
+				"amount":      float64(2500),
+				"currency":    "usd",
 				"customer_id": "cus_synthetic_001",
 			},
 			UserID: "user-001",

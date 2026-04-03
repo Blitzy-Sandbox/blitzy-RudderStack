@@ -74,9 +74,9 @@ type errorResponse struct {
 func TestHandler_UpdateSelectiveSync(t *testing.T) {
 	// A valid request body reused (or overridden) in many subtests.
 	validReq := selectivesync.SelectiveSyncRequest{
-		SourceID:      "test_source_id",
-		DestinationID: "test_destination_id",
-		WorkspaceID:   "test_workspace_id",
+		SourceID:       "test_source_id",
+		DestinationID:  "test_destination_id",
+		WorkspaceID:    "test_workspace_id",
 		ExcludedTables: []string{"users", "events"},
 		ExcludedColumns: map[string][]string{
 			"tracks": {"ip", "user_agent"},
@@ -325,10 +325,10 @@ func TestHandler_GetSelectiveSync(t *testing.T) {
 			mockSvc: &mockSelectiveSyncService{
 				getConfigFn: func(_ context.Context, sourceID, destID string) (*selectivesync.SelectiveSyncConfig, error) {
 					return &selectivesync.SelectiveSyncConfig{
-						ID:            1,
-						SourceID:      sourceID,
-						DestinationID: destID,
-						WorkspaceID:   "test_workspace_id",
+						ID:             1,
+						SourceID:       sourceID,
+						DestinationID:  destID,
+						WorkspaceID:    "test_workspace_id",
 						ExcludedTables: []string{"users", "events"},
 						ExcludedColumns: map[string][]string{
 							"tracks": {"ip", "user_agent"},
@@ -338,10 +338,10 @@ func TestHandler_GetSelectiveSync(t *testing.T) {
 			},
 			wantStatus: http.StatusOK,
 			wantConfig: &selectivesync.SelectiveSyncConfig{
-				ID:            1,
-				SourceID:      "src123",
-				DestinationID: "dest456",
-				WorkspaceID:   "test_workspace_id",
+				ID:             1,
+				SourceID:       "src123",
+				DestinationID:  "dest456",
+				WorkspaceID:    "test_workspace_id",
 				ExcludedTables: []string{"users", "events"},
 				ExcludedColumns: map[string][]string{
 					"tracks": {"ip", "user_agent"},

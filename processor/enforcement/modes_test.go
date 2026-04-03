@@ -280,7 +280,7 @@ func TestResolveModeFromConfig_AllCallTypesOverrides(t *testing.T) {
 	for _, callType := range enforcement.SupportedCallTypes {
 		t.Run(callType, func(t *testing.T) {
 			config := map[string]any{
-				"enforcementMode":                     "allow",
+				"enforcementMode":             "allow",
 				"enforcementMode_" + callType: "block",
 			}
 			resolved := enforcement.ResolveModeFromConfig(config, callType)
@@ -358,11 +358,11 @@ func TestEmptyMode_DefaultBehavior(t *testing.T) {
 // test of all behavioral helper functions across all modes and the empty mode.
 func TestBehavioralProperties_TableDriven(t *testing.T) {
 	tests := []struct {
-		name            string
-		mode            enforcement.Mode
-		shouldReject    bool
-		shouldStrip     bool
-		shouldLog       bool
+		name         string
+		mode         enforcement.Mode
+		shouldReject bool
+		shouldStrip  bool
+		shouldLog    bool
 	}{
 		{"ModeBlock", enforcement.ModeBlock, true, false, true},
 		{"ModeOmit", enforcement.ModeOmit, false, true, true},
@@ -478,9 +478,9 @@ func TestResolveMode_TableDriven(t *testing.T) {
 			expectedMode: enforcement.ModeOmit,
 		},
 		{
-			name:       "empty map override falls back to global",
-			globalMode: enforcement.ModeBlock,
-			perCallType: map[string]enforcement.Mode{},
+			name:         "empty map override falls back to global",
+			globalMode:   enforcement.ModeBlock,
+			perCallType:  map[string]enforcement.Mode{},
 			eventType:    "track",
 			expectedMode: enforcement.ModeBlock,
 		},

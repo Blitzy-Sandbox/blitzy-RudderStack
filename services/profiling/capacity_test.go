@@ -25,7 +25,7 @@ type failWriter struct {
 }
 
 func (fw *failWriter) Header() http.Header        { return fw.header }
-func (fw *failWriter) WriteHeader(statusCode int)  { fw.code = statusCode }
+func (fw *failWriter) WriteHeader(statusCode int) { fw.code = statusCode }
 func (fw *failWriter) Write([]byte) (int, error) {
 	if fw.code == 0 {
 		fw.code = http.StatusOK

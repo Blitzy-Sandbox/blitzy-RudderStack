@@ -354,7 +354,7 @@ func (r *HealthRepo) GetHealthSummary(ctx context.Context) (*HealthSummaryRespon
 
 	// Populate PreviousRowsSynced from the previous window for anomaly detection.
 	prevWindowStart := since.Add(-r.summaryWindow) // e.g., 48h ago
-	prevWindowEnd := since                          // e.g., 24h ago
+	prevWindowEnd := since                         // e.g., 24h ago
 	if err := r.populatePreviousRows(ctx, sourceMap, prevWindowStart, prevWindowEnd); err != nil {
 		// Log but do not fail — previous rows is supplementary data for alerting.
 		// If unavailable, alerting will skip row count anomaly checks gracefully.

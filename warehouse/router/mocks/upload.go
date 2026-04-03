@@ -18,6 +18,96 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
+// MockselectiveSyncChecker is a mock of selectiveSyncChecker interface.
+type MockselectiveSyncChecker struct {
+	ctrl     *gomock.Controller
+	recorder *MockselectiveSyncCheckerMockRecorder
+	isgomock struct{}
+}
+
+// MockselectiveSyncCheckerMockRecorder is the mock recorder for MockselectiveSyncChecker.
+type MockselectiveSyncCheckerMockRecorder struct {
+	mock *MockselectiveSyncChecker
+}
+
+// NewMockselectiveSyncChecker creates a new mock instance.
+func NewMockselectiveSyncChecker(ctrl *gomock.Controller) *MockselectiveSyncChecker {
+	mock := &MockselectiveSyncChecker{ctrl: ctrl}
+	mock.recorder = &MockselectiveSyncCheckerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockselectiveSyncChecker) EXPECT() *MockselectiveSyncCheckerMockRecorder {
+	return m.recorder
+}
+
+// IsColumnExcluded mocks base method.
+func (m *MockselectiveSyncChecker) IsColumnExcluded(ctx context.Context, sourceID, destID, table, column string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsColumnExcluded", ctx, sourceID, destID, table, column)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsColumnExcluded indicates an expected call of IsColumnExcluded.
+func (mr *MockselectiveSyncCheckerMockRecorder) IsColumnExcluded(ctx, sourceID, destID, table, column any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsColumnExcluded", reflect.TypeOf((*MockselectiveSyncChecker)(nil).IsColumnExcluded), ctx, sourceID, destID, table, column)
+}
+
+// IsTableExcluded mocks base method.
+func (m *MockselectiveSyncChecker) IsTableExcluded(ctx context.Context, sourceID, destID, table string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsTableExcluded", ctx, sourceID, destID, table)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsTableExcluded indicates an expected call of IsTableExcluded.
+func (mr *MockselectiveSyncCheckerMockRecorder) IsTableExcluded(ctx, sourceID, destID, table any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsTableExcluded", reflect.TypeOf((*MockselectiveSyncChecker)(nil).IsTableExcluded), ctx, sourceID, destID, table)
+}
+
+// MocksyncHealthRecorder is a mock of syncHealthRecorder interface.
+type MocksyncHealthRecorder struct {
+	ctrl     *gomock.Controller
+	recorder *MocksyncHealthRecorderMockRecorder
+	isgomock struct{}
+}
+
+// MocksyncHealthRecorderMockRecorder is the mock recorder for MocksyncHealthRecorder.
+type MocksyncHealthRecorderMockRecorder struct {
+	mock *MocksyncHealthRecorder
+}
+
+// NewMocksyncHealthRecorder creates a new mock instance.
+func NewMocksyncHealthRecorder(ctrl *gomock.Controller) *MocksyncHealthRecorder {
+	mock := &MocksyncHealthRecorder{ctrl: ctrl}
+	mock.recorder = &MocksyncHealthRecorderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MocksyncHealthRecorder) EXPECT() *MocksyncHealthRecorderMockRecorder {
+	return m.recorder
+}
+
+// RecordSyncHealth mocks base method.
+func (m *MocksyncHealthRecorder) RecordSyncHealth(ctx context.Context, health any) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RecordSyncHealth", ctx, health)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RecordSyncHealth indicates an expected call of RecordSyncHealth.
+func (mr *MocksyncHealthRecorderMockRecorder) RecordSyncHealth(ctx, health any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecordSyncHealth", reflect.TypeOf((*MocksyncHealthRecorder)(nil).RecordSyncHealth), ctx, health)
+}
+
 // MockloadFilesRepo is a mock of loadFilesRepo interface.
 type MockloadFilesRepo struct {
 	ctrl     *gomock.Controller

@@ -218,7 +218,7 @@ func New(
 		},
 		encodingFactory:  encodingFactory,
 		selectiveSyncSvc: r.selectiveSyncSvc, // E-034: propagate selective sync to all UploadJob instances
-		healthMonitor:    r.healthMonitor,     // E-033: propagate health monitor to all UploadJob instances
+		healthMonitor:    r.healthMonitor,    // E-033: propagate health monitor to all UploadJob instances
 	}
 	loadfiles.WithConfig(r.uploadJobFactory.loadFile, r.conf)
 

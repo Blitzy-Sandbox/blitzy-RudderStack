@@ -28,10 +28,10 @@ import (
 	"testing"
 	"time"
 
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
-	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 	"golang.org/x/sync/errgroup"

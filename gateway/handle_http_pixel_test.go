@@ -156,7 +156,7 @@ func TestPixelWebSDKCompatibility(t *testing.T) {
 		})
 		gw := newGateway()
 		r := newPixelRequest(url.Values{
-			"writeKey":             []string{"abc"},
+			"writeKey":            []string{"abc"},
 			"event":               []string{"Button Clicked"},
 			"properties.category": []string{"signup"},
 		})

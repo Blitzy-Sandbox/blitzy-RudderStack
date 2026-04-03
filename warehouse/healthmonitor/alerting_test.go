@@ -250,7 +250,7 @@ func TestAlertingEvaluator_Cooldown(t *testing.T) {
 		// Second evaluation (same time): trigger failure_rate (should be in cooldown)
 		// AND duration_spike (should fire independently — different alert key).
 		summary2 := testHealthSummary(sourceID, destID, func(d *DestinationHealth) {
-			d.ErrorRate = 0.5                            // still above threshold
+			d.ErrorRate = 0.5                           // still above threshold
 			d.SyncDuration = DurationStats{Avg: 400000} // exceeds threshold
 		})
 		evaluator.Evaluate(summary2)
@@ -308,11 +308,11 @@ func TestAlertingEvaluator_AlertSuppression(t *testing.T) {
 
 		// Build summary that breaches ALL four thresholds.
 		summary := testHealthSummary(sourceID, destID, func(d *DestinationHealth) {
-			d.ErrorRate = 0.5                            // failure rate breach
+			d.ErrorRate = 0.5                           // failure rate breach
 			d.SyncDuration = DurationStats{Avg: 400000} // duration spike breach
-			d.RowsSynced = 100                           // row count anomaly (90% drop)
-			d.PreviousRowsSynced = 1000                  // baseline for anomaly calc
-			d.SchemaChanges = 5                          // schema drift condition
+			d.RowsSynced = 100                          // row count anomaly (90% drop)
+			d.PreviousRowsSynced = 1000                 // baseline for anomaly calc
+			d.SchemaChanges = 5                         // schema drift condition
 		})
 
 		evaluator.Evaluate(summary)

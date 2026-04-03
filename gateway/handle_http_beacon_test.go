@@ -88,7 +88,7 @@ func TestBeaconAnalytics20Compatibility(t *testing.T) {
 		body         string
 		wantStatus   int
 		wantDelegate bool
-		wantUsername  string
+		wantUsername string
 	}{
 		{
 			name:        "sendBeacon text/plain content type",
@@ -99,7 +99,7 @@ func TestBeaconAnalytics20Compatibility(t *testing.T) {
 				`"messageId":"msg-001"}]}`,
 			wantStatus:   http.StatusOK,
 			wantDelegate: true,
-			wantUsername:  "beacon-text-key-001",
+			wantUsername: "beacon-text-key-001",
 		},
 		{
 			name:        "sendBeacon application/x-www-form-urlencoded content type",
@@ -110,7 +110,7 @@ func TestBeaconAnalytics20Compatibility(t *testing.T) {
 				`"anonymousId":"anon-002","messageId":"msg-002"}]}`,
 			wantStatus:   http.StatusOK,
 			wantDelegate: true,
-			wantUsername:  "beacon-form-key-002",
+			wantUsername: "beacon-form-key-002",
 		},
 		{
 			name:        "writeKey extraction from query params with batch payload",
@@ -125,7 +125,7 @@ func TestBeaconAnalytics20Compatibility(t *testing.T) {
 				`],"sentAt":"2024-01-15T10:30:00.000Z"}`,
 			wantStatus:   http.StatusOK,
 			wantDelegate: true,
-			wantUsername:  "batch-mixed-key-003",
+			wantUsername: "batch-mixed-key-003",
 		},
 		{
 			name: "multiple query params with writeKey",
@@ -139,7 +139,7 @@ func TestBeaconAnalytics20Compatibility(t *testing.T) {
 				`"anonymousId":"anon-004","messageId":"msg-004"}]}`,
 			wantStatus:   http.StatusOK,
 			wantDelegate: true,
-			wantUsername:  "multi-param-key-004",
+			wantUsername: "multi-param-key-004",
 		},
 		{
 			name:         "empty writeKey in query params",
@@ -165,7 +165,7 @@ func TestBeaconAnalytics20Compatibility(t *testing.T) {
 				`"sentAt":"2024-01-15T10:30:01.000Z"}`,
 			wantStatus:   http.StatusOK,
 			wantDelegate: true,
-			wantUsername:  "analytics20-key-006",
+			wantUsername: "analytics20-key-006",
 		},
 	}
 

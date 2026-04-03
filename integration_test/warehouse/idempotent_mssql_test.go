@@ -23,8 +23,8 @@ import (
 
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
 	"github.com/rudderlabs/rudder-server/utils/misc"
-	msconnector "github.com/rudderlabs/rudder-server/warehouse/integrations/mssql"
 	sqlmw "github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
+	msconnector "github.com/rudderlabs/rudder-server/warehouse/integrations/mssql"
 	whth "github.com/rudderlabs/rudder-server/warehouse/integrations/testhelper"
 	whutils "github.com/rudderlabs/rudder-server/warehouse/utils"
 )

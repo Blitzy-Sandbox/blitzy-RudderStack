@@ -87,10 +87,10 @@ func TestCreate_Success(t *testing.T) {
 		Settings:    sampleSettings(),
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO "+functionsTableName)).
 		WithArgs(
 			fn.WorkspaceID, fn.Name, fn.Type, fn.Code,
-			1, // version is set to 1 by Create
+			1,                // version is set to 1 by Create
 			sqlmock.AnyArg(), // settings bytes
 			sqlmock.AnyArg(), // created_at
 			sqlmock.AnyArg(), // updated_at
@@ -118,7 +118,7 @@ func TestCreate_NilSettings(t *testing.T) {
 		Settings:    nil, // intentionally nil
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO "+functionsTableName)).
 		WithArgs(
 			fn.WorkspaceID, fn.Name, fn.Type, fn.Code,
 			1,
@@ -145,7 +145,7 @@ func TestCreate_DBError(t *testing.T) {
 		Code:        `function onRequest() {}`,
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO "+functionsTableName)).
 		WithArgs(
 			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
 			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
@@ -168,7 +168,7 @@ func TestGet_Success(t *testing.T) {
 	ctx := context.Background()
 
 	now := fixedTime()
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+functionsColumns+" FROM "+functionsTableName)).
 		WithArgs("42", "ws-001").
 		WillReturnRows(
 			sqlmock.NewRows(fnCols()).
@@ -193,7 +193,7 @@ func TestGet_NotFound(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+functionsColumns+" FROM "+functionsTableName)).
 		WithArgs("999", "ws-001").
 		WillReturnError(sql.ErrNoRows)
 
@@ -209,7 +209,7 @@ func TestGet_WrongWorkspace(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+functionsColumns+" FROM "+functionsTableName)).
 		WithArgs("42", "ws-wrong").
 		WillReturnError(sql.ErrNoRows)
 
@@ -224,7 +224,7 @@ func TestGet_DBError(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+functionsColumns+" FROM "+functionsTableName)).
 		WithArgs("42", "ws-001").
 		WillReturnError(errors.New("connection refused"))
 
@@ -240,7 +240,7 @@ func TestGet_NullSettings(t *testing.T) {
 	ctx := context.Background()
 
 	now := fixedTime()
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+functionsColumns+" FROM "+functionsTableName)).
 		WithArgs("44", "ws-001").
 		WillReturnRows(
 			sqlmock.NewRows(fnCols()).
@@ -274,7 +274,7 @@ func TestUpdate_Success(t *testing.T) {
 		Settings:    sampleSettings(),
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta("UPDATE " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("UPDATE "+functionsTableName)).
 		WithArgs(
 			fn.Name, fn.Type, fn.Code,
 			sqlmock.AnyArg(), // settings bytes
@@ -302,7 +302,7 @@ func TestUpdate_NotFound(t *testing.T) {
 		Code:        `function onRequest() {}`,
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta("UPDATE " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("UPDATE "+functionsTableName)).
 		WithArgs(
 			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
 			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
@@ -327,7 +327,7 @@ func TestUpdate_DBError(t *testing.T) {
 		Code:        `function onRequest() {}`,
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta("UPDATE " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("UPDATE "+functionsTableName)).
 		WithArgs(
 			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
 			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
@@ -355,7 +355,7 @@ func TestUpdate_NilSettings(t *testing.T) {
 		Settings:    nil, // nil settings
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta("UPDATE " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("UPDATE "+functionsTableName)).
 		WithArgs(
 			fn.Name, fn.Type, fn.Code,
 			nil,              // nil settings
@@ -378,7 +378,7 @@ func TestDelete_Success(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM " + functionsTableName)).
+	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM "+functionsTableName)).
 		WithArgs("42", "ws-001").
 		WillReturnResult(sqlmock.NewResult(0, 1)) // 1 row affected
 
@@ -391,7 +391,7 @@ func TestDelete_NotFound(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM " + functionsTableName)).
+	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM "+functionsTableName)).
 		WithArgs("999", "ws-001").
 		WillReturnResult(sqlmock.NewResult(0, 0)) // 0 rows affected
 
@@ -405,7 +405,7 @@ func TestDelete_DBError(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM " + functionsTableName)).
+	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM "+functionsTableName)).
 		WithArgs("42", "ws-001").
 		WillReturnError(errors.New("foreign key violation"))
 
@@ -419,7 +419,7 @@ func TestDelete_RowsAffectedError(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM " + functionsTableName)).
+	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM "+functionsTableName)).
 		WithArgs("42", "ws-001").
 		WillReturnResult(sqlmock.NewErrorResult(errors.New("rows affected error")))
 
@@ -438,7 +438,7 @@ func TestList_Success(t *testing.T) {
 	ctx := context.Background()
 
 	now := fixedTime()
-	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id").
+	mock.ExpectQuery("SELECT .+ FROM "+functionsTableName+" WHERE workspace_id").
 		WithArgs("ws-001", defaultListLimit).
 		WillReturnRows(
 			sqlmock.NewRows(fnCols()).
@@ -462,7 +462,7 @@ func TestList_WithTypeFilter(t *testing.T) {
 	ctx := context.Background()
 
 	now := fixedTime()
-	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id .+ AND type").
+	mock.ExpectQuery("SELECT .+ FROM "+functionsTableName+" WHERE workspace_id .+ AND type").
 		WithArgs("ws-001", "source", defaultListLimit).
 		WillReturnRows(
 			sqlmock.NewRows(fnCols()).
@@ -480,7 +480,7 @@ func TestList_WithPagination(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id .+ LIMIT .+ OFFSET").
+	mock.ExpectQuery("SELECT .+ FROM "+functionsTableName+" WHERE workspace_id .+ LIMIT .+ OFFSET").
 		WithArgs("ws-001", 10, 20).
 		WillReturnRows(sqlmock.NewRows(fnCols()))
 
@@ -495,7 +495,7 @@ func TestList_EmptyResult(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id").
+	mock.ExpectQuery("SELECT .+ FROM "+functionsTableName+" WHERE workspace_id").
 		WithArgs("ws-empty", defaultListLimit).
 		WillReturnRows(sqlmock.NewRows(fnCols()))
 
@@ -510,7 +510,7 @@ func TestList_DBError(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id").
+	mock.ExpectQuery("SELECT .+ FROM "+functionsTableName+" WHERE workspace_id").
 		WithArgs("ws-001", defaultListLimit).
 		WillReturnError(errors.New("connection reset"))
 
@@ -526,7 +526,7 @@ func TestList_WithTypeFilterAndPagination(t *testing.T) {
 	ctx := context.Background()
 
 	now := fixedTime()
-	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id .+ AND type .+ LIMIT .+ OFFSET").
+	mock.ExpectQuery("SELECT .+ FROM "+functionsTableName+" WHERE workspace_id .+ AND type .+ LIMIT .+ OFFSET").
 		WithArgs("ws-001", "insert", 5, 10).
 		WillReturnRows(
 			sqlmock.NewRows(fnCols()).
@@ -549,7 +549,7 @@ func TestGetByVersion_Success(t *testing.T) {
 	ctx := context.Background()
 
 	now := fixedTime()
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+functionsColumns+" FROM "+functionsTableName)).
 		WithArgs("42", 2, "ws-001").
 		WillReturnRows(
 			sqlmock.NewRows(fnCols()).
@@ -571,7 +571,7 @@ func TestGetByVersion_NotFound(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+functionsColumns+" FROM "+functionsTableName)).
 		WithArgs("42", 99, "ws-001").
 		WillReturnError(sql.ErrNoRows)
 
@@ -586,7 +586,7 @@ func TestGetByVersion_DBError(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+functionsColumns+" FROM "+functionsTableName)).
 		WithArgs("42", 1, "ws-001").
 		WillReturnError(errors.New("timeout exceeded"))
 
@@ -607,7 +607,7 @@ func TestScanFunction_ValidSettingsJSON(t *testing.T) {
 
 	now := fixedTime()
 	settings := `{"nested":{"key":"value"},"array":[1,2,3]}`
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+functionsColumns+" FROM "+functionsTableName)).
 		WithArgs("45", "ws-001").
 		WillReturnRows(
 			sqlmock.NewRows(fnCols()).
@@ -628,7 +628,7 @@ func TestScanFunction_EmptyStringSettings(t *testing.T) {
 
 	now := fixedTime()
 	// Empty string is a valid NullString{Valid: true, String: ""}.
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + functionsColumns + " FROM " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+functionsColumns+" FROM "+functionsTableName)).
 		WithArgs("46", "ws-001").
 		WillReturnRows(
 			sqlmock.NewRows(fnCols()).
@@ -663,7 +663,7 @@ func TestCreate_SetsVersionAndTimestamps(t *testing.T) {
 	}
 
 	before := time.Now().Add(-time.Second)
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO " + functionsTableName)).
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO "+functionsTableName)).
 		WithArgs(
 			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
 			1, // version must be 1
@@ -687,7 +687,7 @@ func TestList_DefaultLimitApplied(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id .+ LIMIT").
+	mock.ExpectQuery("SELECT .+ FROM "+functionsTableName+" WHERE workspace_id .+ LIMIT").
 		WithArgs("ws-001", defaultListLimit). // should be 100
 		WillReturnRows(sqlmock.NewRows(fnCols()))
 
@@ -701,7 +701,7 @@ func TestList_NegativeLimitDefaultsToDefault(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id .+ LIMIT").
+	mock.ExpectQuery("SELECT .+ FROM "+functionsTableName+" WHERE workspace_id .+ LIMIT").
 		WithArgs("ws-001", defaultListLimit).
 		WillReturnRows(sqlmock.NewRows(fnCols()))
 
@@ -716,7 +716,7 @@ func TestList_ScanError(t *testing.T) {
 	ctx := context.Background()
 
 	// Return a row with wrong number of columns to trigger a scan error.
-	mock.ExpectQuery("SELECT .+ FROM " + functionsTableName + " WHERE workspace_id").
+	mock.ExpectQuery("SELECT .+ FROM "+functionsTableName+" WHERE workspace_id").
 		WithArgs("ws-001", defaultListLimit).
 		WillReturnRows(
 			sqlmock.NewRows([]string{"id"}).AddRow("only-one-column"),

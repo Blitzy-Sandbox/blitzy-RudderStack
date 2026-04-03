@@ -120,8 +120,6 @@ func (proc *Handle) getConsentFilteredDestinations(event types.SingularEventT, s
 //
 // This method wraps getConsentFilteredDestinations and never modifies its behavior. The original
 // method remains the source of truth for Block/empty mode filtering logic.
-//
-//nolint:unused // E-025: wired when enforcement mode is read from backend-config per-source
 func (proc *Handle) getConsentFilteredDestinationsWithEnforcement(
 	event types.SingularEventT,
 	sourceID string,
@@ -190,8 +188,6 @@ func (proc *Handle) getConsentFilteredDestinationsWithEnforcement(
 //  3. Legacy Ketch — checked if no previous match and provider is "" or "ketch"
 //
 // Returns denied=false if the destination has no consent configuration or passes all checks.
-//
-//nolint:unused // E-025: used by getConsentFilteredDestinationsWithEnforcement
 func (proc *Handle) checkConsentDenied(
 	dest backendconfig.DestinationT,
 	sourceID string,
@@ -254,8 +250,6 @@ func (proc *Handle) checkConsentDenied(
 // Each violation is logged as a structured info-level message with the source ID,
 // destination ID, consent provider, and enforcement mode. This enables downstream
 // monitoring, alerting, and audit trail capabilities for consent-enforcement integration.
-//
-//nolint:unused // E-025: called by getConsentFilteredDestinationsWithEnforcement
 func (proc *Handle) logConsentViolations(violations []ConsentViolation, sourceID string, enforcementMode enforcement.Mode) {
 	for _, v := range violations {
 		proc.logger.Infon("consent violation detected",

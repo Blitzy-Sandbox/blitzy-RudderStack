@@ -108,9 +108,9 @@ func (m *mockFunctionRuntime) Execute(ctx context.Context, fn *functionsruntime.
 // pointer fields. Unconfigured calls return safe defaults (empty map / nil error).
 type mockSecretsManager struct {
 	getAllFn    func(ctx context.Context, functionID string) (map[string]string, error)
-	setFn      func(ctx context.Context, functionID string, key string, value string) error
-	getFn      func(ctx context.Context, functionID string, key string) (string, error)
-	deleteFn   func(ctx context.Context, functionID string, key string) error
+	setFn       func(ctx context.Context, functionID string, key string, value string) error
+	getFn       func(ctx context.Context, functionID string, key string) (string, error)
+	deleteFn    func(ctx context.Context, functionID string, key string) error
 	deleteAllFn func(ctx context.Context, functionID string) error
 }
 

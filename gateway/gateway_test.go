@@ -2838,10 +2838,10 @@ func TestLeakyUploader(t *testing.T) {
 
 // sdkTestCase defines a table-driven test scenario for Segment SDK payload compatibility.
 type sdkTestCase struct {
-	name        string            // descriptive test name
-	handlerType string            // handler key: "identify", "track", "page", "screen", "group", "alias", "batch"
-	payload     string            // JSON request body
-	wantFields  map[string]string // gjson paths (relative to "batch.0.") → expected string values
+	name        string                                  // descriptive test name
+	handlerType string                                  // handler key: "identify", "track", "page", "screen", "group", "alias", "batch"
+	payload     string                                  // JSON request body
+	wantFields  map[string]string                       // gjson paths (relative to "batch.0.") → expected string values
 	extraAssert func(t *testing.T, jobs []*jobsdb.JobT) // optional additional assertions on stored jobs
 }
 
@@ -3199,7 +3199,7 @@ func TestSegmentJSSDKPayloads(t *testing.T) {
 				"messageId": "ajs-msg-page-auto"
 			}`,
 			wantFields: map[string]string{
-				"context.library.name": "analytics.js",
+				"context.library.name":  "analytics.js",
 				"context.page.url":      "https://example.com/products/abc",
 				"context.page.path":     "/products/abc",
 				"context.page.referrer": "https://google.com/search",

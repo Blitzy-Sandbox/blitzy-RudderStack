@@ -178,7 +178,7 @@ func TestGet_Found(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Second)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns+" FROM "+trackingPlansTable)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanColumns + " FROM " + trackingPlansTable)).
 		WithArgs("tp-100").
 		WillReturnRows(
 			sqlmock.NewRows(trackingPlanCols()).
@@ -200,7 +200,7 @@ func TestGet_NotFound(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns+" FROM "+trackingPlansTable)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanColumns + " FROM " + trackingPlansTable)).
 		WithArgs("nonexistent").
 		WillReturnError(sql.ErrNoRows)
 
@@ -215,7 +215,7 @@ func TestGet_NullableFields(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 
 	// Schema and enforcement_config stored as NULL in DB
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns+" FROM "+trackingPlansTable)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanColumns + " FROM " + trackingPlansTable)).
 		WithArgs("tp-200").
 		WillReturnRows(
 			sqlmock.NewRows(trackingPlanCols()).
@@ -234,7 +234,7 @@ func TestGet_DBError(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanColumns)).
 		WithArgs("tp-err").
 		WillReturnError(fmt.Errorf("db timeout"))
 
@@ -592,7 +592,7 @@ func TestGetVersions_MultipleResults(t *testing.T) {
 		AddRow("ver-2", "tp-100", 2, nil, "v2 changes", now.Add(-time.Hour)).
 		AddRow("ver-1", "tp-100", 1, nil, "initial version", now.Add(-2*time.Hour))
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanVersionColumns+" FROM "+trackingPlanVersionsTable)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanVersionColumns + " FROM " + trackingPlanVersionsTable)).
 		WithArgs("tp-100").
 		WillReturnRows(rows)
 
@@ -611,7 +611,7 @@ func TestGetVersions_Empty(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanVersionColumns+" FROM "+trackingPlanVersionsTable)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanVersionColumns + " FROM " + trackingPlanVersionsTable)).
 		WithArgs("tp-no-versions").
 		WillReturnRows(sqlmock.NewRows(trackingPlanVersionCols()))
 
@@ -626,7 +626,7 @@ func TestGetVersions_DBError(t *testing.T) {
 	repo, mock := newTestRepo(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanVersionColumns)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanVersionColumns)).
 		WithArgs("tp-err").
 		WillReturnError(fmt.Errorf("relation does not exist"))
 
@@ -812,7 +812,7 @@ func TestConcurrentAccess(t *testing.T) {
 	// All goroutines query the same ID sequentially, ensuring sqlmock's
 	// FIFO expectations are consumed in order.
 	for i := 0; i < iterations; i++ {
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns)).
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanColumns)).
 			WithArgs("tp-shared").
 			WillReturnRows(
 				sqlmock.NewRows(trackingPlanCols()).
@@ -885,7 +885,7 @@ func TestFullCRUDLifecycle(t *testing.T) {
 	require.Equal(t, "tp-lifecycle", id)
 
 	// Step 2: Get
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanColumns)).
 		WithArgs("tp-lifecycle").
 		WillReturnRows(
 			sqlmock.NewRows(trackingPlanCols()).
@@ -926,7 +926,7 @@ func TestFullCRUDLifecycle(t *testing.T) {
 	require.Equal(t, "ver-lc", verID)
 
 	// Step 5: List versions
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanVersionColumns)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanVersionColumns)).
 		WithArgs("tp-lifecycle").
 		WillReturnRows(
 			sqlmock.NewRows(trackingPlanVersionCols()).
@@ -947,7 +947,7 @@ func TestFullCRUDLifecycle(t *testing.T) {
 	require.NoError(t, err)
 
 	// Step 7: Confirm deleted
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+trackingPlanColumns)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + trackingPlanColumns)).
 		WithArgs("tp-lifecycle").
 		WillReturnError(sql.ErrNoRows)
 

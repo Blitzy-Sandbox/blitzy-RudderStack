@@ -54,9 +54,9 @@ var AllStages = []string{
 // tags use the _ns suffix to clarify that Go's time.Duration is serialised as
 // nanoseconds by default.
 type ProfileReport struct {
-	Timestamp        time.Time                `json:"timestamp"`
-	Stages           map[string]StageProfile  `json:"stages"`
-	TotalPipelineP99 time.Duration            `json:"total_pipeline_p99_ns"`
+	Timestamp        time.Time               `json:"timestamp"`
+	Stages           map[string]StageProfile `json:"stages"`
+	TotalPipelineP99 time.Duration           `json:"total_pipeline_p99_ns"`
 }
 
 // StageProfile holds aggregated latency statistics for a single pipeline stage.

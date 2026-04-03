@@ -113,7 +113,7 @@ func TestHandler_TriggerReplay(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		body       func() []byte  // returns raw request body
+		body       func() []byte // returns raw request body
 		mockSvc    *mockReplayService
 		wantStatus int
 		wantErrMsg string // non-empty ⇒ error path; empty ⇒ success path

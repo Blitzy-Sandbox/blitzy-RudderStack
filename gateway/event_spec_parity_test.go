@@ -158,6 +158,7 @@ func parityMockSetup(c *testContext) *[][]*jobsdb.JobT {
 // job's EventPayload using gjson. The stored payload structure is:
 //
 //	{"batch":[<event>], "writeKey":"...", "requestIP":"...", "receivedAt":"..."}
+//
 // ---------------------------------------------------------------------------
 func extractParityEvent(capturedJobs [][]*jobsdb.JobT) gjson.Result {
 	Expect(capturedJobs).ToNot(BeEmpty(), "captured jobs should not be empty")
@@ -896,6 +897,41 @@ var _ = Describe("Event Spec Parity", func() {
 			event := sendAndCapture(parityGW.webScreenHandler(), payload, "screen")
 			Expect(event.Get("channel").String()).To(Equal("mobile"))
 			Expect(event.Get("context.channel").String()).To(Equal("mobile"))
+		})
+	})
+
+	// -----------------------------------------------------------------
+	// E-003: messageId auto-generation when omitted from the payload.
+	// The Gateway must auto-generate a non-empty UUID messageId when the
+	// client does not supply one, ensuring every stored event has a unique
+	// messageId for deduplication and tracing.
+	// -----------------------------------------------------------------
+	Context("messageId auto-generation (E-003)", func() {
+		It("should auto-generate a non-empty UUID messageId when messageId is omitted from the payload", func() {
+			payload := fmt.Sprintf(`{
+				"userId": "user-spec-001",
+				"anonymousId": "anon-spec-001",
+				"event": "Product Viewed",
+				"channel": "server",
+				"properties": {
+					"name": "Widget"
+				},
+				"context": %s
+			}`, specParityContext("server"))
+
+			event := sendAndCapture(parityGW.webTrackHandler(), payload, "track")
+
+			// messageId must exist and be non-empty — the Gateway auto-generates it.
+			Expect(event.Get("messageId").Exists()).To(BeTrue(),
+				"messageId should be auto-generated when omitted from the payload")
+			Expect(event.Get("messageId").String()).ToNot(BeEmpty(),
+				"auto-generated messageId should not be empty")
+
+			// Verify the auto-generated messageId is a valid UUID.
+			generatedID := event.Get("messageId").String()
+			_, parseErr := uuid.Parse(generatedID)
+			Expect(parseErr).To(BeNil(),
+				fmt.Sprintf("auto-generated messageId %q should be a valid UUID", generatedID))
 		})
 	})
 })
