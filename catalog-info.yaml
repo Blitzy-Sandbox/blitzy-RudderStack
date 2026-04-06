@@ -6,9 +6,8 @@ metadata:
   tags:
     - go
     - infrastructure
-    - complete
+    - refactor
   labels:
-    blitzy.com/status: complete
     blitzy.com/language: go
   annotations:
     github.com/project-slug: Blitzy-Sandbox/blitzy-RudderStack
