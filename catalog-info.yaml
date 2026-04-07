@@ -29,4 +29,4 @@ spec:
   type: service
   lifecycle: production
   owner: blitzy-sandbox
-  system: blitzy-sandbox-projects
+  system: blitzy-go
