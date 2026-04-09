@@ -3,11 +3,14 @@ package apphandlers
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/rudderlabs/rudder-go-kit/jsonrs"
 	"github.com/rudderlabs/rudder-schemas/go/stream"
 
 	"golang.org/x/sync/errgroup"
@@ -29,6 +32,7 @@ import (
 	gwThrottler "github.com/rudderlabs/rudder-server/gateway/throttler"
 	identitygraph "github.com/rudderlabs/rudder-server/identity/graph"
 	identityprofiles "github.com/rudderlabs/rudder-server/identity/profiles"
+	identitysettings "github.com/rudderlabs/rudder-server/identity/settings"
 	identitystorage "github.com/rudderlabs/rudder-server/identity/storage"
 	identitysync "github.com/rudderlabs/rudder-server/identity/sync"
 	drain_config "github.com/rudderlabs/rudder-server/internal/drain-config"
@@ -36,6 +40,8 @@ import (
 	"github.com/rudderlabs/rudder-server/jobsdb"
 	"github.com/rudderlabs/rudder-server/jobsdb/bench"
 	"github.com/rudderlabs/rudder-server/processor"
+	anomalydetection "github.com/rudderlabs/rudder-server/processor/anomalydetection"
+	"github.com/rudderlabs/rudder-server/processor/enforcement"
 	protocolsapi "github.com/rudderlabs/rudder-server/protocols/api"
 	protocolsstorage "github.com/rudderlabs/rudder-server/protocols/storage"
 	"github.com/rudderlabs/rudder-server/router"
@@ -51,6 +57,7 @@ import (
 	"github.com/rudderlabs/rudder-server/services/monitoring"
 	"github.com/rudderlabs/rudder-server/services/profiling"
 	"github.com/rudderlabs/rudder-server/services/rmetrics"
+	migrator "github.com/rudderlabs/rudder-server/services/sql-migrator"
 	"github.com/rudderlabs/rudder-server/services/transformer"
 	"github.com/rudderlabs/rudder-server/services/transientsource"
 	"github.com/rudderlabs/rudder-server/utils/crash"
@@ -176,6 +183,33 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 		}
 		defer jobsdbPool.Close()
 	}
+	// Run sprint DB migrations (Gap 1): execute schema migrations for functions,
+	// protocols, identity, and alerting tables. Without these migrations all sprint
+	// APIs fail with "relation does not exist" errors. The migrations are idempotent
+	// (CREATE TABLE IF NOT EXISTS) and use separate migration tracking tables to avoid
+	// conflicting with existing migration sets.
+	if jobsdbPool != nil {
+		sprintMigrations := []struct {
+			table string
+			dir   string
+		}{
+			{"functions_migrations", "functions"},
+			{"protocols_migrations", "protocols"},
+			{"identity_migrations", "identity"},
+			{"alerting_migrations", "alerting"},
+		}
+		for _, m := range sprintMigrations {
+			mg := &migrator.Migrator{
+				MigrationsTable: m.table,
+				Handle:          jobsdbPool,
+			}
+			if migErr := mg.Migrate(m.dir); migErr != nil {
+				return fmt.Errorf("failed to run %s migrations: %w", m.dir, migErr)
+			}
+			a.log.Infon("Sprint migration completed", logger.NewStringField("migration", m.dir))
+		}
+	}
+
 	if config.GetBoolVar(false, "DB.embedded.PriorityPool.enabled", "DB.PriorityPool.enabled", "PartitionMigration.enabled") {
 		priorityPool, err = misc.NewDatabaseConnectionPool(ctx, "ep", misc.DatabaseConnectionPoolConfig{
 			MaxOpenConns:    config.GetReloadableIntVar(10, 1, "DB.embedded.PriorityPool.maxOpenConnections", "DB.PriorityPool.maxOpenConnections"),
@@ -316,6 +350,45 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 		}
 	}()
 
+	// Initialize anomaly detector (E-021, Gap 2) for tracking unexpected events/properties.
+	anomalyTracker := anomalydetection.NewTracker(anomalydetection.DefaultTrackerConfig())
+	anomalyDet := anomalydetection.NewDetector(a.log.Child("anomaly-detector"), statsFactory, anomalyTracker)
+
+	// Initialize enforcement forwarder (E-023, Gap 4) for routing blocked events.
+	// Wire the gateway write DB as the JobWriter so that Forward() can re-inject
+	// blocked events into the pipeline under an alternative source ID.
+	enforcementFwd := enforcement.NewForwarder(a.log.Child("enforcement-forwarder"), statsFactory)
+	enforcementFwd.SetJobWriter(gwWOHandle)
+
+	// Gap 6 (E-026): Create identity graph service early so we can inject the
+	// identity resolver adapter into the processor. The same graphSvc instance
+	// is reused later for the Profiles API and sync CDC loop.
+	var graphSvc identitygraph.Service
+	if jobsdbPool != nil {
+		idRepo := identitystorage.NewPostgresRepository(jobsdbPool, a.log.Child("identity-storage"))
+		graphSvc = identitygraph.NewService(idRepo, config, a.log.Child("identity-graph"), statsFactory)
+	}
+
+	// Gap 13 (E-039): Create the pipeline profiler early so it can be injected
+	// into the processor for per-stage latency recording AND reused for the
+	// profiling HTTP API. Without injection, RecordStageLatency is never called
+	// and the /v1/profiling/pipeline endpoint always returns zeroes.
+	pipelineProfiler := profiling.NewProfiler()
+
+	// Build processor options including anomaly detector, enforcement forwarder,
+	// identity resolver adapter (Gap 6), and pipeline profiler (Gap 13).
+	procOpts := []processor.Opts{
+		processor.WithAdaptiveLimit(adaptiveLimit),
+		processor.WithAnomalyDetector(anomalyDet),
+		processor.WithEnforcementForwarder(enforcementFwd),
+		processor.WithPipelineProfiler(pipelineProfiler),
+	}
+	if graphSvc != nil {
+		idAdapter := identitygraph.NewProcessorAdapter(graphSvc, a.log.Child("identity-resolver"))
+		procOpts = append(procOpts, processor.WithIdentityResolver(idAdapter))
+		a.log.Infon("Identity resolver adapter injected into processor (E-026)")
+	}
+
 	proc := processor.New(
 		ctx,
 		&options.ClearDB,
@@ -334,7 +407,7 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 		enrichers,
 		trackedUsersReporter,
 		pendingEventsRegistry,
-		processor.WithAdaptiveLimit(adaptiveLimit),
+		procOpts...,
 	)
 	routerLogger := logger.NewLogger().Child("router")
 	throttlerFactory, err := rtThrottler.NewFactory(config, statsFactory, routerLogger.Child("throttler"))
@@ -455,9 +528,10 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 	// production load. The gRPC server is started alongside the REST API to
 	// provide high-performance inter-service communication.
 	var profilesGRPCSrv *identityprofiles.GRPCServer
-	if jobsdbPool != nil {
-		idRepo := identitystorage.NewPostgresRepository(jobsdbPool, a.log.Child("identity-storage"))
-		graphSvc := identitygraph.NewService(idRepo, config, a.log.Child("identity-graph"), statsFactory)
+	if graphSvc != nil {
+		// Reuse the graphSvc created earlier (Gap 6) to avoid creating a duplicate
+		// identity graph service. The same instance serves the processor's identity
+		// resolution, the Profiles REST/gRPC APIs, and the sync CDC loop.
 
 		// Create Redis client for profile caching (E-027).
 		// Redis address is read from Identity.redis.address config key with
@@ -530,9 +604,35 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 				})
 			})
 
-			// Adapt graph service as ProfileAssembler and create log-based sender.
+			// Adapt graph service as ProfileAssembler and create Gateway-backed sender.
+			// Gap 7 (E-029): Replace LogDestinationSender with GatewayDestinationSender
+			// so that profile sync events are written into the gateway DB and flow
+			// through the standard processor → router pipeline for delivery to
+			// configured downstream destinations.
 			assembler := identitysync.NewFuncProfileAssembler(graphSvc.GetProfileData)
-			sender := identitysync.NewLogDestinationSender(syncLog)
+			profileWriter := func(ctx context.Context, workspaceID string, events []json.RawMessage) error {
+				batch := map[string]any{
+					"batch": events,
+				}
+				batchJSON, batchErr := jsonrs.Marshal(batch)
+				if batchErr != nil {
+					return fmt.Errorf("failed to marshal profile sync batch: %w", batchErr)
+				}
+				return gwWOHandle.WithStoreSafeTx(ctx, func(tx jobsdb.StoreSafeTx) error {
+					params := fmt.Sprintf(`{"source_id":"profile-sync-%s","gateway":"identity-sync"}`, workspaceID)
+					return gwWOHandle.StoreInTx(ctx, tx, []*jobsdb.JobT{{
+						UUID:         uuid.New(),
+						UserID:       workspaceID,
+						Parameters:   []byte(params),
+						EventPayload: batchJSON,
+						WorkspaceId:  workspaceID,
+						EventCount:   len(events),
+						CreatedAt:    time.Now(),
+						ExpireAt:     time.Now(),
+					}})
+				})
+			}
+			sender := identitysync.NewGatewayDestinationSender(profileWriter, syncLog, statsFactory)
 
 			syncer, syncErr := identitysync.New(changeListener, assembler, sender, config, syncLog, statsFactory)
 			if syncErr != nil {
@@ -552,15 +652,71 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 				}
 			}
 		}
+
+		// Gap 8 (E-030): Subscribe to TopicIdentityConfig from backend-config and
+		// propagate identity resolution settings into the graph service at runtime.
+		// Without this subscription, UpdateSettings() is never called and user-configured
+		// blocked values, per-identifier limits, priority rankings, and merge protection
+		// rules from backend-config are ignored.
+		go func() {
+			identityConfigCh := backendconfig.DefaultBackendConfig.Subscribe(ctx, backendconfig.TopicIdentityConfig)
+			for configData := range identityConfigCh {
+				configs, ok := configData.Data.(map[string]backendconfig.ConfigT)
+				if !ok {
+					continue
+				}
+				// Iterate workspace configs and apply identity resolution settings.
+				// In single-workspace mode there is typically one entry; in
+				// multi-tenant mode there may be several. We apply the first
+				// workspace-level IdentityResolution config found — the graph
+				// service uses a single settings object across workspaces.
+				for _, wsCfg := range configs {
+					irCfg := wsCfg.Settings.IdentityResolution
+					if !irCfg.Enabled {
+						continue
+					}
+					s := identitysettings.DefaultSettings()
+					for idType, limit := range irCfg.IdentifierLimits {
+						icfg := s.GetIdentifierConfig(idType)
+						icfg.Limit.MaxCount = limit.MaxCount
+						if limit.Period != "" {
+							icfg.Limit.TimeWindow = limit.Period
+						}
+						_ = s.SetIdentifierConfig(idType, &icfg)
+					}
+					// Apply priority from ordered list.
+					for priority, idType := range irCfg.IdentifierPriority {
+						icfg := s.GetIdentifierConfig(idType)
+						icfg.Priority = priority + 1
+						_ = s.SetIdentifierConfig(idType, &icfg)
+					}
+					// Apply blocked value rules.
+					for _, bv := range irCfg.BlockedValues {
+						if bv.IdentifierType != "" {
+							icfg := s.GetIdentifierConfig(bv.IdentifierType)
+							icfg.BlockedValues = append(icfg.BlockedValues, identitysettings.BlockedValueRule{
+								Type:  bv.MatchType,
+								Value: bv.Value,
+							})
+							_ = s.SetIdentifierConfig(bv.IdentifierType, &icfg)
+						}
+					}
+					graphSvc.UpdateSettings(s)
+					a.log.Infon("Identity graph settings updated from backend-config (E-030)")
+					break // apply first enabled workspace config
+				}
+			}
+		}()
 	}
 
 	// Wire Pipeline Profiling API (E-039). Exposes /pipeline and /capacity
 	// sub-endpoints for runtime pipeline performance profiling and capacity planning.
+	// Reuse the pipelineProfiler created earlier (Gap 13) that is already injected
+	// into the processor for per-stage latency recording.
 	{
-		profilingProfiler := profiling.NewProfiler()
-		profilingCapacity := profiling.NewCapacityPlanner(profilingProfiler)
+		profilingCapacity := profiling.NewCapacityPlanner(pipelineProfiler)
 		profilingRouter := chi.NewRouter()
-		profilingRouter.Get("/pipeline", profilingProfiler.Handler())
+		profilingRouter.Get("/pipeline", pipelineProfiler.Handler())
 		profilingRouter.Get("/capacity", profilingCapacity.Handler())
 		internalHandlers["/v1/profiling"] = profilingRouter
 		a.log.Infon("Profiling API wired into gateway internal handlers")
@@ -571,10 +727,26 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 	// only — the rule repository, metric collector, and notification channels
 	// are wired separately. When no rule repository is available, CRUD endpoints
 	// return 503 Service Unavailable gracefully.
+	// Wire Alerting Rules API (E-037). Create alerting engine with optional
+	// RuleRepository when a database pool is available. Start the engine's
+	// periodic evaluation loop (Gap 11) so alert rules are actively evaluated.
 	{
-		alertEngine := alerting.NewAlertEngine(config, a.log.Child("alerting"), nil, nil, nil)
+		var ruleRepo alerting.RuleRepository
+		if jobsdbPool != nil {
+			ruleRepo = alerting.NewPostgresRuleRepository(jobsdbPool)
+		}
+		alertEngine := alerting.NewAlertEngine(config, a.log.Child("alerting"), nil, ruleRepo, nil)
 		internalHandlers["/v1/alerts"] = alertEngine.Handler()
-		a.log.Infon("Alerting API wired into gateway internal handlers")
+		// Gap 11 (E-037): Start the alert engine's periodic evaluation loop.
+		// Without this call the evaluation loop never starts and alert rules
+		// are never evaluated. Start handles nil ruleRepo gracefully (returns
+		// early with a warning).
+		if startErr := alertEngine.Start(ctx); startErr != nil {
+			a.log.Warnn("Failed to start alerting engine evaluation loop", obskit.Error(startErr))
+		} else {
+			a.log.Infon("Alerting engine evaluation loop started (E-037)")
+			defer alertEngine.Stop()
+		}
 	}
 
 	gw := gateway.Handle{}

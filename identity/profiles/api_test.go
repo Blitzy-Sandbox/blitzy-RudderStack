@@ -17,6 +17,7 @@ import (
 	"github.com/rudderlabs/rudder-go-kit/stats"
 
 	"github.com/rudderlabs/rudder-server/identity/graph"
+	"github.com/rudderlabs/rudder-server/identity/settings"
 	"github.com/rudderlabs/rudder-server/identity/storage"
 )
 
@@ -103,6 +104,8 @@ func (m *mockGraphService) Run(_ context.Context) error { return nil }
 func (m *mockGraphService) Stop() {}
 
 func (m *mockGraphService) SetChangeEmitter(_ graph.ChangeEmitter) {}
+
+func (m *mockGraphService) UpdateSettings(_ *settings.ResolutionSettings) {}
 
 // mockCache implements the ProfileCache interface with an in-memory store.
 // It supports hit/miss tracking and error injection hooks.

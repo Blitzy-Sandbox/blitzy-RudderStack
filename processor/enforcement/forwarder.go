@@ -7,14 +7,25 @@
 package enforcement
 
 import (
+	"context"
 	"fmt"
 	"sync"
+
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 
 	"github.com/rudderlabs/rudder-go-kit/logger"
 	"github.com/rudderlabs/rudder-go-kit/stats"
 
 	"github.com/rudderlabs/rudder-server/jobsdb"
 )
+
+// JobWriter is an interface for writing jobs back into a JobsDB instance. The Forwarder
+// uses this to re-inject blocked events into the pipeline under a target source ID.
+// When nil, the forwarder logs intent and emits metrics but cannot deliver events.
+type JobWriter interface {
+	Store(ctx context.Context, jobs []*jobsdb.JobT) error
+}
 
 // Forwarder implements server-to-server forwarding of blocked events to an alternative source.
 // When events are blocked by the Block enforcement mode, the Forwarder reroutes them to a
@@ -27,6 +38,7 @@ import (
 type Forwarder struct {
 	logger       logger.Logger
 	statsFactory stats.Stats
+	writer       JobWriter
 
 	mu sync.RWMutex
 	// forwardedCount tracks total number of events forwarded (for metrics)
@@ -45,6 +57,14 @@ func NewForwarder(log logger.Logger, statsFactory stats.Stats) *Forwarder {
 	}
 }
 
+// SetJobWriter sets the JobWriter used for re-injecting forwarded events. When set,
+// Forward() will write events to the gateway DB under the target source ID.
+func (f *Forwarder) SetJobWriter(w JobWriter) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.writer = w
+}
+
 // Forward routes blocked events to an alternative source for debugging/analysis.
 // The events are preserved with their original metadata and forwarded via the Gateway
 // for re-processing under the target source ID.
@@ -52,7 +72,7 @@ func NewForwarder(log logger.Logger, statsFactory stats.Stats) *Forwarder {
 // When targetSourceID is empty, the method is a no-op.
 // When jobs is empty or nil, the method is a no-op.
 //
-// The original sourceID of each job is preserved in the event's context as "originalSourceId"
+// The original sourceID of each job is preserved in the event's parameters as "originalSourceId"
 // to maintain traceability, while the event is re-routed under the target source.
 //
 // Thread-safe: can be called concurrently from multiple processor goroutines.
@@ -70,23 +90,64 @@ func (f *Forwarder) Forward(jobs []*jobsdb.JobT, targetSourceID string) {
 		logger.NewIntField("eventCount", int64(len(jobs))),
 	)
 
-	// Process each blocked job for forwarding
+	// Build forwarded jobs by cloning originals and rewriting the source ID in parameters.
 	forwarded := 0
+	var forwardJobs []*jobsdb.JobT
 	for _, job := range jobs {
 		if job == nil {
 			continue
 		}
 
-		// Preserve original event metadata by marking it as forwarded.
-		// The actual re-routing is done by enriching the job's parameters with the target source
-		// and re-injecting it into the Gateway for processing under the new source context.
-		//
-		// The production implementation will use Gateway's internal job injection API
-		// to re-enqueue the event. For the initial implementation, we log the forwarding intent
-		// and emit metrics. The actual injection will be wired when the Gateway's internal
-		// forwarding endpoint is implemented.
-		f.logForwardedEvent(job, targetSourceID)
+		// Clone the job to avoid mutating the original.
+		fwdJob := &jobsdb.JobT{
+			WorkspaceId:  job.WorkspaceId,
+			EventPayload: job.EventPayload,
+			EventCount:   job.EventCount,
+		}
+
+		// Rewrite parameters: set source_id to targetSourceID and preserve original.
+		// Parameters is a JSON object like {"source_id": "...", "source_job_run_id": "...", ...}
+		params := job.Parameters
+		if len(params) > 0 {
+			// Inject target source and preserve original source for traceability.
+			if modified, err := sjson.SetBytes(params, "original_source_id", gjson.GetBytes(params, "source_id").String()); err == nil {
+				params = modified
+			}
+			if modified, err := sjson.SetBytes(params, "source_id", targetSourceID); err == nil {
+				params = modified
+			}
+			if modified, err := sjson.SetBytes(params, "forwarded_blocked_event", true); err == nil {
+				params = modified
+			}
+		}
+		fwdJob.Parameters = params
+
+		forwardJobs = append(forwardJobs, fwdJob)
 		forwarded++
+	}
+
+	// Write forwarded jobs to the gateway DB if a writer is available.
+	f.mu.RLock()
+	writer := f.writer
+	f.mu.RUnlock()
+
+	if writer != nil && len(forwardJobs) > 0 {
+		if err := writer.Store(context.Background(), forwardJobs); err != nil {
+			f.logger.Errorn("failed to store forwarded blocked events",
+				logger.NewStringField("targetSourceID", targetSourceID),
+				logger.NewStringField("error", err.Error()),
+			)
+		} else {
+			f.logger.Infon("forwarded blocked events stored successfully",
+				logger.NewStringField("targetSourceID", targetSourceID),
+				logger.NewIntField("count", int64(len(forwardJobs))),
+			)
+		}
+	} else if writer == nil {
+		f.logger.Warnn("no job writer configured for enforcement forwarder; blocked events logged but not re-injected",
+			logger.NewStringField("targetSourceID", targetSourceID),
+			logger.NewIntField("count", int64(len(forwardJobs))),
+		)
 	}
 
 	// Emit forwarding metrics

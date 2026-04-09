@@ -78,6 +78,10 @@ type Service interface {
 	// SetChangeEmitter sets a callback invoked after each successful identity
 	// resolution to emit CDC events (E-029). When nil, change emission is disabled.
 	SetChangeEmitter(fn ChangeEmitter)
+
+	// UpdateSettings replaces the identity resolution settings atomically (E-030).
+	// Called when backend-config publishes new identity resolution settings.
+	UpdateSettings(s *settings.ResolutionSettings)
 }
 
 // graphStats tracks performance and behaviour metrics for the identity graph service.
@@ -274,7 +278,7 @@ func NewService(
 // pipeline (processor/processor.go) for each event that flows through.
 //
 // The event processing flow:
-//  1. Extract identifiers from event JSON (userId, anonymousId, context.externalId, traits)
+//  1. Extract identifiers from event JSON (userId, anonymousId, context.externalId/externalIds, traits)
 //  2. Filter blocked identifiers using resolution settings
 //  3. Sort identifiers by priority for deterministic resolution
 //  4. Delegate to Resolver for strategy execution (new/single/multi match)
@@ -300,7 +304,7 @@ func (g *IdentityGraph) ProcessEvent(ctx context.Context, workspaceID string, ev
 	g.mu.RUnlock()
 
 	// Step 1: Extract identifiers from event JSON.
-	// ExtractExternalIDs parses userId, anonymousId, traits.email, and context.externalId.
+	// ExtractExternalIDs parses userId, anonymousId, traits.email, context.externalId and context.externalIds.
 	identifiers := ExtractExternalIDs(eventJSON)
 	if len(identifiers) == 0 {
 		g.logger.Debugn("No identifiers found in event",

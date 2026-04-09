@@ -1,6 +1,6 @@
 // Package graph — externalids.go implements external ID management (E-028).
 //
-// This file processes context.externalId from incoming events to extract and
+// This file processes context.externalId and context.externalIds from incoming events to extract and
 // register identifier associations in the identity graph. It defines the
 // IdentifierPair type, the default external ID types list, and extraction,
 // filtering, and sorting utilities used by the IdentityGraph.ProcessEvent flow.
@@ -82,12 +82,12 @@ func IsKnownExternalIDType(idType string) bool {
 //  1. Top-level userId → IdentifierPair{Type: "user_id", Value: ...}
 //  2. Top-level anonymousId → IdentifierPair{Type: "anonymous_id", Value: ...}
 //  3. traits.email (for identify events) → IdentifierPair{Type: "email", Value: ...}
-//  4. context.externalId array → each entry's {type, id} pair
+//  4. context.externalId AND context.externalIds arrays → each entry's {type, id} pair
 //
-// The context.externalId field follows the pattern used in:
-// router/batchrouter/asyncdestinationmanager/salesforce-bulk-upload/salesforce_bulk.go:84
-//
-//	gjson.GetBytes(job.EventPayload, "context.externalId")
+// Both the singular form "context.externalId" (used by RudderStack SDKs and
+// salesforce_bulk.go:84) and the plural form "context.externalIds" (used by
+// the Segment Unify spec per docs/gap-report/identity-parity.md) are supported
+// to ensure identifiers from both conventions are captured (E-028).
 //
 // Returns deduplicated, non-empty identifier pairs.
 func ExtractExternalIDs(eventJSON []byte) []IdentifierPair {
@@ -132,19 +132,26 @@ func ExtractExternalIDs(eventJSON []byte) []IdentifierPair {
 		}
 	}
 
-	// Step 4: Extract context.externalId array.
+	// Step 4: Extract context.externalId and context.externalIds arrays.
 	// Each entry has format: {"type": "...", "id": "..."}
-	// Field name is "context.externalId" (NOT "externalIds") per salesforce_bulk.go:84.
-	externalIDs := gjson.GetBytes(eventJSON, "context.externalId")
-	if externalIDs.Exists() && externalIDs.IsArray() {
-		externalIDs.ForEach(func(_, entry gjson.Result) bool {
-			idType := strings.TrimSpace(entry.Get("type").String())
-			idValue := strings.TrimSpace(entry.Get("id").String())
-			if idType != "" && idValue != "" {
-				identifiers = append(identifiers, IdentifierPair{Type: idType, Value: idValue})
-			}
-			return true // continue iteration
-		})
+	//
+	// The RudderStack SDK and some integrations (salesforce_bulk.go:84) use the singular
+	// form "context.externalId", while the Segment Unify spec (docs/gap-report/identity-parity.md
+	// line 289) specifies the plural form "context.externalIds" with an array of
+	// {id, type, collection, encoding} objects. We check both field names to ensure
+	// identifiers sent via either convention are captured (E-028).
+	for _, fieldName := range []string{"context.externalId", "context.externalIds"} {
+		externalIDs := gjson.GetBytes(eventJSON, fieldName)
+		if externalIDs.Exists() && externalIDs.IsArray() {
+			externalIDs.ForEach(func(_, entry gjson.Result) bool {
+				idType := strings.TrimSpace(entry.Get("type").String())
+				idValue := strings.TrimSpace(entry.Get("id").String())
+				if idType != "" && idValue != "" {
+					identifiers = append(identifiers, IdentifierPair{Type: idType, Value: idValue})
+				}
+				return true // continue iteration
+			})
+		}
 	}
 
 	// Step 5: Validate and filter — remove empty pairs.

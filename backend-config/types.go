@@ -347,6 +347,16 @@ func (dgSourceTPConfigT *DgSourceTrackingPlanConfigT) GetMergedConfig(eventType 
 		globalConfig := dgSourceTPConfigT.fetchEventConfig(GlobalEventType)
 		eventSpecificConfig := dgSourceTPConfigT.fetchEventConfig(eventType)
 		outputConfig := lo.Assign(globalConfig, eventSpecificConfig)
+		// Gap 9 (E-020): Propagate schemaVersion from TrackingPlanT into MergedConfig
+		// so that processor/trackingplan.go shouldUseLocalValidation() can detect
+		// "draft-07" and activate local JSON Schema validation. Without this, the
+		// schemaVersion is only present in the TrackingPlan struct but never in
+		// MergedTpConfig, causing local validation to never activate.
+		if dgSourceTPConfigT.TrackingPlan.SchemaVersion != "" {
+			if _, exists := outputConfig["schemaVersion"]; !exists {
+				outputConfig["schemaVersion"] = dgSourceTPConfigT.TrackingPlan.SchemaVersion
+			}
+		}
 		dgSourceTPConfigT.MergedConfig = outputConfig
 	}
 	return dgSourceTPConfigT.MergedConfig

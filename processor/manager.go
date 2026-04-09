@@ -176,3 +176,32 @@ func WithTransformerClients(transformerClients transformer.TransformerClients) O
 		l.Handle.transformerClients = transformerClients
 	}
 }
+
+// WithAnomalyDetector injects the anomaly detector into the processor (E-021).
+func WithAnomalyDetector(d anomalyDetector) Opts {
+	return func(l *LifecycleManager) {
+		l.Handle.anomalyDetector = d
+	}
+}
+
+// WithEnforcementForwarder injects the enforcement forwarder into the processor (E-023).
+func WithEnforcementForwarder(f enforcementForwarder) Opts {
+	return func(l *LifecycleManager) {
+		l.Handle.enforcementForwarder = f
+	}
+}
+
+// WithIdentityResolver injects the identity resolver into the processor (E-026).
+func WithIdentityResolver(r identityResolver) Opts {
+	return func(l *LifecycleManager) {
+		l.Handle.identityResolver = r
+	}
+}
+
+// WithPipelineProfiler injects the pipeline profiler into the processor (E-039).
+// The profiler records per-stage latencies for performance profiling.
+func WithPipelineProfiler(p pipelineProfiler) Opts {
+	return func(l *LifecycleManager) {
+		l.Handle.pipelineProfiler = p
+	}
+}

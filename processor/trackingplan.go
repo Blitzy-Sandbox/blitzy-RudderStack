@@ -192,7 +192,7 @@ func (proc *Handle) validateEvents(groupedEventsBySourceId map[SourceIDT][]types
 
 		// Anomaly detection: observe events for unexpected names/properties not in tracking plan (E-021)
 		if proc.anomalyDetector != nil {
-			proc.anomalyDetector.Observe(sourceId, eventList, response)
+			proc.anomalyDetector.Observe(string(sourceId), eventList, response)
 		}
 
 		// Set sourcePipelineSteps.trackingPlanValidation for the sourceID to true.
@@ -245,6 +245,23 @@ func (proc *Handle) validateEvents(groupedEventsBySourceId map[SourceIDT][]types
 			validatedReportMetrics = append(validatedReportMetrics, nonSuccessMetrics.filteredMetrics...)
 		}
 		// REPORTING - END
+
+		// Gap 3 (E-022): Enforce Block mode by filtering out events marked as blocked.
+		// After enhanceWithViolation sets context["blocked"] = true on events that violate
+		// the tracking plan under Block enforcement mode, we must remove them from the
+		// pipeline to prevent them from reaching the transformer and router.
+		if enforcementMode == enforcement.ModeBlock {
+			var unblockedEvents []types.TransformerEvent
+			for _, ev := range eventsToTransform {
+				if ctx, ok := ev.Message["context"].(map[string]any); ok {
+					if blocked, _ := ctx["blocked"].(bool); blocked {
+						continue // drop blocked event from pipeline
+					}
+				}
+				unblockedEvents = append(unblockedEvents, ev)
+			}
+			eventsToTransform = unblockedEvents
+		}
 
 		if len(eventsToTransform) == 0 {
 			continue
