@@ -2473,12 +2473,19 @@ func (proc *Handle) pretransformStage(partition string, preTrans *preTransformat
 					event.Metadata.MergedTpConfig,
 					event.Metadata.EventType,
 				)
-				enabledDestinationsList, _ := proc.getConsentFilteredDestinationsWithEnforcement(
+				enabledDestinationsList, consentViolations := proc.getConsentFilteredDestinationsWithEnforcement(
 					singularEvent,
 					sourceId,
 					candidateDests,
 					enfMode,
 				)
+				for _, cv := range consentViolations {
+					proc.logger.Infon("consent violation detected",
+						logger.NewStringField("destinationID", cv.DestinationID),
+						logger.NewStringField("provider", cv.Provider),
+						logger.NewStringField("enforcementMode", string(enfMode)),
+					)
+				}
 
 				// Adding a singular event multiple times if there are multiple destinations of same type
 				for idx := range enabledDestinationsList {

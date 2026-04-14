@@ -375,13 +375,28 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 	// and the /v1/profiling/pipeline endpoint always returns zeroes.
 	pipelineProfiler := profiling.NewProfiler()
 
+	// Create the Functions runtime engine BEFORE the processor so it can be injected
+	// via WithFunctionsRuntime. This fixes Failure 4 (E-016/E-017): fnRuntime was
+	// previously created after processor.New, meaning the processor never received it.
+	// The same engine instance is reused below for the Functions management API handler.
+	var fnRuntime *functionsruntime.Engine
+	if jobsdbPool != nil {
+		fnRuntime = functionsruntime.New(config, a.log.Child("functions-runtime"), statsFactory)
+		a.log.Infon("Functions runtime engine created for processor injection (E-015/E-016/E-017)")
+	}
+
 	// Build processor options including anomaly detector, enforcement forwarder,
-	// identity resolver adapter (Gap 6), and pipeline profiler (Gap 13).
+	// identity resolver adapter (Gap 6), pipeline profiler (Gap 13), and
+	// Functions runtime (E-015/E-016/E-017).
 	procOpts := []processor.Opts{
 		processor.WithAdaptiveLimit(adaptiveLimit),
 		processor.WithAnomalyDetector(anomalyDet),
 		processor.WithEnforcementForwarder(enforcementFwd),
 		processor.WithPipelineProfiler(pipelineProfiler),
+	}
+	if fnRuntime != nil {
+		procOpts = append(procOpts, processor.WithFunctionsRuntime(fnRuntime))
+		a.log.Infon("Functions runtime injected into processor (E-015/E-016/E-017)")
 	}
 	if graphSvc != nil {
 		idAdapter := identitygraph.NewProcessorAdapter(graphSvc, a.log.Child("identity-resolver"))
@@ -502,11 +517,11 @@ func (a *embeddedApp) StartRudderCore(ctx context.Context, shutdownFn func(), op
 
 	// Wire Functions management CRUD API (E-018) and Functions Secrets API (E-019).
 	// Requires a database connection for persistence. The Functions runtime engine
-	// handles test-invocation of user-defined functions via the /test endpoint.
-	if jobsdbPool != nil {
+	// (created earlier for processor injection) is reused here for test-invocation
+	// of user-defined functions via the /test endpoint.
+	if jobsdbPool != nil && fnRuntime != nil {
 		gwLog := a.log.Child("functions")
 		fnRepo := functionsstorage.New(jobsdbPool, gwLog)
-		fnRuntime := functionsruntime.New(config, gwLog, statsFactory)
 		fnSecrets := functionssecrets.New(config, gwLog, jobsdbPool)
 		internalHandlers["/v1/functions"] = functionsapi.NewRouter(gwLog, fnRepo, fnRuntime, fnSecrets)
 		a.log.Infon("Functions API wired into gateway internal handlers")

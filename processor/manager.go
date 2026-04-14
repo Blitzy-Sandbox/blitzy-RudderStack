@@ -11,6 +11,7 @@ import (
 
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
 	"github.com/rudderlabs/rudder-server/enterprise/trackedusers"
+	functionsruntime "github.com/rudderlabs/rudder-server/functions/runtime"
 	"github.com/rudderlabs/rudder-server/internal/enricher"
 	"github.com/rudderlabs/rudder-server/jobsdb"
 	"github.com/rudderlabs/rudder-server/processor/transformer"
@@ -203,5 +204,50 @@ func WithIdentityResolver(r identityResolver) Opts {
 func WithPipelineProfiler(p pipelineProfiler) Opts {
 	return func(l *LifecycleManager) {
 		l.Handle.pipelineProfiler = p
+	}
+}
+
+// WithFunctionsRuntime injects the Functions runtime engine into the processor,
+// enabling Source Functions (E-015), Destination Functions (E-016), and Insert
+// Functions (E-017) pipeline stages.
+//
+// This option performs three critical wirings:
+//
+//  1. Sets Handle.functionsEnabled = true so the functionsEnabled guard in
+//     processor.go (line ~3699 and ~4328) allows Function pipeline stages to execute.
+//
+//  2. Creates an insertFunctionEngineAdapter wrapping the engine and assigns it to
+//     Handle.insertFnExecutor so the Insert Functions stage (line ~4366) has a
+//     non-nil executor.
+//
+//  3. Rebuilds the transformer clients to include a functionsClientAdapter as the
+//     FunctionsClient, so proc.transformerClients.Functions() (line ~3710) returns
+//     a non-nil client for Destination Functions execution.
+//
+// The option must be applied during processor.New via the opts vararg. Because the
+// transformer clients are constructed inside New before opts are applied, this option
+// replaces the transformer clients with a new instance that includes both the original
+// FeatureService and the Functions client adapter. The FeatureService is obtained from
+// LifecycleManager.transformerFeaturesService which is populated before opts run.
+func WithFunctionsRuntime(engine *functionsruntime.Engine) Opts {
+	return func(l *LifecycleManager) {
+		// Failure 1 fix: enable the Functions pipeline stages.
+		l.Handle.functionsEnabled = true
+
+		// Failure 2 fix: wire the Insert Functions executor with type-bridge adapter.
+		l.Handle.insertFnExecutor = &insertFunctionEngineAdapter{engine: engine}
+
+		// Failure 3 fix: rebuild transformer clients to include the Functions client.
+		// The functionsClientAdapter satisfies transformer.FunctionsClient by delegating
+		// to the Engine's ExecuteSourceFunction, ExecuteDestinationFunction, and
+		// ExecuteInsertFunction methods with appropriate type conversions.
+		fnClientAdapter := &functionsClientAdapter{engine: engine}
+		l.Handle.transformerClients = transformer.NewClients(
+			config.Default,
+			logger.NewLogger().Child("processor"),
+			stats.Default,
+			transformer.WithFeatureService(l.transformerFeaturesService),
+			transformer.WithFunctionsClient(fnClientAdapter),
+		)
 	}
 }

@@ -477,9 +477,9 @@ Monitoring:
       queueDepthThreshold: 100000
   profiling:
     # Enable per-stage pipeline performance profiling
-    enabled: false
-    # Sampling rate for performance profiling (0.0-1.0)
-    sampleRate: 0.01
+    enabled: true
+    # Sampling rate for performance profiling (1-100 integer, percentage of events sampled)
+    sampleRate: 100
     # Target throughput for capacity planning reports (events per second)
     targetThroughput: 50000
     # Profiling data retention period
