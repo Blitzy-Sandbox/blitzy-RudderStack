@@ -59,9 +59,9 @@ type rsSourceFixture struct {
 //
 //nolint:unused // used in rsWarehouseFixture
 type rsDestinationFixture struct {
-	ID     string
-	Name   string
-	Config map[string]interface{}
+	ID                    string
+	Name                  string
+	Config                map[string]interface{}
 	DestinationDefinition rsDestDefFixture
 }
 
@@ -877,6 +877,7 @@ func testRedshiftConcurrentReplaysTransactionalSafety(
 //
 // All SQL statements are recorded in the returned rsRedshiftSQLRecorder for
 // subsequent verification by verifyDeleteInsertSequence.
+//
 //nolint:unparam // partitionKey is designed to vary per table (id vs composite key for discards)
 func mockRedshiftSQLExec(
 	t *testing.T,

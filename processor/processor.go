@@ -36,6 +36,7 @@ import (
 	"github.com/rudderlabs/rudder-server/internal/enricher"
 	"github.com/rudderlabs/rudder-server/jobsdb"
 	"github.com/rudderlabs/rudder-server/processor/delayed"
+	"github.com/rudderlabs/rudder-server/processor/enforcement"
 	"github.com/rudderlabs/rudder-server/processor/eventfilter"
 	"github.com/rudderlabs/rudder-server/processor/integrations"
 	"github.com/rudderlabs/rudder-server/processor/internal/preprocessdelay"
@@ -79,12 +80,34 @@ type (
 // to the batch router for warehouse destinations, bypassing the regular router.
 type warehouseOnlyCtxKey struct{}
 
+// replaySourceFilterCtxKey propagates the advanced replay source filter (E-038)
+// through the processor pipeline so that events from non-matching sources are dropped.
+type replaySourceFilterCtxKey struct{}
+
+// replayDestFilterCtxKey propagates the advanced replay destination filter (E-038)
+// through the pipeline so the destination transform stage only routes to matching destinations.
+type replayDestFilterCtxKey struct{}
+
+// replayDryRunCtxKey propagates the advanced replay dry-run flag (E-038).
+// When set, events are processed through the pipeline but dropped before writing
+// destination jobs, so no events are actually delivered to destinations.
+type replayDryRunCtxKey struct{}
+
+// replayDateStartCtxKey propagates the advanced replay start-date filter (E-038)
+// through the pipeline so events with timestamps before this date are dropped.
+type replayDateStartCtxKey struct{}
+
+// replayDateEndCtxKey propagates the advanced replay end-date filter (E-038)
+// through the pipeline so events with timestamps after this date are dropped.
+type replayDateEndCtxKey struct{}
+
 const (
-	MetricKeyDelimiter    = "!<<#>>!"
-	UserTransformation    = "USER_TRANSFORMATION"
-	DestTransformation    = "DEST_TRANSFORMATION"
-	EventFilter           = "EVENT_FILTER"
-	sourceCategoryWebhook = "webhook"
+	MetricKeyDelimiter           = "!<<#>>!"
+	UserTransformation           = "USER_TRANSFORMATION"
+	DestTransformation           = "DEST_TRANSFORMATION"
+	InsertFunctionTransformation = "INSERT_FUNCTION_TRANSFORMATION" // E-017: Insert Functions pipeline stage
+	EventFilter                  = "EVENT_FILTER"
+	sourceCategoryWebhook        = "webhook"
 )
 
 func NewHandle(c *config.Config, transformerClients transformer.TransformerClients) *Handle {
@@ -100,6 +123,61 @@ type sourceObserver interface {
 type trackedUsersReporter interface {
 	ReportUsers(ctx context.Context, reports []*trackedusers.UsersReport, tx *Tx) error
 	GenerateReportsFromJobs(jobs []*jobsdb.JobT, sourceIdFilter map[string]bool) []*trackedusers.UsersReport
+}
+
+// anomalyDetector detects unexpected events/properties not in the tracking plan (E-021).
+// Implementations observe source events and transformer responses to track anomalies
+// such as events or properties that are not defined in the associated tracking plan.
+type anomalyDetector interface {
+	Observe(sourceID string, events []types.TransformerEvent, response types.Response)
+}
+
+// enforcementForwarder forwards blocked events to an alternative source (E-023).
+// When Protocols enforcement blocks an event, the forwarder can redirect it to a
+// configurable target source for inspection or reprocessing rather than dropping it.
+type enforcementForwarder interface {
+	Forward(jobs []*jobsdb.JobT, targetSourceID string)
+}
+
+// identityResolver hooks real-time identity resolution into the processing pipeline (E-026).
+// It resolves user identity as events flow through the pipeline, extending beyond the
+// batch-only warehouse identity resolution to support real-time identity graph updates.
+//
+// E-026: injected when identity graph service is started
+type identityResolver interface {
+	ResolveIdentity(ctx context.Context, event types.TransformerEvent) error
+}
+
+// pipelineProfiler records per-stage latencies for pipeline performance profiling (E-039).
+// The interface is satisfied by services/profiling.Profiler.
+type pipelineProfiler interface {
+	RecordStageLatency(stage string, latency time.Duration)
+}
+
+// insertFunctionExecutor executes Insert Functions against individual events (E-017).
+// The executor marshals the event to JSON, delegates execution to the functions runtime,
+// and returns the (possibly transformed) event payload or a drop signal.
+type insertFunctionExecutor interface {
+	ExecuteInsertFunction(ctx context.Context, fn *insertFunctionDef, event json.RawMessage, settings map[string]string) (*insertFunctionResult, error)
+}
+
+// insertFunctionDef is a local mirror of functions/runtime.FunctionDef used to avoid
+// a direct import cycle between processor and functions/runtime. Fields are populated
+// from the backend-config FunctionBinding data and the functions management store.
+type insertFunctionDef struct {
+	ID          string
+	WorkspaceID string
+	Name        string
+	Code        string
+	Version     int
+	Type        string
+	Settings    map[string]string
+}
+
+// insertFunctionResult mirrors functions/runtime.InsertFunctionResult.
+type insertFunctionResult struct {
+	Event   json.RawMessage
+	Dropped bool
 }
 
 // Handle is a handle to the processor module
@@ -144,6 +222,7 @@ type Handle struct {
 		srcHydration kitsync.Limiter
 		pretransform kitsync.Limiter
 		utransform   kitsync.Limiter
+		insertfunc   kitsync.Limiter // E-017: Insert Functions stage limiter
 		dtransform   kitsync.Limiter
 		store        kitsync.Limiter
 	}
@@ -198,6 +277,30 @@ type Handle struct {
 
 	sourceObservers      []sourceObserver
 	trackedUsersReporter trackedUsersReporter
+
+	// Functions runtime integration (E-015/E-016/E-017).
+	// When false, the Insert Functions pipeline stage is a no-op pass-through.
+	functionsEnabled bool
+
+	// insertFnExecutor executes Insert Functions for the pipeline stage (E-017).
+	// When nil, the Insert Functions stage passes events through unchanged.
+	insertFnExecutor insertFunctionExecutor
+
+	// anomalyDetector detects unexpected events/properties not in the tracking plan (E-021).
+	// When nil, anomaly detection is disabled and no observation occurs.
+	anomalyDetector anomalyDetector
+
+	// enforcementForwarder forwards blocked events to an alternative source (E-023).
+	// When nil, blocked events are not forwarded.
+	enforcementForwarder enforcementForwarder
+
+	// identityResolver hooks real-time identity resolution into event processing (E-026).
+	// When nil, real-time identity resolution is disabled and events pass through unchanged.
+	identityResolver identityResolver // E-026: set when identity service is injected
+
+	// pipelineProfiler records per-stage latencies for pipeline performance profiling (E-039).
+	// Set via WithPipelineProfiler option when profiling is enabled.
+	pipelineProfiler pipelineProfiler
 }
 type processorStats struct {
 	statGatewayDBR                func(partition string) stats.Measurement
@@ -218,6 +321,7 @@ type processorStats struct {
 	statPreprocessStageCount   func(partition string) stats.Measurement
 	statSrcHydrationStageCount func(partition string) stats.Measurement
 	statUtransformStageCount   func(partition string) stats.Measurement
+	statInsertFuncStageCount   func(partition string) stats.Measurement // E-017: Insert Functions stage metric
 	statDtransformStageCount   func(partition string) stats.Measurement
 	statStoreStageCount        func(partition string) stats.Measurement
 
@@ -556,6 +660,11 @@ func (proc *Handle) Setup(
 			"partition": partition,
 		})
 	}
+	proc.stats.statInsertFuncStageCount = func(partition string) stats.Measurement {
+		return proc.statsFactory.NewTaggedStat("proc_insertfunc_jobs", stats.CountType, stats.Tags{
+			"partition": partition,
+		})
+	}
 	proc.stats.statDtransformStageCount = func(partition string) stats.Measurement {
 		return proc.statsFactory.NewTaggedStat("proc_dtransform_jobs", stats.CountType, stats.Tags{
 			"partition": partition,
@@ -656,6 +765,10 @@ func (proc *Handle) Start(ctx context.Context) error {
 		proc.conf.GetReloadableIntVar(50, 1, "Processor.Limiter.utransform.limit"),
 		s,
 		kitsync.WithLimiterDynamicPeriod(config.GetDuration("Processor.Limiter.utransform.dynamicPeriod", 1, time.Second)))
+	proc.limiter.insertfunc = kitsync.NewReloadableLimiter(ctx, &limiterGroup, "proc_insertfunc",
+		proc.conf.GetReloadableIntVar(50, 1, "Processor.Limiter.insertfunc.limit"),
+		s,
+		kitsync.WithLimiterDynamicPeriod(config.GetDuration("Processor.Limiter.insertfunc.dynamicPeriod", 1, time.Second)))
 	proc.limiter.dtransform = kitsync.NewReloadableLimiter(ctx, &limiterGroup, "proc_dtransform",
 		proc.conf.GetReloadableIntVar(50, 1, "Processor.Limiter.dtransform.limit"),
 		s,
@@ -1678,6 +1791,12 @@ type preTransformationMessage struct {
 }
 
 func (proc *Handle) preprocessStage(partition string, subJobs subJob, delay time.Duration) (*srcHydrationMessage, error) {
+	stageStart := time.Now()
+	defer func() {
+		if proc.pipelineProfiler != nil {
+			proc.pipelineProfiler.RecordStageLatency("preprocess", time.Since(stageStart))
+		}
+	}()
 	spanTags := stats.Tags{"partition": partition}
 	ctx, processJobsSpan := proc.tracer.Trace(subJobs.ctx, "preprocessStage", tracing.WithTraceTags(spanTags))
 	defer processJobsSpan.End()
@@ -2058,6 +2177,20 @@ func (proc *Handle) preprocessStage(partition string, subJobs subJob, delay time
 			}
 		}
 		// REPORTING - GATEWAY metrics - END
+
+		// E-026: Resolve identity BEFORE the destination availability check.
+		// Sources with no destinations should still get identity resolved, since
+		// identity resolution enriches the identity graph regardless of downstream routing.
+		if proc.identityResolver != nil {
+			identityEvent := types.TransformerEvent{
+				Message:  event.singularEvent,
+				Metadata: *singularEventMetadata,
+			}
+			proc.resolveIdentity(proc.backgroundCtx, &identityEvent)
+			// Apply any enrichments the resolver may have made to the event message
+			event.singularEvent = identityEvent.Message
+		}
+
 		// Getting all the destinations which are enabled for this event.
 		// Event will be dropped if no valid destination is present
 		// if empty destinationID is passed in this fn all the destinations for the source are validated
@@ -2127,6 +2260,30 @@ func (proc *Handle) preprocessStage(partition string, subJobs subJob, delay time
 		}
 	}
 
+	// E-038: Detect advanced replay filter fields injected by
+	// gateway/handle_http_replay_advanced.go and propagate them via context
+	// so downstream stages enforce source, date-range, destination filtering
+	// and dry-run mode. Without this extraction the injected fields are inert.
+	// Only the first job is checked — all jobs in the batch share the same replay filters.
+	if len(jobList) > 0 {
+		payload := jobList[0].EventPayload
+		if sf := gjson.GetBytes(payload, "batch.0.context.replaySourceFilter").String(); sf != "" {
+			subJobs.ctx = context.WithValue(subJobs.ctx, replaySourceFilterCtxKey{}, sf)
+		}
+		if df := gjson.GetBytes(payload, "batch.0.context.replayDestinationFilter").String(); df != "" {
+			subJobs.ctx = context.WithValue(subJobs.ctx, replayDestFilterCtxKey{}, df)
+		}
+		if gjson.GetBytes(payload, "batch.0.context.replayDryRun").Bool() {
+			subJobs.ctx = context.WithValue(subJobs.ctx, replayDryRunCtxKey{}, true)
+		}
+		if sd := gjson.GetBytes(payload, "batch.0.context.replayDateRange.startDate").String(); sd != "" {
+			subJobs.ctx = context.WithValue(subJobs.ctx, replayDateStartCtxKey{}, sd)
+		}
+		if ed := gjson.GetBytes(payload, "batch.0.context.replayDateRange.endDate").String(); ed != "" {
+			subJobs.ctx = context.WithValue(subJobs.ctx, replayDateEndCtxKey{}, ed)
+		}
+	}
+
 	if len(statusList) != len(jobList) {
 		return nil, fmt.Errorf("len(statusList):%d != len(jobList):%d", len(statusList), len(jobList))
 	}
@@ -2162,6 +2319,12 @@ func (proc *Handle) preprocessStage(partition string, subJobs subJob, delay time
 }
 
 func (proc *Handle) pretransformStage(partition string, preTrans *preTransformationMessage) (*transformationMessage, error) {
+	stageStart := time.Now()
+	defer func() {
+		if proc.pipelineProfiler != nil {
+			proc.pipelineProfiler.RecordStageLatency("preTransform", time.Since(stageStart))
+		}
+	}()
 	spanTags := stats.Tags{"partition": partition}
 	ctx, mainSpan := proc.tracer.Trace(preTrans.subJobs.ctx, "pretransformStage", tracing.WithTraceTags(spanTags))
 	defer mainSpan.End()
@@ -2296,17 +2459,33 @@ func (proc *Handle) pretransformStage(partition string, preTrans *preTransformat
 			workspaceLibraries := proc.getWorkspaceLibraries(workspaceID)
 
 			for _, destType := range enabledDestTypes {
-				enabledDestinationsList := proc.getConsentFilteredDestinations(
+				// E-025: Use enforcement-aware consent filtering when an enforcement mode
+				// is configured via tracking plan config, otherwise fall back to the
+				// standard consent filter for full backward compatibility.
+				candidateDests := lo.Filter(proc.getEnabledDestinations(sourceId, destType), func(item backendconfig.DestinationT, index int) bool {
+					destId := preTrans.jobIDToSpecificDestMapOnly[event.Metadata.JobID]
+					if destId != "" {
+						return destId == item.ID
+					}
+					return destId == ""
+				})
+				enfMode := enforcement.ResolveModeFromConfig(
+					event.Metadata.MergedTpConfig,
+					event.Metadata.EventType,
+				)
+				enabledDestinationsList, consentViolations := proc.getConsentFilteredDestinationsWithEnforcement(
 					singularEvent,
 					sourceId,
-					lo.Filter(proc.getEnabledDestinations(sourceId, destType), func(item backendconfig.DestinationT, index int) bool {
-						destId := preTrans.jobIDToSpecificDestMapOnly[event.Metadata.JobID]
-						if destId != "" {
-							return destId == item.ID
-						}
-						return destId == ""
-					}),
+					candidateDests,
+					enfMode,
 				)
+				for _, cv := range consentViolations {
+					proc.logger.Infon("consent violation detected",
+						logger.NewStringField("destinationID", cv.DestinationID),
+						logger.NewStringField("provider", cv.Provider),
+						logger.NewStringField("enforcementMode", string(enfMode)),
+					)
+				}
 
 				// Adding a singular event multiple times if there are multiple destinations of same type
 				for idx := range enabledDestinationsList {
@@ -2457,6 +2636,12 @@ type userTransformData struct {
 }
 
 func (proc *Handle) userTransformStage(partition string, in *transformationMessage) *userTransformData {
+	stageStart := time.Now()
+	defer func() {
+		if proc.pipelineProfiler != nil {
+			proc.pipelineProfiler.RecordStageLatency("userTransform", time.Since(stageStart))
+		}
+	}()
 	spanTags := stats.Tags{"partition": partition}
 	_, mainSpan := proc.tracer.Trace(in.ctx, "userTransformStage", tracing.WithTraceTags(spanTags))
 	defer mainSpan.End()
@@ -2545,6 +2730,12 @@ func (proc *Handle) userTransformStage(partition string, in *transformationMessa
 }
 
 func (proc *Handle) destinationTransformStage(partition string, in *userTransformData) *storeMessage {
+	stageStart := time.Now()
+	defer func() {
+		if proc.pipelineProfiler != nil {
+			proc.pipelineProfiler.RecordStageLatency("destTransform", time.Since(stageStart))
+		}
+	}()
 	spanTags := stats.Tags{"partition": partition}
 	_, mainSpan := proc.tracer.Trace(in.ctx, "destinationTransformStage", tracing.WithTraceTags(spanTags))
 	defer mainSpan.End()
@@ -2613,6 +2804,104 @@ func (proc *Handle) destinationTransformStage(partition string, in *userTransfor
 	if warehouseOnly, _ := in.ctx.Value(warehouseOnlyCtxKey{}).(bool); warehouseOnly {
 		batchDestJobs = append(batchDestJobs, destJobs...)
 		destJobs = nil
+		routerDestIDs = make(map[string]struct{})
+	}
+
+	// E-038: Enforce advanced replay destination filter.
+	// When replayDestFilterCtxKey is set, only keep destination jobs whose
+	// custom_val (destination type or destination ID) matches the filter.
+	// This ensures replay events are sent only to the specified destination.
+	if destFilter, ok := in.ctx.Value(replayDestFilterCtxKey{}).(string); ok && destFilter != "" {
+		filteredDest := make([]*jobsdb.JobT, 0, len(destJobs))
+		for _, j := range destJobs {
+			if j.CustomVal == destFilter || gjson.GetBytes(j.Parameters, "destination_id").String() == destFilter {
+				filteredDest = append(filteredDest, j)
+			}
+		}
+		filteredBatch := make([]*jobsdb.JobT, 0, len(batchDestJobs))
+		for _, j := range batchDestJobs {
+			if j.CustomVal == destFilter || gjson.GetBytes(j.Parameters, "destination_id").String() == destFilter {
+				filteredBatch = append(filteredBatch, j)
+			}
+		}
+		destJobs = filteredDest
+		batchDestJobs = filteredBatch
+	}
+
+	// E-038: Enforce advanced replay source filter.
+	// When replaySourceFilterCtxKey is set, drop all destination jobs whose
+	// source_id doesn't match the filter. This prevents replay events from
+	// sources other than the specified one from reaching destinations.
+	if srcFilter, ok := in.ctx.Value(replaySourceFilterCtxKey{}).(string); ok && srcFilter != "" {
+		filteredDest := make([]*jobsdb.JobT, 0, len(destJobs))
+		for _, j := range destJobs {
+			if gjson.GetBytes(j.Parameters, "source_id").String() == srcFilter {
+				filteredDest = append(filteredDest, j)
+			}
+		}
+		filteredBatch := make([]*jobsdb.JobT, 0, len(batchDestJobs))
+		for _, j := range batchDestJobs {
+			if gjson.GetBytes(j.Parameters, "source_id").String() == srcFilter {
+				filteredBatch = append(filteredBatch, j)
+			}
+		}
+		destJobs = filteredDest
+		batchDestJobs = filteredBatch
+	}
+
+	// E-038: Enforce advanced replay date-range filter.
+	// When start/end dates are set, drop destination jobs whose event timestamp
+	// falls outside the specified range.
+	if startStr, ok := in.ctx.Value(replayDateStartCtxKey{}).(string); ok && startStr != "" {
+		if startTime, err := time.Parse(time.RFC3339, startStr); err == nil {
+			filteredDest := make([]*jobsdb.JobT, 0, len(destJobs))
+			for _, j := range destJobs {
+				if !j.CreatedAt.Before(startTime) {
+					filteredDest = append(filteredDest, j)
+				}
+			}
+			filteredBatch := make([]*jobsdb.JobT, 0, len(batchDestJobs))
+			for _, j := range batchDestJobs {
+				if !j.CreatedAt.Before(startTime) {
+					filteredBatch = append(filteredBatch, j)
+				}
+			}
+			destJobs = filteredDest
+			batchDestJobs = filteredBatch
+		}
+	}
+	if endStr, ok := in.ctx.Value(replayDateEndCtxKey{}).(string); ok && endStr != "" {
+		if endTime, err := time.Parse(time.RFC3339, endStr); err == nil {
+			filteredDest := make([]*jobsdb.JobT, 0, len(destJobs))
+			for _, j := range destJobs {
+				if !j.CreatedAt.After(endTime) {
+					filteredDest = append(filteredDest, j)
+				}
+			}
+			filteredBatch := make([]*jobsdb.JobT, 0, len(batchDestJobs))
+			for _, j := range batchDestJobs {
+				if !j.CreatedAt.After(endTime) {
+					filteredBatch = append(filteredBatch, j)
+				}
+			}
+			destJobs = filteredDest
+			batchDestJobs = filteredBatch
+		}
+	}
+
+	// E-038: Enforce advanced replay dry-run mode.
+	// When replayDryRunCtxKey is set, log the number of events that would be
+	// delivered and then drop all destination jobs. No events are actually
+	// routed to destinations, allowing operators to preview replay results.
+	if dryRun, _ := in.ctx.Value(replayDryRunCtxKey{}).(bool); dryRun {
+		proc.logger.Infon("Advanced replay dry-run: dropping all destination jobs",
+			logger.NewIntField("routerJobs", int64(len(destJobs))),
+			logger.NewIntField("batchRouterJobs", int64(len(batchDestJobs))),
+		)
+		droppedJobs = append(droppedJobs, destJobs...)
+		droppedJobs = append(droppedJobs, batchDestJobs...)
+		destJobs = nil
+		batchDestJobs = nil
 		routerDestIDs = make(map[string]struct{})
 	}
 
@@ -2698,6 +2987,12 @@ func (proc *Handle) sendQueryRetryStats(attempt int) {
 }
 
 func (proc *Handle) storeStage(partition string, pipelineIndex int, in *storeMessage) {
+	stageStart := time.Now()
+	defer func() {
+		if proc.pipelineProfiler != nil {
+			proc.pipelineProfiler.RecordStageLatency("store", time.Since(stageStart))
+		}
+	}()
 	lockRouterDestIDs := func() func() {
 		var deferred []func()
 		if len(in.destJobs) == 0 {
@@ -3402,6 +3697,56 @@ func (proc *Handle) destTransform(ctx context.Context, data userTransformAndFilt
 		})
 	}
 
+	// Gap 5 (E-016): Execute Destination Functions after destination transformation.
+	// When the destination has an active "destination"-type function binding and the
+	// Functions runtime is available, invoke the typed event handler (onTrack, onIdentify,
+	// etc.) for each event. This allows user-defined JavaScript code to modify, filter,
+	// or enrich events after the standard destination transformation but before they are
+	// marshaled and stored for the router.
+	if proc.functionsEnabled && len(data.eventsToTransform) > 0 {
+		dest := &data.eventsToTransform[0].Destination
+		var activeDestFnBinding *backendconfig.FunctionBinding
+		for bi := range dest.FunctionBindings {
+			b := &dest.FunctionBindings[bi]
+			if b.FunctionType == "destination" && b.Enabled {
+				activeDestFnBinding = b
+				break
+			}
+		}
+		if activeDestFnBinding != nil {
+			fnClient := proc.transformerClients.Functions()
+			if fnClient != nil && len(response.Events) > 0 {
+				// Build TransformerEvent list from the response for the destination function.
+				// Each successful response event is passed to the destination function with
+				// its associated event type so the typed handler dispatch (onTrack, onIdentify,
+				// etc.) selects the correct user-defined handler.
+				var destFnEvents []types.TransformerEvent
+				for i := range response.Events {
+					destFnEvents = append(destFnEvents, types.TransformerEvent{
+						Message:     response.Events[i].Output,
+						Metadata:    response.Events[i].Metadata,
+						Destination: *dest,
+					})
+				}
+				eventType := ""
+				if len(destFnEvents) > 0 {
+					if et, ok := destFnEvents[0].Message["type"].(string); ok {
+						eventType = et
+					}
+				}
+				fnResponse := fnClient.ExecuteDestinationFunction(
+					ctx, activeDestFnBinding.FunctionID, eventType, destFnEvents,
+				)
+				// Replace the response events with function output.
+				// Failed function events are added to proc errors.
+				if len(fnResponse.Events) > 0 || len(fnResponse.FailedEvents) > 0 {
+					response.Events = fnResponse.Events
+					response.FailedEvents = append(response.FailedEvents, fnResponse.FailedEvents...)
+				}
+			}
+		}
+	}
+
 	trace.WithRegion(ctx, "MarshalForDB", func() {
 		// Save the JSON in DB. This is what the router uses
 		for i := range response.Events {
@@ -3860,7 +4205,9 @@ func (proc *Handle) isDestinationAvailable(event types.SingularEventT, sourceId,
 		return false
 	}
 
-	if enabledDestinationsList := lo.Filter(proc.getConsentFilteredDestinations(
+	// Use enforcement-aware consent filtering (E-025). Passing empty enforcement mode
+	// delegates to the original getConsentFilteredDestinations for full backward compatibility.
+	consentFiltered, _ := proc.getConsentFilteredDestinationsWithEnforcement(
 		event,
 		sourceId,
 		lo.Flatten(
@@ -3871,7 +4218,9 @@ func (proc *Handle) isDestinationAvailable(event types.SingularEventT, sourceId,
 				},
 			),
 		),
-	), func(dest backendconfig.DestinationT, index int) bool {
+		"", // empty enforcement mode falls back to legacy consent filter
+	)
+	if enabledDestinationsList := lo.Filter(consentFiltered, func(dest backendconfig.DestinationT, index int) bool {
 		return len(destinationID) == 0 || dest.ID == destinationID
 	}); len(enabledDestinationsList) == 0 {
 		proc.logger.Debugn("No destination to route this event to")
@@ -3968,4 +4317,163 @@ func getUTSamplingUploader(conf *config.Config, log logger.Logger) (*filemanager
 	return filemanager.NewS3Manager(conf, s3Config, log.Withn(logger.NewStringField("component", "ut-uploader")), func() time.Duration {
 		return conf.GetDuration("UTSampling.Timeout", 120, time.Second)
 	})
+}
+
+// insertFunctionsStage executes Insert Functions (per-destination pre-transform hooks) on events.
+// When no Insert Functions are configured for the event's destinations, this is a no-op pass-through.
+// This maintains backward compatibility with existing pipelines — all existing destinations that
+// do not have Insert Function bindings are completely unaffected (E-017).
+func (proc *Handle) insertFunctionsStage(partition string, data *userTransformData) *userTransformData {
+	stageStart := time.Now()
+	defer func() {
+		if proc.pipelineProfiler != nil {
+			proc.pipelineProfiler.RecordStageLatency("insertFunctions", time.Since(stageStart))
+		}
+	}()
+	// If Functions runtime is not enabled, pass through unchanged.
+	// This is the default path for all existing deployments.
+	if !proc.functionsEnabled {
+		return data
+	}
+
+	if proc.limiter.insertfunc != nil {
+		defer proc.limiter.insertfunc.BeginWithPriority(partition, proc.getLimiterPriority(partition))()
+		defer proc.stats.statInsertFuncStageCount(partition).Count(len(data.statusList))
+	}
+
+	// Check if any destination in the pipeline data has Insert Function bindings.
+	// The check iterates through all user-transform outputs and examines each event's
+	// destination for active insert-type function bindings.
+	hasInsertFunctions := false
+	for _, output := range data.userTransformAndFilterOutputs {
+		for i := range output.eventsToTransform {
+			dest := &output.eventsToTransform[i].Destination
+			for _, binding := range dest.FunctionBindings {
+				if binding.FunctionType == "insert" && binding.Enabled {
+					hasInsertFunctions = true
+					break
+				}
+			}
+			if hasInsertFunctions {
+				break
+			}
+		}
+		if hasInsertFunctions {
+			break
+		}
+	}
+
+	if !hasInsertFunctions {
+		return data
+	}
+
+	// Insert Functions execution is delegated to the Functions runtime when it has been
+	// initialized and registered with the processor. Events pass through unchanged when
+	// the runtime has not been initialized, preserving backward compatibility.
+	if proc.insertFnExecutor == nil {
+		return data
+	}
+
+	// Execute insert functions for each event in each output batch.
+	// For each event with an active insert-type function binding, marshal the
+	// SingularEventT (map[string]any) to json.RawMessage, execute the function,
+	// and unmarshal the result back into the event. Dropped events are removed
+	// from the batch.
+	for key, output := range data.userTransformAndFilterOutputs {
+		var kept []types.TransformerEvent
+		for i := range output.eventsToTransform {
+			event := output.eventsToTransform[i]
+			dest := &event.Destination
+
+			// Find the active insert function binding for this destination.
+			var activeBinding *backendconfig.FunctionBinding
+			for bi := range dest.FunctionBindings {
+				b := &dest.FunctionBindings[bi]
+				if b.FunctionType == "insert" && b.Enabled {
+					activeBinding = b
+					break
+				}
+			}
+
+			if activeBinding == nil {
+				// No insert function — pass through unchanged.
+				kept = append(kept, event)
+				continue
+			}
+
+			// Marshal the SingularEventT (map[string]any) to json.RawMessage
+			// for the functions runtime which expects JSON bytes.
+			eventJSON, marshalErr := jsonrs.Marshal(event.Message)
+			if marshalErr != nil {
+				proc.logger.Errorn("Failed to marshal event for insert function",
+					obskit.Error(marshalErr),
+					logger.NewStringField("functionId", activeBinding.FunctionID),
+				)
+				// On marshal error, pass event through unchanged to avoid data loss.
+				kept = append(kept, event)
+				continue
+			}
+
+			fnDef := &insertFunctionDef{
+				ID:          activeBinding.FunctionID,
+				WorkspaceID: event.Metadata.WorkspaceID,
+				Type:        "insert",
+			}
+
+			result, execErr := proc.insertFnExecutor.ExecuteInsertFunction(
+				context.TODO(), fnDef, json.RawMessage(eventJSON), nil,
+			)
+			if execErr != nil {
+				proc.logger.Errorn("Insert function execution failed",
+					obskit.Error(execErr),
+					logger.NewStringField("functionId", activeBinding.FunctionID),
+				)
+				// On execution error, pass event through unchanged to avoid data loss.
+				kept = append(kept, event)
+				continue
+			}
+
+			// If the insert function dropped the event, remove it from the pipeline.
+			if result.Dropped {
+				continue
+			}
+
+			// Unmarshal the (possibly transformed) result back into SingularEventT.
+			if len(result.Event) > 0 {
+				var transformed types.SingularEventT
+				if unmarshalErr := jsonrs.Unmarshal(result.Event, &transformed); unmarshalErr != nil {
+					proc.logger.Errorn("Failed to unmarshal insert function result",
+						obskit.Error(unmarshalErr),
+						logger.NewStringField("functionId", activeBinding.FunctionID),
+					)
+					// On unmarshal error, pass original event through.
+					kept = append(kept, event)
+					continue
+				}
+				event.Message = transformed
+			}
+			kept = append(kept, event)
+		}
+		updatedOutput := output
+		updatedOutput.eventsToTransform = kept
+		data.userTransformAndFilterOutputs[key] = updatedOutput
+	}
+
+	return data
+}
+
+// resolveIdentity hooks real-time identity resolution into the event processing pipeline (E-026).
+// When identity resolution is not enabled (identityResolver is nil), this is a no-op.
+// The resolver updates the real-time identity graph as events flow through the pipeline,
+// extending beyond the batch-only warehouse identity resolution model.
+func (proc *Handle) resolveIdentity(ctx context.Context, event *types.TransformerEvent) {
+	if proc.identityResolver == nil {
+		return
+	}
+	if err := proc.identityResolver.ResolveIdentity(ctx, *event); err != nil {
+		proc.logger.Errorn("failed to resolve identity",
+			obskit.Error(err),
+			logger.NewStringField("sourceID", event.Metadata.SourceID),
+		)
+	}
 }

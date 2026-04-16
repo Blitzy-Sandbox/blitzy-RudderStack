@@ -1,0 +1,456 @@
+{
+  "destination_type": "AMAZON_MSK",
+  "destination_tier": "stream",
+  "segment_reference_payload": null,
+  "rudderstack_expected_payload": {
+    "producer_package": "services/streammanager/amazonmsk",
+    "producer_constructor": "NewProducer",
+    "producer_interface": "common.StreamProducer",
+    "underlying_protocol": "Apache Kafka (Amazon Managed Streaming for Apache Kafka)",
+    "description": "Amazon MSK uses the Apache Kafka wire protocol through the AWS-managed Kafka service. The NewProducer constructor creates a SASL/SCRAM or IAM-authenticated Kafka client configured for the MSK cluster. Messages are produced using the standard Kafka wire protocol via the kafka-go library, with optional IAM-based authentication specific to AWS MSK.",
+    "connection": {
+      "method": "MSK cluster bootstrap endpoint",
+      "protocol": "Kafka wire protocol over TLS with SASL/SCRAM-SHA-512 or AWS IAM authentication",
+      "bootstrap_servers": "MSK cluster bootstrap broker endpoints (e.g., b-1.msk-cluster.xxxxx.c2.kafka.us-east-1.amazonaws.com:9096)",
+      "authentication": {
+        "mechanism": "SASL/SCRAM-SHA-512 or AWS_MSK_IAM",
+        "sasl_username": "SCRAM username (when using SCRAM authentication)",
+        "sasl_password": "SCRAM password (when using SCRAM authentication)",
+        "iam_role_arn": "AWS IAM role ARN (when using IAM authentication)",
+        "region": "AWS region of the MSK cluster"
+      },
+      "tls": {
+        "enabled": true,
+        "description": "TLS is always enabled for Amazon MSK connections"
+      },
+      "dial_timeout": "10 seconds (configurable via Router.AMAZON_MSK.dialTimeout)",
+      "ping_on_create": true,
+      "ping_description": "Connection is verified via Ping after client creation, within the dial timeout context"
+    },
+    "destination_config": {
+      "topic": "Required. The MSK topic name to produce messages to.",
+      "bootstrapServer": "Required. Comma-separated list of MSK cluster bootstrap broker addresses.",
+      "authMechanism": "Required. Authentication mechanism: 'scram' or 'iam'.",
+      "saslUsername": "Required when authMechanism is 'scram'. SCRAM-SHA-512 username.",
+      "saslPassword": "Required when authMechanism is 'scram'. SCRAM-SHA-512 password.",
+      "iamRoleArn": "Required when authMechanism is 'iam'. AWS IAM role ARN for authentication.",
+      "region": "Required when authMechanism is 'iam'. AWS region of the MSK cluster."
+    },
+    "config_validation": {
+      "topic": "cannot be empty",
+      "bootstrapServer": "cannot be empty",
+      "authMechanism": "must be 'scram' or 'iam'"
+    },
+    "message_format": {
+      "structure": "Kafka message with topic, key, value, and timestamp",
+      "topic_resolution": "Per-event topic field from JSON payload takes precedence; falls back to destination config topic",
+      "key": "Derived from userId field in the event JSON payload (via gjson path 'userId')",
+      "value": "JSON-serialized message field from the event payload (via gjson path 'message')",
+      "timestamp": "Set to current server time at produce invocation (time.Now())",
+      "encoding": "JSON serialization via jsonrs.Marshal"
+    },
+    "sample_track_event": {
+      "input_json": {
+        "message": {
+          "type": "track",
+          "event": "Product Viewed",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+          },
+          "messageId": "msg-uuid-001",
+          "rudderId": "rudder-uuid-001",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-msk-topic",
+        "key": "user_123",
+        "value": {
+          "type": "track",
+          "event": "Product Viewed",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+          },
+          "messageId": "msg-uuid-001",
+          "rudderId": "rudder-uuid-001",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    },
+    "sample_identify_event": {
+      "input_json": {
+        "message": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "traits": {
+            "email": "user@example.com",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "plan": "enterprise"
+          },
+          "timestamp": "2026-02-25T12:01:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-002",
+          "rudderId": "rudder-uuid-002",
+          "originalTimestamp": "2026-02-25T12:01:00.000Z",
+          "sentAt": "2026-02-25T12:01:01.000Z",
+          "receivedAt": "2026-02-25T12:01:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-msk-topic",
+        "key": "user_123",
+        "value": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "traits": {
+            "email": "user@example.com",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "plan": "enterprise"
+          },
+          "timestamp": "2026-02-25T12:01:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-002",
+          "rudderId": "rudder-uuid-002",
+          "originalTimestamp": "2026-02-25T12:01:00.000Z",
+          "sentAt": "2026-02-25T12:01:01.000Z",
+          "receivedAt": "2026-02-25T12:01:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    },
+    "sample_page_event": {
+      "input_json": {
+        "message": {
+          "type": "page",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Home",
+          "properties": {
+            "url": "https://example.com/",
+            "path": "/",
+            "title": "Home Page",
+            "referrer": "https://google.com"
+          },
+          "timestamp": "2026-02-25T12:02:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-003",
+          "rudderId": "rudder-uuid-003",
+          "originalTimestamp": "2026-02-25T12:02:00.000Z",
+          "sentAt": "2026-02-25T12:02:01.000Z",
+          "receivedAt": "2026-02-25T12:02:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-msk-topic",
+        "key": "user_123",
+        "value": {
+          "type": "page",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Home",
+          "properties": {
+            "url": "https://example.com/",
+            "path": "/",
+            "title": "Home Page",
+            "referrer": "https://google.com"
+          },
+          "timestamp": "2026-02-25T12:02:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-003",
+          "rudderId": "rudder-uuid-003",
+          "originalTimestamp": "2026-02-25T12:02:00.000Z",
+          "sentAt": "2026-02-25T12:02:01.000Z",
+          "receivedAt": "2026-02-25T12:02:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    },
+    "sample_screen_event": {
+      "input_json": {
+        "message": {
+          "type": "screen",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Dashboard",
+          "properties": {
+            "feed_type": "recommended",
+            "variant": "control"
+          },
+          "timestamp": "2026-02-25T12:03:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-android",
+              "version": "1.20.0"
+            },
+            "os": {
+              "name": "Android",
+              "version": "14"
+            }
+          },
+          "messageId": "msg-uuid-004",
+          "rudderId": "rudder-uuid-004",
+          "originalTimestamp": "2026-02-25T12:03:00.000Z",
+          "sentAt": "2026-02-25T12:03:01.000Z",
+          "receivedAt": "2026-02-25T12:03:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-msk-topic",
+        "key": "user_123",
+        "value": {
+          "type": "screen",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Dashboard",
+          "properties": {
+            "feed_type": "recommended",
+            "variant": "control"
+          },
+          "timestamp": "2026-02-25T12:03:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-android",
+              "version": "1.20.0"
+            },
+            "os": {
+              "name": "Android",
+              "version": "14"
+            }
+          },
+          "messageId": "msg-uuid-004",
+          "rudderId": "rudder-uuid-004",
+          "originalTimestamp": "2026-02-25T12:03:00.000Z",
+          "sentAt": "2026-02-25T12:03:01.000Z",
+          "receivedAt": "2026-02-25T12:03:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    },
+    "sample_group_event": {
+      "input_json": {
+        "message": {
+          "type": "group",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "groupId": "group_789",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "plan": "enterprise",
+            "employees": 250
+          },
+          "timestamp": "2026-02-25T12:04:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-005",
+          "rudderId": "rudder-uuid-005",
+          "originalTimestamp": "2026-02-25T12:04:00.000Z",
+          "sentAt": "2026-02-25T12:04:01.000Z",
+          "receivedAt": "2026-02-25T12:04:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-msk-topic",
+        "key": "user_123",
+        "value": {
+          "type": "group",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "groupId": "group_789",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "plan": "enterprise",
+            "employees": 250
+          },
+          "timestamp": "2026-02-25T12:04:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-005",
+          "rudderId": "rudder-uuid-005",
+          "originalTimestamp": "2026-02-25T12:04:00.000Z",
+          "sentAt": "2026-02-25T12:04:01.000Z",
+          "receivedAt": "2026-02-25T12:04:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    },
+    "sample_alias_event": {
+      "input_json": {
+        "message": {
+          "type": "alias",
+          "userId": "user_123",
+          "previousId": "old_user_456",
+          "timestamp": "2026-02-25T12:05:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-006",
+          "rudderId": "rudder-uuid-006",
+          "originalTimestamp": "2026-02-25T12:05:00.000Z",
+          "sentAt": "2026-02-25T12:05:01.000Z",
+          "receivedAt": "2026-02-25T12:05:02.000Z"
+        },
+        "userId": "user_123",
+        "topic": ""
+      },
+      "kafka_message": {
+        "topic": "configured-msk-topic",
+        "key": "user_123",
+        "value": {
+          "type": "alias",
+          "userId": "user_123",
+          "previousId": "old_user_456",
+          "timestamp": "2026-02-25T12:05:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-006",
+          "rudderId": "rudder-uuid-006",
+          "originalTimestamp": "2026-02-25T12:05:00.000Z",
+          "sentAt": "2026-02-25T12:05:01.000Z",
+          "receivedAt": "2026-02-25T12:05:02.000Z"
+        },
+        "timestamp": "server_time_at_produce"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "note": "No direct Segment equivalent for Amazon MSK. Segment covers MSK through the generic Kafka destination (slug: actions-kafka). RudderStack implements Amazon MSK as a dedicated destination type (AMAZON_MSK) with MSK-specific authentication support.",
+    "producer_routing": "AMAZON_MSK destination name routes through streammanager.NewProducer switch to the amazonmsk.NewProducer constructor",
+    "shared_kafka_protocol": "Amazon MSK exposes the standard Apache Kafka wire protocol; the producer uses kafka-go for message production, similar to the standard Kafka and Confluent Cloud producers",
+    "authentication_difference": "Standard Kafka supports flexible TLS/SASL configuration; Amazon MSK supports SASL/SCRAM-SHA-512 with AWS Secrets Manager-stored credentials or AWS IAM authentication via the aws-msk-iam-auth mechanism",
+    "config_difference": "Amazon MSK uses bootstrapServer, authMechanism (scram/iam), and either SCRAM credentials or IAM role ARN — distinct from standard Kafka's generic SASL/TLS fields",
+    "topic_resolution": "Per-event topic field in JSON payload takes precedence over the default topic from destination config",
+    "partition_key": "Derived from the userId field in the event JSON; serves as the Kafka message key for partition assignment",
+    "message_value": "The message field from the input JSON is extracted and re-serialized as the Kafka message value via jsonrs.Marshal",
+    "timestamp_handling": "Kafka message timestamp is set to server time at produce invocation (time.Now()), not the event's original timestamp",
+    "envelope_fields": "RudderStack events include rudderId, originalTimestamp, sentAt, receivedAt — these are part of the message value passed through to MSK",
+    "encryption": "All MSK connections use TLS encryption in transit; MSK clusters can additionally enable at-rest encryption via AWS KMS"
+  },
+  "producer_details": {
+    "constructor": "NewProducer",
+    "package": "services/streammanager/amazonmsk",
+    "config_struct": "mskConfig",
+    "config_fields": {
+      "Topic": "Name of the Kafka topic on the MSK cluster",
+      "BootstrapServer": "Comma-separated MSK cluster bootstrap broker addresses",
+      "AuthMechanism": "Authentication mechanism: 'scram' for SASL/SCRAM-SHA-512, 'iam' for AWS IAM",
+      "SASLUsername": "SCRAM-SHA-512 username (when AuthMechanism is 'scram')",
+      "SASLPassword": "SCRAM-SHA-512 password (when AuthMechanism is 'scram')",
+      "IAMRoleArn": "AWS IAM role ARN (when AuthMechanism is 'iam')",
+      "Region": "AWS region (when AuthMechanism is 'iam')"
+    },
+    "default_publish_timeout_seconds": 10,
+    "metrics": {
+      "creation_time": "router.amazonmsk.creation_time",
+      "produce_time": "router.amazonmsk.produce_time",
+      "publish_time": "router.amazonmsk.publish_time",
+      "close_time": "router.amazonmsk.close_producer_time",
+      "missing_user_id": "router.amazonmsk.missing_user_id",
+      "missing_message": "router.amazonmsk.missing_message"
+    },
+    "avro_support": false,
+    "ssh_support": false
+  },
+  "parity_status": "not_applicable",
+  "parity_coverage_percent": null,
+  "notes": "Amazon MSK (Managed Streaming for Apache Kafka) is a RudderStack-unique stream destination. There is no direct Segment Amazon MSK destination; Segment covers MSK clusters via the generic Kafka destination (slug: actions-kafka). RudderStack implements Amazon MSK as a dedicated destination type (AMAZON_MSK) with specialized support for AWS-native authentication mechanisms including SASL/SCRAM-SHA-512 (credentials stored in AWS Secrets Manager) and AWS IAM authentication. The producer leverages the standard Apache Kafka wire protocol exposed by MSK clusters, authenticated over TLS. The destination is registered in the stream manager factory (services/streammanager/streammanager.go) and listed in the Custom Destination Manager's ObjectStreamDestinations array (router/customdestinationmanager/customdestinationmanager.go). Configuration requires: topic, bootstrapServer, authMechanism, and either SCRAM credentials or IAM role ARN with region. Since there is no direct Segment equivalent, payload parity comparison is not applicable — this fixture documents RudderStack's Amazon MSK payload format for regression testing and field-by-field validation."
+}

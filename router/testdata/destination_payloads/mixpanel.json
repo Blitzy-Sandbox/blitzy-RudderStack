@@ -1,0 +1,460 @@
+{
+  "destination_type": "MIXPANEL",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "track": {
+      "endpoint": "https://api.mixpanel.com/track",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "Segment track call mapped to Mixpanel /track endpoint. Event name and properties sent with $token and $distinct_id inside the properties object.",
+      "body": [
+        {
+          "event": "Product Viewed",
+          "properties": {
+            "$token": "{{mixpanel_project_token}}",
+            "$distinct_id": "user_123",
+            "time": 1740484800,
+            "$insert_id": "evt-aabbccdd-1234-5678-9abc-def012345678",
+            "product_id": "SKU-001",
+            "product_name": "Premium Widget",
+            "category": "Electronics",
+            "price": 49.99,
+            "currency": "USD",
+            "$browser": "Chrome",
+            "$browser_version": "120.0",
+            "$os": "Mac OS X",
+            "$device": "Desktop",
+            "$screen_height": 1080,
+            "$screen_width": 1920,
+            "$referrer": "https://google.com",
+            "$referring_domain": "google.com",
+            "$city": "San Francisco",
+            "$region": "California",
+            "mp_country_code": "US",
+            "mp_lib": "analytics.js",
+            "ip": "203.0.113.42"
+          }
+        }
+      ]
+    },
+    "identify": {
+      "endpoint": "https://api.mixpanel.com/engage",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "Segment identify call mapped to Mixpanel /engage endpoint. User traits are mapped to $set operation for profile updates. $set_once is used for first-touch properties like $created.",
+      "body": [
+        {
+          "$token": "{{mixpanel_project_token}}",
+          "$distinct_id": "user_123",
+          "$ip": "203.0.113.42",
+          "$set": {
+            "$first_name": "Jane",
+            "$last_name": "Doe",
+            "$email": "jane.doe@example.com",
+            "$phone": "+15551234567",
+            "$city": "San Francisco",
+            "$region": "California",
+            "$country_code": "US",
+            "$timezone": "America/Los_Angeles",
+            "plan_tier": "enterprise",
+            "company": "Acme Corp",
+            "role": "admin"
+          },
+          "$set_once": {
+            "$created": "2026-01-15T08:30:00.000Z"
+          }
+        }
+      ]
+    },
+    "page": {
+      "endpoint": "https://api.mixpanel.com/track",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "Segment page call mapped to Mixpanel /track endpoint as a 'Loaded a Page' event. Page properties (name, url, path, referrer, title) passed as event properties.",
+      "body": [
+        {
+          "event": "Loaded a Page",
+          "properties": {
+            "$token": "{{mixpanel_project_token}}",
+            "$distinct_id": "user_123",
+            "time": 1740485400,
+            "$insert_id": "evt-page-1234-5678-9abc-def012345678",
+            "name": "Homepage",
+            "path": "/",
+            "url": "https://example.com/",
+            "$referrer": "https://google.com",
+            "$referring_domain": "google.com",
+            "title": "Example - Home",
+            "search": "",
+            "$browser": "Chrome",
+            "$browser_version": "120.0",
+            "$os": "Mac OS X",
+            "$screen_height": 1080,
+            "$screen_width": 1920,
+            "$city": "San Francisco",
+            "$region": "California",
+            "mp_country_code": "US",
+            "mp_lib": "analytics.js",
+            "ip": "203.0.113.42"
+          }
+        }
+      ]
+    },
+    "screen": {
+      "endpoint": "https://api.mixpanel.com/track",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "Segment screen call mapped to Mixpanel /track endpoint as a 'Loaded a Screen' event. Screen name and properties passed as event properties.",
+      "body": [
+        {
+          "event": "Loaded a Screen",
+          "properties": {
+            "$token": "{{mixpanel_project_token}}",
+            "$distinct_id": "user_123",
+            "time": 1740486000,
+            "$insert_id": "evt-screen-1234-5678-9abc-def012345678",
+            "name": "Dashboard",
+            "$os": "iOS",
+            "$device": "iPhone",
+            "$screen_height": 2532,
+            "$screen_width": 1170,
+            "$city": "San Francisco",
+            "$region": "California",
+            "mp_country_code": "US",
+            "mp_lib": "analytics-ios",
+            "ip": "203.0.113.42"
+          }
+        }
+      ]
+    },
+    "group": {
+      "endpoint": "https://api.mixpanel.com/groups",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "Segment group call mapped to Mixpanel /groups endpoint. Group traits become $set operations on the group profile identified by $group_key and $group_id. Mixpanel Group Analytics must be enabled in project settings.",
+      "body": [
+        {
+          "$token": "{{mixpanel_project_token}}",
+          "$group_key": "company",
+          "$group_id": "group_456",
+          "$set": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "plan": "enterprise",
+            "employee_count": 500,
+            "website": "https://acme.example.com"
+          }
+        }
+      ]
+    },
+    "alias": {
+      "endpoint": "https://api.mixpanel.com/track",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "Segment alias call mapped to Mixpanel /track endpoint as a special '$create_alias' event. The distinct_id property holds the new (identified) ID, and the alias property holds the old (anonymous) ID to be merged.",
+      "body": [
+        {
+          "event": "$create_alias",
+          "properties": {
+            "$token": "{{mixpanel_project_token}}",
+            "distinct_id": "user_123",
+            "alias": "anon_abc_789"
+          }
+        }
+      ]
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "endpoint": "https://api.mixpanel.com/track",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "RudderStack track call mapped to Mixpanel /track endpoint. userId mapped to $distinct_id, event name mapped to event, event properties merged with Mixpanel special properties. RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt in envelope but Transformer strips them for Mixpanel payload.",
+      "body": [
+        {
+          "event": "Product Viewed",
+          "properties": {
+            "$token": "{{mixpanel_project_token}}",
+            "$distinct_id": "user_123",
+            "time": 1740484800,
+            "$insert_id": "evt-aabbccdd-1234-5678-9abc-def012345678",
+            "product_id": "SKU-001",
+            "product_name": "Premium Widget",
+            "category": "Electronics",
+            "price": 49.99,
+            "currency": "USD",
+            "$browser": "Chrome",
+            "$browser_version": "120.0",
+            "$os": "Mac OS X",
+            "$device": "Desktop",
+            "$screen_height": 1080,
+            "$screen_width": 1920,
+            "$referrer": "https://google.com",
+            "$referring_domain": "google.com",
+            "$city": "San Francisco",
+            "$region": "California",
+            "mp_country_code": "US",
+            "mp_lib": "rudder-sdk-js",
+            "ip": "203.0.113.42"
+          }
+        }
+      ]
+    },
+    "identify": {
+      "endpoint": "https://api.mixpanel.com/engage",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "RudderStack identify call mapped to Mixpanel /engage endpoint. User traits mapped to $set for profile property updates. firstName/lastName mapped to $first_name/$last_name, email to $email, phone to $phone, city to $city. $set_once used for createdAt mapped to $created.",
+      "body": [
+        {
+          "$token": "{{mixpanel_project_token}}",
+          "$distinct_id": "user_123",
+          "$ip": "203.0.113.42",
+          "$set": {
+            "$first_name": "Jane",
+            "$last_name": "Doe",
+            "$email": "jane.doe@example.com",
+            "$phone": "+15551234567",
+            "$city": "San Francisco",
+            "$region": "California",
+            "$country_code": "US",
+            "$timezone": "America/Los_Angeles",
+            "plan_tier": "enterprise",
+            "company": "Acme Corp",
+            "role": "admin"
+          },
+          "$set_once": {
+            "$created": "2026-01-15T08:30:00.000Z"
+          }
+        }
+      ]
+    },
+    "page": {
+      "endpoint": "https://api.mixpanel.com/track",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "RudderStack page call mapped to Mixpanel /track as 'Loaded a Page' event. Page properties (name, url, path, referrer, title) passed as event properties alongside Mixpanel special properties derived from context.",
+      "body": [
+        {
+          "event": "Loaded a Page",
+          "properties": {
+            "$token": "{{mixpanel_project_token}}",
+            "$distinct_id": "user_123",
+            "time": 1740485400,
+            "$insert_id": "evt-page-1234-5678-9abc-def012345678",
+            "name": "Homepage",
+            "path": "/",
+            "url": "https://example.com/",
+            "$referrer": "https://google.com",
+            "$referring_domain": "google.com",
+            "title": "Example - Home",
+            "search": "",
+            "$browser": "Chrome",
+            "$browser_version": "120.0",
+            "$os": "Mac OS X",
+            "$screen_height": 1080,
+            "$screen_width": 1920,
+            "$city": "San Francisco",
+            "$region": "California",
+            "mp_country_code": "US",
+            "mp_lib": "rudder-sdk-js",
+            "ip": "203.0.113.42"
+          }
+        }
+      ]
+    },
+    "screen": {
+      "endpoint": "https://api.mixpanel.com/track",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "RudderStack screen call mapped to Mixpanel /track as 'Loaded a Screen' event. Screen name and properties passed as event properties with mobile context (iOS/Android device info).",
+      "body": [
+        {
+          "event": "Loaded a Screen",
+          "properties": {
+            "$token": "{{mixpanel_project_token}}",
+            "$distinct_id": "user_123",
+            "time": 1740486000,
+            "$insert_id": "evt-screen-1234-5678-9abc-def012345678",
+            "name": "Dashboard",
+            "$os": "iOS",
+            "$device": "iPhone",
+            "$screen_height": 2532,
+            "$screen_width": 1170,
+            "$city": "San Francisco",
+            "$region": "California",
+            "mp_country_code": "US",
+            "mp_lib": "rudder-sdk-ios",
+            "ip": "203.0.113.42"
+          }
+        }
+      ]
+    },
+    "group": {
+      "endpoint": "https://api.mixpanel.com/groups",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "RudderStack group call mapped to Mixpanel /groups endpoint. Group traits mapped to $set on group profile. groupId mapped to $group_id, group_key derived from destination config or defaults to 'company'.",
+      "body": [
+        {
+          "$token": "{{mixpanel_project_token}}",
+          "$group_key": "company",
+          "$group_id": "group_456",
+          "$set": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "plan": "enterprise",
+            "employee_count": 500,
+            "website": "https://acme.example.com"
+          }
+        }
+      ]
+    },
+    "alias": {
+      "endpoint": "https://api.mixpanel.com/track",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/plain"
+      },
+      "description": "RudderStack alias call mapped to Mixpanel /track as '$create_alias' event. previousId mapped to alias property, userId mapped to distinct_id. Merges anonymous user with identified user in Mixpanel identity cluster.",
+      "body": [
+        {
+          "event": "$create_alias",
+          "properties": {
+            "$token": "{{mixpanel_project_token}}",
+            "distinct_id": "user_123",
+            "alias": "anon_abc_789"
+          }
+        }
+      ]
+    }
+  },
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "field_mappings": {
+    "distinct_id_derivation": {
+      "segment": "$distinct_id derived from userId if present; falls back to anonymousId. When Segment Simplified ID Merge is enabled, both userId and anonymousId are sent and Mixpanel resolves identity server-side.",
+      "rudderstack": "$distinct_id derived from userId if present; falls back to anonymousId. RudderStack Transformer maps message.userId to properties.$distinct_id for /track and to $distinct_id for /engage.",
+      "parity_status": "equivalent"
+    },
+    "set_and_set_once_operations": {
+      "description": "Mixpanel /engage supports multiple profile update operations: $set (overwrite), $set_once (first-touch only), $add (increment), $union (list append), $remove (list remove), $unset (delete property), $delete (delete profile).",
+      "identify_default_operation": "$set is the default operation for identify traits. Both Segment and RudderStack map traits to $set.",
+      "set_once_usage": "$set_once is used for properties that should only be set on first identification (e.g., $created from createdAt trait, initial UTM parameters). Both platforms support this via special trait naming conventions.",
+      "increment_operations": "$add supports numeric increment operations (e.g., login_count, page_views). Segment uses integrations.Mixpanel.$add, RudderStack uses similar integration object mapping.",
+      "parity_status": "equivalent"
+    },
+    "special_property_mapping": {
+      "description": "Mixpanel reserves $ prefixed properties for automatic/special data. Both Segment and RudderStack Transformers map standard event context fields to these Mixpanel special properties.",
+      "$browser": "Derived from context.userAgent parsing. Maps to $browser for web events.",
+      "$browser_version": "Derived from context.userAgent parsing. Maps to $browser_version.",
+      "$os": "Derived from context.os.name or context.userAgent. Maps to $os.",
+      "$device": "Derived from context.device.type or context.device.model. Maps to $device.",
+      "$screen_height": "Derived from context.screen.height. Maps to $screen_height.",
+      "$screen_width": "Derived from context.screen.width. Maps to $screen_width.",
+      "$referrer": "Derived from context.page.referrer. Maps to $referrer.",
+      "$referring_domain": "Derived from parsing context.page.referrer URL domain. Maps to $referring_domain.",
+      "$initial_referrer": "First-touch referrer stored via $set_once. Maps to $initial_referrer.",
+      "$initial_referring_domain": "First-touch referring domain stored via $set_once. Maps to $initial_referring_domain.",
+      "$city": "Derived from context.location.city or Mixpanel GeoIP resolution via IP. Maps to $city.",
+      "$region": "Derived from context.location.region or Mixpanel GeoIP. Maps to $region.",
+      "mp_country_code": "Derived from context.location.country or Mixpanel GeoIP. Maps to mp_country_code.",
+      "$first_name": "Derived from traits.firstName or traits.first_name. Maps to $first_name on /engage.",
+      "$last_name": "Derived from traits.lastName or traits.last_name. Maps to $last_name on /engage.",
+      "$email": "Derived from traits.email. Maps to $email on /engage.",
+      "$phone": "Derived from traits.phone. Maps to $phone on /engage.",
+      "$created": "Derived from traits.createdAt. Maps to $created via $set_once on /engage.",
+      "$name": "Derived from traits.name or concatenation of firstName + lastName. Maps to $name on /engage.",
+      "parity_status": "equivalent"
+    },
+    "alias_handling": {
+      "description": "Mixpanel identity resolution supports two mechanisms: $create_alias (legacy ID management) and Simplified ID Merge (modern approach).",
+      "create_alias_method": "Both Segment and RudderStack send alias calls as $create_alias events on /track. The distinct_id is the canonical (new) ID and alias is the anonymous (old) ID.",
+      "simplified_id_merge": "When Mixpanel Simplified ID Merge is enabled, alias calls may be unnecessary as Mixpanel auto-merges identity clusters from $distinct_id and $device_id sent on events.",
+      "segment_behavior": "Segment sends alias calls as $create_alias events. With Simplified ID Merge enabled, Segment also sends $identify events to link anonymous and identified IDs.",
+      "rudderstack_behavior": "RudderStack sends alias calls as $create_alias events. Transformer maps previousId to alias and userId to distinct_id.",
+      "parity_status": "equivalent"
+    },
+    "group_analytics": {
+      "description": "Mixpanel Group Analytics allows associating events with groups (e.g., companies, teams). Requires Group Analytics add-on enabled in Mixpanel project.",
+      "group_key_config": "The $group_key identifies the group type (e.g., 'company', 'team'). Must be defined as a group key in Mixpanel project settings before use.",
+      "group_id_mapping": "Segment maps groupId to $group_id. RudderStack maps groupId (from group call) to $group_id.",
+      "group_profile_updates": "Group traits are sent as $set operations on /groups endpoint to update group profile properties (name, industry, plan, etc.).",
+      "event_group_association": "To associate a track event with a group, both platforms include the group_key and group_id in the event properties object (e.g., {\"company\": \"group_456\"}).",
+      "parity_status": "equivalent"
+    },
+    "token_and_authentication": {
+      "description": "Mixpanel uses project token ($token) for client-side tracking (/track, /engage, /groups) and project secret or service account for server-side /import.",
+      "$token_placement": "For /track: $token is placed inside the properties object of each event. For /engage and /groups: $token is a top-level field in each profile update object.",
+      "import_auth": "The /import endpoint uses HTTP Basic Auth with project token as username and empty password, or service account credentials.",
+      "segment_config": "Project token configured in Segment Mixpanel destination settings",
+      "rudderstack_config": "Project token configured in RudderStack Mixpanel destination settings under apiToken/token"
+    },
+    "time_format": {
+      "segment": "Unix timestamp in seconds (e.g., 1740484800) for /track events. ISO 8601 for $set_once.$created on /engage.",
+      "rudderstack": "Unix timestamp in seconds (e.g., 1740484800) for /track events. ISO 8601 for $set_once.$created on /engage.",
+      "mixpanel_requirement": "/track and /import accept Unix time in seconds or milliseconds. /engage $set_once accepts ISO 8601 for date properties.",
+      "parity_status": "equivalent"
+    },
+    "ip_geolocation": {
+      "description": "Mixpanel uses request IP address for geolocation. Both platforms can pass ip in event properties or $ip in /engage to override server IP with client IP.",
+      "track_ip": "ip property in event properties triggers Mixpanel geolocation for /track. Set to '0' to disable geolocation.",
+      "engage_ip": "$ip field on /engage profile update triggers geolocation. Set to '0' to disable.",
+      "parity_status": "equivalent"
+    },
+    "library_property": {
+      "segment": "mp_lib set to 'analytics.js' (web), 'analytics-ios' (iOS), 'analytics-android' (Android), or 'analytics-node' (server)",
+      "rudderstack": "mp_lib set to 'rudder-sdk-js' (web), 'rudder-sdk-ios' (iOS), 'rudder-sdk-android' (Android), or 'rudder-sdk-node' (server)",
+      "parity_status": "known_difference — library identifier differs but does not affect Mixpanel functionality"
+    },
+    "insert_id_deduplication": {
+      "description": "Mixpanel uses $insert_id for event deduplication. Events with the same $insert_id within a 5-day window are deduplicated.",
+      "segment": "$insert_id derived from messageId or generated UUID",
+      "rudderstack": "$insert_id derived from messageId or generated UUID",
+      "parity_status": "equivalent"
+    }
+  },
+  "known_parity_gaps": {
+    "library_identifier": "mp_lib value differs: Segment sends 'analytics.js' while RudderStack sends 'rudder-sdk-js'. This is cosmetic and does not affect Mixpanel processing.",
+    "envelope_fields": "RudderStack events include additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) that are stripped by Transformer before sending to Mixpanel API.",
+    "simplified_id_merge_handling": "Segment has first-class support for Mixpanel Simplified ID Merge with automatic $identify event generation. RudderStack support may require explicit configuration.",
+    "revenue_tracking": "Mixpanel tracks revenue via special 'revenue' property in track events with dedicated revenue analysis. Both platforms pass revenue but Segment may auto-map 'Order Completed' events to Mixpanel revenue events.",
+    "legacy_vs_actions": "Segment offers both Legacy and Actions variants of the Mixpanel destination. Actions variant uses component-based mapping. RudderStack uses a single implementation via Transformer.",
+    "batching_strategy": "Mixpanel /track accepts up to 2000 events per batch. Segment and RudderStack may batch at different sizes before sending to Mixpanel API.",
+    "people_tracking_toggle": "Segment Legacy Mixpanel has a 'People' toggle to control whether identify calls update Mixpanel People profiles. RudderStack behavior may differ in this opt-in mechanism."
+  },
+  "notes": "Mixpanel shared cloud destination. Category: Analytics. Segment has Legacy + Actions variants (slug: mixpanel, actions-mixpanel). Mixpanel Actions variant is P1 critical missing destination in the destination priority ranking. RudderStack delivers Mixpanel events via the Router REST API pipeline through the external Transformer service on port 9090. Primary API endpoints: /track for events, /engage for profile updates, /groups for group analytics, /import for historical batch import. Both platforms derive $distinct_id from userId (falling back to anonymousId), map identify traits to $set/$set_once profile operations, handle alias via $create_alias events, and support Group Analytics via /groups endpoint. Key difference: mp_lib value reflects the respective SDK name. Mixpanel API uses project token ($token) embedded in request bodies for authentication on client-facing endpoints."
+}

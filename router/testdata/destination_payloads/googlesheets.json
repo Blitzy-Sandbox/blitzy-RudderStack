@@ -1,0 +1,246 @@
+{
+  "destination_type": "GOOGLESHEETS",
+  "destination_tier": "stream",
+  "segment_reference_payload": {
+    "track": {
+      "spreadsheet_id": "1AbC2dEfGhIjKlMnOpQrStUvWxYz",
+      "sheet_name": "Event Data",
+      "record": {
+        "columns": {
+          "Message ID": "msg-seg-track-001",
+          "Event Name": "Product Viewed",
+          "User ID": "user_123",
+          "Anonymous ID": "anon_456",
+          "Timestamp": "2026-02-25T12:00:00.000Z",
+          "Product ID": "SKU-001",
+          "Product Name": "Premium Widget",
+          "Price": 49.99,
+          "Currency": "USD",
+          "Category": "Widgets"
+        }
+      },
+      "settings": {
+        "spreadsheetId": "1AbC2dEfGhIjKlMnOpQrStUvWxYz",
+        "sheetName": "Event Data",
+        "columnMapping": [
+          { "source": "messageId", "destination": "Message ID" },
+          { "source": "event", "destination": "Event Name" },
+          { "source": "userId", "destination": "User ID" },
+          { "source": "anonymousId", "destination": "Anonymous ID" },
+          { "source": "timestamp", "destination": "Timestamp" },
+          { "source": "properties.product_id", "destination": "Product ID" },
+          { "source": "properties.name", "destination": "Product Name" },
+          { "source": "properties.price", "destination": "Price" },
+          { "source": "properties.currency", "destination": "Currency" },
+          { "source": "properties.category", "destination": "Category" }
+        ]
+      }
+    },
+    "identify": {
+      "spreadsheet_id": "1AbC2dEfGhIjKlMnOpQrStUvWxYz",
+      "sheet_name": "User Data",
+      "record": {
+        "columns": {
+          "Message ID": "msg-seg-identify-001",
+          "User ID": "user_123",
+          "Email": "user@example.com",
+          "First Name": "Jane",
+          "Last Name": "Doe",
+          "Phone": "+1-555-0100",
+          "Created At": "2026-01-15T08:30:00.000Z",
+          "Plan": "enterprise"
+        }
+      },
+      "settings": {
+        "spreadsheetId": "1AbC2dEfGhIjKlMnOpQrStUvWxYz",
+        "sheetName": "User Data",
+        "columnMapping": [
+          { "source": "messageId", "destination": "Message ID" },
+          { "source": "userId", "destination": "User ID" },
+          { "source": "traits.email", "destination": "Email" },
+          { "source": "traits.firstName", "destination": "First Name" },
+          { "source": "traits.lastName", "destination": "Last Name" },
+          { "source": "traits.phone", "destination": "Phone" },
+          { "source": "traits.createdAt", "destination": "Created At" },
+          { "source": "traits.plan", "destination": "Plan" }
+        ]
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "destination_config": {
+        "sheetId": "1AbC2dEfGhIjKlMnOpQrStUvWxYz",
+        "sheetName": "Event Data",
+        "credentials": "<service_account_json>",
+        "eventKeyMap": [
+          { "from": "event", "to": "Event Name" },
+          { "from": "userId", "to": "User ID" },
+          { "from": "anonymousId", "to": "Anonymous ID" },
+          { "from": "timestamp", "to": "Timestamp" },
+          { "from": "properties.product_id", "to": "Product ID" },
+          { "from": "properties.name", "to": "Product Name" },
+          { "from": "properties.price", "to": "Price" },
+          { "from": "properties.currency", "to": "Currency" },
+          { "from": "properties.category", "to": "Category" }
+        ]
+      },
+      "header_row": ["messageId", "Event Name", "User ID", "Anonymous ID", "Timestamp", "Product ID", "Product Name", "Price", "Currency", "Category"],
+      "transformer_output": {
+        "message": {
+          "0": { "attributeKey": "messageId", "attributeValue": "msg-rs-track-001" },
+          "1": { "attributeKey": "Event Name", "attributeValue": "Product Viewed" },
+          "2": { "attributeKey": "User ID", "attributeValue": "user_123" },
+          "3": { "attributeKey": "Anonymous ID", "attributeValue": "anon_456" },
+          "4": { "attributeKey": "Timestamp", "attributeValue": "2026-02-25T12:00:00.000Z" },
+          "5": { "attributeKey": "Product ID", "attributeValue": "SKU-001" },
+          "6": { "attributeKey": "Product Name", "attributeValue": "Premium Widget" },
+          "7": { "attributeKey": "Price", "attributeValue": 49.99 },
+          "8": { "attributeKey": "Currency", "attributeValue": "USD" },
+          "9": { "attributeKey": "Category", "attributeValue": "Widgets" }
+        }
+      },
+      "sheets_api_call": {
+        "method": "spreadsheets.values.append",
+        "spreadsheet_id": "1AbC2dEfGhIjKlMnOpQrStUvWxYz",
+        "range": "Event Data!A1",
+        "major_dimension": "ROWS",
+        "value_input_option": "RAW",
+        "row_data": [
+          ["msg-rs-track-001", "Product Viewed", "user_123", "anon_456", "2026-02-25T12:00:00.000Z", "SKU-001", "Premium Widget", 49.99, "USD", "Widgets"]
+        ]
+      }
+    },
+    "identify": {
+      "destination_config": {
+        "sheetId": "1AbC2dEfGhIjKlMnOpQrStUvWxYz",
+        "sheetName": "User Data",
+        "credentials": "<service_account_json>",
+        "eventKeyMap": [
+          { "from": "userId", "to": "User ID" },
+          { "from": "traits.email", "to": "Email" },
+          { "from": "traits.firstName", "to": "First Name" },
+          { "from": "traits.lastName", "to": "Last Name" },
+          { "from": "traits.phone", "to": "Phone" },
+          { "from": "traits.createdAt", "to": "Created At" },
+          { "from": "traits.plan", "to": "Plan" }
+        ]
+      },
+      "header_row": ["messageId", "User ID", "Email", "First Name", "Last Name", "Phone", "Created At", "Plan"],
+      "transformer_output": {
+        "message": {
+          "0": { "attributeKey": "messageId", "attributeValue": "msg-rs-identify-001" },
+          "1": { "attributeKey": "User ID", "attributeValue": "user_123" },
+          "2": { "attributeKey": "Email", "attributeValue": "user@example.com" },
+          "3": { "attributeKey": "First Name", "attributeValue": "Jane" },
+          "4": { "attributeKey": "Last Name", "attributeValue": "Doe" },
+          "5": { "attributeKey": "Phone", "attributeValue": "+1-555-0100" },
+          "6": { "attributeKey": "Created At", "attributeValue": "2026-01-15T08:30:00.000Z" },
+          "7": { "attributeKey": "Plan", "attributeValue": "enterprise" }
+        }
+      },
+      "sheets_api_call": {
+        "method": "spreadsheets.values.append",
+        "spreadsheet_id": "1AbC2dEfGhIjKlMnOpQrStUvWxYz",
+        "range": "User Data!A1",
+        "major_dimension": "ROWS",
+        "value_input_option": "RAW",
+        "row_data": [
+          ["msg-rs-identify-001", "user_123", "user@example.com", "Jane", "Doe", "+1-555-0100", "2026-01-15T08:30:00.000Z", "enterprise"]
+        ]
+      }
+    },
+    "batch_example": {
+      "transformer_output": {
+        "batch": [
+          {
+            "message": {
+              "0": { "attributeKey": "messageId", "attributeValue": "msg-rs-batch-001" },
+              "1": { "attributeKey": "Event Name", "attributeValue": "Product Viewed" },
+              "2": { "attributeKey": "User ID", "attributeValue": "user_123" },
+              "3": { "attributeKey": "Price", "attributeValue": 49.99 }
+            }
+          },
+          {
+            "message": {
+              "0": { "attributeKey": "messageId", "attributeValue": "msg-rs-batch-002" },
+              "1": { "attributeKey": "Event Name", "attributeValue": "Product Added" },
+              "2": { "attributeKey": "User ID", "attributeValue": "user_456" },
+              "3": { "attributeKey": "Price", "attributeValue": 29.99 }
+            }
+          }
+        ]
+      },
+      "sheets_api_call": {
+        "method": "spreadsheets.values.append",
+        "spreadsheet_id": "1AbC2dEfGhIjKlMnOpQrStUvWxYz",
+        "range": "Event Data!A1",
+        "major_dimension": "ROWS",
+        "value_input_option": "RAW",
+        "row_data": [
+          ["msg-rs-batch-001", "Product Viewed", "user_123", 49.99],
+          ["msg-rs-batch-002", "Product Added", "user_456", 29.99]
+        ]
+      }
+    }
+  },
+  "event_types": ["track", "identify"],
+  "field_mappings": {
+    "spreadsheet_id": {
+      "segment": "Configured via Actions settings as spreadsheetId; referenced per-action mapping",
+      "rudderstack": "Configured via destination config as sheetId; used in Sheets API v4 Values.Update and Values.Append calls",
+      "parity": "Equivalent — both reference the same Google Sheets spreadsheet ID"
+    },
+    "sheet_name": {
+      "segment": "Sheet/tab name configured per Actions mapping subscription",
+      "rudderstack": "Configured via destination config as sheetName; used as range prefix (e.g., 'SheetName!A1')",
+      "parity": "Equivalent — both target a named sheet tab within the spreadsheet"
+    },
+    "column_mapping_strategy": {
+      "segment": "Actions-based architecture with configurable field mappings per subscription; each mapping defines source event field path to destination column name",
+      "rudderstack": "eventKeyMap array in destination config; each entry has 'from' (source event field path) and 'to' (destination column header name); Transformer resolves paths and produces positional attributeKey/attributeValue pairs",
+      "parity": "Functionally equivalent but architecturally different — Segment uses UI-driven Actions mappings while RudderStack uses eventKeyMap config array processed by external Transformer service"
+    },
+    "header_row_handling": {
+      "segment": "Column headers defined by Actions mapping field names; managed automatically by the Actions framework",
+      "rudderstack": "Header row written explicitly via spreadsheets.values.Update at range SheetName!A1; first column is always 'messageId' followed by eventKeyMap[].to values; header written once with double-check locking pattern (isHeaderUpdated flag)",
+      "parity": "Gap — RudderStack always inserts 'messageId' as the first column; Segment column order is defined entirely by the Actions mapping configuration"
+    },
+    "message_id_column": {
+      "segment": "messageId is included only if explicitly mapped in the Actions configuration",
+      "rudderstack": "messageId is always the first column in every row (hardcoded in header row construction and parsed from transformer output at position 0)",
+      "parity": "Gap — RudderStack forces messageId as column 0; Segment treats it as optional"
+    },
+    "data_format": {
+      "segment": "Structured row data with column names matching the Actions mapping destination fields; values are typed per the source event field",
+      "rudderstack": "Transformer produces numbered positional map (0, 1, 2, ...) with attributeKey/attributeValue pairs; producer resolves each position to a cell value; supports Number and String types via gjson.Type switch",
+      "parity": "Equivalent output row format — both produce a flat row of values appended to the spreadsheet; internal transport format differs"
+    },
+    "batching": {
+      "segment": "Actions framework handles batching internally based on subscription configuration",
+      "rudderstack": "Supports batch mode via 'batch' array in transformer output; multiple messages appended in a single spreadsheets.values.Append API call with multiple rows",
+      "parity": "Equivalent — both support multi-row batch appends to reduce API calls"
+    },
+    "authentication": {
+      "segment": "OAuth 2.0 flow managed by Segment UI; user authorizes Google account access during destination setup",
+      "rudderstack": "Service account JSON credentials (JWT) configured in destination config as 'credentials' field; creates OAuth2 client via google.JWTConfigFromJSON with SpreadsheetsScope; also supports test mode with explicit AccessToken/RefreshToken and custom endpoint",
+      "parity": "Gap — Segment uses user-facing OAuth2 authorization flow; RudderStack uses service account (JWT) credentials requiring manual setup"
+    },
+    "api_method": {
+      "segment": "Google Sheets API v4 — specific method depends on Actions implementation",
+      "rudderstack": "Google Sheets API v4 — spreadsheets.values.Update (header row at SheetName!A1) and spreadsheets.values.Append (data rows at SheetName!A1) with ValueInputOption RAW",
+      "parity": "Likely equivalent — both use Sheets API v4 for row operations"
+    },
+    "error_handling": {
+      "segment": "Actions framework standard retry with exponential backoff",
+      "rudderstack": "Maps googleapi.Error to HTTP status codes; handles context.DeadlineExceeded as 504; returns structured error messages with [GoogleSheets] prefix for logging",
+      "parity": "Functionally equivalent error semantics; implementation details differ"
+    },
+    "numeric_type_preservation": {
+      "segment": "Type handling depends on Actions mapping configuration",
+      "rudderstack": "Explicit numeric type preservation: gjson.Number type values are stored as float64 via attrValue.Float(); all other types stored as string via attrValue.String()",
+      "parity": "RudderStack explicitly preserves numeric types in spreadsheet cells; Segment behavior depends on mapping configuration"
+    }
+  },
+  "notes": "Google Sheets shared stream destination. Segment slug: actions-google-sheets. RudderStack package: services/streammanager/googlesheets/. RudderStack implements GoogleSheetsProducer conforming to common.StreamProducer interface. Key architectural difference: Segment uses Actions-based configurable mappings while RudderStack uses eventKeyMap config processed by external Transformer into positional attributeKey/attributeValue pairs. Parity gaps: (1) RudderStack hardcodes messageId as first column, Segment treats it as optional; (2) authentication model differs — RudderStack uses service account JWT vs Segment user-facing OAuth2; (3) header row management differs — RudderStack uses explicit Update call with double-check locking. Both platforms ultimately produce equivalent flat row data appended to the target spreadsheet via Google Sheets API v4."
+}

@@ -326,7 +326,7 @@ func (gw *Handle) getJobDataFromRequest(req *webRequestT) (jobData *jobFromReq, 
 	}
 
 	gw.requestSizeStat.Observe(float64(len(body)))
-	if req.reqType != "batch" && req.reqType != "replay" && req.reqType != "retl" {
+	if req.reqType != "batch" && req.reqType != "replay" && req.reqType != "retl" && req.reqType != "sourceFunctions" {
 		body, err = sjson.SetBytes(body, "type", req.reqType)
 		if err != nil {
 			err = errors.New((response.NotRudderEvent))

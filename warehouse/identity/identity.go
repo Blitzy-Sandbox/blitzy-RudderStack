@@ -33,6 +33,94 @@ func init() {
 	pkgLogger = logger.NewLogger().Child("warehouse").Child("identity")
 }
 
+// ResolutionStrategy identifies which identity resolution strategy was applied.
+// These strategies are shared between warehouse batch identity resolution and
+// the real-time identity graph (identity/graph/resolver.go).
+type ResolutionStrategy int
+
+const (
+	// StrategyNewMatch indicates no existing identity was found for any identifier.
+	// A new segment/rudder_id is created.
+	StrategyNewMatch ResolutionStrategy = iota
+
+	// StrategySingleMatch indicates exactly one existing identity was found.
+	// The existing rudder_id is reused.
+	StrategySingleMatch
+
+	// StrategyMultiMatch indicates multiple existing identities were found.
+	// All are merged under the first rudder_id.
+	StrategyMultiMatch
+)
+
+// String returns the human-readable name of the resolution strategy.
+func (s ResolutionStrategy) String() string {
+	switch s {
+	case StrategyNewMatch:
+		return "new_match"
+	case StrategySingleMatch:
+		return "single_match"
+	case StrategyMultiMatch:
+		return "multi_match"
+	default:
+		return "unknown"
+	}
+}
+
+// MergeProperty represents a single property type-value pair used in identity merge rules.
+// This extends beyond the original two-property limitation (merge_property_1/merge_property_2)
+// to support an arbitrary number of property pairs.
+type MergeProperty struct {
+	Type  string
+	Value string
+}
+
+// MergeRule represents a set of property pairs that should be resolved together.
+// In the existing warehouse model, this is limited to two properties (merge_property_1, merge_property_2).
+// The flexible model supports an arbitrary number of properties for the real-time identity graph.
+type MergeRule struct {
+	Properties []MergeProperty
+}
+
+// ResolutionInput captures the inputs to an identity resolution operation.
+// It provides the merge properties that need to be resolved, abstracting
+// away whether this comes from a warehouse merge rule or a real-time event.
+type ResolutionInput struct {
+	Properties []MergeProperty
+}
+
+// ResolutionOutput captures the result of an identity resolution operation.
+// Both warehouse batch resolution and real-time graph resolution produce this.
+type ResolutionOutput struct {
+	Strategy    ResolutionStrategy
+	RudderID    string
+	MappingRows []MappingRow
+}
+
+// MappingRow represents a single row in the identity mappings table.
+type MappingRow struct {
+	MergePropertyType  string
+	MergePropertyValue string
+	RudderID           string
+	UpdatedAt          string
+}
+
+// MergeRuleApplier defines the interface for applying identity merge rules.
+// This allows both the warehouse batch pipeline (which uses PostgreSQL transactions)
+// and the real-time identity graph (which uses its own storage) to share resolution logic.
+type MergeRuleApplier interface {
+	// LookupRudderIDs finds all existing rudder_ids matching the given properties.
+	LookupRudderIDs(ctx context.Context, properties []MergeProperty) ([]string, error)
+
+	// CreateMapping creates a new mapping from a merge property to a rudder_id.
+	CreateMapping(ctx context.Context, row MappingRow) error
+
+	// UpdateMappings updates all mappings from old rudder_ids to a new rudder_id.
+	UpdateMappings(ctx context.Context, newRudderID string, oldRudderIDs []string) (int64, error)
+
+	// GetAllMappingsForRudderIDs retrieves all merge properties associated with the given rudder_ids.
+	GetAllMappingsForRudderIDs(ctx context.Context, rudderIDs []string) ([]MergeProperty, error)
+}
+
 type WarehouseManager interface {
 	DownloadIdentityRules(context.Context, *misc.GZipWriter) error
 }
@@ -75,136 +163,281 @@ func (idr *Identity) whMappingsTable() string {
 	return warehouseutils.ToProviderCase(idr.warehouse.Destination.DestinationDefinition.Name, warehouseutils.IdentityMappingsTable)
 }
 
-func (idr *Identity) applyRule(txn *sqlmiddleware.Tx, ruleID int64, gzWriter *misc.GZipWriter) (totalRowsModified int, err error) {
-	sqlStatement := fmt.Sprintf(`SELECT merge_property_1_type, merge_property_1_value, merge_property_2_type, merge_property_2_value FROM %s WHERE id=%v`, idr.mergeRulesTable(), ruleID)
-
-	var prop1Val, prop2Val, prop1Type, prop2Type sql.NullString
-	err = txn.QueryRow(sqlStatement).Scan(&prop1Type, &prop1Val, &prop2Type, &prop2Val)
+// ApplyMergeRule executes the core identity resolution algorithm for a set of merge properties.
+// This function extracts the pure resolution logic from the warehouse-specific applyRule() method,
+// making it reusable by the real-time identity graph (identity/graph/resolver.go).
+//
+// The three resolution strategies are:
+//   - New match (no existing rudder_ids found): Creates a new UUID-based rudder_id
+//   - Single match (exactly one rudder_id found): Reuses the existing rudder_id
+//   - Multi match (multiple rudder_ids found): Merges all under the first rudder_id
+//
+// Parameters:
+//   - ctx: Context for cancellation
+//   - applier: The storage-specific implementation of merge rule operations
+//   - input: The merge properties to resolve
+//   - generateID: Function to generate new UUIDs (allows injection of misc.FastUUID for warehouse)
+//   - timeNow: Function to get current time string (allows injection for testing)
+//
+// Returns the resolution output (strategy, rudder_id, mapping rows) or error.
+func ApplyMergeRule(ctx context.Context, applier MergeRuleApplier, input ResolutionInput, generateID func() string, timeNow func() string) (*ResolutionOutput, error) {
+	// Look up existing rudder_ids for all properties
+	rudderIDs, err := applier.LookupRudderIDs(ctx, input.Properties)
 	if err != nil {
-		return totalRowsModified, err
+		return nil, fmt.Errorf("lookup rudder_ids: %w", err)
 	}
+
+	currentTimeString := timeNow()
+	output := &ResolutionOutput{}
+
+	if len(rudderIDs) <= 1 {
+		// New match or single match
+		var rudderID string
+		if len(rudderIDs) == 0 {
+			rudderID = generateID()
+			output.Strategy = StrategyNewMatch
+		} else {
+			rudderID = rudderIDs[0]
+			output.Strategy = StrategySingleMatch
+		}
+		output.RudderID = rudderID
+
+		// Create mapping rows for each non-empty property
+		for _, prop := range input.Properties {
+			if prop.Type == "" || prop.Value == "" {
+				continue // skip empty properties (mirrors the prop2Val.Valid check in warehouse model)
+			}
+			row := MappingRow{
+				MergePropertyType:  prop.Type,
+				MergePropertyValue: prop.Value,
+				RudderID:           rudderID,
+				UpdatedAt:          currentTimeString,
+			}
+			if err := applier.CreateMapping(ctx, row); err != nil {
+				return nil, fmt.Errorf("create mapping: %w", err)
+			}
+			output.MappingRows = append(output.MappingRows, row)
+		}
+	} else {
+		// Multi match — merge all under first rudder_id
+		output.Strategy = StrategyMultiMatch
+		newID := rudderIDs[0]
+		output.RudderID = newID
+
+		// Create mapping rows for merge properties
+		for _, prop := range input.Properties {
+			if prop.Type == "" || prop.Value == "" {
+				continue
+			}
+			row := MappingRow{
+				MergePropertyType:  prop.Type,
+				MergePropertyValue: prop.Value,
+				RudderID:           newID,
+				UpdatedAt:          currentTimeString,
+			}
+			output.MappingRows = append(output.MappingRows, row)
+		}
+
+		// Get all existing mappings for all matched rudder_ids
+		existingProps, err := applier.GetAllMappingsForRudderIDs(ctx, rudderIDs)
+		if err != nil {
+			return nil, fmt.Errorf("get all mappings: %w", err)
+		}
+		for _, prop := range existingProps {
+			output.MappingRows = append(output.MappingRows, MappingRow{
+				MergePropertyType:  prop.Type,
+				MergePropertyValue: prop.Value,
+				RudderID:           newID,
+				UpdatedAt:          currentTimeString,
+			})
+		}
+
+		// Update all old rudder_ids to the new one
+		if len(rudderIDs) > 1 {
+			if _, err := applier.UpdateMappings(ctx, newID, rudderIDs[1:]); err != nil {
+				return nil, fmt.Errorf("update mappings: %w", err)
+			}
+		}
+
+		// Create new mappings for the merge properties
+		for _, prop := range input.Properties {
+			if prop.Type == "" || prop.Value == "" {
+				continue
+			}
+			row := MappingRow{
+				MergePropertyType:  prop.Type,
+				MergePropertyValue: prop.Value,
+				RudderID:           newID,
+				UpdatedAt:          currentTimeString,
+			}
+			if err := applier.CreateMapping(ctx, row); err != nil {
+				return nil, fmt.Errorf("create merge mapping: %w", err)
+			}
+		}
+	}
+
+	return output, nil
+}
+
+// warehouseMergeRuleApplier implements MergeRuleApplier using PostgreSQL transactions,
+// wrapping the existing SQL operations from the original applyRule() method.
+type warehouseMergeRuleApplier struct {
+	txn               *sqlmiddleware.Tx
+	mappingsTable     string
+	warehouse         model.Warehouse
+	currentTimeString string
+}
+
+// LookupRudderIDs finds all existing rudder_ids matching the given properties
+// by querying the warehouse identity mappings table.
+func (w *warehouseMergeRuleApplier) LookupRudderIDs(_ context.Context, properties []MergeProperty) ([]string, error) {
+	var conditions []string
+	for _, prop := range properties {
+		if prop.Type != "" && prop.Value != "" {
+			conditions = append(conditions, fmt.Sprintf(`(merge_property_type='%s' AND merge_property_value=%s)`, prop.Type, misc.QuoteLiteral(prop.Value)))
+		}
+	}
+	if len(conditions) == 0 {
+		return nil, nil
+	}
+
+	whereClause := strings.Join(conditions, " OR ")
+	sqlStatement := fmt.Sprintf(`SELECT ARRAY_AGG(DISTINCT(rudder_id)) FROM %s WHERE %s`, w.mappingsTable, whereClause)
+	pkgLogger.Debugn("IDR: Fetching all rudder_id's corresponding to the merge_rule", logger.NewStringField(logfield.Query, sqlStatement))
 
 	var rudderIDs []string
-	var additionalClause string
-	if prop2Val.Valid && prop2Type.Valid {
-		additionalClause = fmt.Sprintf(`OR (merge_property_type='%s' AND merge_property_value=%s)`, prop2Type.String, misc.QuoteLiteral(prop2Val.String))
-	}
-	sqlStatement = fmt.Sprintf(`SELECT ARRAY_AGG(DISTINCT(rudder_id)) FROM %s WHERE (merge_property_type='%s' AND merge_property_value=%s) %s`, idr.mappingsTable(), prop1Type.String, misc.QuoteLiteral(prop1Val.String), additionalClause)
-	pkgLogger.Debugn("IDR: Fetching all rudder_id's corresponding to the merge_rule", logger.NewStringField(logfield.Query, sqlStatement))
-	err = txn.QueryRow(sqlStatement).Scan(pq.Array(&rudderIDs))
+	err := w.txn.QueryRow(sqlStatement).Scan(pq.Array(&rudderIDs))
 	if err != nil {
 		pkgLogger.Errorn("IDR: Error fetching all rudder_id's corresponding to the merge_rule",
 			logger.NewStringField(logfield.Query, sqlStatement),
 			obskit.Error(err),
 		)
-		return totalRowsModified, err
+		return nil, err
+	}
+	return rudderIDs, nil
+}
+
+// CreateMapping inserts a new mapping row into the warehouse identity mappings table
+// using ON CONFLICT DO NOTHING to handle duplicate entries.
+func (w *warehouseMergeRuleApplier) CreateMapping(_ context.Context, row MappingRow) error {
+	rowValues := misc.SingleQuoteLiteralJoin([]string{row.MergePropertyType, row.MergePropertyValue, row.RudderID, row.UpdatedAt})
+	sqlStatement := fmt.Sprintf(`INSERT INTO %s (merge_property_type, merge_property_value, rudder_id, updated_at) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO NOTHING`,
+		w.mappingsTable, rowValues, warehouseutils.IdentityMappingsUniqueMappingConstraintName(w.warehouse))
+
+	pkgLogger.Debugn("IDR: Inserting property mapping into mappings table", logger.NewStringField(logfield.Query, sqlStatement))
+	_, err := w.txn.Exec(sqlStatement)
+	if err != nil {
+		pkgLogger.Errorn("IDR: Error inserting property mapping into mappings table",
+			obskit.Error(err),
+		)
+	}
+	return err
+}
+
+// UpdateMappings updates all mappings from old rudder_ids to a new rudder_id,
+// consolidating multiple identities under a single resolved identity.
+func (w *warehouseMergeRuleApplier) UpdateMappings(_ context.Context, newRudderID string, oldRudderIDs []string) (int64, error) {
+	sqlStatement := fmt.Sprintf(`UPDATE %s SET rudder_id='%s', updated_at='%s' WHERE rudder_id IN (%v)`,
+		w.mappingsTable, newRudderID, w.currentTimeString, misc.SingleQuoteLiteralJoin(oldRudderIDs))
+
+	res, err := w.txn.Exec(sqlStatement)
+	if err != nil {
+		return 0, err
+	}
+	affectedRowCount, _ := res.RowsAffected()
+	pkgLogger.Debugn("IDR: Updated rudder_id for all properties in mapping table",
+		logger.NewIntField("affectedRowCount", affectedRowCount),
+		logger.NewStringField(logfield.Query, sqlStatement))
+	return affectedRowCount, nil
+}
+
+// GetAllMappingsForRudderIDs retrieves all merge properties associated with the given rudder_ids
+// from the warehouse identity mappings table.
+func (w *warehouseMergeRuleApplier) GetAllMappingsForRudderIDs(_ context.Context, rudderIDs []string) ([]MergeProperty, error) {
+	quotedRudderIDs := misc.SingleQuoteLiteralJoin(rudderIDs)
+	sqlStatement := fmt.Sprintf(`SELECT merge_property_type, merge_property_value FROM %s WHERE rudder_id IN (%v)`, w.mappingsTable, quotedRudderIDs)
+
+	pkgLogger.Debugn("IDR: Get all merge properties from mapping table with rudder_id's",
+		logger.NewStringField("quotedRudderIDs", quotedRudderIDs),
+		logger.NewStringField(logfield.Query, sqlStatement))
+
+	tableRows, err := w.txn.Query(sqlStatement)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tableRows.Close() }()
+
+	var properties []MergeProperty
+	for tableRows.Next() {
+		var mergePropType, mergePropVal string
+		err = tableRows.Scan(&mergePropType, &mergePropVal)
+		if err != nil {
+			return nil, err
+		}
+		properties = append(properties, MergeProperty{Type: mergePropType, Value: mergePropVal})
+	}
+	if err = tableRows.Err(); err != nil {
+		return nil, err
+	}
+	return properties, nil
+}
+
+func (idr *Identity) applyRule(txn *sqlmiddleware.Tx, ruleID int64, gzWriter *misc.GZipWriter) (totalRowsModified int, err error) {
+	// Step 1: Read merge rule from PostgreSQL (unchanged from original)
+	sqlStatement := fmt.Sprintf(`SELECT merge_property_1_type, merge_property_1_value, merge_property_2_type, merge_property_2_value FROM %s WHERE id=%v`, idr.mergeRulesTable(), ruleID)
+
+	var prop1Val, prop2Val, prop1Type, prop2Type sql.NullString
+	err = txn.QueryRow(sqlStatement).Scan(&prop1Type, &prop1Val, &prop2Type, &prop2Val)
+	if err != nil {
+		return 0, err
 	}
 
+	// Step 2: Build ResolutionInput from the two-property model
+	input := ResolutionInput{}
+	if prop1Type.Valid && prop1Val.Valid {
+		input.Properties = append(input.Properties, MergeProperty{Type: prop1Type.String, Value: prop1Val.String})
+	}
+	if prop2Type.Valid && prop2Val.Valid {
+		input.Properties = append(input.Properties, MergeProperty{Type: prop2Type.String, Value: prop2Val.String})
+	}
+
+	// Step 3: Create warehouse-specific applier wrapping the transaction
 	currentTimeString := time.Now().Format(misc.RFC3339Milli)
-	var rows [][]string
-
-	// if no rudder_id is found with properties in merge_rule, create a new one
-	// else if only one rudder_id is found with properties in merge_rule, use that rudder_id
-	// else create a new rudder_id and assign it to all properties found with properties in the merge_rule
-	if len(rudderIDs) <= 1 {
-		// generate new one and assign to these two
-		var rudderID string
-		if len(rudderIDs) == 0 {
-			rudderID = misc.FastUUID().String()
-		} else {
-			rudderID = rudderIDs[0]
-		}
-		row1 := []string{prop1Type.String, prop1Val.String, rudderID, currentTimeString}
-		rows = append(rows, row1)
-		row1Values := misc.SingleQuoteLiteralJoin(row1)
-
-		var row2Values string
-		if prop2Val.Valid && prop2Type.Valid {
-			row2 := []string{prop2Type.String, prop2Val.String, rudderID, currentTimeString}
-			rows = append(rows, row2)
-			row2Values = fmt.Sprintf(`, (%s)`, misc.SingleQuoteLiteralJoin(row2))
-		}
-
-		sqlStatement = fmt.Sprintf(`INSERT INTO %s (merge_property_type, merge_property_value, rudder_id, updated_at) VALUES (%s) %s ON CONFLICT ON CONSTRAINT %s DO NOTHING`, idr.mappingsTable(), row1Values, row2Values, warehouseutils.IdentityMappingsUniqueMappingConstraintName(idr.warehouse))
-		pkgLogger.Debugn("IDR: Inserting properties from merge_rule into mappings table", logger.NewStringField(logfield.Query, sqlStatement))
-		_, err = txn.Exec(sqlStatement)
-		if err != nil {
-			pkgLogger.Errorn("IDR: Error inserting properties from merge_rule into mappings table",
-				obskit.Error(err),
-			)
-			return totalRowsModified, err
-		}
-	} else {
-		// generate new one and update all
-		newID := rudderIDs[0]
-		row1 := []string{prop1Type.String, prop1Val.String, newID, currentTimeString}
-		rows = append(rows, row1)
-		row1Values := misc.SingleQuoteLiteralJoin(row1)
-
-		var row2Values string
-		if prop2Val.Valid && prop2Type.Valid {
-			row2 := []string{prop2Type.String, prop2Val.String, newID, currentTimeString}
-			rows = append(rows, row2)
-			row2Values = fmt.Sprintf(`, (%s)`, misc.SingleQuoteLiteralJoin(row2))
-		}
-
-		quotedRudderIDs := misc.SingleQuoteLiteralJoin(rudderIDs)
-		sqlStatement := fmt.Sprintf(`SELECT merge_property_type, merge_property_value FROM %s WHERE rudder_id IN (%v)`, idr.mappingsTable(), quotedRudderIDs)
-		pkgLogger.Debugn("IDR: Get all merge properties from mapping table with rudder_id's",
-			logger.NewStringField("quotedRudderIDs", quotedRudderIDs),
-			logger.NewStringField(logfield.Query, sqlStatement))
-		var tableRows *sqlmiddleware.Rows
-		tableRows, err = txn.Query(sqlStatement)
-		if err != nil {
-			return totalRowsModified, err
-		}
-		defer func() { _ = tableRows.Close() }()
-
-		for tableRows.Next() {
-			var mergePropType, mergePropVal string
-			err = tableRows.Scan(&mergePropType, &mergePropVal)
-			if err != nil {
-				return totalRowsModified, err
-			}
-			row := []string{mergePropType, mergePropVal, newID, currentTimeString}
-			rows = append(rows, row)
-		}
-		if err = tableRows.Err(); err != nil {
-			return totalRowsModified, err
-		}
-
-		sqlStatement = fmt.Sprintf(`UPDATE %s SET rudder_id='%s', updated_at='%s' WHERE rudder_id IN (%v)`, idr.mappingsTable(), newID, currentTimeString, misc.SingleQuoteLiteralJoin(rudderIDs[1:]))
-		var res sql.Result
-		res, err = txn.Exec(sqlStatement)
-		if err != nil {
-			return totalRowsModified, err
-		}
-		affectedRowCount, _ := res.RowsAffected()
-		pkgLogger.Debugn("IDR: Updated rudder_id for all properties in mapping table",
-			logger.NewIntField("affectedRowCount", affectedRowCount),
-			logger.NewStringField(logfield.Query, sqlStatement))
-
-		sqlStatement = fmt.Sprintf(`INSERT INTO %s (merge_property_type, merge_property_value, rudder_id, updated_at) VALUES (%s) %s ON CONFLICT ON CONSTRAINT %s DO NOTHING`, idr.mappingsTable(), row1Values, row2Values, warehouseutils.IdentityMappingsUniqueMappingConstraintName(idr.warehouse))
-		pkgLogger.Debugn("IDR: Insert new mappings into table",
-			logger.NewStringField(logfield.TableName, idr.mappingsTable()),
-			logger.NewStringField(logfield.Query, sqlStatement))
-		_, err = txn.Exec(sqlStatement)
-		if err != nil {
-			return totalRowsModified, err
-		}
+	applier := &warehouseMergeRuleApplier{
+		txn:               txn,
+		mappingsTable:     idr.mappingsTable(),
+		warehouse:         idr.warehouse,
+		currentTimeString: currentTimeString,
 	}
+
+	// Step 4: Execute the shared resolution algorithm
+	output, err := ApplyMergeRule(context.Background(), applier, input,
+		func() string { return misc.FastUUID().String() },
+		func() string { return currentTimeString },
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	// Step 5: Write mapping rows to gzip file (unchanged from original)
 	columnNames := []string{"merge_property_type", "merge_property_value", "rudder_id", "updated_at"}
-	for _, row := range rows {
+	for _, row := range output.MappingRows {
 		eventLoader := idr.encodingFactory.NewEventLoader(gzWriter, idr.uploader.GetLoadFileType(), idr.warehouse.Type, nil)
 		// TODO : support add row for parquet loader
-		eventLoader.AddRow(columnNames, row)
+		rowData := []string{row.MergePropertyType, row.MergePropertyValue, row.RudderID, row.UpdatedAt}
+		eventLoader.AddRow(columnNames, rowData)
 		data, _ := eventLoader.WriteToString()
 		_ = gzWriter.WriteGZ(data)
 	}
 
-	return len(rows), err
+	return len(output.MappingRows), nil
 }
 
+// addRules loads merge rules from gzipped load files into a staging table, deduplicates against
+// the existing merge rules table, writes new rules to the output gzip file, and inserts them
+// into the permanent merge rules table. This method currently operates on the two-property
+// warehouse model (merge_property_1_type/value, merge_property_2_type/value). The flexible
+// MergeRule model can be used to extend this to support arbitrary property counts in the future.
 func (idr *Identity) addRules(txn *sqlmiddleware.Tx, loadFileNames []string, gzWriter *misc.GZipWriter) (ids []int64, err error) {
 	// add rules from load files into temp table
 	// use original table to delete redundant ones from temp table
@@ -395,6 +628,21 @@ func (idr *Identity) addRules(txn *sqlmiddleware.Tx, loadFileNames []string, gzW
 	}
 	pkgLogger.Debugn("IDR: Number of merge rules inserted for uploadID", logger.NewIntField("uploadID", idr.uploadID), logger.NewIntField("count", int64(len(ids))))
 	return ids, nil
+}
+
+// NewMergeRuleFromWarehouse creates a MergeRule from the warehouse two-property model.
+// This bridges the fixed-column warehouse schema (merge_property_1_type/value,
+// merge_property_2_type/value) to the flexible MergeRule model used by the shared
+// resolution algorithm and the real-time identity graph.
+func NewMergeRuleFromWarehouse(prop1Type, prop1Value string, prop2Type, prop2Value sql.NullString) MergeRule {
+	rule := MergeRule{}
+	if prop1Type != "" && prop1Value != "" {
+		rule.Properties = append(rule.Properties, MergeProperty{Type: prop1Type, Value: prop1Value})
+	}
+	if prop2Type.Valid && prop2Value.Valid && prop2Type.String != "" && prop2Value.String != "" {
+		rule.Properties = append(rule.Properties, MergeProperty{Type: prop2Type.String, Value: prop2Value.String})
+	}
+	return rule
 }
 
 func (idr *Identity) writeTableToFile(tableName string, txn *sqlmiddleware.Tx, gzWriter *misc.GZipWriter) (err error) {

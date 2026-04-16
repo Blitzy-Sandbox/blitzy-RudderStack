@@ -1,0 +1,1184 @@
+{
+  "destination_type": "WEBHOOK",
+  "destination_tier": "cloud",
+  "segment_slug": "webhooks",
+  "category": "Raw Data",
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "api_endpoints": {
+    "webhook": {
+      "url": "<configured_webhook_url>",
+      "method": "POST",
+      "description": "Generic Webhooks destination forwards the full event payload as a JSON body to the configured URL endpoint. The HTTP method is configurable (POST, PUT, PATCH, DELETE, GET). Custom headers can be added for authentication or routing."
+    }
+  },
+  "authentication": {
+    "type": "custom_headers",
+    "description": "Authentication is handled via custom HTTP headers configured in the destination settings. Common patterns include Bearer tokens in the Authorization header, API keys in custom headers (e.g., X-API-Key), or basic auth. No built-in OAuth or API key scheme is enforced; the user configures arbitrary key-value header pairs.",
+    "config_fields": {
+      "webhookUrl": "The destination URL to which event payloads are delivered",
+      "webhookMethod": "HTTP method for the request (POST, PUT, PATCH, DELETE, GET). Defaults to POST.",
+      "headers": "Array of key-value pairs representing custom HTTP headers to include with each request"
+    }
+  },
+  "rate_limits": {
+    "description": "No destination-imposed rate limits; the webhook endpoint's rate limits depend on the receiving server. RudderStack applies per-destination throttling via the Router's GCRA-based throttler. Segment applies standard delivery rate limits.",
+    "rudderstack_throttling": "Configurable via Router throttling settings (GCRA algorithm with per-destination cost parameters)",
+    "segment_throttling": "Standard Segment delivery rate limits apply; retries with exponential backoff on 429 or 5xx responses"
+  },
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment Webhooks destination forwards the complete track event payload as-is in the JSON request body. The full event object including type, event name, userId, properties, context, and metadata is sent to the configured URL with configured headers.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "order_id": "ORD-98765",
+          "revenue": 149.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 3
+            }
+          ],
+          "coupon": "SAVE10",
+          "shipping": 5.99
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://www.example.com/checkout/confirmation",
+            "title": "Order Confirmation - Example Store",
+            "referrer": "https://www.example.com/checkout/payment"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US"
+        },
+        "messageId": "seg-msg-track-wh-001"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "track",
+          "event": "Order Completed",
+          "userId": "user_123",
+          "anonymousId": "anon_abc_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "order_id": "ORD-98765",
+            "revenue": 149.99,
+            "currency": "USD",
+            "products": [
+              {
+                "product_id": "SKU-001",
+                "name": "Premium Widget",
+                "price": 49.99,
+                "quantity": 3
+              }
+            ],
+            "coupon": "SAVE10",
+            "shipping": 5.99
+          },
+          "context": {
+            "library": {
+              "name": "analytics.js",
+              "version": "2.1.0"
+            },
+            "page": {
+              "url": "https://www.example.com/checkout/confirmation",
+              "title": "Order Confirmation - Example Store",
+              "referrer": "https://www.example.com/checkout/payment"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "locale": "en-US"
+          },
+          "messageId": "seg-msg-track-wh-001"
+        }
+      }
+    },
+    "identify": {
+      "description": "Segment Webhooks destination forwards the complete identify event payload as-is. The identify call includes userId, traits (user attributes), and context. The full object is delivered to the webhook URL without transformation.",
+      "input_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "traits": {
+          "email": "user@example.com",
+          "first_name": "Jane",
+          "last_name": "Doe",
+          "phone": "+1-555-867-5309",
+          "company": {
+            "name": "Acme Corp",
+            "id": "acme-001",
+            "industry": "Technology",
+            "employee_count": 250
+          },
+          "plan": "enterprise",
+          "created_at": "2024-01-15T08:00:00.000Z",
+          "avatar": "https://www.example.com/avatars/user_123.png"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://www.example.com/settings/profile",
+            "title": "Profile Settings"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US"
+        },
+        "messageId": "seg-msg-identify-wh-001"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon_abc_456",
+          "timestamp": "2026-02-25T12:05:00.000Z",
+          "traits": {
+            "email": "user@example.com",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "phone": "+1-555-867-5309",
+            "company": {
+              "name": "Acme Corp",
+              "id": "acme-001",
+              "industry": "Technology",
+              "employee_count": 250
+            },
+            "plan": "enterprise",
+            "created_at": "2024-01-15T08:00:00.000Z",
+            "avatar": "https://www.example.com/avatars/user_123.png"
+          },
+          "context": {
+            "library": {
+              "name": "analytics.js",
+              "version": "2.1.0"
+            },
+            "page": {
+              "url": "https://www.example.com/settings/profile",
+              "title": "Profile Settings"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "locale": "en-US"
+          },
+          "messageId": "seg-msg-identify-wh-001"
+        }
+      }
+    },
+    "page": {
+      "description": "Segment Webhooks destination forwards the complete page event payload as-is. The page call contains page name, category, and page-specific properties (url, title, referrer, path, search).",
+      "input_event": {
+        "type": "page",
+        "name": "Product Detail",
+        "category": "Shop",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:10:00.000Z",
+        "properties": {
+          "url": "https://www.example.com/products/premium-widget",
+          "title": "Premium Widget - Example Store",
+          "referrer": "https://www.example.com/shop",
+          "path": "/products/premium-widget",
+          "search": "?ref=homepage",
+          "product_id": "SKU-001",
+          "product_category": "Widgets"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US",
+          "campaign": {
+            "source": "google",
+            "medium": "cpc",
+            "name": "spring-sale"
+          }
+        },
+        "messageId": "seg-msg-page-wh-001"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "page",
+          "name": "Product Detail",
+          "category": "Shop",
+          "userId": "user_123",
+          "anonymousId": "anon_abc_456",
+          "timestamp": "2026-02-25T12:10:00.000Z",
+          "properties": {
+            "url": "https://www.example.com/products/premium-widget",
+            "title": "Premium Widget - Example Store",
+            "referrer": "https://www.example.com/shop",
+            "path": "/products/premium-widget",
+            "search": "?ref=homepage",
+            "product_id": "SKU-001",
+            "product_category": "Widgets"
+          },
+          "context": {
+            "library": {
+              "name": "analytics.js",
+              "version": "2.1.0"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "locale": "en-US",
+            "campaign": {
+              "source": "google",
+              "medium": "cpc",
+              "name": "spring-sale"
+            }
+          },
+          "messageId": "seg-msg-page-wh-001"
+        }
+      }
+    },
+    "screen": {
+      "description": "Segment Webhooks destination forwards the complete screen event payload as-is. The screen call is the mobile equivalent of page and contains screen name, category, and screen-specific properties.",
+      "input_event": {
+        "type": "screen",
+        "name": "Product Detail Screen",
+        "category": "Shop",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:15:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "product_category": "Widgets",
+          "screen_resolution": "1170x2532",
+          "orientation": "portrait"
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ios",
+            "version": "4.1.0"
+          },
+          "device": {
+            "id": "device-uuid-001",
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "name": "User iPhone",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.4.1"
+          },
+          "app": {
+            "name": "ExampleApp",
+            "version": "3.2.1",
+            "build": "245",
+            "namespace": "com.example.app"
+          },
+          "ip": "203.0.113.60",
+          "locale": "en-US",
+          "timezone": "America/New_York"
+        },
+        "messageId": "seg-msg-screen-wh-001"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "screen",
+          "name": "Product Detail Screen",
+          "category": "Shop",
+          "userId": "user_123",
+          "anonymousId": "anon_abc_456",
+          "timestamp": "2026-02-25T12:15:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "product_name": "Premium Widget",
+            "product_category": "Widgets",
+            "screen_resolution": "1170x2532",
+            "orientation": "portrait"
+          },
+          "context": {
+            "library": {
+              "name": "analytics-ios",
+              "version": "4.1.0"
+            },
+            "device": {
+              "id": "device-uuid-001",
+              "manufacturer": "Apple",
+              "model": "iPhone 15 Pro",
+              "name": "User iPhone",
+              "type": "ios"
+            },
+            "os": {
+              "name": "iOS",
+              "version": "17.4.1"
+            },
+            "app": {
+              "name": "ExampleApp",
+              "version": "3.2.1",
+              "build": "245",
+              "namespace": "com.example.app"
+            },
+            "ip": "203.0.113.60",
+            "locale": "en-US",
+            "timezone": "America/New_York"
+          },
+          "messageId": "seg-msg-screen-wh-001"
+        }
+      }
+    },
+    "group": {
+      "description": "Segment Webhooks destination forwards the complete group event payload as-is. The group call associates the user with a company or organization, including group traits (name, industry, employee count, plan).",
+      "input_event": {
+        "type": "group",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "groupId": "grp_acme_001",
+        "timestamp": "2026-02-25T12:20:00.000Z",
+        "traits": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employee_count": 250,
+          "plan": "enterprise",
+          "website": "https://www.acme-corp.example.com",
+          "address": {
+            "street": "123 Main Street",
+            "city": "San Francisco",
+            "state": "CA",
+            "postal_code": "94105",
+            "country": "US"
+          },
+          "created_at": "2023-06-15T10:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://www.example.com/settings/organization",
+            "title": "Organization Settings"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US"
+        },
+        "messageId": "seg-msg-group-wh-001"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "group",
+          "userId": "user_123",
+          "anonymousId": "anon_abc_456",
+          "groupId": "grp_acme_001",
+          "timestamp": "2026-02-25T12:20:00.000Z",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "employee_count": 250,
+            "plan": "enterprise",
+            "website": "https://www.acme-corp.example.com",
+            "address": {
+              "street": "123 Main Street",
+              "city": "San Francisco",
+              "state": "CA",
+              "postal_code": "94105",
+              "country": "US"
+            },
+            "created_at": "2023-06-15T10:00:00.000Z"
+          },
+          "context": {
+            "library": {
+              "name": "analytics.js",
+              "version": "2.1.0"
+            },
+            "page": {
+              "url": "https://www.example.com/settings/organization",
+              "title": "Organization Settings"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "locale": "en-US"
+          },
+          "messageId": "seg-msg-group-wh-001"
+        }
+      }
+    },
+    "alias": {
+      "description": "Segment Webhooks destination forwards the complete alias event payload as-is. The alias call merges two user identities (previousId to userId).",
+      "input_event": {
+        "type": "alias",
+        "userId": "user_123",
+        "previousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:25:00.000Z",
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://www.example.com/login",
+            "title": "Login - Example Store"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US"
+        },
+        "messageId": "seg-msg-alias-wh-001"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "alias",
+          "userId": "user_123",
+          "previousId": "anon_abc_456",
+          "timestamp": "2026-02-25T12:25:00.000Z",
+          "context": {
+            "library": {
+              "name": "analytics.js",
+              "version": "2.1.0"
+            },
+            "page": {
+              "url": "https://www.example.com/login",
+              "title": "Login - Example Store"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "locale": "en-US"
+          },
+          "messageId": "seg-msg-alias-wh-001"
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack Webhooks destination forwards the complete track event payload as-is to the configured URL. The payload includes standard Segment Spec fields plus RudderStack-specific envelope fields (rudderId, originalTimestamp, sentAt, receivedAt). The Transformer service handles the passthrough mapping, adding content-type and configured custom headers.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "order_id": "ORD-98765",
+          "revenue": 149.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 3
+            }
+          ],
+          "coupon": "SAVE10",
+          "shipping": 5.99
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "page": {
+            "url": "https://www.example.com/checkout/confirmation",
+            "title": "Order Confirmation - Example Store",
+            "referrer": "https://www.example.com/checkout/payment"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US"
+        },
+        "messageId": "rs-msg-track-wh-001",
+        "rudderId": "rudder-uuid-wh-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "track",
+          "event": "Order Completed",
+          "userId": "user_123",
+          "anonymousId": "anon_abc_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "order_id": "ORD-98765",
+            "revenue": 149.99,
+            "currency": "USD",
+            "products": [
+              {
+                "product_id": "SKU-001",
+                "name": "Premium Widget",
+                "price": 49.99,
+                "quantity": 3
+              }
+            ],
+            "coupon": "SAVE10",
+            "shipping": 5.99
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "page": {
+              "url": "https://www.example.com/checkout/confirmation",
+              "title": "Order Confirmation - Example Store",
+              "referrer": "https://www.example.com/checkout/payment"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "locale": "en-US"
+          },
+          "messageId": "rs-msg-track-wh-001",
+          "rudderId": "rudder-uuid-wh-001",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        }
+      }
+    },
+    "identify": {
+      "description": "RudderStack Webhooks destination forwards the complete identify event payload as-is. The identify call includes userId, traits, context, and RudderStack-specific envelope fields. The full event is delivered to the configured webhook URL via the Router's HTTP delivery pipeline.",
+      "input_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "traits": {
+          "email": "user@example.com",
+          "first_name": "Jane",
+          "last_name": "Doe",
+          "phone": "+1-555-867-5309",
+          "company": {
+            "name": "Acme Corp",
+            "id": "acme-001",
+            "industry": "Technology",
+            "employee_count": 250
+          },
+          "plan": "enterprise",
+          "created_at": "2024-01-15T08:00:00.000Z",
+          "avatar": "https://www.example.com/avatars/user_123.png"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "page": {
+            "url": "https://www.example.com/settings/profile",
+            "title": "Profile Settings"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US"
+        },
+        "messageId": "rs-msg-identify-wh-001",
+        "rudderId": "rudder-uuid-wh-002",
+        "originalTimestamp": "2026-02-25T12:05:00.000Z",
+        "sentAt": "2026-02-25T12:05:01.000Z",
+        "receivedAt": "2026-02-25T12:05:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon_abc_456",
+          "timestamp": "2026-02-25T12:05:00.000Z",
+          "traits": {
+            "email": "user@example.com",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "phone": "+1-555-867-5309",
+            "company": {
+              "name": "Acme Corp",
+              "id": "acme-001",
+              "industry": "Technology",
+              "employee_count": 250
+            },
+            "plan": "enterprise",
+            "created_at": "2024-01-15T08:00:00.000Z",
+            "avatar": "https://www.example.com/avatars/user_123.png"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "page": {
+              "url": "https://www.example.com/settings/profile",
+              "title": "Profile Settings"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "locale": "en-US"
+          },
+          "messageId": "rs-msg-identify-wh-001",
+          "rudderId": "rudder-uuid-wh-002",
+          "originalTimestamp": "2026-02-25T12:05:00.000Z",
+          "sentAt": "2026-02-25T12:05:01.000Z",
+          "receivedAt": "2026-02-25T12:05:02.000Z"
+        }
+      }
+    },
+    "page": {
+      "description": "RudderStack Webhooks destination forwards the complete page event payload as-is. The page call contains page name, category, page properties (url, title, referrer, path, search), context, and RudderStack envelope fields.",
+      "input_event": {
+        "type": "page",
+        "name": "Product Detail",
+        "category": "Shop",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:10:00.000Z",
+        "properties": {
+          "url": "https://www.example.com/products/premium-widget",
+          "title": "Premium Widget - Example Store",
+          "referrer": "https://www.example.com/shop",
+          "path": "/products/premium-widget",
+          "search": "?ref=homepage",
+          "product_id": "SKU-001",
+          "product_category": "Widgets"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US",
+          "campaign": {
+            "source": "google",
+            "medium": "cpc",
+            "name": "spring-sale"
+          }
+        },
+        "messageId": "rs-msg-page-wh-001",
+        "rudderId": "rudder-uuid-wh-003",
+        "originalTimestamp": "2026-02-25T12:10:00.000Z",
+        "sentAt": "2026-02-25T12:10:01.000Z",
+        "receivedAt": "2026-02-25T12:10:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "page",
+          "name": "Product Detail",
+          "category": "Shop",
+          "userId": "user_123",
+          "anonymousId": "anon_abc_456",
+          "timestamp": "2026-02-25T12:10:00.000Z",
+          "properties": {
+            "url": "https://www.example.com/products/premium-widget",
+            "title": "Premium Widget - Example Store",
+            "referrer": "https://www.example.com/shop",
+            "path": "/products/premium-widget",
+            "search": "?ref=homepage",
+            "product_id": "SKU-001",
+            "product_category": "Widgets"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "locale": "en-US",
+            "campaign": {
+              "source": "google",
+              "medium": "cpc",
+              "name": "spring-sale"
+            }
+          },
+          "messageId": "rs-msg-page-wh-001",
+          "rudderId": "rudder-uuid-wh-003",
+          "originalTimestamp": "2026-02-25T12:10:00.000Z",
+          "sentAt": "2026-02-25T12:10:01.000Z",
+          "receivedAt": "2026-02-25T12:10:02.000Z"
+        }
+      }
+    },
+    "screen": {
+      "description": "RudderStack Webhooks destination forwards the complete screen event payload as-is. The screen call is the mobile equivalent of page and includes screen name, category, mobile-specific properties, device context, and RudderStack envelope fields.",
+      "input_event": {
+        "type": "screen",
+        "name": "Product Detail Screen",
+        "category": "Shop",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:15:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "product_category": "Widgets",
+          "screen_resolution": "1170x2532",
+          "orientation": "portrait"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-ios",
+            "version": "2.4.1"
+          },
+          "device": {
+            "id": "device-uuid-001",
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "name": "User iPhone",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.4.1"
+          },
+          "app": {
+            "name": "ExampleApp",
+            "version": "3.2.1",
+            "build": "245",
+            "namespace": "com.example.app"
+          },
+          "ip": "203.0.113.60",
+          "locale": "en-US",
+          "timezone": "America/New_York"
+        },
+        "messageId": "rs-msg-screen-wh-001",
+        "rudderId": "rudder-uuid-wh-004",
+        "originalTimestamp": "2026-02-25T12:15:00.000Z",
+        "sentAt": "2026-02-25T12:15:01.000Z",
+        "receivedAt": "2026-02-25T12:15:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "screen",
+          "name": "Product Detail Screen",
+          "category": "Shop",
+          "userId": "user_123",
+          "anonymousId": "anon_abc_456",
+          "timestamp": "2026-02-25T12:15:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "product_name": "Premium Widget",
+            "product_category": "Widgets",
+            "screen_resolution": "1170x2532",
+            "orientation": "portrait"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-ios",
+              "version": "2.4.1"
+            },
+            "device": {
+              "id": "device-uuid-001",
+              "manufacturer": "Apple",
+              "model": "iPhone 15 Pro",
+              "name": "User iPhone",
+              "type": "ios"
+            },
+            "os": {
+              "name": "iOS",
+              "version": "17.4.1"
+            },
+            "app": {
+              "name": "ExampleApp",
+              "version": "3.2.1",
+              "build": "245",
+              "namespace": "com.example.app"
+            },
+            "ip": "203.0.113.60",
+            "locale": "en-US",
+            "timezone": "America/New_York"
+          },
+          "messageId": "rs-msg-screen-wh-001",
+          "rudderId": "rudder-uuid-wh-004",
+          "originalTimestamp": "2026-02-25T12:15:00.000Z",
+          "sentAt": "2026-02-25T12:15:01.000Z",
+          "receivedAt": "2026-02-25T12:15:02.000Z"
+        }
+      }
+    },
+    "group": {
+      "description": "RudderStack Webhooks destination forwards the complete group event payload as-is. The group call associates the user with a company or organization and includes groupId, group traits, context, and RudderStack-specific envelope fields.",
+      "input_event": {
+        "type": "group",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "groupId": "grp_acme_001",
+        "timestamp": "2026-02-25T12:20:00.000Z",
+        "traits": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employee_count": 250,
+          "plan": "enterprise",
+          "website": "https://www.acme-corp.example.com",
+          "address": {
+            "street": "123 Main Street",
+            "city": "San Francisco",
+            "state": "CA",
+            "postal_code": "94105",
+            "country": "US"
+          },
+          "created_at": "2023-06-15T10:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "page": {
+            "url": "https://www.example.com/settings/organization",
+            "title": "Organization Settings"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US"
+        },
+        "messageId": "rs-msg-group-wh-001",
+        "rudderId": "rudder-uuid-wh-005",
+        "originalTimestamp": "2026-02-25T12:20:00.000Z",
+        "sentAt": "2026-02-25T12:20:01.000Z",
+        "receivedAt": "2026-02-25T12:20:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "group",
+          "userId": "user_123",
+          "anonymousId": "anon_abc_456",
+          "groupId": "grp_acme_001",
+          "timestamp": "2026-02-25T12:20:00.000Z",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "employee_count": 250,
+            "plan": "enterprise",
+            "website": "https://www.acme-corp.example.com",
+            "address": {
+              "street": "123 Main Street",
+              "city": "San Francisco",
+              "state": "CA",
+              "postal_code": "94105",
+              "country": "US"
+            },
+            "created_at": "2023-06-15T10:00:00.000Z"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "page": {
+              "url": "https://www.example.com/settings/organization",
+              "title": "Organization Settings"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "locale": "en-US"
+          },
+          "messageId": "rs-msg-group-wh-001",
+          "rudderId": "rudder-uuid-wh-005",
+          "originalTimestamp": "2026-02-25T12:20:00.000Z",
+          "sentAt": "2026-02-25T12:20:01.000Z",
+          "receivedAt": "2026-02-25T12:20:02.000Z"
+        }
+      }
+    },
+    "alias": {
+      "description": "RudderStack Webhooks destination forwards the complete alias event payload as-is. The alias call merges two user identities, containing userId, previousId, context, and RudderStack envelope fields.",
+      "input_event": {
+        "type": "alias",
+        "userId": "user_123",
+        "previousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:25:00.000Z",
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "page": {
+            "url": "https://www.example.com/login",
+            "title": "Login - Example Store"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US"
+        },
+        "messageId": "rs-msg-alias-wh-001",
+        "rudderId": "rudder-uuid-wh-006",
+        "originalTimestamp": "2026-02-25T12:25:00.000Z",
+        "sentAt": "2026-02-25T12:25:01.000Z",
+        "receivedAt": "2026-02-25T12:25:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "<configured_webhook_url>",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Custom-Header": "<configured_value>"
+        },
+        "body": {
+          "type": "alias",
+          "userId": "user_123",
+          "previousId": "anon_abc_456",
+          "timestamp": "2026-02-25T12:25:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "page": {
+              "url": "https://www.example.com/login",
+              "title": "Login - Example Store"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "locale": "en-US"
+          },
+          "messageId": "rs-msg-alias-wh-001",
+          "rudderId": "rudder-uuid-wh-006",
+          "originalTimestamp": "2026-02-25T12:25:00.000Z",
+          "sentAt": "2026-02-25T12:25:01.000Z",
+          "receivedAt": "2026-02-25T12:25:02.000Z"
+        }
+      }
+    }
+  },
+  "field_mappings": {
+    "payload_passthrough": {
+      "description": "Generic Webhooks is a full-passthrough destination. Both Segment and RudderStack forward the complete event payload as the JSON request body without field-level transformation. The Transformer service serializes the event object and delivers it to the configured endpoint.",
+      "segment_behavior": "The full event object (type, event/name, userId, anonymousId, properties/traits, context, timestamp, messageId) is sent as the JSON body.",
+      "rudderstack_behavior": "The full event object is sent as the JSON body, with additional RudderStack-specific envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) included at the top level."
+    },
+    "endpoint_url_config": {
+      "description": "Both platforms require a URL to which events are delivered. The URL is configured at destination setup and cannot be changed per-event.",
+      "segment_config_field": "settings.webhookUrl or settings.url — the configured destination endpoint",
+      "rudderstack_config_field": "destination.Config.webhookUrl — configured in the destination settings within backend-config DestinationT.Config object"
+    },
+    "http_method": {
+      "description": "The HTTP method used for webhook delivery. Defaults to POST on both platforms. RudderStack supports configurable methods (POST, PUT, PATCH, DELETE, GET) via the webhookMethod config field.",
+      "segment_default": "POST",
+      "rudderstack_default": "POST",
+      "rudderstack_config_field": "destination.Config.webhookMethod — defaults to POST; configurable per destination"
+    },
+    "custom_headers": {
+      "description": "Both platforms support adding custom HTTP headers to webhook requests. Headers are configured as key-value pairs in the destination settings and included with every request. Common use cases include Authorization tokens, API keys, and content-type overrides.",
+      "segment_config": "Configurable header key-value pairs in destination settings; all configured headers are included in every request",
+      "rudderstack_config": "destination.Config.headers — array of {from, to} header pairs where 'from' is the header name and 'to' is the header value. Headers marked in secretKeys are treated as sensitive.",
+      "rudderstack_secret_handling": "The 'headers.to' field is listed in destinationDefinition.config.secretKeys, meaning header values are masked in the control plane UI and encrypted in transit"
+    },
+    "content_type": {
+      "description": "Both platforms set Content-Type: application/json by default for webhook deliveries. RudderStack allows overriding via custom headers.",
+      "default_value": "application/json"
+    },
+    "context_library": {
+      "description": "The context.library field identifies the source SDK. This is the primary per-event field difference between Segment and RudderStack webhook payloads.",
+      "segment_library_names": ["analytics.js", "analytics-node", "analytics-ios", "analytics-android", "analytics-python", "analytics-ruby", "analytics-go", "analytics-java"],
+      "rudderstack_library_names": ["rudder-sdk-js", "rudder-sdk-node", "rudder-sdk-ios", "rudder-sdk-android", "rudder-sdk-python", "rudder-sdk-ruby", "rudder-sdk-go", "rudder-sdk-java"]
+    },
+    "envelope_fields": {
+      "description": "RudderStack adds additional metadata fields at the top level of the event payload that are not present in Segment payloads.",
+      "rudderstack_only_fields": {
+        "rudderId": "UUID generated by RudderStack for internal event tracking and deduplication",
+        "originalTimestamp": "ISO 8601 timestamp of when the event was originally created on the client device",
+        "sentAt": "ISO 8601 timestamp of when the event was sent from the client to the RudderStack Gateway",
+        "receivedAt": "ISO 8601 timestamp of when the event was received by the RudderStack Gateway"
+      }
+    },
+    "message_id": {
+      "description": "Both platforms generate a unique message identifier for each event. The format and generation strategy differ.",
+      "segment_format": "Generated by the Segment SDK (e.g., UUID v4 or sequential ID depending on SDK version)",
+      "rudderstack_format": "Generated by the RudderStack SDK (UUID v4 format)"
+    },
+    "batching": {
+      "description": "Webhook payloads are delivered one event at a time (no batching). Each event triggers a separate HTTP request to the configured URL.",
+      "segment_behavior": "Single event per HTTP request",
+      "rudderstack_behavior": "Single event per HTTP request via the Router's per-destination delivery pipeline"
+    },
+    "retry_behavior": {
+      "description": "Both platforms implement retry logic for failed webhook deliveries.",
+      "segment_retry": "Retries with exponential backoff on 5xx and 429 responses; events are discarded after maximum retry attempts",
+      "rudderstack_retry": "Router-level retry with exponential backoff and jitter; configurable max retries; circuit breaker protection via gobreaker library prevents overwhelming failing endpoints"
+    }
+  },
+  "parity_status": "needs_verification",
+  "known_gaps": [
+    {
+      "gap_id": "WH-001",
+      "description": "RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are present at the top level of the webhook payload. These fields are not present in Segment webhook payloads.",
+      "severity": "low",
+      "impact": "Receiving systems that parse the full JSON body may see additional unexpected fields. If strict schema validation is enabled on the receiving end, these extra fields could cause rejection. Most webhook consumers ignore unknown fields."
+    },
+    {
+      "gap_id": "WH-002",
+      "description": "Context library name and version differ between platforms. Segment uses 'analytics.js'/'analytics-node'/etc., while RudderStack uses 'rudder-sdk-js'/'rudder-sdk-node'/etc.",
+      "severity": "low",
+      "impact": "Receiving systems that filter or route events based on the context.library field will need to update their parsing logic when migrating between platforms."
+    },
+    {
+      "gap_id": "WH-003",
+      "description": "Message ID format and generation strategy may differ. Both use UUID-style identifiers but generated by different SDKs with different algorithms.",
+      "severity": "low",
+      "impact": "Systems using messageId for deduplication should not assume format compatibility between platforms."
+    },
+    {
+      "gap_id": "WH-004",
+      "description": "Header configuration format differs. Segment uses simple key-value pairs for custom headers. RudderStack uses a {from, to} object format where 'from' is the header name and 'to' is the header value, with header values listed in secretKeys for masking.",
+      "severity": "low",
+      "impact": "Configuration migration requires reformatting header definitions. No impact on the delivered payload — headers are resolved identically in the outgoing HTTP request."
+    },
+    {
+      "gap_id": "WH-005",
+      "description": "Retry and error handling semantics differ. RudderStack includes circuit breaker protection (gobreaker) and per-destination GCRA throttling that Segment does not expose. Segment has its own internal retry policy.",
+      "severity": "medium",
+      "impact": "Delivery behavior under failure conditions may differ. RudderStack's circuit breaker will stop sending to a consistently failing endpoint sooner, while Segment may continue retrying longer. This can affect event delivery completeness during outages."
+    },
+    {
+      "gap_id": "WH-006",
+      "description": "HTTP method configurability: RudderStack supports configuring the HTTP method (POST, PUT, PATCH, DELETE, GET) via the webhookMethod setting. Segment defaults to POST and method configurability needs verification.",
+      "severity": "low",
+      "impact": "Most webhook integrations use POST. For integrations requiring PUT or PATCH, RudderStack's explicit method configuration provides flexibility."
+    },
+    {
+      "gap_id": "WH-007",
+      "description": "The Transformer service processes webhook payloads before delivery. The exact transformation applied (if any beyond serialization) may introduce subtle payload differences between Segment and RudderStack.",
+      "severity": "medium",
+      "impact": "Even in full-passthrough mode, the Transformer may normalize timestamps, sanitize special characters, or reorder JSON keys. Field-level payload comparison is needed to verify exact parity."
+    }
+  ],
+  "destination_config_schema": {
+    "required_fields": {
+      "webhookUrl": {
+        "type": "string",
+        "description": "The URL endpoint to which event payloads are delivered. Must be a valid HTTP or HTTPS URL."
+      }
+    },
+    "optional_fields": {
+      "webhookMethod": {
+        "type": "string",
+        "default": "POST",
+        "enum": ["POST", "PUT", "PATCH", "DELETE", "GET"],
+        "description": "HTTP method to use for webhook delivery. Defaults to POST."
+      },
+      "headers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "Header name (e.g., 'Authorization', 'X-API-Key')"
+            },
+            "to": {
+              "type": "string",
+              "description": "Header value (e.g., 'Bearer <token>', '<api-key-value>')"
+            }
+          }
+        },
+        "description": "Custom HTTP headers to include with every webhook request. Header values ('to' field) are treated as secrets and masked in the control plane UI."
+      }
+    }
+  },
+  "destination_definition": {
+    "name": "WEBHOOK",
+    "displayName": "Webhook",
+    "category": "Raw Data",
+    "transformAt": "processor",
+    "supportedSourceTypes": [
+      "android",
+      "ios",
+      "web",
+      "unity",
+      "amp",
+      "cloud",
+      "warehouse",
+      "reactnative",
+      "flutter"
+    ],
+    "supportedMessageTypes": [
+      "alias",
+      "group",
+      "identify",
+      "page",
+      "screen",
+      "track"
+    ],
+    "secretKeys": ["headers.to"],
+    "saveDestinationResponse": false,
+    "description": "The WEBHOOK destination definition as found in the existing router test templates (deliveryThrottlerTestTemplate.json, destIdIsolationTestTemplate.json, etc.). It transforms at the processor stage, supports all 9 source types, all 6 message types, and treats header values as secrets."
+  },
+  "notes": "Generic Webhooks is a shared cloud destination in the Raw Data category. Both Segment and RudderStack support forwarding the full event payload as a JSON body to a user-configured URL endpoint. This is a full-passthrough destination — no field-level transformation is applied beyond JSON serialization. The destination supports all six standard event types (track, identify, page, screen, group, alias). Custom HTTP headers are configurable for authentication. The primary parity differences are: (1) RudderStack includes additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) at the top level, (2) context.library identifies different SDK names, (3) messageId generation strategies differ. The WEBHOOK destination is heavily used in existing RudderStack router test templates for throttling, isolation, and event-order regression testing. Refer to router/testdata/ for existing WEBHOOK destination definition usage in test fixtures."
+}

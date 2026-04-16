@@ -22,6 +22,7 @@ services:
       - build/docker.env
     environment:
       - JOBS_DB_HOST=db
+      - REDIS_URL=redis://redis:6379
   #   Uncomment the following lines to mount workspaceConfig file
   #   volumes:
   #     - <absolute_path_to_workspace_config>:/etc/rudderstack/workspaceConfig.json
@@ -51,3 +52,10 @@ services:
       - ETCD_ADVERTISE_CLIENT_URLS=http://mode-provider:2379
     ports:
       - "2379:2379"
+  redis:
+    image: redis:7-alpine
+    profiles:
+      - identity
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes

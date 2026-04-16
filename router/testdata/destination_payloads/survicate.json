@@ -1,0 +1,794 @@
+{
+  "destination_type": "SURVICATE",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "description": "Segment sends Identify and Track events to Survicate via a cloud-mode JavaScript SDK integration. Identify events map user traits to Survicate respondent attributes used for survey targeting, filtering, and respondent profile enrichment. Track events trigger Survicate surveys based on event-based targeting conditions configured in the Survicate panel. Additionally, when a Survicate survey is completed, Survicate sends a 'survicate_survey_answered' track event back to Segment containing the survey response data. The integration is configured with a Survicate Workspace Key from Survicate Workspace Settings. All trait keys are converted from camelCase to snake_case. Standardized Survicate respondent attributes include: first_name, last_name, email, organization, department, job_title, phone, website, country, address_one, address_two, city, state, zip, fax, annual_revenue, employees.",
+    "endpoint": {
+      "identify": "https://survey-api.survicate.com/v1/respondents",
+      "track": "https://survey-api.survicate.com/v1/events"
+    },
+    "http_method": "POST",
+    "content_type": "application/json",
+    "auth": {
+      "type": "workspace_key",
+      "header": "Authorization: Basic <workspace_key>",
+      "config_field": "workspaceKey",
+      "description": "Survicate Workspace Key obtained from Survicate Workspace Settings > Integrations > Segment. The workspace key authenticates all API calls and associates respondent data with the correct Survicate workspace."
+    },
+    "batch_support": {
+      "enabled": false,
+      "format": "Single event per request",
+      "description": "Survicate processes events individually. Each Identify or Track call results in a separate API request to Survicate's respondent or event endpoint."
+    },
+    "identify": {
+      "input": {
+        "type": "identify",
+        "messageId": "seg-msg-surv-idn-001",
+        "anonymousId": "anon-seg-surv-001",
+        "userId": "user_surv_123",
+        "traits": {
+          "email": "sarah.connor@example.com",
+          "firstName": "Sarah",
+          "lastName": "Connor",
+          "jobTitle": "Product Manager",
+          "company": "Cyberdyne Systems",
+          "companySize": "500",
+          "plan": "enterprise",
+          "phone": "+1-555-0199",
+          "country": "United States",
+          "city": "Los Angeles",
+          "state": "CA",
+          "zip": "90001",
+          "website": "https://cyberdyne.example.com",
+          "department": "Product",
+          "annualRevenue": "10000000",
+          "employees": "500",
+          "createdAt": "2025-01-15T08:00:00.000Z",
+          "lastPurchaseDate": "2026-02-28T14:30:00.000Z",
+          "npsScore": 9,
+          "tags": ["power_user", "beta_tester"]
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://app.example.com/dashboard",
+            "path": "/dashboard",
+            "referrer": "https://app.example.com/login",
+            "title": "Dashboard - Example App"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.75",
+          "locale": "en-US"
+        },
+        "timestamp": "2026-03-15T10:00:00.000Z",
+        "sentAt": "2026-03-15T10:00:01.000Z",
+        "receivedAt": "2026-03-15T10:00:01.500Z",
+        "integrations": {
+          "Survicate": true
+        }
+      },
+      "mapped_output": {
+        "user_id": "user_surv_123",
+        "attributes": {
+          "first_name": "Sarah",
+          "last_name": "Connor",
+          "email": "sarah.connor@example.com",
+          "job_title": "Product Manager",
+          "organization": "Cyberdyne Systems",
+          "company_size": "500",
+          "plan": "enterprise",
+          "phone": "+1-555-0199",
+          "country": "United States",
+          "city": "Los Angeles",
+          "state": "CA",
+          "zip": "90001",
+          "website": "https://cyberdyne.example.com",
+          "department": "Product",
+          "annual_revenue": "10000000",
+          "employees": "500",
+          "created_at": "2025-01-15T08:00:00.000Z",
+          "last_purchase_date": "2026-02-28T14:30:00.000Z",
+          "nps_score": "9"
+        }
+      },
+      "mapping_notes": "Segment Identify traits are mapped to Survicate respondent attributes. All camelCase keys are converted to snake_case (e.g., 'firstName' → 'first_name', 'jobTitle' → 'job_title', 'annualRevenue' → 'annual_revenue'). userId maps to Survicate's user_id for respondent identification. Survicate has standardized attributes: first_name, last_name, email, organization, department, job_title, phone, website, country, address_one, address_two, city, state, zip, fax, annual_revenue, employees. Non-standard traits are passed as custom respondent attributes. Array attributes (e.g., 'tags') are omitted by Survicate — only scalar values (string, number, boolean) are accepted. Numeric values are coerced to strings in the respondent attribute store. The 'company' trait maps to Survicate's 'organization' standardized attribute."
+    },
+    "identify_with_group_traits": {
+      "description": "When Group calls are made, all group traits are passed to Survicate respondent attributes with a 'group_' prefix. This enables survey targeting based on account-level attributes.",
+      "input": {
+        "type": "identify",
+        "messageId": "seg-msg-surv-grp-001",
+        "userId": "user_surv_123",
+        "traits": {
+          "email": "sarah.connor@example.com",
+          "group_name": "Cyberdyne Systems",
+          "group_plan": "enterprise",
+          "group_employees": "500",
+          "group_industry": "Technology"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-03-15T10:01:00.000Z"
+      },
+      "mapped_output": {
+        "user_id": "user_surv_123",
+        "attributes": {
+          "email": "sarah.connor@example.com",
+          "group_name": "Cyberdyne Systems",
+          "group_plan": "enterprise",
+          "group_employees": "500",
+          "group_industry": "Technology"
+        }
+      },
+      "mapping_notes": "Group traits are prefixed with 'group_' and passed as respondent attributes. All camelCase group trait keys are converted to snake_case before the group_ prefix is applied. Object attributes within group traits are flattened with the object key as a prefix. Array attributes within group traits are omitted."
+    },
+    "track": {
+      "description": "Track events serve two purposes in the Survicate integration: (1) they can trigger surveys in Survicate when event-based targeting is configured in the Survicate panel, and (2) Survicate sends track events back to Segment when surveys are completed. For destination direction (Segment → Survicate), track events with specific event names trigger configured surveys.",
+      "input": {
+        "type": "track",
+        "messageId": "seg-msg-surv-trk-001",
+        "anonymousId": "anon-seg-surv-001",
+        "userId": "user_surv_123",
+        "event": "Product Reviewed",
+        "properties": {
+          "product_id": "PROD-001",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "rating": 4,
+          "review_text": "Great product with excellent build quality",
+          "price": 49.99,
+          "currency": "USD"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://app.example.com/products/PROD-001",
+            "path": "/products/PROD-001",
+            "referrer": "https://app.example.com/catalog",
+            "title": "Premium Widget - Product Page"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.75",
+          "locale": "en-US"
+        },
+        "timestamp": "2026-03-15T10:05:00.000Z",
+        "sentAt": "2026-03-15T10:05:01.000Z",
+        "receivedAt": "2026-03-15T10:05:01.500Z",
+        "integrations": {
+          "Survicate": true
+        }
+      },
+      "mapped_output": {
+        "user_id": "user_surv_123",
+        "event_name": "Product Reviewed",
+        "event_properties": {
+          "product_id": "PROD-001",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "rating": "4",
+          "review_text": "Great product with excellent build quality",
+          "price": "49.99",
+          "currency": "USD"
+        }
+      },
+      "mapping_notes": "Track events are sent to Survicate for event-based survey targeting. The event name is passed as event_name, and properties are passed as event_properties with all values coerced to strings (Survicate event property values can only be strings). userId (preferred) or anonymousId maps to user_id. When a matching event-based targeting condition is configured in Survicate's panel (Where would you like to show the survey > When a user triggers an event), the survey is displayed. Event properties are available in Survicate for use in targeting conditions."
+    },
+    "track_survey_response": {
+      "description": "Survicate sends track events back to Segment when a survey is answered. This is the reverse direction (Survicate → Segment source). The event is named 'survicate_survey_answered' and includes the survey question, answer, and answer type.",
+      "input": {
+        "type": "track",
+        "messageId": "seg-msg-surv-resp-001",
+        "userId": "user_surv_123",
+        "event": "survicate_survey_answered",
+        "properties": {
+          "answer": "Great support and fast response times!",
+          "answer_type": "text",
+          "question": "What makes us stand out from the competition?",
+          "survey": "Advantages Over Competition Research",
+          "survey_id": "survey-abc-123",
+          "question_id": "question-xyz-456"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-03-15T10:10:00.000Z"
+      },
+      "mapped_output": {
+        "description": "This event originates FROM Survicate TO Segment (source direction). It is included in this fixture to document the bidirectional data flow and the shape of survey response events. These events flow downstream to other connected Segment destinations.",
+        "event_name": "survicate_survey_answered",
+        "properties": {
+          "answer": "Great support and fast response times!",
+          "answer_type": "text",
+          "question": "What makes us stand out from the competition?",
+          "survey": "Advantages Over Competition Research",
+          "survey_id": "survey-abc-123",
+          "question_id": "question-xyz-456"
+        }
+      },
+      "mapping_notes": "Survey response events flow from Survicate to Segment as track events with the event name 'survicate_survey_answered'. The properties include: 'answer' (the respondent's answer text or value), 'answer_type' (the question type: text, single, rating, numerical, csat, nps), 'question' (the question text), and 'survey' (the survey name). This event is generated by Survicate when the Segment integration is enabled in the Survicate Integrations tab. For destination parity, this documents the expected shape of Survicate-originated events that RudderStack should also be able to receive and forward."
+    },
+    "track_nps_survey": {
+      "description": "NPS (Net Promoter Score) survey response event — a specialized variant of survicate_survey_answered where the answer is a numeric score (0-10).",
+      "input": {
+        "type": "track",
+        "messageId": "seg-msg-surv-nps-001",
+        "userId": "user_surv_123",
+        "event": "survicate_survey_answered",
+        "properties": {
+          "answer": "9",
+          "answer_type": "nps",
+          "question": "How likely are you to recommend us to a friend or colleague?",
+          "survey": "Quarterly NPS Survey Q1 2026",
+          "survey_id": "survey-nps-q1-2026",
+          "question_id": "question-nps-001"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-03-15T10:15:00.000Z"
+      },
+      "mapped_output": {
+        "event_name": "survicate_survey_answered",
+        "properties": {
+          "answer": "9",
+          "answer_type": "nps",
+          "question": "How likely are you to recommend us to a friend or colleague?",
+          "survey": "Quarterly NPS Survey Q1 2026",
+          "survey_id": "survey-nps-q1-2026",
+          "question_id": "question-nps-001"
+        }
+      },
+      "mapping_notes": "NPS survey responses use the same 'survicate_survey_answered' event name. The answer_type is 'nps' and the answer value is a string representation of the numeric score (0-10). NPS categories: 0-6 = Detractor, 7-8 = Passive, 9-10 = Promoter. This data can be used in downstream destinations for cohort creation based on satisfaction levels."
+    },
+    "track_csat_survey": {
+      "description": "CSAT (Customer Satisfaction) survey response event — answer is a numeric satisfaction rating.",
+      "input": {
+        "type": "track",
+        "messageId": "seg-msg-surv-csat-001",
+        "userId": "user_surv_123",
+        "event": "survicate_survey_answered",
+        "properties": {
+          "answer": "4",
+          "answer_type": "csat",
+          "question": "How satisfied are you with our customer support?",
+          "survey": "Post-Support CSAT",
+          "survey_id": "survey-csat-support",
+          "question_id": "question-csat-001"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-03-15T10:20:00.000Z"
+      },
+      "mapped_output": {
+        "event_name": "survicate_survey_answered",
+        "properties": {
+          "answer": "4",
+          "answer_type": "csat",
+          "question": "How satisfied are you with our customer support?",
+          "survey": "Post-Support CSAT",
+          "survey_id": "survey-csat-support",
+          "question_id": "question-csat-001"
+        }
+      },
+      "mapping_notes": "CSAT survey responses follow the same pattern. The answer_type is 'csat' and the answer value is the string representation of the satisfaction rating. CSAT scores are typically on a 1-5 scale. Both Segment and RudderStack should forward these events identically to downstream destinations."
+    }
+  },
+  "rudderstack_expected_payload": {
+    "description": "RudderStack sends Identify and Track events to Survicate via the Transformer service (port 9090), which handles field mapping and payload formatting. Identify events map user traits to Survicate respondent attributes with the same camelCase-to-snake_case conversion. Track events are forwarded for event-based survey targeting. RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to internal event representation but the Transformer strips these before sending to Survicate's API. The destination is classified as a cloud destination processed through the Router's HTTP transport. Survey response events from Survicate follow the same 'survicate_survey_answered' track event pattern when received via RudderStack SDKs.",
+    "endpoint": {
+      "identify": "https://survey-api.survicate.com/v1/respondents",
+      "track": "https://survey-api.survicate.com/v1/events"
+    },
+    "http_method": "POST",
+    "content_type": "application/json",
+    "auth": {
+      "type": "workspace_key",
+      "header": "Authorization: Basic <workspace_key>",
+      "config_field": "workspaceKey",
+      "description": "Survicate Workspace Key configured in RudderStack dashboard destination settings. Stored in backend-config and delivered to the Transformer during event processing."
+    },
+    "batch_support": {
+      "enabled": false,
+      "format": "Single event per request",
+      "description": "RudderStack sends each event individually to Survicate. The Router processes events one at a time for this destination type."
+    },
+    "identify": {
+      "input": {
+        "type": "identify",
+        "messageId": "rs-msg-surv-idn-001",
+        "rudderId": "rudder-uuid-surv-idn-001",
+        "anonymousId": "anon-rs-surv-001",
+        "userId": "user_surv_123",
+        "traits": {
+          "email": "sarah.connor@example.com",
+          "firstName": "Sarah",
+          "lastName": "Connor",
+          "jobTitle": "Product Manager",
+          "company": "Cyberdyne Systems",
+          "companySize": "500",
+          "plan": "enterprise",
+          "phone": "+1-555-0199",
+          "country": "United States",
+          "city": "Los Angeles",
+          "state": "CA",
+          "zip": "90001",
+          "website": "https://cyberdyne.example.com",
+          "department": "Product",
+          "annualRevenue": "10000000",
+          "employees": "500",
+          "createdAt": "2025-01-15T08:00:00.000Z",
+          "lastPurchaseDate": "2026-02-28T14:30:00.000Z",
+          "npsScore": 9,
+          "tags": ["power_user", "beta_tester"]
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://app.example.com/dashboard",
+            "path": "/dashboard",
+            "referrer": "https://app.example.com/login",
+            "title": "Dashboard - Example App"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.75",
+          "locale": "en-US"
+        },
+        "timestamp": "2026-03-15T10:00:00.000Z",
+        "originalTimestamp": "2026-03-15T10:00:00.000Z",
+        "sentAt": "2026-03-15T10:00:01.000Z",
+        "receivedAt": "2026-03-15T10:00:01.500Z"
+      },
+      "mapped_output": {
+        "user_id": "user_surv_123",
+        "attributes": {
+          "first_name": "Sarah",
+          "last_name": "Connor",
+          "email": "sarah.connor@example.com",
+          "job_title": "Product Manager",
+          "organization": "Cyberdyne Systems",
+          "company_size": "500",
+          "plan": "enterprise",
+          "phone": "+1-555-0199",
+          "country": "United States",
+          "city": "Los Angeles",
+          "state": "CA",
+          "zip": "90001",
+          "website": "https://cyberdyne.example.com",
+          "department": "Product",
+          "annual_revenue": "10000000",
+          "employees": "500",
+          "created_at": "2025-01-15T08:00:00.000Z",
+          "last_purchase_date": "2026-02-28T14:30:00.000Z",
+          "nps_score": "9"
+        }
+      },
+      "mapping_notes": "RudderStack Identify traits are mapped to Survicate respondent attributes identically to Segment. The Transformer handles camelCase-to-snake_case conversion and maps 'company' to the standardized 'organization' attribute. Array attributes (e.g., 'tags') are omitted. Numeric values are coerced to strings. RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are present in the internal pipeline representation but are stripped by the Transformer before delivery to Survicate's API."
+    },
+    "track": {
+      "input": {
+        "type": "track",
+        "messageId": "rs-msg-surv-trk-001",
+        "rudderId": "rudder-uuid-surv-trk-001",
+        "anonymousId": "anon-rs-surv-001",
+        "userId": "user_surv_123",
+        "event": "Product Reviewed",
+        "properties": {
+          "product_id": "PROD-001",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "rating": 4,
+          "review_text": "Great product with excellent build quality",
+          "price": 49.99,
+          "currency": "USD"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://app.example.com/products/PROD-001",
+            "path": "/products/PROD-001",
+            "referrer": "https://app.example.com/catalog",
+            "title": "Premium Widget - Product Page"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.75",
+          "locale": "en-US"
+        },
+        "timestamp": "2026-03-15T10:05:00.000Z",
+        "originalTimestamp": "2026-03-15T10:05:00.000Z",
+        "sentAt": "2026-03-15T10:05:01.000Z",
+        "receivedAt": "2026-03-15T10:05:01.500Z"
+      },
+      "mapped_output": {
+        "user_id": "user_surv_123",
+        "event_name": "Product Reviewed",
+        "event_properties": {
+          "product_id": "PROD-001",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "rating": "4",
+          "review_text": "Great product with excellent build quality",
+          "price": "49.99",
+          "currency": "USD"
+        }
+      },
+      "mapping_notes": "RudderStack Track events are mapped identically to Segment for Survicate event-based targeting. Event name maps to event_name, properties map to event_properties with all values coerced to strings. userId (preferred) or anonymousId maps to user_id. RudderStack envelope fields are stripped by the Transformer before delivery."
+    },
+    "track_survey_response": {
+      "description": "When Survicate surveys are completed through RudderStack-instrumented pages, the same 'survicate_survey_answered' track event pattern is generated via the RudderStack SDK instead of analytics.js.",
+      "input": {
+        "type": "track",
+        "messageId": "rs-msg-surv-resp-001",
+        "rudderId": "rudder-uuid-surv-resp-001",
+        "userId": "user_surv_123",
+        "event": "survicate_survey_answered",
+        "properties": {
+          "answer": "Great support and fast response times!",
+          "answer_type": "text",
+          "question": "What makes us stand out from the competition?",
+          "survey": "Advantages Over Competition Research",
+          "survey_id": "survey-abc-123",
+          "question_id": "question-xyz-456"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          }
+        },
+        "timestamp": "2026-03-15T10:10:00.000Z",
+        "originalTimestamp": "2026-03-15T10:10:00.000Z",
+        "sentAt": "2026-03-15T10:10:01.000Z",
+        "receivedAt": "2026-03-15T10:10:01.500Z"
+      },
+      "mapped_output": {
+        "description": "Survey response events from Survicate through RudderStack SDK follow the same structure as Segment. These events flow through the RudderStack pipeline to downstream destinations.",
+        "event_name": "survicate_survey_answered",
+        "properties": {
+          "answer": "Great support and fast response times!",
+          "answer_type": "text",
+          "question": "What makes us stand out from the competition?",
+          "survey": "Advantages Over Competition Research",
+          "survey_id": "survey-abc-123",
+          "question_id": "question-xyz-456"
+        }
+      },
+      "mapping_notes": "Survey response events received via RudderStack SDK follow the identical 'survicate_survey_answered' pattern. The only differences are the RudderStack-specific envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) and the context.library.name ('rudder-sdk-js' instead of 'analytics.js'). The survey response properties (answer, answer_type, question, survey, survey_id, question_id) are identical."
+    },
+    "rudderstack_envelope_fields": {
+      "description": "RudderStack-specific fields present in internal pipeline representation but stripped by Transformer before Survicate API delivery.",
+      "fields": {
+        "rudderId": "UUID assigned by RudderStack Gateway during event ingestion — unique per event instance in the RudderStack pipeline",
+        "originalTimestamp": "Client-side timestamp from the SDK, preserved separately from server-assigned timestamp",
+        "sentAt": "Timestamp when the SDK dispatched the event to the Gateway",
+        "receivedAt": "Timestamp when the Gateway received the event"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify"
+  ],
+  "field_mappings": {
+    "respondent_mapping": {
+      "description": "Survicate uses respondent attributes to identify and target survey recipients. The Identify call maps user traits to these respondent attributes. Survicate has a set of standardized attribute names that receive special treatment in the Survicate UI (e.g., displayed prominently in respondent profiles, available as built-in targeting conditions). Custom attributes are also supported and available for advanced targeting rules.",
+      "identity_resolution": {
+        "user_id": {
+          "survicate_field": "user_id",
+          "survicate_type": "string",
+          "required": true,
+          "segment_source_field": "userId",
+          "rudderstack_source_field": "userId",
+          "fallback": "anonymousId",
+          "description": "Primary respondent identifier in Survicate. Mapped from the event's userId field. If userId is not available, anonymousId is used as fallback. This ID links the respondent across multiple survey interactions and sessions."
+        },
+        "anonymous_id_handling": {
+          "description": "When only anonymousId is available (no userId), Survicate creates a respondent profile tied to the anonymous ID. Once a userId becomes available via a subsequent Identify call, the respondent profile can be merged. Both Segment and RudderStack handle this identically."
+        }
+      },
+      "standardized_attributes": {
+        "description": "Survicate recognizes the following standardized attribute names. Segment/RudderStack traits with matching camelCase names are automatically converted to snake_case and mapped to these standard fields.",
+        "first_name": {
+          "survicate_field": "first_name",
+          "survicate_type": "string",
+          "segment_source_field": "traits.firstName",
+          "rudderstack_source_field": "traits.firstName",
+          "description": "Respondent's first name. Displayed in respondent profiles and available for personalization."
+        },
+        "last_name": {
+          "survicate_field": "last_name",
+          "survicate_type": "string",
+          "segment_source_field": "traits.lastName",
+          "rudderstack_source_field": "traits.lastName",
+          "description": "Respondent's last name."
+        },
+        "email": {
+          "survicate_field": "email",
+          "survicate_type": "string",
+          "segment_source_field": "traits.email",
+          "rudderstack_source_field": "traits.email",
+          "description": "Respondent's email address. Used for email survey delivery and respondent identification."
+        },
+        "organization": {
+          "survicate_field": "organization",
+          "survicate_type": "string",
+          "segment_source_field": "traits.company (mapped to 'organization')",
+          "rudderstack_source_field": "traits.company (mapped to 'organization')",
+          "description": "Respondent's company/organization name. The 'company' trait from Segment/RudderStack is mapped to Survicate's 'organization' standard attribute."
+        },
+        "department": {
+          "survicate_field": "department",
+          "survicate_type": "string",
+          "segment_source_field": "traits.department",
+          "rudderstack_source_field": "traits.department",
+          "description": "Respondent's department within their organization."
+        },
+        "job_title": {
+          "survicate_field": "job_title",
+          "survicate_type": "string",
+          "segment_source_field": "traits.jobTitle",
+          "rudderstack_source_field": "traits.jobTitle",
+          "description": "Respondent's job title. camelCase 'jobTitle' is converted to snake_case 'job_title'."
+        },
+        "phone": {
+          "survicate_field": "phone",
+          "survicate_type": "string",
+          "segment_source_field": "traits.phone",
+          "rudderstack_source_field": "traits.phone",
+          "description": "Respondent's phone number."
+        },
+        "website": {
+          "survicate_field": "website",
+          "survicate_type": "string",
+          "segment_source_field": "traits.website",
+          "rudderstack_source_field": "traits.website",
+          "description": "Respondent's website URL."
+        },
+        "country": {
+          "survicate_field": "country",
+          "survicate_type": "string",
+          "segment_source_field": "traits.country",
+          "rudderstack_source_field": "traits.country",
+          "description": "Respondent's country."
+        },
+        "city": {
+          "survicate_field": "city",
+          "survicate_type": "string",
+          "segment_source_field": "traits.city",
+          "rudderstack_source_field": "traits.city",
+          "description": "Respondent's city."
+        },
+        "state": {
+          "survicate_field": "state",
+          "survicate_type": "string",
+          "segment_source_field": "traits.state",
+          "rudderstack_source_field": "traits.state",
+          "description": "Respondent's state or province."
+        },
+        "zip": {
+          "survicate_field": "zip",
+          "survicate_type": "string",
+          "segment_source_field": "traits.zip",
+          "rudderstack_source_field": "traits.zip",
+          "description": "Respondent's postal/zip code."
+        },
+        "address_one": {
+          "survicate_field": "address_one",
+          "survicate_type": "string",
+          "segment_source_field": "traits.addressOne",
+          "rudderstack_source_field": "traits.addressOne",
+          "description": "Respondent's primary address line."
+        },
+        "address_two": {
+          "survicate_field": "address_two",
+          "survicate_type": "string",
+          "segment_source_field": "traits.addressTwo",
+          "rudderstack_source_field": "traits.addressTwo",
+          "description": "Respondent's secondary address line."
+        },
+        "fax": {
+          "survicate_field": "fax",
+          "survicate_type": "string",
+          "segment_source_field": "traits.fax",
+          "rudderstack_source_field": "traits.fax",
+          "description": "Respondent's fax number."
+        },
+        "annual_revenue": {
+          "survicate_field": "annual_revenue",
+          "survicate_type": "string",
+          "segment_source_field": "traits.annualRevenue",
+          "rudderstack_source_field": "traits.annualRevenue",
+          "description": "Respondent's organization annual revenue. Numeric values are coerced to strings."
+        },
+        "employees": {
+          "survicate_field": "employees",
+          "survicate_type": "string",
+          "segment_source_field": "traits.employees",
+          "rudderstack_source_field": "traits.employees",
+          "description": "Number of employees in the respondent's organization. Numeric values are coerced to strings."
+        }
+      },
+      "custom_attributes": {
+        "description": "Any trait not matching a standardized attribute name is stored as a custom respondent attribute after camelCase-to-snake_case conversion.",
+        "example": {
+          "input_trait": "lastPurchaseDate",
+          "survicate_attribute": "last_purchase_date",
+          "value": "2026-02-28T14:30:00.000Z"
+        },
+        "constraints": {
+          "key_format": "snake_case (auto-converted from camelCase)",
+          "value_types": "string, number (coerced to string), boolean (coerced to string)",
+          "array_handling": "Omitted — array attributes are not stored",
+          "object_handling": "Flattened with parent key prefix (e.g., 'address.street' → 'address_street')",
+          "max_value_length": "No documented hard limit; recommended to keep under 1000 characters"
+        }
+      },
+      "parity_status": "Equivalent — both Segment and RudderStack map Identify traits to Survicate respondent attributes using the same camelCase-to-snake_case conversion rules, standardized attribute mapping, and value coercion. The final payload sent to Survicate's respondent API is identical between platforms."
+    },
+    "survey_attribution": {
+      "description": "Survicate uses event-based targeting and respondent attributes to determine which surveys to display and to attribute survey responses back to user activities. This section documents how Track events enable survey triggering and how survey response data flows back through the pipeline.",
+      "event_based_targeting": {
+        "description": "Survicate surveys can be configured to display when specific events are triggered. In the Survicate panel, under Target > When a user triggers an event, survey creators specify which event name(s) should trigger the survey display. When a matching Track event is received from Segment or RudderStack, and the respondent meets other targeting conditions (audience, frequency, page), the survey is shown.",
+        "segment_flow": "analytics.track('Product Reviewed', {...}) → Survicate checks targeting rules → displays survey if conditions met",
+        "rudderstack_flow": "rudderanalytics.track('Product Reviewed', {...}) → Survicate checks targeting rules → displays survey if conditions met",
+        "event_property_usage": {
+          "description": "Event properties from Track calls are available in Survicate for advanced targeting conditions. For example, a survey can be configured to show only when 'rating' property is less than 3.",
+          "constraints": "Event property values can only be strings in Survicate. Numeric values from Track properties are coerced to strings before evaluation."
+        },
+        "parity_status": "Equivalent — both platforms trigger Survicate surveys using the same event-based targeting mechanism. The event name and properties are forwarded identically."
+      },
+      "survey_response_attribution": {
+        "description": "When a respondent completes a Survicate survey, the response data is sent as a 'survicate_survey_answered' track event. This event includes the answer, question, survey name, and answer type. The response is attributed to the respondent via their user_id (from the original Identify call) or the Survicate-assigned visitor ID.",
+        "response_event_fields": {
+          "answer": {
+            "type": "string",
+            "description": "The respondent's answer. For text questions, this is the free-text response. For rating/NPS/CSAT, this is the numeric score as a string. For single-choice, this is the selected option text."
+          },
+          "answer_type": {
+            "type": "string",
+            "description": "The type of question that was answered. Possible values: text, single, rating, numerical, csat, nps, multiple_choice.",
+            "possible_values": ["text", "single", "rating", "numerical", "csat", "nps", "multiple_choice"]
+          },
+          "question": {
+            "type": "string",
+            "description": "The text of the question that was answered."
+          },
+          "survey": {
+            "type": "string",
+            "description": "The name of the survey containing the answered question."
+          },
+          "survey_id": {
+            "type": "string",
+            "description": "Unique identifier of the survey in Survicate."
+          },
+          "question_id": {
+            "type": "string",
+            "description": "Unique identifier of the question within the survey."
+          }
+        },
+        "parity_status": "Equivalent — survey response events from Survicate follow the identical 'survicate_survey_answered' track event pattern regardless of whether the page uses Segment analytics.js or RudderStack rudder-sdk-js. The properties schema is identical."
+      },
+      "nps_csat_scoring": {
+        "description": "Survicate supports NPS (Net Promoter Score) and CSAT (Customer Satisfaction) survey types that produce standardized scoring responses. These scores are valuable for downstream analytics and cohort creation.",
+        "nps": {
+          "scale": "0-10",
+          "categories": {
+            "detractor": "0-6",
+            "passive": "7-8",
+            "promoter": "9-10"
+          },
+          "answer_type": "nps",
+          "description": "NPS surveys ask 'How likely are you to recommend us?' on a 0-10 scale. The numeric score is passed as a string in the 'answer' property."
+        },
+        "csat": {
+          "scale": "1-5 (configurable)",
+          "answer_type": "csat",
+          "description": "CSAT surveys measure customer satisfaction on a configurable numeric scale (typically 1-5). The rating is passed as a string in the 'answer' property."
+        },
+        "parity_status": "Equivalent — NPS and CSAT response events use the same event format and scoring in both Segment and RudderStack integrations."
+      }
+    },
+    "case_conversion": {
+      "description": "Survicate requires all attribute keys in snake_case format. Both Segment and RudderStack perform automatic camelCase-to-snake_case conversion for trait keys before sending to Survicate.",
+      "examples": [
+        {"input": "firstName", "output": "first_name"},
+        {"input": "lastName", "output": "last_name"},
+        {"input": "jobTitle", "output": "job_title"},
+        {"input": "companySize", "output": "company_size"},
+        {"input": "annualRevenue", "output": "annual_revenue"},
+        {"input": "lastPurchaseDate", "output": "last_purchase_date"},
+        {"input": "npsScore", "output": "nps_score"},
+        {"input": "createdAt", "output": "created_at"}
+      ],
+      "parity_status": "Equivalent — both platforms apply identical camelCase-to-snake_case conversion rules."
+    },
+    "group_trait_prefixing": {
+      "description": "When Group calls are made through the Survicate Actions destination, all group traits are prefixed with 'group_' before being stored as respondent attributes. This enables survey targeting based on account-level data.",
+      "examples": [
+        {"input_trait": "name", "group_prefixed": "group_name"},
+        {"input_trait": "plan", "group_prefixed": "group_plan"},
+        {"input_trait": "industry", "group_prefixed": "group_industry"},
+        {"input_trait": "employees", "group_prefixed": "group_employees"}
+      ],
+      "case_conversion": "Applied after group_ prefix: camelCase group traits become group_snake_case",
+      "parity_status": "Equivalent — both platforms apply the same group_ prefix and camelCase-to-snake_case conversion."
+    },
+    "value_type_coercion": {
+      "description": "Survicate respondent attributes and event properties are stored as strings. Non-string values are coerced during the mapping process.",
+      "rules": {
+        "string": "Passed through as-is",
+        "number": "Converted to string representation (e.g., 9 → '9', 49.99 → '49.99')",
+        "boolean": "Converted to string representation (e.g., true → 'true', false → 'false')",
+        "array": "Omitted entirely — arrays are not stored as respondent attributes",
+        "object": "Flattened with parent key prefix and underscore separator (e.g., address.street → address_street)"
+      },
+      "parity_status": "Equivalent — both platforms apply the same value coercion rules."
+    },
+    "context_library_difference": {
+      "description": "The SDK library name in context differs between Segment and RudderStack. This field is NOT sent to Survicate's API but is present in the internal event representation.",
+      "segment": "context.library.name = 'analytics.js' (or analytics-ios, analytics-android)",
+      "rudderstack": "context.library.name = 'rudder-sdk-js' (or rudder-sdk-ios, rudder-sdk-android)",
+      "impact": "No impact on Survicate payloads — context.library is not forwarded to Survicate's API. Difference is only visible in the source pipeline."
+    },
+    "message_id_difference": {
+      "description": "Event message ID format differs between Segment and RudderStack. This field is NOT sent to Survicate's API.",
+      "segment": "messageId generated by analytics.js SDK (UUID v4 format)",
+      "rudderstack": "messageId generated by rudder-sdk SDK (UUID v4 format, different generation strategy)",
+      "impact": "No impact on Survicate payloads — messageId is used internally for deduplication in the pipeline, not forwarded to Survicate."
+    },
+    "rudderstack_additional_fields": {
+      "description": "RudderStack includes additional envelope fields in the internal event representation that are not present in Segment events. These fields are stripped by the Transformer before delivery to Survicate.",
+      "fields": {
+        "rudderId": "Unique event instance ID assigned by RudderStack Gateway",
+        "originalTimestamp": "Original client-side timestamp preserved separately",
+        "sentAt": "SDK dispatch timestamp",
+        "receivedAt": "Gateway receipt timestamp"
+      },
+      "impact": "No impact on Survicate payloads — all additional fields are stripped during transformation. The final payload sent to Survicate is identical between Segment and RudderStack."
+    },
+    "destination_settings": {
+      "description": "Configuration fields required to set up Survicate as a destination in both Segment and RudderStack.",
+      "segment_settings": {
+        "workspaceKey": {
+          "type": "string",
+          "required": true,
+          "description": "Survicate Workspace Key from Workspace Settings. Authenticates all API interactions and scopes data to the correct Survicate workspace."
+        }
+      },
+      "rudderstack_settings": {
+        "workspaceKey": {
+          "type": "string",
+          "required": true,
+          "description": "Survicate Workspace Key — same key format as Segment configuration. Configured in RudderStack dashboard destination settings."
+        }
+      },
+      "parity_status": "Equivalent — both platforms require only the Survicate Workspace Key for authentication. Configuration is minimal and identical."
+    }
+  },
+  "notes": "Survicate is a survey and feedback collection platform in the Surveys category. This payload parity fixture covers Track and Identify event types — the two call types supported by Survicate's Segment/RudderStack integration. Key parity observations: (1) Endpoint and payload format — both Segment and RudderStack send events to Survicate's respondent and event APIs using JSON format with Workspace Key authentication; (2) Respondent mapping — Identify traits are mapped to Survicate respondent attributes with automatic camelCase-to-snake_case conversion, and standardized attributes (first_name, last_name, email, organization, department, job_title, phone, website, country, etc.) receive special treatment in Survicate's UI; (3) Survey attribution — Track events enable event-based survey targeting in Survicate, with event properties available for advanced targeting conditions; all event property values are coerced to strings; (4) Survey response events — Survicate sends 'survicate_survey_answered' track events containing answer, answer_type, question, and survey properties, supporting text, single-choice, rating, NPS, CSAT, and numerical question types; (5) Group trait handling — Group call traits are prefixed with 'group_' and stored as respondent attributes for account-level survey targeting; (6) Context library difference — context.library.name differs ('analytics.js' vs 'rudder-sdk-js') but this field is not forwarded to Survicate; (7) Envelope fields — RudderStack's additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are present in the internal pipeline but stripped by the Transformer before delivery; (8) Final payload parity — after transformation, the payloads delivered to Survicate's API are identical between Segment and RudderStack; (9) Value constraints — array attributes are omitted, object attributes are flattened with key prefixes, and all values are coerced to strings; (10) Segment has both classic and Actions variants of the Survicate destination (slugs: 'survicate' and 'actions-survicate'). RudderStack source: Transformer service cloud destination handler for SURVICATE."
+}

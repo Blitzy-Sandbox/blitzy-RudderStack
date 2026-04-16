@@ -1,0 +1,581 @@
+{
+  "destination_type": "GAINSIGHT",
+  "destination_tier": "cloud",
+  "segment_slug": "gainsight",
+  "category": "Customer Success",
+  "api_base_url": "https://{tenant-domain}.gainsight.com/v1",
+  "event_types": ["track", "identify", "group"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment maps .track() calls to Gainsight Activity Timeline entries. The event name becomes the Activity Type Name and properties are stored as key-value pairs on the activity record. Track events power usage analytics, feature adoption tracking, and health score calculations within Gainsight CS. Events are ingested into Gainsight MDA (Matrix Data Architecture) custom objects via the Segment Connector, which maps the Segment event schema to Gainsight object fields.",
+      "api_endpoint": "POST /v1/data/objects/Activity_Timeline",
+      "headers": {
+        "Content-Type": "application/json",
+        "accesskey": "gs-api-key-abc123"
+      },
+      "request_body": {
+        "records": [
+          {
+            "Activity_Type_Name": "Feature Activated",
+            "User_Id": "user-gs-001",
+            "Account_Id": "company-gs-001",
+            "Activity_Date": "2026-02-25T12:00:00.000Z",
+            "properties": {
+              "feature_name": "advanced-reporting",
+              "plan": "enterprise",
+              "activation_method": "self-serve",
+              "revenue_impact": 1500.00
+            }
+          }
+        ]
+      },
+      "source_event": {
+        "type": "track",
+        "userId": "user-gs-001",
+        "anonymousId": "anon-gs-001",
+        "event": "Feature Activated",
+        "properties": {
+          "feature_name": "advanced-reporting",
+          "plan": "enterprise",
+          "activation_method": "self-serve",
+          "revenue_impact": 1500.00,
+          "account_id": "company-gs-001"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://app.example.com/settings/features",
+            "title": "Feature Management",
+            "path": "/settings/features",
+            "referrer": "https://app.example.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42",
+          "groupId": "company-gs-001"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-gs-track-001"
+      }
+    },
+    "identify": {
+      "description": "Segment maps .identify() calls to Gainsight Person object records. User traits such as name, email, role, and custom attributes are synced to the Person MDA object, creating or updating the person record keyed by the userId. The identify call establishes the person-to-company relationship when groupId or company traits are present, enabling Gainsight to associate the person with the correct customer account for health scoring, engagement tracking, and CSM assignment workflows.",
+      "api_endpoint": "POST /v1/data/objects/Person",
+      "headers": {
+        "Content-Type": "application/json",
+        "accesskey": "gs-api-key-abc123"
+      },
+      "request_body": {
+        "records": [
+          {
+            "Email": "jane.doe@example.com",
+            "Name": "Jane Doe",
+            "FirstName": "Jane",
+            "LastName": "Doe",
+            "User_Id": "user-gs-001",
+            "Company_Id": "company-gs-001",
+            "Role": "Product Manager",
+            "Location": "San Francisco, CA",
+            "custom_attributes": {
+              "plan": "enterprise",
+              "created_at": "2025-06-15T10:30:00.000Z",
+              "login_count": 145,
+              "last_active_at": "2026-02-24T18:45:00.000Z",
+              "nps_score": 9
+            }
+          }
+        ]
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user-gs-001",
+        "anonymousId": "anon-gs-001",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "role": "Product Manager",
+          "location": "San Francisco, CA",
+          "plan": "enterprise",
+          "createdAt": "2025-06-15T10:30:00.000Z",
+          "loginCount": 145,
+          "lastActiveAt": "2026-02-24T18:45:00.000Z",
+          "npsScore": 9,
+          "company": {
+            "id": "company-gs-001",
+            "name": "Acme Corp"
+          }
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://app.example.com/profile",
+            "title": "User Profile",
+            "path": "/profile"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-gs-identify-001"
+      }
+    },
+    "group": {
+      "description": "Segment maps .group() calls to Gainsight Company object records. Group traits such as company name, industry, employee count, ARR, plan tier, and renewal date are synced to the Company MDA object, creating or updating the company record keyed by groupId. The group call is central to Gainsight's account-centric model — it establishes the company record that anchors health scores, CSM assignments, success plans, and risk assessments. Group traits also feed Gainsight Scorecards for automated health score calculation.",
+      "api_endpoint": "POST /v1/data/objects/Company",
+      "headers": {
+        "Content-Type": "application/json",
+        "accesskey": "gs-api-key-abc123"
+      },
+      "request_body": {
+        "records": [
+          {
+            "Name": "Acme Corp",
+            "Company_Id": "company-gs-001",
+            "Industry": "Technology",
+            "Employees": 250,
+            "ARR": 120000.00,
+            "Plan": "enterprise",
+            "Renewal_Date": "2027-01-15T00:00:00.000Z",
+            "Status": "Active",
+            "Stage": "Adoption",
+            "CSM": "csm-user-042",
+            "custom_attributes": {
+              "region": "North America",
+              "contract_start": "2025-01-15T00:00:00.000Z",
+              "health_score_override": null,
+              "support_tier": "premium"
+            }
+          }
+        ]
+      },
+      "source_event": {
+        "type": "group",
+        "userId": "user-gs-001",
+        "anonymousId": "anon-gs-001",
+        "groupId": "company-gs-001",
+        "traits": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employees": 250,
+          "arr": 120000.00,
+          "plan": "enterprise",
+          "renewalDate": "2027-01-15T00:00:00.000Z",
+          "status": "Active",
+          "stage": "Adoption",
+          "csm": "csm-user-042",
+          "region": "North America",
+          "contractStart": "2025-01-15T00:00:00.000Z",
+          "healthScoreOverride": null,
+          "supportTier": "premium"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://app.example.com/account/settings",
+            "title": "Account Settings",
+            "path": "/account/settings"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-gs-group-001"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack maps .track() calls to Gainsight Activity Timeline entries via the Transformer service (port 9090). The event name is mapped to Activity_Type_Name, properties are flattened into activity record fields, and the account association is established via context.groupId or properties.account_id. The Transformer strips RudderStack envelope fields (rudderId, sentAt, receivedAt, originalTimestamp) before forwarding the payload to the Gainsight API. RudderStack preserves the same field-level mapping as Segment for full payload parity.",
+      "api_endpoint": "POST /v1/data/objects/Activity_Timeline",
+      "headers": {
+        "Content-Type": "application/json",
+        "accesskey": "gs-api-key-abc123"
+      },
+      "request_body": {
+        "records": [
+          {
+            "Activity_Type_Name": "Feature Activated",
+            "User_Id": "user-gs-001",
+            "Account_Id": "company-gs-001",
+            "Activity_Date": "2026-02-25T12:00:00.000Z",
+            "properties": {
+              "feature_name": "advanced-reporting",
+              "plan": "enterprise",
+              "activation_method": "self-serve",
+              "revenue_impact": 1500.00
+            }
+          }
+        ]
+      },
+      "source_event": {
+        "type": "track",
+        "userId": "user-gs-001",
+        "anonymousId": "anon-gs-001",
+        "event": "Feature Activated",
+        "properties": {
+          "feature_name": "advanced-reporting",
+          "plan": "enterprise",
+          "activation_method": "self-serve",
+          "revenue_impact": 1500.00,
+          "account_id": "company-gs-001"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://app.example.com/settings/features",
+            "title": "Feature Management",
+            "path": "/settings/features",
+            "referrer": "https://app.example.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42",
+          "groupId": "company-gs-001"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-gs-track-001",
+        "rudderId": "rudder-uuid-gs-track-001"
+      }
+    },
+    "identify": {
+      "description": "RudderStack maps .identify() calls to Gainsight Person object records via the Transformer service (port 9090). User traits are mapped to Person MDA object fields — email, name, firstName, lastName map to standard Person fields while additional traits are stored as custom attributes. The Transformer resolves camelCase trait keys to Gainsight PascalCase field names (e.g., firstName → FirstName). Company association is established via traits.company.id mapping to Company_Id. RudderStack envelope fields are stripped before API delivery.",
+      "api_endpoint": "POST /v1/data/objects/Person",
+      "headers": {
+        "Content-Type": "application/json",
+        "accesskey": "gs-api-key-abc123"
+      },
+      "request_body": {
+        "records": [
+          {
+            "Email": "jane.doe@example.com",
+            "Name": "Jane Doe",
+            "FirstName": "Jane",
+            "LastName": "Doe",
+            "User_Id": "user-gs-001",
+            "Company_Id": "company-gs-001",
+            "Role": "Product Manager",
+            "Location": "San Francisco, CA",
+            "custom_attributes": {
+              "plan": "enterprise",
+              "created_at": "2025-06-15T10:30:00.000Z",
+              "login_count": 145,
+              "last_active_at": "2026-02-24T18:45:00.000Z",
+              "nps_score": 9
+            }
+          }
+        ]
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user-gs-001",
+        "anonymousId": "anon-gs-001",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "role": "Product Manager",
+          "location": "San Francisco, CA",
+          "plan": "enterprise",
+          "createdAt": "2025-06-15T10:30:00.000Z",
+          "loginCount": 145,
+          "lastActiveAt": "2026-02-24T18:45:00.000Z",
+          "npsScore": 9,
+          "company": {
+            "id": "company-gs-001",
+            "name": "Acme Corp"
+          }
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://app.example.com/profile",
+            "title": "User Profile",
+            "path": "/profile"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-gs-identify-001",
+        "rudderId": "rudder-uuid-gs-identify-001"
+      }
+    },
+    "group": {
+      "description": "RudderStack maps .group() calls to Gainsight Company object records via the Transformer service (port 9090). Group traits are mapped to Company MDA object fields — name, industry, employees map to standard Company fields, while business-specific traits like ARR, renewal date, support tier, and CSM assignment are stored as both standard and custom fields. The Transformer resolves camelCase trait keys to Gainsight PascalCase field names (e.g., renewalDate → Renewal_Date). Company health score data is associated via the Company_Id, enabling Gainsight Scorecards to incorporate the synced attributes for automated health score calculation.",
+      "api_endpoint": "POST /v1/data/objects/Company",
+      "headers": {
+        "Content-Type": "application/json",
+        "accesskey": "gs-api-key-abc123"
+      },
+      "request_body": {
+        "records": [
+          {
+            "Name": "Acme Corp",
+            "Company_Id": "company-gs-001",
+            "Industry": "Technology",
+            "Employees": 250,
+            "ARR": 120000.00,
+            "Plan": "enterprise",
+            "Renewal_Date": "2027-01-15T00:00:00.000Z",
+            "Status": "Active",
+            "Stage": "Adoption",
+            "CSM": "csm-user-042",
+            "custom_attributes": {
+              "region": "North America",
+              "contract_start": "2025-01-15T00:00:00.000Z",
+              "health_score_override": null,
+              "support_tier": "premium"
+            }
+          }
+        ]
+      },
+      "source_event": {
+        "type": "group",
+        "userId": "user-gs-001",
+        "anonymousId": "anon-gs-001",
+        "groupId": "company-gs-001",
+        "traits": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employees": 250,
+          "arr": 120000.00,
+          "plan": "enterprise",
+          "renewalDate": "2027-01-15T00:00:00.000Z",
+          "status": "Active",
+          "stage": "Adoption",
+          "csm": "csm-user-042",
+          "region": "North America",
+          "contractStart": "2025-01-15T00:00:00.000Z",
+          "healthScoreOverride": null,
+          "supportTier": "premium"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://app.example.com/account/settings",
+            "title": "Account Settings",
+            "path": "/account/settings"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-gs-group-001",
+        "rudderId": "rudder-uuid-gs-group-001"
+      }
+    }
+  },
+  "field_mappings": {
+    "person_mapping": {
+      "gainsight_field": "Person MDA Object (Email, Name, FirstName, LastName, User_Id, Company_Id, Role, Location, custom_attributes)",
+      "segment_mapping": "Segment .identify() traits are mapped to Gainsight Person object fields. Standard traits (email, name, firstName, lastName) map to built-in Person fields. The userId maps to User_Id. Company association is established via traits.company.id mapping to Company_Id. Additional traits are stored as custom attributes on the Person record. Gainsight uses the Person object as the primary individual entity for engagement tracking and CSM workflows.",
+      "rudderstack_mapping": "RudderStack .identify() traits follow the same mapping via the Transformer service. Standard traits (email, name, firstName, lastName) are mapped to built-in Person fields with camelCase-to-PascalCase conversion. The userId maps to User_Id. Company association is resolved from traits.company.id to Company_Id. Additional traits are stored as custom_attributes. The Transformer strips envelope fields (rudderId, sentAt, receivedAt, originalTimestamp) before delivery.",
+      "parity": "match",
+      "notes": "Both platforms map identify traits to Person MDA object fields with equivalent field-level mapping. RudderStack Transformer handles the same camelCase-to-PascalCase field name conversion as Segment."
+    },
+    "company_mapping": {
+      "gainsight_field": "Company MDA Object (Name, Company_Id, Industry, Employees, ARR, Plan, Renewal_Date, Status, Stage, CSM, custom_attributes)",
+      "segment_mapping": "Segment .group() traits are mapped to Gainsight Company object fields. The groupId maps to Company_Id. Standard traits (name, industry, employees) map to built-in Company fields. Business-specific traits like ARR, renewal date, and plan tier are mapped to both standard and custom Company fields. The Company object is the anchor entity in Gainsight's account-centric model for health scores, CSM assignments, success plans, and renewal management.",
+      "rudderstack_mapping": "RudderStack .group() traits follow the same mapping via the Transformer service. The groupId maps to Company_Id. Standard traits map to built-in Company fields with camelCase-to-PascalCase conversion (e.g., renewalDate → Renewal_Date). Business-specific traits are mapped to standard and custom Company fields. The Transformer strips envelope fields before delivery.",
+      "parity": "match",
+      "notes": "Both platforms map group traits to Company MDA object fields. The Company object serves as the central entity for Gainsight's health scoring and customer success workflows."
+    },
+    "event_tracking": {
+      "gainsight_field": "Activity_Timeline MDA Object (Activity_Type_Name, User_Id, Account_Id, Activity_Date, properties)",
+      "segment_mapping": "Segment .track() events are mapped to Gainsight Activity Timeline entries. The event name maps to Activity_Type_Name. The userId maps to User_Id. Account association is established via context.groupId or properties.account_id mapping to Account_Id. The timestamp maps to Activity_Date. Event properties are stored as key-value pairs on the activity record. Track events in Gainsight power usage analytics, feature adoption tracking, and health score input via Scorecards.",
+      "rudderstack_mapping": "RudderStack .track() events follow the same mapping via the Transformer service. The event name maps to Activity_Type_Name. The userId maps to User_Id. Account association is resolved from context.groupId or properties.account_id to Account_Id. The timestamp maps to Activity_Date. Event properties are flattened and stored on the activity record. The Transformer strips envelope fields before delivery.",
+      "parity": "match",
+      "notes": "Both platforms map track events to Activity Timeline entries with equivalent field-level mapping. Account association logic (groupId resolution) follows the same priority order."
+    },
+    "health_score_association": {
+      "gainsight_field": "Scorecard measures linked to Company_Id via Activity_Timeline and Company MDA objects",
+      "segment_mapping": "Segment does not directly set health scores via API calls. Instead, Gainsight Scorecards consume data from the Company and Activity_Timeline MDA objects populated by Segment events. Track events contribute usage-based measures (feature adoption, login frequency, activity count), identify calls contribute engagement-based measures (last active date, NPS score), and group calls contribute account-level measures (ARR, plan tier, renewal proximity). Gainsight calculates health scores automatically based on Scorecard rules applied to these synced data points.",
+      "rudderstack_mapping": "RudderStack follows the same indirect health score association model. Gainsight Scorecards consume data from Company and Activity_Timeline MDA objects populated by RudderStack events. Track events contribute usage metrics, identify calls contribute engagement metrics, and group calls contribute account-level attributes. Health scores are calculated by Gainsight Scorecards based on the synced data — no direct score-setting API call is needed from either platform.",
+      "parity": "match",
+      "notes": "Health score calculation is a Gainsight-internal Scorecard function that operates on synced MDA data. Neither Segment nor RudderStack directly sets health scores; both contribute the underlying data that feeds Scorecard measures. Parity depends on equivalent data ingestion into MDA objects, which is achieved through the person, company, and event mappings above."
+    },
+    "user_id_resolution": {
+      "gainsight_field": "User_Id (Person MDA primary key for Segment integration)",
+      "segment_mapping": "Segment uses userId from identify/track/group calls as the primary person identifier. Gainsight stores this as User_Id on the Person object. When anonymous events arrive (anonymousId only), Gainsight associates them once a subsequent identify call links the anonymousId to a userId via Segment's identity resolution.",
+      "rudderstack_mapping": "RudderStack uses userId from identify/track/group calls as the primary person identifier, following the same mapping to Gainsight User_Id. Anonymous event handling follows the same pattern — events with only anonymousId are associated to a person record once a subsequent identify call establishes the userId link.",
+      "parity": "match",
+      "notes": "User ID resolution follows the same pattern for both platforms. Gainsight relies on the upstream CDP to resolve anonymous-to-known identity before the data reaches the Gainsight API."
+    },
+    "account_association": {
+      "gainsight_field": "Company_Id (Company MDA primary key), Person.Company_Id (foreign key)",
+      "segment_mapping": "Segment establishes person-to-account association via three mechanisms: (1) traits.company.id in identify calls maps to Person.Company_Id, (2) groupId in group calls creates/updates the Company record keyed by Company_Id, (3) context.groupId or properties.account_id in track calls associates activities to the correct account. Gainsight requires account context for meaningful health scoring — events without account association are stored but do not contribute to company-level Scorecards.",
+      "rudderstack_mapping": "RudderStack establishes person-to-account association via the same three mechanisms with identical field mappings. The Transformer resolves company association from traits.company.id (identify), groupId (group), and context.groupId or properties.account_id (track) before forwarding to Gainsight API endpoints.",
+      "parity": "match",
+      "notes": "Account association logic is critical for Gainsight's account-centric model. Both platforms use the same resolution hierarchy for linking persons and events to companies."
+    }
+  },
+  "authentication": {
+    "method": "API Key via accesskey header",
+    "header": "accesskey",
+    "description": "Gainsight CS uses an API access key passed via the 'accesskey' HTTP header for all REST API requests. The access key is generated in Gainsight Administration > Connectors 2.0 or via the API management settings. Each workspace has a unique access key that authenticates all API operations including Person, Company, and Activity Timeline CRUD operations.",
+    "segment_config": {
+      "setting_name": "Gainsight Access Key",
+      "setting_location": "Segment Destination Settings > API Key",
+      "description": "The Gainsight API access key is entered in the Segment destination configuration. Segment sends this key in the accesskey header for all API requests to Gainsight."
+    },
+    "rudderstack_config": {
+      "setting_name": "accessKey",
+      "setting_location": "RudderStack Destination Settings > Connection Settings > Access Key",
+      "description": "The Gainsight API access key is entered in the RudderStack destination configuration. The Transformer includes this key in the accesskey header for all API requests to Gainsight."
+    },
+    "rate_limiting": {
+      "limit": "100 API calls per minute, 50000 per day",
+      "type": "sliding window per access key",
+      "headers": {
+        "X-RateLimit-Limit": "100",
+        "X-RateLimit-Remaining": "varies",
+        "X-RateLimit-Reset": "epoch timestamp"
+      }
+    },
+    "parity": "match"
+  },
+  "api_endpoints": {
+    "create_update_person": {
+      "method": "POST",
+      "path": "/v1/data/objects/Person",
+      "description": "Creates or updates a Person record in Gainsight MDA. Uses upsert semantics — if a Person with the given Email or User_Id exists, the record is updated; otherwise a new Person is created. Supports batch operations with up to 50 records per request.",
+      "required_fields": ["Email"],
+      "optional_fields": ["Name", "FirstName", "LastName", "User_Id", "Company_Id", "Role", "Location", "custom_attributes"],
+      "maps_from": "identify",
+      "notes": "Email is the primary lookup key for Person records. User_Id serves as the secondary identifier from the upstream CDP."
+    },
+    "create_update_company": {
+      "method": "POST",
+      "path": "/v1/data/objects/Company",
+      "description": "Creates or updates a Company record in Gainsight MDA. Uses upsert semantics — if a Company with the given Company_Id or Name exists, the record is updated; otherwise a new Company is created. Company records anchor health scores, CSM assignments, and success plans. Supports batch operations with up to 50 records per request.",
+      "required_fields": ["Name"],
+      "optional_fields": ["Company_Id", "Industry", "Employees", "ARR", "Plan", "Renewal_Date", "Status", "Stage", "CSM", "custom_attributes"],
+      "maps_from": "group",
+      "notes": "Company Name or Company_Id is the primary lookup key. The Company object is the central entity in Gainsight's account-centric model."
+    },
+    "create_activity": {
+      "method": "POST",
+      "path": "/v1/data/objects/Activity_Timeline",
+      "description": "Creates an Activity Timeline entry in Gainsight MDA. Activity records represent discrete events or interactions associated with a user and company. They feed into usage analytics, feature adoption metrics, and Scorecard health score calculations.",
+      "required_fields": ["Activity_Type_Name", "Activity_Date"],
+      "optional_fields": ["User_Id", "Account_Id", "properties"],
+      "maps_from": "track",
+      "notes": "Activity_Type_Name corresponds to the track event name. Account_Id links the activity to a Company record for health score contribution."
+    },
+    "query_person": {
+      "method": "POST",
+      "path": "/v1/data/objects/query/Person",
+      "description": "Queries Person records from Gainsight MDA using GSQL (Gainsight SQL). Supports filtering, sorting, pagination, and field selection. Used internally for deduplication and lookup before upsert operations.",
+      "required_fields": ["select", "where"],
+      "optional_fields": ["orderBy", "limit", "offset"],
+      "maps_from": "internal lookup",
+      "notes": "Query endpoint used for pre-upsert validation and deduplication. Not directly invoked by Segment or RudderStack event calls."
+    },
+    "query_company": {
+      "method": "POST",
+      "path": "/v1/data/objects/query/Company",
+      "description": "Queries Company records from Gainsight MDA using GSQL. Supports filtering, sorting, pagination, and field selection. Used internally for deduplication and health score data retrieval.",
+      "required_fields": ["select", "where"],
+      "optional_fields": ["orderBy", "limit", "offset"],
+      "maps_from": "internal lookup",
+      "notes": "Query endpoint used for company lookup and health score data aggregation. Not directly invoked by event calls."
+    },
+    "get_scorecard": {
+      "method": "GET",
+      "path": "/v1/data/objects/Scorecard",
+      "description": "Retrieves health score data from Gainsight Scorecards. Scorecards aggregate data from Company and Activity_Timeline MDA objects to compute health scores. This endpoint is read-only — health scores are calculated automatically by Gainsight based on configured Scorecard rules.",
+      "required_fields": [],
+      "optional_fields": ["Company_Id", "Scorecard_Id"],
+      "maps_from": "health score read (not directly from events)",
+      "notes": "Health scores are computed by Gainsight Scorecards, not set directly via API. Event data from track/identify/group feeds into the MDA objects that Scorecards evaluate."
+    }
+  },
+  "parity_status": "match",
+  "known_gaps": [
+    {
+      "gap_id": "GS-001",
+      "field": "rudderId",
+      "description": "RudderStack source events include a rudderId field (UUID format: rudder-uuid-*) that is not present in Segment source events. This field is part of the RudderStack event envelope and is stripped by the Transformer before forwarding to the Gainsight API, so it does not affect the destination payload.",
+      "severity": "informational",
+      "remediation": "No action required — the Transformer strips rudderId before API delivery. The field is used internally by RudderStack for event deduplication and tracking."
+    },
+    {
+      "gap_id": "GS-002",
+      "field": "originalTimestamp, sentAt, receivedAt",
+      "description": "RudderStack source events include additional timestamp fields (originalTimestamp, sentAt, receivedAt) that are not present in Segment source events. These are part of the RudderStack event envelope and are stripped by the Transformer before forwarding to the Gainsight API.",
+      "severity": "informational",
+      "remediation": "No action required — the Transformer strips envelope timestamps before API delivery. Only the primary timestamp field is forwarded as Activity_Date."
+    },
+    {
+      "gap_id": "GS-003",
+      "field": "context.library",
+      "description": "RudderStack source events report context.library.name as 'rudder-sdk-js' (version '2.x.x') while Segment reports 'analytics.js' (version '2.1.0'). This field identifies the client SDK and is not forwarded to the Gainsight API by either platform.",
+      "severity": "informational",
+      "remediation": "No action required — context.library is used for source-side diagnostics and is not forwarded to the Gainsight destination API."
+    },
+    {
+      "gap_id": "GS-004",
+      "field": "messageId format",
+      "description": "RudderStack uses 'rs-msg-*' format for messageId while Segment uses 'seg-msg-*' format. The messageId is used for event deduplication at the CDP level and is not forwarded to the Gainsight API by either platform.",
+      "severity": "informational",
+      "remediation": "No action required — messageId is a CDP-internal field used for deduplication. Gainsight assigns its own internal identifiers (GSID) to ingested records."
+    },
+    {
+      "gap_id": "GS-005",
+      "field": "Gainsight PX (Actions) variant",
+      "description": "Segment offers a separate 'Gainsight PX Cloud (Actions)' destination for Gainsight Product Experience, which uses the Aptrinsic API (app.aptrinsic.com) instead of the Gainsight CS API. This fixture covers the classic Gainsight CS destination only. The PX variant has a different API surface, authentication mechanism (Tag Key), and field mapping model.",
+      "severity": "medium",
+      "remediation": "A separate payload parity fixture (gainsight_px.json) should be created for the Gainsight PX Cloud (Actions) destination to cover the Aptrinsic API integration."
+    },
+    {
+      "gap_id": "GS-006",
+      "field": "Segment Engage integration",
+      "description": "Segment's Gainsight destination supports Engage audience syncs, which send identify calls with audience membership traits (e.g., 'high_value_customer: true'). RudderStack does not currently have an equivalent Engage/Audiences feature, so audience-based syncs to Gainsight are not available.",
+      "severity": "medium",
+      "remediation": "Audience sync to Gainsight will be possible after RudderStack implements the Profiles and Audiences feature set (Sprint 6-8 Identity Resolution and beyond). Out of scope for Phase 1."
+    },
+    {
+      "gap_id": "GS-007",
+      "field": "MDA custom object support",
+      "description": "Gainsight supports custom MDA objects beyond Person, Company, and Activity_Timeline. Segment's integration can map events to arbitrary custom objects via configuration. The current RudderStack integration maps to the three standard objects. Custom object mapping may require additional Transformer configuration.",
+      "severity": "low",
+      "remediation": "Extend Transformer mapping configuration to support arbitrary Gainsight MDA custom objects. This is a future enhancement that can be addressed by adding custom object name resolution to the destination settings."
+    },
+    {
+      "gap_id": "GS-008",
+      "field": "Batch record limit",
+      "description": "Gainsight API supports up to 50 records per batch request. Both Segment and RudderStack must respect this limit when batching multiple events into a single API call. The batching behavior depends on the Transformer and Router configuration for request aggregation.",
+      "severity": "low",
+      "remediation": "Ensure the RudderStack Transformer and Router respect the 50-record batch limit when aggregating events for Gainsight API delivery. This is handled by the Router's batching configuration."
+    }
+  ],
+  "notes": "Gainsight is a leading Customer Success platform that empowers companies to increase revenue, decrease customer churn, and drive customer advocacy. The Gainsight CS integration receives event data via the Gainsight REST API, storing it in the Matrix Data Architecture (MDA) — a flexible object model with standard objects (Person, Company, Activity_Timeline) and custom objects. The integration supports three Segment/RudderStack call types: track (→ Activity_Timeline for usage events), identify (→ Person for user attributes), and group (→ Company for account attributes). Health scores are not set directly via API; instead, Gainsight Scorecards automatically compute health scores based on data synced into MDA objects from both track events (usage metrics) and group traits (account attributes like ARR, plan tier, renewal date). The Gainsight API authenticates via an accesskey header, supports batch operations (up to 50 records), and enforces rate limits of 100 calls/minute and 50,000 calls/day. This fixture covers the classic Gainsight CS destination; the Gainsight PX (Product Experience) destination uses a separate Aptrinsic API and requires its own payload parity fixture."
+}

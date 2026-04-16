@@ -1,0 +1,621 @@
+{
+  "destination_type": "REDSHIFT",
+  "destination_tier": "warehouse",
+  "segment_reference_payload": {
+    "description": "Segment Redshift warehouse destination output for a track event — S3 staging with COPY command via manifest",
+    "staging": {
+      "provider": "S3",
+      "file_format": "CSV",
+      "compression": "GZIP",
+      "s3_bucket": "segment-warehouse-staging",
+      "s3_key_prefix": "segment-logs/{source_id}/{YYYY-MM-DD}/{table_name}/",
+      "manifest": {
+        "format": "json",
+        "structure": {
+          "entries": [
+            {
+              "url": "s3://segment-warehouse-staging/segment-logs/src_abc/2026-02-25/tracks/part-00000.csv.gz",
+              "mandatory": true
+            },
+            {
+              "url": "s3://segment-warehouse-staging/segment-logs/src_abc/2026-02-25/tracks/part-00001.csv.gz",
+              "mandatory": true
+            }
+          ]
+        },
+        "notes": "Segment generates a JSON manifest listing all CSV.GZ part files for a given table and sync interval"
+      }
+    },
+    "copy_command": {
+      "template": "COPY {schema}.{table} FROM 's3://{bucket}/{manifest_key}' CREDENTIALS 'aws_access_key_id={key};aws_secret_access_key={secret}' MANIFEST CSV GZIP DATEFORMAT 'auto' TIMEFORMAT 'auto' TRUNCATECOLUMNS EMPTYASNULL BLANKSASNULL FILLRECORD ACCEPTANYDATE TRIMBLANKS ACCEPTINVCHARS COMPUPDATE OFF STATUPDATE OFF;",
+      "auth_method": "credentials_string",
+      "auth_options": ["access_key_credentials"],
+      "copy_options": [
+        "CSV",
+        "GZIP",
+        "DATEFORMAT 'auto'",
+        "TIMEFORMAT 'auto'",
+        "TRUNCATECOLUMNS",
+        "EMPTYASNULL",
+        "BLANKSASNULL",
+        "FILLRECORD",
+        "ACCEPTANYDATE",
+        "TRIMBLANKS",
+        "ACCEPTINVCHARS",
+        "COMPUPDATE OFF",
+        "STATUPDATE OFF",
+        "MANIFEST"
+      ]
+    },
+    "table_creation": {
+      "sort_key_strategy": "SORTKEY(received_at)",
+      "dist_key_strategy": "DISTSTYLE EVEN",
+      "notes": "Segment uses DISTSTYLE EVEN by default; SORTKEY on received_at for time-range query optimization"
+    },
+    "column_naming": {
+      "convention": "snake_case",
+      "examples": {
+        "user_id": "user_id",
+        "anonymous_id": "anonymous_id",
+        "event": "event",
+        "event_text": "event_text",
+        "timestamp": "timestamp",
+        "received_at": "received_at",
+        "sent_at": "sent_at",
+        "original_timestamp": "original_timestamp",
+        "context_ip": "context_ip",
+        "context_library_name": "context_library_name",
+        "context_library_version": "context_library_version"
+      }
+    },
+    "tables": {
+      "tracks": {
+        "columns": {
+          "id": "character varying(512)",
+          "user_id": "character varying(512)",
+          "anonymous_id": "character varying(512)",
+          "event": "character varying(512)",
+          "event_text": "character varying(512)",
+          "timestamp": "timestamp without time zone",
+          "received_at": "timestamp without time zone",
+          "sent_at": "timestamp without time zone",
+          "original_timestamp": "timestamp without time zone",
+          "context_ip": "character varying(512)",
+          "context_library_name": "character varying(512)",
+          "context_library_version": "character varying(512)",
+          "context_source_id": "character varying(512)",
+          "context_source_type": "character varying(512)",
+          "context_destination_id": "character varying(512)",
+          "context_destination_type": "character varying(512)",
+          "context_request_ip": "character varying(512)",
+          "uuid_ts": "timestamp without time zone"
+        }
+      },
+      "identifies": {
+        "columns": {
+          "id": "character varying(512)",
+          "user_id": "character varying(512)",
+          "anonymous_id": "character varying(512)",
+          "timestamp": "timestamp without time zone",
+          "received_at": "timestamp without time zone",
+          "sent_at": "timestamp without time zone",
+          "original_timestamp": "timestamp without time zone",
+          "context_ip": "character varying(512)",
+          "context_source_id": "character varying(512)",
+          "context_source_type": "character varying(512)",
+          "context_destination_id": "character varying(512)",
+          "context_destination_type": "character varying(512)",
+          "context_request_ip": "character varying(512)",
+          "uuid_ts": "timestamp without time zone"
+        },
+        "notes": "Trait columns are added dynamically based on incoming identify traits"
+      },
+      "users": {
+        "columns": {
+          "id": "character varying(512)",
+          "received_at": "timestamp without time zone",
+          "uuid_ts": "timestamp without time zone"
+        },
+        "notes": "Trait columns merged from identifies table; latest trait values per user_id"
+      }
+    },
+    "sample_row": {
+      "table": "tracks",
+      "data": {
+        "id": "msg-abc-123",
+        "user_id": "user_123",
+        "anonymous_id": "anon_456",
+        "event": "Product Viewed",
+        "event_text": "product_viewed",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "context_ip": "192.168.1.1",
+        "context_library_name": "analytics.js",
+        "context_library_version": "2.1.0",
+        "context_source_id": "src_abc",
+        "context_source_type": "web",
+        "context_destination_id": "dest_rs_001",
+        "context_destination_type": "RS",
+        "context_request_ip": "203.0.113.50"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "description": "RudderStack Redshift warehouse destination output for a track event — S3 staging with COPY command via manifest",
+    "staging": {
+      "provider": "S3",
+      "file_format": "CSV",
+      "compression": "GZIP",
+      "alternate_format": "PARQUET",
+      "s3_bucket": "rudderstack-warehouse-staging",
+      "s3_key_prefix": "rudder-warehouse-staging-logs/{source_id}/{destination_id}/{table_name}/",
+      "manifest": {
+        "format": "json",
+        "structure": {
+          "entries": [
+            {
+              "url": "s3://rudderstack-warehouse-staging/rudder-warehouse-staging-logs/src_abc/dest_rs_001/tracks/load-0001.csv.gz",
+              "mandatory": true,
+              "meta": {
+                "content_length": 4096
+              }
+            },
+            {
+              "url": "s3://rudderstack-warehouse-staging/rudder-warehouse-staging-logs/src_abc/dest_rs_001/tracks/load-0002.csv.gz",
+              "mandatory": true,
+              "meta": {
+                "content_length": 3584
+              }
+            }
+          ]
+        },
+        "manifest_upload_path": "rudder-redshift-manifests/{source_id}/{destination_id}/{date}/{table_name}/{uuid}",
+        "notes": "RudderStack generates a JSON manifest with entries array; each entry includes url, mandatory flag, and metadata (content_length). Manifests are uploaded to a separate S3 path under rudder-redshift-manifests/"
+      }
+    },
+    "copy_command": {
+      "csv_template": "COPY {schema}.{staging_table}({sorted_column_names}) FROM '{s3_manifest_location}' CSV GZIP ACCESS_KEY_ID '{temp_key}' SECRET_ACCESS_KEY '{temp_secret}' SESSION_TOKEN '{token}' REGION '{region}' DATEFORMAT 'auto' TIMEFORMAT 'auto' MANIFEST TRUNCATECOLUMNS EMPTYASNULL BLANKSASNULL FILLRECORD ACCEPTANYDATE TRIMBLANKS ACCEPTINVCHARS COMPUPDATE OFF STATUPDATE OFF;",
+      "parquet_template": "COPY {schema}.{staging_table} FROM '{s3_manifest_location}' ACCESS_KEY_ID '{temp_key}' SECRET_ACCESS_KEY '{temp_secret}' SESSION_TOKEN '{token}' MANIFEST FORMAT PARQUET;",
+      "auth_method": "temporary_sts_credentials",
+      "auth_options": [
+        "ACCESS_KEY_ID + SECRET_ACCESS_KEY + SESSION_TOKEN (STS temporary credentials)",
+        "IAM role-based authentication via sqlconnect (alternative)"
+      ],
+      "copy_options_csv": [
+        "CSV",
+        "GZIP",
+        "ACCESS_KEY_ID '{temp_key}'",
+        "SECRET_ACCESS_KEY '{temp_secret}'",
+        "SESSION_TOKEN '{token}'",
+        "REGION '{region}'",
+        "DATEFORMAT 'auto'",
+        "TIMEFORMAT 'auto'",
+        "MANIFEST",
+        "TRUNCATECOLUMNS",
+        "EMPTYASNULL",
+        "BLANKSASNULL",
+        "FILLRECORD",
+        "ACCEPTANYDATE",
+        "TRIMBLANKS",
+        "ACCEPTINVCHARS",
+        "COMPUPDATE OFF",
+        "STATUPDATE OFF"
+      ],
+      "copy_options_parquet": [
+        "ACCESS_KEY_ID '{temp_key}'",
+        "SECRET_ACCESS_KEY '{temp_secret}'",
+        "SESSION_TOKEN '{token}'",
+        "MANIFEST",
+        "FORMAT PARQUET"
+      ],
+      "notes": "RudderStack supports both CSV GZIP and Parquet load file formats. CSV COPY includes full set of data handling options; Parquet COPY is simplified. Temporary STS credentials are obtained via GetTemporaryS3Cred(). Alternative: folder-based loading without manifest when loadByFolderPath is enabled."
+    },
+    "table_creation": {
+      "sort_key_strategy": "SORTKEY({sort_key_field})",
+      "sort_key_field_priority": [
+        "received_at (preferred if column exists)",
+        "uuid_ts (fallback if received_at absent)",
+        "id (final fallback)"
+      ],
+      "dist_key_strategy": "DISTSTYLE KEY DISTKEY(\"id\")",
+      "dist_key_condition": "Applied only when 'id' column exists in table schema; otherwise no explicit DISTSTYLE",
+      "create_table_template": "CREATE TABLE IF NOT EXISTS {schema}.{table} ({column_definitions}) DISTSTYLE KEY DISTKEY(\"id\") SORTKEY(\"{sort_key_field}\")",
+      "notes": "RudderStack uses DISTSTYLE KEY with DISTKEY on 'id' column when present, optimizing joins/dedup on the primary key. Sort key prefers received_at for time-range query efficiency."
+    },
+    "column_naming": {
+      "convention": "snake_case",
+      "string_max_length": 512,
+      "examples": {
+        "user_id": "user_id",
+        "anonymous_id": "anonymous_id",
+        "event": "event",
+        "event_text": "event_text",
+        "timestamp": "timestamp",
+        "received_at": "received_at",
+        "sent_at": "sent_at",
+        "original_timestamp": "original_timestamp",
+        "context_ip": "context_ip",
+        "context_library_name": "context_library_name",
+        "context_library_version": "context_library_version",
+        "context_source_id": "context_source_id",
+        "context_source_type": "context_source_type",
+        "context_destination_id": "context_destination_id",
+        "context_destination_type": "context_destination_type",
+        "context_request_ip": "context_request_ip",
+        "uuid_ts": "uuid_ts"
+      }
+    },
+    "data_type_mappings": {
+      "rudder_to_redshift": {
+        "boolean": "boolean encode runlength",
+        "int": "bigint",
+        "bigint": "bigint",
+        "float": "double precision",
+        "string": "varchar(65535)",
+        "text": "varchar(65535)",
+        "datetime": "timestamp",
+        "json": "super"
+      },
+      "redshift_to_rudder": {
+        "int": "int",
+        "int2": "int",
+        "int4": "int",
+        "int8": "int",
+        "bigint": "int",
+        "float": "float",
+        "float4": "float",
+        "float8": "float",
+        "numeric": "float",
+        "double precision": "float",
+        "boolean": "boolean",
+        "bool": "boolean",
+        "text": "string",
+        "character varying": "string",
+        "nchar": "string",
+        "bpchar": "string",
+        "character": "string",
+        "nvarchar": "string",
+        "string": "string",
+        "date": "datetime",
+        "timestamp without time zone": "datetime",
+        "timestamp with time zone": "datetime",
+        "super": "json"
+      }
+    },
+    "tables": {
+      "tracks": {
+        "columns": {
+          "id": "character varying(65535)",
+          "user_id": "character varying(65535)",
+          "event": "character varying(65535)",
+          "event_text": "character varying(65535)",
+          "timestamp": "timestamp without time zone",
+          "received_at": "timestamp without time zone",
+          "sent_at": "timestamp without time zone",
+          "original_timestamp": "timestamp without time zone",
+          "context_ip": "character varying(65535)",
+          "context_source_id": "character varying(65535)",
+          "context_source_type": "character varying(65535)",
+          "context_destination_id": "character varying(65535)",
+          "context_destination_type": "character varying(65535)",
+          "context_request_ip": "character varying(65535)",
+          "uuid_ts": "timestamp without time zone"
+        }
+      },
+      "identifies": {
+        "columns": {
+          "id": "character varying(65535)",
+          "user_id": "character varying(65535)",
+          "timestamp": "timestamp without time zone",
+          "received_at": "timestamp without time zone",
+          "sent_at": "timestamp without time zone",
+          "original_timestamp": "timestamp without time zone",
+          "context_ip": "character varying(65535)",
+          "context_source_id": "character varying(65535)",
+          "context_source_type": "character varying(65535)",
+          "context_destination_id": "character varying(65535)",
+          "context_destination_type": "character varying(65535)",
+          "context_request_ip": "character varying(65535)",
+          "uuid_ts": "timestamp without time zone"
+        },
+        "notes": "Trait columns added dynamically as varchar(65535) based on incoming identify events"
+      },
+      "users": {
+        "columns": {
+          "id": "character varying(65535)",
+          "received_at": "timestamp without time zone",
+          "uuid_ts": "timestamp without time zone"
+        },
+        "dedup_strategy": "FIRST_VALUE({column} IGNORE NULLS) OVER (PARTITION BY id ORDER BY received_at DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)",
+        "notes": "Users table is built from identifies via FIRST_VALUE window function to get latest non-null trait per user_id. Uses staging table approach with UNION of existing users and new identifies."
+      },
+      "pages": {
+        "columns": {
+          "id": "character varying(65535)",
+          "user_id": "character varying(65535)",
+          "name": "character varying(65535)",
+          "url": "character varying(65535)",
+          "title": "character varying(65535)",
+          "timestamp": "timestamp without time zone",
+          "received_at": "timestamp without time zone",
+          "sent_at": "timestamp without time zone",
+          "original_timestamp": "timestamp without time zone",
+          "context_ip": "character varying(65535)",
+          "context_source_id": "character varying(65535)",
+          "context_source_type": "character varying(65535)",
+          "context_destination_id": "character varying(65535)",
+          "context_destination_type": "character varying(65535)",
+          "context_request_ip": "character varying(65535)",
+          "uuid_ts": "timestamp without time zone",
+          "_as": "character varying(65535)",
+          "_between": "character varying(65535)"
+        }
+      },
+      "screens": {
+        "columns": {
+          "id": "character varying(65535)",
+          "user_id": "character varying(65535)",
+          "name": "character varying(65535)",
+          "url": "character varying(65535)",
+          "title": "character varying(65535)",
+          "timestamp": "timestamp without time zone",
+          "received_at": "timestamp without time zone",
+          "sent_at": "timestamp without time zone",
+          "original_timestamp": "timestamp without time zone",
+          "context_ip": "character varying(65535)",
+          "context_source_id": "character varying(65535)",
+          "context_source_type": "character varying(65535)",
+          "context_destination_id": "character varying(65535)",
+          "context_destination_type": "character varying(65535)",
+          "context_request_ip": "character varying(65535)",
+          "uuid_ts": "timestamp without time zone",
+          "_as": "character varying(65535)",
+          "_between": "character varying(65535)"
+        }
+      },
+      "groups": {
+        "columns": {
+          "id": "character varying(65535)",
+          "user_id": "character varying(65535)",
+          "group_id": "character varying(65535)",
+          "name": "character varying(65535)",
+          "industry": "character varying(65535)",
+          "plan": "character varying(65535)",
+          "employees": "bigint",
+          "timestamp": "timestamp without time zone",
+          "received_at": "timestamp without time zone",
+          "sent_at": "timestamp without time zone",
+          "original_timestamp": "timestamp without time zone",
+          "context_ip": "character varying(65535)",
+          "context_source_id": "character varying(65535)",
+          "context_source_type": "character varying(65535)",
+          "context_destination_id": "character varying(65535)",
+          "context_destination_type": "character varying(65535)",
+          "context_request_ip": "character varying(65535)",
+          "uuid_ts": "timestamp without time zone",
+          "_as": "character varying(65535)",
+          "_between": "character varying(65535)"
+        }
+      },
+      "aliases": {
+        "columns": {
+          "id": "character varying(65535)",
+          "user_id": "character varying(65535)",
+          "previous_id": "character varying(65535)",
+          "timestamp": "timestamp without time zone",
+          "received_at": "timestamp without time zone",
+          "sent_at": "timestamp without time zone",
+          "original_timestamp": "timestamp without time zone",
+          "context_ip": "character varying(65535)",
+          "context_source_id": "character varying(65535)",
+          "context_source_type": "character varying(65535)",
+          "context_destination_id": "character varying(65535)",
+          "context_destination_type": "character varying(65535)",
+          "context_request_ip": "character varying(65535)",
+          "uuid_ts": "timestamp without time zone"
+        }
+      },
+      "rudder_discards": {
+        "columns": {
+          "row_id": "character varying(65535)",
+          "table_name": "character varying(65535)",
+          "column_name": "character varying(65535)",
+          "column_value": "character varying(65535)",
+          "received_at": "timestamp without time zone",
+          "uuid_ts": "timestamp without time zone"
+        },
+        "notes": "Discards table stores rows that failed schema validation or type conversion"
+      }
+    },
+    "merge_dedup_strategy": {
+      "enabled_by_default": true,
+      "config_key": "Warehouse.redshift.allowMerge",
+      "primary_key_map": {
+        "users": "id",
+        "identifies": "id",
+        "rudder_discards": "row_id"
+      },
+      "partition_key_map": {
+        "users": "id",
+        "identifies": "id",
+        "rudder_discards": "row_id, column_name, table_name"
+      },
+      "merge_flow": [
+        "1. Create staging table (LIKE source table INCLUDING DEFAULTS)",
+        "2. COPY data from S3 into staging table via manifest",
+        "3. DELETE from main table WHERE primary_key matches staging table",
+        "4. INSERT into main table from staging with ROW_NUMBER() dedup (PARTITION BY partition_key ORDER BY received_at DESC)",
+        "5. Drop staging table"
+      ],
+      "dedup_window": {
+        "enabled": false,
+        "config_key": "Warehouse.redshift.dedupWindow",
+        "default_hours": 720,
+        "notes": "When enabled, DELETE step adds received_at > GETDATE() - INTERVAL 'N HOUR' to limit dedup scope"
+      },
+      "skip_dedup_destination_ids": {
+        "config_key": "Warehouse.redshift.skipDedupDestinationIDs",
+        "notes": "Per-destination override to skip deduplication"
+      },
+      "append_only_tables": {
+        "config_key": "Warehouse.redshift.appendOnlyTables.{destination_id}",
+        "notes": "Per-destination per-table override to force append-only (no merge)"
+      }
+    },
+    "auth_methods": {
+      "password": {
+        "connection_string": "postgres://{user}:{password}@{host}:{port}/{database}",
+        "settings": ["host", "port", "database", "user", "password"],
+        "ssh_tunnel_support": true,
+        "query_group": "SET query_group to 'RudderStack'"
+      },
+      "iam_role": {
+        "settings": ["database", "user", "iamRoleARNForAuth", "clusterId", "clusterRegion"],
+        "serverless_settings": ["database", "workgroupName", "clusterRegion", "iamRoleARNForAuth"],
+        "uses_sqlconnect": true,
+        "notes": "IAM role-based auth via sqlconnect-go with workspace-specific role ARN and external ID"
+      }
+    },
+    "sample_row": {
+      "table": "tracks",
+      "data": {
+        "id": "msg-xyz-789",
+        "user_id": "user_123",
+        "event": "Product Viewed",
+        "event_text": "product_viewed",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "context_ip": "192.168.1.1",
+        "context_source_id": "src_abc",
+        "context_source_type": "web",
+        "context_destination_id": "dest_rs_001",
+        "context_destination_type": "RS",
+        "context_request_ip": "203.0.113.50",
+        "uuid_ts": "2026-02-25T12:00:03.000Z"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "manifest_file_format": {
+      "segment": "JSON manifest with entries array containing {url, mandatory} per load file",
+      "rudderstack": "JSON manifest with entries array containing {url, mandatory, meta: {content_length}} per load file",
+      "parity_gap": "RudderStack includes content_length metadata per manifest entry; Segment does not. Manifest upload paths differ: Segment stores alongside load files, RudderStack uses separate rudder-redshift-manifests/ prefix.",
+      "impact": "Low — both produce valid Redshift MANIFEST-compatible JSON; metadata field is informational"
+    },
+    "copy_options": {
+      "segment": "COPY with CREDENTIALS string, CSV GZIP, DATEFORMAT/TIMEFORMAT auto, TRUNCATECOLUMNS, EMPTYASNULL, BLANKSASNULL, FILLRECORD, ACCEPTANYDATE, TRIMBLANKS, ACCEPTINVCHARS, COMPUPDATE OFF, STATUPDATE OFF, MANIFEST",
+      "rudderstack": "COPY with ACCESS_KEY_ID/SECRET_ACCESS_KEY/SESSION_TOKEN (STS), CSV GZIP or FORMAT PARQUET, REGION, same data handling options as Segment for CSV; simplified options for Parquet",
+      "parity_gaps": [
+        "Auth: Segment uses CREDENTIALS string; RudderStack uses separate ACCESS_KEY_ID + SECRET_ACCESS_KEY + SESSION_TOKEN parameters (STS temporary credentials)",
+        "Format: RudderStack supports both CSV GZIP and Parquet; Segment uses CSV GZIP",
+        "Region: RudderStack explicitly includes REGION clause; Segment may omit it",
+        "Column list: RudderStack specifies explicit column list in COPY for CSV; Segment may omit column list"
+      ],
+      "impact": "Medium — auth mechanism differs but both authenticate successfully; Parquet support is RudderStack-unique advantage"
+    },
+    "auth_method": {
+      "segment": "AWS access key credentials embedded in CREDENTIALS string",
+      "rudderstack": "Temporary STS credentials (ACCESS_KEY_ID + SECRET_ACCESS_KEY + SESSION_TOKEN) or IAM role-based authentication via sqlconnect-go with workspace-specific role ARN",
+      "parity_gap": "RudderStack supports two auth methods (password and IAM role) vs Segment's single access-key method. IAM role auth with serverless Redshift support is RudderStack-unique.",
+      "impact": "Low — functionally equivalent; RudderStack offers more auth flexibility"
+    },
+    "sort_key_strategy": {
+      "segment": "SORTKEY(received_at) — received_at as default sort key for all tables",
+      "rudderstack": "SORTKEY({field}) with priority: received_at > uuid_ts > id — dynamically selected based on available columns in table schema",
+      "parity_gap": "RudderStack has dynamic sort key selection with fallback chain; Segment uses static received_at. Both typically resolve to received_at for standard event tables.",
+      "impact": "Low — in practice both use received_at for standard tables; RudderStack handles edge cases where received_at is absent"
+    },
+    "dist_key_strategy": {
+      "segment": "DISTSTYLE EVEN — distributes data evenly across nodes regardless of key values",
+      "rudderstack": "DISTSTYLE KEY DISTKEY(\"id\") — distributes data by id column when present, enabling co-located joins; no explicit DISTSTYLE when id column is absent",
+      "parity_gap": "Fundamental distribution strategy difference: Segment uses EVEN (optimal for scan-heavy workloads), RudderStack uses KEY on id (optimal for join-heavy dedup/merge workloads). This affects query performance characteristics.",
+      "impact": "High — affects query performance for merge/dedup operations. RudderStack's KEY distribution co-locates rows with same id on same node, optimizing the DELETE+INSERT merge pattern. Segment's EVEN distribution spreads data uniformly."
+    },
+    "string_column_length": {
+      "segment": "VARCHAR(512) — default string column length",
+      "rudderstack": "VARCHAR(65535) — maximum Redshift VARCHAR length",
+      "parity_gap": "RudderStack uses VARCHAR(65535) while Segment uses VARCHAR(512). RudderStack defines rudderStringLength=512 constant but maps string type to varchar(65535).",
+      "impact": "Low — both store the same data; RudderStack's wider columns avoid truncation for long values but may use more disk space"
+    },
+    "boolean_encoding": {
+      "segment": "boolean",
+      "rudderstack": "boolean encode runlength",
+      "parity_gap": "RudderStack applies run-length encoding to boolean columns for compression optimization",
+      "impact": "None — storage optimization only; query behavior identical"
+    },
+    "json_type": {
+      "segment": "VARCHAR (JSON stored as string)",
+      "rudderstack": "SUPER (native Redshift semi-structured data type)",
+      "parity_gap": "RudderStack uses Redshift's native SUPER type for JSON data; Segment stores JSON as VARCHAR string",
+      "impact": "Medium — SUPER type enables native JSON querying with PartiQL; VARCHAR requires JSON parsing functions"
+    },
+    "dedup_merge_strategy": {
+      "segment": "Upsert via staging table with dedup on primary key",
+      "rudderstack": "Configurable merge/append: staging table COPY, DELETE matching primary keys, INSERT with ROW_NUMBER() dedup partitioned by partition_key ordered by received_at DESC. Supports append-only mode, dedup window, per-destination skip, per-table append-only overrides.",
+      "parity_gap": "RudderStack offers significantly more granular dedup control (per-destination, per-table, time-windowed). Users table has special FIRST_VALUE-based trait dedup.",
+      "impact": "Low-Medium — both achieve data deduplication; RudderStack provides more operational flexibility"
+    },
+    "table_name_limit": {
+      "segment": "No documented limit",
+      "rudderstack": "127 characters (Redshift identifier limit)",
+      "parity_gap": "RudderStack explicitly enforces 127-character table name limit for staging table name generation",
+      "impact": "None — Redshift enforces this limit regardless"
+    },
+    "staging_table_naming": {
+      "segment": "Segment-internal staging table naming convention",
+      "rudderstack": "warehouseutils.StagingTableName(provider, tableName, tableNameLimit) — generates prefixed staging table names with RS provider tag",
+      "parity_gap": "Different staging table naming conventions; staging tables are transient and dropped after loading",
+      "impact": "None — staging tables are ephemeral"
+    },
+    "connection_management": {
+      "segment": "Standard PostgreSQL connection with credentials",
+      "rudderstack": "PostgreSQL connection with configurable timeout, slow query threshold (default 5 min), query_group set to 'RudderStack', secret redaction in logs, sqlmiddleware wrapper with stats/logging/KV tagging",
+      "parity_gap": "RudderStack has more sophisticated connection management with observability built in",
+      "impact": "None — operational difference only"
+    }
+  },
+  "parity_summary": {
+    "overall_status": "Needs Verification",
+    "high_parity_areas": [
+      "S3 staging approach (both use S3 → COPY with manifest)",
+      "COPY command core options (DATEFORMAT, TIMEFORMAT, TRUNCATECOLUMNS, etc.)",
+      "Column naming convention (snake_case)",
+      "Table structure (tracks, identifies, users, pages, screens, groups, aliases)",
+      "Event type support (all 6 standard types)",
+      "Merge/dedup pattern (staging table → delete + insert)"
+    ],
+    "parity_gaps": [
+      "DISTSTYLE: EVEN (Segment) vs KEY on id (RudderStack) — impacts query performance",
+      "Auth: CREDENTIALS string (Segment) vs STS temp credentials + IAM role option (RudderStack)",
+      "JSON type: VARCHAR (Segment) vs SUPER (RudderStack) — impacts JSON querying",
+      "String length: VARCHAR(512) (Segment) vs VARCHAR(65535) (RudderStack)",
+      "File format: CSV only (Segment) vs CSV + Parquet (RudderStack)",
+      "Manifest metadata: No content_length (Segment) vs content_length included (RudderStack)"
+    ],
+    "rudderstack_unique_features": [
+      "Parquet file format support for COPY loading",
+      "IAM role-based authentication with serverless Redshift support",
+      "Configurable dedup window (time-bounded dedup scope)",
+      "Per-destination and per-table append-only overrides",
+      "SUPER type for native JSON/semi-structured data",
+      "DISTSTYLE KEY optimization for merge-heavy workloads",
+      "SSH tunnel support for password-based connections",
+      "Folder-based loading without manifest (loadByFolderPath)",
+      "Slow query threshold monitoring and secret redaction in logs",
+      "Boolean run-length encoding compression"
+    ]
+  },
+  "notes": "Redshift is a shared warehouse destination present in both RudderStack and Segment. Both platforms use the same fundamental approach: stage data files to S3, then use Redshift's COPY command with a JSON manifest to bulk load data. Key architectural differences are in distribution strategy (EVEN vs KEY), authentication (access keys vs STS/IAM), and data type mapping (VARCHAR vs SUPER for JSON). RudderStack's implementation in warehouse/integrations/redshift/redshift.go provides significantly more operational flexibility with configurable merge/append modes, dedup windows, and per-destination overrides. The payload parity gaps are primarily in table DDL (sort/dist key strategies, column widths) rather than in the event data itself. Source: warehouse/integrations/redshift/redshift.go, docs/gap-report/destination-catalog-parity.md line 385."
+}

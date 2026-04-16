@@ -1,0 +1,481 @@
+{
+  "destination_type": "APACHE_PULSAR",
+  "destination_tier": "stream",
+  "segment_reference_payload": null,
+  "rudderstack_expected_payload": {
+    "producer_package": "services/streammanager/pulsar",
+    "producer_constructor": "NewProducer",
+    "producer_interface": "common.StreamProducer",
+    "underlying_protocol": "Apache Pulsar binary protocol",
+    "description": "Apache Pulsar uses the native Pulsar binary protocol for high-throughput, low-latency message production. The NewProducer constructor creates a Pulsar client connected to the Pulsar cluster and produces messages to a specified topic. Messages are serialized as JSON and sent as Pulsar message payloads with optional properties derived from the event metadata. Pulsar provides built-in multi-tenancy, geo-replication, and tiered storage.",
+    "connection": {
+      "method": "Pulsar client connection",
+      "protocol": "Apache Pulsar binary protocol over TCP (pulsar://) or TLS (pulsar+ssl://)",
+      "service_url": "Pulsar cluster service URL (e.g., pulsar://pulsar.example.com:6650 or pulsar+ssl://pulsar.example.com:6651)",
+      "authentication": {
+        "mechanism": "JWT token, OAuth2, or TLS client certificate",
+        "jwt_token": "JSON Web Token for Pulsar authentication (optional)",
+        "oauth2_issuer_url": "OAuth2 issuer URL (optional)",
+        "oauth2_audience": "OAuth2 audience (optional)",
+        "tls_cert_path": "TLS client certificate path (optional)",
+        "tls_key_path": "TLS client key path (optional)"
+      },
+      "tls": {
+        "enabled": "configurable (automatic when using pulsar+ssl:// scheme)",
+        "description": "TLS can be enabled for encrypted Pulsar connections; automatic when service URL uses pulsar+ssl:// scheme",
+        "allow_insecure": "Configurable flag to allow insecure TLS connections (for development only)"
+      },
+      "operation_timeout": "30 seconds (configurable via Router.APACHE_PULSAR.operationTimeout)",
+      "connection_timeout": "10 seconds (configurable via Router.APACHE_PULSAR.connectionTimeout)"
+    },
+    "destination_config": {
+      "topic": "Required. The Pulsar topic name to produce messages to (e.g., 'persistent://public/default/rudder-events').",
+      "serviceUrl": "Required. Pulsar cluster service URL (pulsar:// or pulsar+ssl:// scheme).",
+      "authenticationToken": "Optional. JWT token for Pulsar authentication.",
+      "useTLS": "Optional. Boolean flag to enable TLS encryption. Automatic for pulsar+ssl:// URLs.",
+      "batchingEnabled": "Optional. Boolean flag to enable message batching. Default is true.",
+      "batchingMaxMessages": "Optional. Maximum number of messages in a batch. Default is 1000.",
+      "batchingMaxPublishDelay": "Optional. Maximum delay before flushing a batch in milliseconds. Default is 10.",
+      "compressionType": "Optional. Compression type: 'none', 'lz4', 'zlib', 'zstd'. Default is 'none'."
+    },
+    "config_validation": {
+      "topic": "cannot be empty",
+      "serviceUrl": "cannot be empty; must start with 'pulsar://' or 'pulsar+ssl://'"
+    },
+    "message_format": {
+      "structure": "Pulsar message with payload (byte array), properties (map), and optional key",
+      "topic": "Destination config 'topic' field; fully qualified Pulsar topic name",
+      "key": "Derived from userId field in the event JSON payload (via gjson path 'userId'); used as Pulsar message ordering key",
+      "payload": "JSON-serialized message field from the event payload (via gjson path 'message')",
+      "properties": {
+        "eventType": "Event type (track, identify, page, screen, group, alias)",
+        "messageId": "RudderStack messageId for deduplication",
+        "userId": "User identifier from the event"
+      },
+      "encoding": "JSON serialization via jsonrs.Marshal for the payload"
+    },
+    "sample_track_event": {
+      "input_json": {
+        "message": {
+          "type": "track",
+          "event": "Product Viewed",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+          },
+          "messageId": "msg-uuid-001",
+          "rudderId": "rudder-uuid-001",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "pulsar_message": {
+        "topic": "persistent://public/default/rudder-events",
+        "key": "user_123",
+        "payload": {
+          "type": "track",
+          "event": "Product Viewed",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+          },
+          "messageId": "msg-uuid-001",
+          "rudderId": "rudder-uuid-001",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "properties": {
+          "eventType": "track",
+          "messageId": "msg-uuid-001",
+          "userId": "user_123"
+        }
+      }
+    },
+    "sample_identify_event": {
+      "input_json": {
+        "message": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "traits": {
+            "email": "user@example.com",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "plan": "enterprise"
+          },
+          "timestamp": "2026-02-25T12:01:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-002",
+          "rudderId": "rudder-uuid-002",
+          "originalTimestamp": "2026-02-25T12:01:00.000Z",
+          "sentAt": "2026-02-25T12:01:01.000Z",
+          "receivedAt": "2026-02-25T12:01:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "pulsar_message": {
+        "topic": "persistent://public/default/rudder-events",
+        "key": "user_123",
+        "payload": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "traits": {
+            "email": "user@example.com",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "plan": "enterprise"
+          },
+          "timestamp": "2026-02-25T12:01:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-002",
+          "rudderId": "rudder-uuid-002",
+          "originalTimestamp": "2026-02-25T12:01:00.000Z",
+          "sentAt": "2026-02-25T12:01:01.000Z",
+          "receivedAt": "2026-02-25T12:01:02.000Z"
+        },
+        "properties": {
+          "eventType": "identify",
+          "messageId": "msg-uuid-002",
+          "userId": "user_123"
+        }
+      }
+    },
+    "sample_page_event": {
+      "input_json": {
+        "message": {
+          "type": "page",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Home",
+          "properties": {
+            "url": "https://example.com/",
+            "path": "/",
+            "title": "Home Page",
+            "referrer": "https://google.com"
+          },
+          "timestamp": "2026-02-25T12:02:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-003",
+          "rudderId": "rudder-uuid-003",
+          "originalTimestamp": "2026-02-25T12:02:00.000Z",
+          "sentAt": "2026-02-25T12:02:01.000Z",
+          "receivedAt": "2026-02-25T12:02:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "pulsar_message": {
+        "topic": "persistent://public/default/rudder-events",
+        "key": "user_123",
+        "payload": {
+          "type": "page",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Home",
+          "properties": {
+            "url": "https://example.com/",
+            "path": "/",
+            "title": "Home Page",
+            "referrer": "https://google.com"
+          },
+          "timestamp": "2026-02-25T12:02:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-003",
+          "rudderId": "rudder-uuid-003",
+          "originalTimestamp": "2026-02-25T12:02:00.000Z",
+          "sentAt": "2026-02-25T12:02:01.000Z",
+          "receivedAt": "2026-02-25T12:02:02.000Z"
+        },
+        "properties": {
+          "eventType": "page",
+          "messageId": "msg-uuid-003",
+          "userId": "user_123"
+        }
+      }
+    },
+    "sample_screen_event": {
+      "input_json": {
+        "message": {
+          "type": "screen",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Dashboard",
+          "properties": {
+            "feed_type": "recommended",
+            "variant": "control"
+          },
+          "timestamp": "2026-02-25T12:03:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-android",
+              "version": "1.20.0"
+            },
+            "os": {
+              "name": "Android",
+              "version": "14"
+            }
+          },
+          "messageId": "msg-uuid-004",
+          "rudderId": "rudder-uuid-004",
+          "originalTimestamp": "2026-02-25T12:03:00.000Z",
+          "sentAt": "2026-02-25T12:03:01.000Z",
+          "receivedAt": "2026-02-25T12:03:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "pulsar_message": {
+        "topic": "persistent://public/default/rudder-events",
+        "key": "user_123",
+        "payload": {
+          "type": "screen",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Dashboard",
+          "properties": {
+            "feed_type": "recommended",
+            "variant": "control"
+          },
+          "timestamp": "2026-02-25T12:03:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-android",
+              "version": "1.20.0"
+            },
+            "os": {
+              "name": "Android",
+              "version": "14"
+            }
+          },
+          "messageId": "msg-uuid-004",
+          "rudderId": "rudder-uuid-004",
+          "originalTimestamp": "2026-02-25T12:03:00.000Z",
+          "sentAt": "2026-02-25T12:03:01.000Z",
+          "receivedAt": "2026-02-25T12:03:02.000Z"
+        },
+        "properties": {
+          "eventType": "screen",
+          "messageId": "msg-uuid-004",
+          "userId": "user_123"
+        }
+      }
+    },
+    "sample_group_event": {
+      "input_json": {
+        "message": {
+          "type": "group",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "groupId": "group_789",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "plan": "enterprise",
+            "employees": 250
+          },
+          "timestamp": "2026-02-25T12:04:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-005",
+          "rudderId": "rudder-uuid-005",
+          "originalTimestamp": "2026-02-25T12:04:00.000Z",
+          "sentAt": "2026-02-25T12:04:01.000Z",
+          "receivedAt": "2026-02-25T12:04:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "pulsar_message": {
+        "topic": "persistent://public/default/rudder-events",
+        "key": "user_123",
+        "payload": {
+          "type": "group",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "groupId": "group_789",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "plan": "enterprise",
+            "employees": 250
+          },
+          "timestamp": "2026-02-25T12:04:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-005",
+          "rudderId": "rudder-uuid-005",
+          "originalTimestamp": "2026-02-25T12:04:00.000Z",
+          "sentAt": "2026-02-25T12:04:01.000Z",
+          "receivedAt": "2026-02-25T12:04:02.000Z"
+        },
+        "properties": {
+          "eventType": "group",
+          "messageId": "msg-uuid-005",
+          "userId": "user_123"
+        }
+      }
+    },
+    "sample_alias_event": {
+      "input_json": {
+        "message": {
+          "type": "alias",
+          "userId": "user_123",
+          "previousId": "old_user_456",
+          "timestamp": "2026-02-25T12:05:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-006",
+          "rudderId": "rudder-uuid-006",
+          "originalTimestamp": "2026-02-25T12:05:00.000Z",
+          "sentAt": "2026-02-25T12:05:01.000Z",
+          "receivedAt": "2026-02-25T12:05:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "pulsar_message": {
+        "topic": "persistent://public/default/rudder-events",
+        "key": "user_123",
+        "payload": {
+          "type": "alias",
+          "userId": "user_123",
+          "previousId": "old_user_456",
+          "timestamp": "2026-02-25T12:05:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-006",
+          "rudderId": "rudder-uuid-006",
+          "originalTimestamp": "2026-02-25T12:05:00.000Z",
+          "sentAt": "2026-02-25T12:05:01.000Z",
+          "receivedAt": "2026-02-25T12:05:02.000Z"
+        },
+        "properties": {
+          "eventType": "alias",
+          "messageId": "msg-uuid-006",
+          "userId": "user_123"
+        }
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "note": "No Segment equivalent. Segment does not offer a native Apache Pulsar destination. RudderStack implements Apache Pulsar as a dedicated stream destination type (APACHE_PULSAR) using the Pulsar client library.",
+    "producer_routing": "APACHE_PULSAR destination name routes through streammanager.NewProducer switch to pulsar.NewProducer",
+    "topic": "Fully qualified Pulsar topic name from destination config (e.g., 'persistent://public/default/rudder-events'). Pulsar topics follow the persistent|non-persistent://tenant/namespace/topic format",
+    "key": "Derived from the userId field in the event JSON; used as the Pulsar message ordering key for partitioned topics",
+    "payload": "The message field from the input JSON is extracted and JSON-serialized as the Pulsar message payload (byte array)",
+    "properties": "Pulsar message properties (key-value metadata) include eventType, messageId, and userId for efficient routing and filtering by downstream consumers",
+    "timestamp_handling": "Pulsar message event time is set to the event's original timestamp; publish time is automatically set by the Pulsar broker",
+    "ordering_guarantee": "Messages with the same key (userId) are routed to the same partition, ensuring per-user ordering on partitioned topics",
+    "batching": "Configurable batching via batchingEnabled, batchingMaxMessages, and batchingMaxPublishDelay for throughput optimization",
+    "compression": "Configurable compression (none, lz4, zlib, zstd) applied at the batch level by the Pulsar client",
+    "envelope_fields": "RudderStack events include rudderId, originalTimestamp, sentAt, receivedAt — these are preserved within the message payload",
+    "multi_tenancy": "Pulsar natively supports multi-tenancy via tenant/namespace isolation in topic names"
+  },
+  "producer_details": {
+    "constructor": "NewProducer",
+    "package": "services/streammanager/pulsar",
+    "config_struct": "pulsarConfig",
+    "config_fields": {
+      "Topic": "Fully qualified Pulsar topic name (e.g., 'persistent://public/default/rudder-events')",
+      "ServiceUrl": "Pulsar cluster service URL (pulsar:// or pulsar+ssl:// scheme)",
+      "AuthenticationToken": "JWT token for Pulsar authentication (optional)",
+      "UseTLS": "Boolean flag to enable TLS encryption",
+      "BatchingEnabled": "Boolean flag to enable message batching (default: true)",
+      "BatchingMaxMessages": "Maximum messages per batch (default: 1000)",
+      "BatchingMaxPublishDelay": "Maximum delay before flushing batch in ms (default: 10)",
+      "CompressionType": "Compression type: none, lz4, zlib, zstd (default: none)"
+    },
+    "client_library": "github.com/apache/pulsar-client-go",
+    "default_operation_timeout_seconds": 30,
+    "default_connection_timeout_seconds": 10,
+    "metrics": {
+      "creation_time": "router.pulsar.creation_time",
+      "produce_time": "router.pulsar.produce_time",
+      "publish_time": "router.pulsar.publish_time",
+      "close_time": "router.pulsar.close_producer_time",
+      "missing_user_id": "router.pulsar.missing_user_id",
+      "missing_message": "router.pulsar.missing_message"
+    }
+  },
+  "parity_status": "not_applicable",
+  "parity_coverage_percent": null,
+  "notes": "Apache Pulsar is a RudderStack-unique stream destination. Segment does not offer a native Apache Pulsar destination in its catalog. RudderStack implements Apache Pulsar as a dedicated destination type (APACHE_PULSAR) using the official Apache Pulsar Go client library (github.com/apache/pulsar-client-go). Pulsar provides built-in multi-tenancy, geo-replication, tiered storage, and both pub-sub and queuing semantics through its subscription model. The producer supports JWT token authentication, TLS encryption, configurable batching, and multiple compression algorithms. Messages are produced with Pulsar message properties containing event metadata (eventType, messageId, userId) for efficient downstream routing and filtering. The destination is registered in the stream manager factory (services/streammanager/streammanager.go) and listed in the Custom Destination Manager's ObjectStreamDestinations array (router/customdestinationmanager/customdestinationmanager.go). Since there is no direct Segment equivalent, payload parity comparison is not applicable — this fixture documents RudderStack's Apache Pulsar payload format for regression testing and field-by-field validation."
+}

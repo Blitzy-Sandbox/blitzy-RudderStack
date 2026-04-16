@@ -1,0 +1,324 @@
+{
+  "destination_type": "BRAZE",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "endpoint": "https://rest.iad-01.braze.com/users/track",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer {{api_key}}"
+    },
+    "identify": {
+      "description": "Segment identify call mapped to Braze /users/track with attributes array",
+      "body": {
+        "attributes": [
+          {
+            "external_id": "user_123",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "email": "jane.doe@example.com",
+            "phone": "+15551234567",
+            "home_city": "San Francisco",
+            "country": "US",
+            "date_of_first_session": "2026-01-15T08:30:00.000Z",
+            "custom_attribute_1": "premium",
+            "plan_tier": "enterprise",
+            "_update_existing_only": false
+          }
+        ]
+      }
+    },
+    "track": {
+      "description": "Segment track call mapped to Braze /users/track with events array",
+      "body": {
+        "events": [
+          {
+            "external_id": "user_123",
+            "app_id": "{{braze_app_id}}",
+            "name": "Product Viewed",
+            "time": "2026-02-25T12:00:00.000Z",
+            "properties": {
+              "product_id": "SKU-001",
+              "product_name": "Premium Widget",
+              "category": "Electronics",
+              "price": 49.99,
+              "currency": "USD"
+            }
+          }
+        ]
+      }
+    },
+    "track_purchase": {
+      "description": "Segment track call with revenue mapped to Braze /users/track with purchases array",
+      "body": {
+        "purchases": [
+          {
+            "external_id": "user_123",
+            "app_id": "{{braze_app_id}}",
+            "product_id": "SKU-001",
+            "currency": "USD",
+            "price": 49.99,
+            "quantity": 1,
+            "time": "2026-02-25T12:05:00.000Z",
+            "properties": {
+              "order_id": "order-789",
+              "coupon_code": "SAVE10",
+              "discount": 5.00
+            }
+          }
+        ]
+      }
+    },
+    "page": {
+      "description": "Segment page call mapped to Braze /users/track as a custom event",
+      "body": {
+        "events": [
+          {
+            "external_id": "user_123",
+            "app_id": "{{braze_app_id}}",
+            "name": "Loaded a Page",
+            "time": "2026-02-25T12:10:00.000Z",
+            "properties": {
+              "name": "Homepage",
+              "path": "/",
+              "url": "https://example.com/",
+              "referrer": "https://google.com",
+              "title": "Example - Home"
+            }
+          }
+        ]
+      }
+    },
+    "group": {
+      "description": "Segment group call mapped to Braze /users/track as user attributes with group prefix",
+      "body": {
+        "attributes": [
+          {
+            "external_id": "user_123",
+            "group_id": "group_456",
+            "group_name": "Acme Corp",
+            "group_industry": "Technology",
+            "group_plan": "enterprise",
+            "_update_existing_only": false
+          }
+        ]
+      }
+    },
+    "alias": {
+      "description": "Segment alias call mapped to Braze /users/identify endpoint to merge user profiles",
+      "endpoint_override": "https://rest.iad-01.braze.com/users/identify",
+      "body": {
+        "aliases_to_identify": [
+          {
+            "external_id": "user_123",
+            "user_alias": {
+              "alias_name": "anon_abc_789",
+              "alias_label": "anonymous_id"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "endpoint": "https://rest.iad-01.braze.com/users/track",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer {{api_key}}"
+    },
+    "identify": {
+      "description": "RudderStack identify call mapped to Braze /users/track with attributes array",
+      "body": {
+        "attributes": [
+          {
+            "external_id": "user_123",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "email": "jane.doe@example.com",
+            "phone": "+15551234567",
+            "home_city": "San Francisco",
+            "country": "US",
+            "date_of_first_session": "2026-01-15T08:30:00.000Z",
+            "custom_attribute_1": "premium",
+            "plan_tier": "enterprise",
+            "_update_existing_only": false
+          }
+        ]
+      }
+    },
+    "track": {
+      "description": "RudderStack track call mapped to Braze /users/track with events array",
+      "body": {
+        "events": [
+          {
+            "external_id": "user_123",
+            "app_id": "{{braze_app_id}}",
+            "name": "Product Viewed",
+            "time": "2026-02-25T12:00:00.000Z",
+            "properties": {
+              "product_id": "SKU-001",
+              "product_name": "Premium Widget",
+              "category": "Electronics",
+              "price": 49.99,
+              "currency": "USD"
+            }
+          }
+        ]
+      }
+    },
+    "track_purchase": {
+      "description": "RudderStack track call with revenue mapped to Braze /users/track with purchases array",
+      "body": {
+        "purchases": [
+          {
+            "external_id": "user_123",
+            "app_id": "{{braze_app_id}}",
+            "product_id": "SKU-001",
+            "currency": "USD",
+            "price": 49.99,
+            "quantity": 1,
+            "time": "2026-02-25T12:05:00.000Z",
+            "properties": {
+              "order_id": "order-789",
+              "coupon_code": "SAVE10",
+              "discount": 5.00
+            }
+          }
+        ]
+      }
+    },
+    "page": {
+      "description": "RudderStack page call mapped to Braze /users/track as a custom event",
+      "body": {
+        "events": [
+          {
+            "external_id": "user_123",
+            "app_id": "{{braze_app_id}}",
+            "name": "Loaded a Page",
+            "time": "2026-02-25T12:10:00.000Z",
+            "properties": {
+              "name": "Homepage",
+              "path": "/",
+              "url": "https://example.com/",
+              "referrer": "https://google.com",
+              "title": "Example - Home"
+            }
+          }
+        ]
+      }
+    },
+    "group": {
+      "description": "RudderStack group call mapped to Braze /users/track as user attributes with group prefix",
+      "body": {
+        "attributes": [
+          {
+            "external_id": "user_123",
+            "group_id": "group_456",
+            "group_name": "Acme Corp",
+            "group_industry": "Technology",
+            "group_plan": "enterprise",
+            "_update_existing_only": false
+          }
+        ]
+      }
+    },
+    "alias": {
+      "description": "RudderStack alias call mapped to Braze /users/identify endpoint to merge user profiles",
+      "endpoint_override": "https://rest.iad-01.braze.com/users/identify",
+      "body": {
+        "aliases_to_identify": [
+          {
+            "external_id": "user_123",
+            "user_alias": {
+              "alias_name": "anon_abc_789",
+              "alias_label": "anonymous_id"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "event_types": ["track", "identify", "page", "group", "alias"],
+  "field_mappings": {
+    "external_id_derivation": {
+      "segment": "external_id derived from userId in the Segment event; falls back to anonymousId via user_alias if userId is absent",
+      "rudderstack": "external_id derived from userId in the RudderStack event; falls back to anonymousId via user_alias if userId is absent",
+      "parity_status": "equivalent"
+    },
+    "attribute_vs_event_vs_purchase_routing": {
+      "identify_to_attributes": "Both platforms map identify calls to the attributes array in /users/track. Segment traits and RudderStack traits are mapped to Braze user attributes.",
+      "track_to_events": "Both platforms map track calls to the events array in /users/track. Event name maps to Braze event name, event properties map to Braze event properties.",
+      "track_to_purchases": "When a track call contains revenue or products array (Order Completed), both platforms route to the purchases array in /users/track instead of events.",
+      "page_to_events": "Both platforms map page calls to custom events in the events array. Segment uses 'Loaded a Page' as event name; RudderStack uses the same convention.",
+      "group_to_attributes": "Both platforms map group calls to user attributes prefixed with group information. Group traits become custom attributes on the user profile.",
+      "alias_to_identify": "Both platforms map alias calls to the /users/identify endpoint to merge anonymous and identified user profiles."
+    },
+    "property_name_mapping": {
+      "first_name": "traits.firstName or traits.first_name → first_name (Braze reserved attribute)",
+      "last_name": "traits.lastName or traits.last_name → last_name (Braze reserved attribute)",
+      "email": "traits.email → email (Braze reserved attribute)",
+      "phone": "traits.phone → phone (Braze reserved attribute, E.164 format)",
+      "home_city": "traits.city or traits.address.city → home_city (Braze reserved attribute)",
+      "country": "traits.country or traits.address.country → country (Braze reserved attribute)",
+      "date_of_birth": "traits.birthday → dob (Braze reserved attribute, YYYY-MM-DD format)",
+      "gender": "traits.gender → gender (Braze reserved attribute: M, F, O, N, P)",
+      "custom_attributes": "All other traits are passed as custom attributes with original key names",
+      "product_id": "properties.product_id → product_id (required for purchases)",
+      "revenue": "properties.revenue → price (required for purchases, numeric value)",
+      "currency": "properties.currency → currency (ISO 4217 code, defaults to USD)",
+      "quantity": "properties.quantity → quantity (defaults to 1 if not provided)"
+    },
+    "time_format": {
+      "segment": "ISO 8601 format (e.g., 2026-02-25T12:00:00.000Z) — timestamps sent as-is to Braze",
+      "rudderstack": "ISO 8601 format (e.g., 2026-02-25T12:00:00.000Z) — timestamps sent as-is to Braze",
+      "braze_requirement": "Braze accepts ISO 8601 timestamps with timezone offset or UTC (Z suffix). Maximum precision: seconds.",
+      "parity_status": "equivalent"
+    },
+    "reserved_braze_attributes": [
+      "email",
+      "first_name",
+      "last_name",
+      "phone",
+      "gender",
+      "dob",
+      "home_city",
+      "country",
+      "language",
+      "time_zone",
+      "image_url",
+      "push_subscribe",
+      "email_subscribe",
+      "facebook",
+      "twitter"
+    ],
+    "app_id_config": {
+      "description": "Braze app_id is required for events and purchases. Configured in destination settings, not derived from event payload.",
+      "segment": "app_id from Braze destination settings in Segment workspace",
+      "rudderstack": "app_id from Braze destination config in RudderStack dashboard"
+    },
+    "rest_api_endpoint_config": {
+      "description": "Braze REST API endpoint varies by data center cluster. Must be configured per destination.",
+      "clusters": [
+        "rest.iad-01.braze.com",
+        "rest.iad-02.braze.com",
+        "rest.iad-03.braze.com",
+        "rest.iad-04.braze.com",
+        "rest.iad-05.braze.com",
+        "rest.iad-06.braze.com",
+        "rest.iad-08.braze.com",
+        "rest.fra-01.braze.eu",
+        "rest.fra-02.braze.eu"
+      ]
+    }
+  },
+  "known_parity_gaps": {
+    "subscription_group_handling": "Segment supports updating Braze subscription groups via identify traits (braze_subscription_groups). RudderStack support may differ.",
+    "nested_custom_attributes": "Braze supports nested custom attributes (objects and arrays). Both platforms should pass nested traits as nested custom attributes.",
+    "user_alias_flow": "Both platforms support user_alias for anonymous user tracking before identification. Implementation of alias resolution may have subtle timing differences.",
+    "purchase_event_deduplication": "Order Completed events with products array: Segment creates one purchase per product item. RudderStack should follow the same pattern.",
+    "batching_strategy": "Braze /users/track supports up to 75 total objects per request. Segment and RudderStack may batch differently before sending to Braze API.",
+    "rate_limiting": "Braze rate limit: 3,000 requests per 3 seconds base limit. Both platforms should implement appropriate backoff strategies."
+  },
+  "notes": "Braze shared cloud destination. Categories: Email Marketing, Marketing Automation, SMS & Push. Segment has 4 variants: Classic, Cloud Actions (actions-braze-cloud), Cohorts (actions-braze-cohorts), Web Device Mode (braze-web-device-mode-actions). RudderStack delivers via Router REST API pipeline through the external Transformer service on port 9090. Primary Braze API endpoint is /users/track which accepts attributes, events, and purchases arrays in a single request. Both platforms derive external_id from userId and support user_alias for anonymous users. Braze is a P1 critical enterprise destination in the destination priority ranking."
+}

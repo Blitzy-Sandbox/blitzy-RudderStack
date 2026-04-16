@@ -101,7 +101,7 @@ func NewBaseWebhookReceiver(cfg WebhookConfig, sourceType string, mapper SchemaM
 
 	return &BaseWebhookReceiver{
 		HMACSecret:      cfg.HMACSecret,
-		SignatureHeader:  signatureHeader,
+		SignatureHeader: signatureHeader,
 		Logger:          log,
 		SchemaMapper:    mapper,
 		sourceType:      sourceType,

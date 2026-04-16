@@ -233,6 +233,13 @@ func (bc *backendConfigImpl) configUpdate(ctx context.Context) {
 		LastSync = time.Now().Format(time.RFC3339) // TODO fix concurrent access
 		bc.eb.Publish(string(TopicBackendConfig), sourceJSON)
 		bc.eb.Publish(string(TopicProcessConfig), filteredSourcesJSON)
+		// Publish full workspace config to feature-specific topics so that
+		// Functions, Protocols, and Identity services can subscribe to config
+		// changes relevant to their domain. Subscribers are responsible for
+		// extracting the fields they need from the full ConfigT payload.
+		bc.eb.Publish(string(TopicFunctionsConfig), sourceJSON)
+		bc.eb.Publish(string(TopicProtocolsConfig), sourceJSON)
+		bc.eb.Publish(string(TopicIdentityConfig), sourceJSON)
 	} else {
 		bc.curSourceJSONLock.Unlock()
 	}
@@ -268,6 +275,12 @@ Available topics are:
 - TopicProcessConfig: Will receive only backend configuration of processor enabled destinations
 
 - TopicRegulations: Will receive all regulations
+
+- TopicFunctionsConfig: Will receive backend config updates relevant to Functions runtime
+
+- TopicProtocolsConfig: Will receive backend config updates relevant to Protocols enforcement
+
+- TopicIdentityConfig: Will receive backend config updates relevant to Identity resolution
 */
 func (bc *backendConfigImpl) Subscribe(ctx context.Context, topic Topic) pubsub.DataChannel {
 	return bc.eb.Subscribe(ctx, string(topic))

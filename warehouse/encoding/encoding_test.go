@@ -417,7 +417,7 @@ func TestNewEventLoaderColumnExclusion(t *testing.T) {
 			// Pass excludedColumns to NewEventLoader — column2 should be silently skipped
 			c := ef.NewEventLoader(writer, loadFileType, destinationType, excludedColumns)
 			c.AddColumn("column1", "string", "hello")
-			c.AddColumn("column2", "int", 42)     // This should be skipped by the filtering loader
+			c.AddColumn("column2", "int", 42) // This should be skipped by the filtering loader
 			c.AddColumn("column3", "float", 3.14)
 			c.AddColumn("column4", "string", "world")
 			require.NoError(t, c.Write())
@@ -553,7 +553,7 @@ func TestNewEventLoaderColumnExclusion(t *testing.T) {
 		for range lines {
 			c := ef.NewEventLoader(writer, loadFileType, destinationType, excludedColumns)
 			c.AddColumn("column1", "string", "hello")
-			c.AddColumn("column2", "int", 42)       // excluded
+			c.AddColumn("column2", "int", 42) // excluded
 			c.AddColumn("column3", "float", 3.14)
 			c.AddColumn("column4", "string", "skip") // excluded
 			c.AddColumn("column5", "string", "world")

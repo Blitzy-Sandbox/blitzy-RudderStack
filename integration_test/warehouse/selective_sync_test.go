@@ -22,8 +22,8 @@ import (
 	"github.com/rudderlabs/rudder-go-kit/testhelper/docker/resource/minio"
 	"github.com/rudderlabs/rudder-go-kit/testhelper/docker/resource/postgres"
 
-	"github.com/rudderlabs/rudder-server/warehouse/selectivesync"
 	sqlmw "github.com/rudderlabs/rudder-server/warehouse/integrations/middleware/sqlquerywrapper"
+	"github.com/rudderlabs/rudder-server/warehouse/selectivesync"
 )
 
 // Compile-time interface compliance check: Repository must implement SelectiveSyncRepository.

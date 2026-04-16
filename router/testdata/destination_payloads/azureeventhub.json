@@ -1,0 +1,489 @@
+{
+  "destination_type": "AZURE_EVENT_HUB_EXTENDED",
+  "destination_tier": "stream",
+  "segment_reference_payload": null,
+  "rudderstack_expected_payload": {
+    "producer_package": "services/streammanager/azureeventhub",
+    "producer_constructor": "NewProducer",
+    "producer_interface": "common.StreamProducer",
+    "underlying_protocol": "Azure Event Hubs AMQP 1.0 with extended partition and property support",
+    "description": "Azure Event Hub Extended uses the native Azure Event Hubs SDK (AMQP 1.0 protocol) instead of the Kafka-compatible protocol used by the base AZURE_EVENT_HUB destination. This extended variant provides direct access to Azure Event Hubs features including explicit partition key routing, custom application properties on events, batch send operations, and Event Hubs Capture integration. The NewProducer constructor creates an Azure Event Hubs client authenticated via a connection string or Azure Active Directory (AAD) credentials.",
+    "connection": {
+      "method": "Azure Event Hubs client connection",
+      "protocol": "AMQP 1.0 over TLS (Azure Event Hubs native protocol)",
+      "endpoint": "Azure Event Hubs namespace endpoint (e.g., my-namespace.servicebus.windows.net)",
+      "authentication": {
+        "mechanism": "Connection string (SharedAccessKey) or Azure Active Directory (AAD) with DefaultAzureCredential",
+        "connection_string": "Azure Event Hubs connection string (Endpoint=sb://...;SharedAccessKeyName=...;SharedAccessKey=...;EntityPath=...)",
+        "aad_tenant_id": "Azure AD tenant ID (optional, for AAD authentication)",
+        "aad_client_id": "Azure AD client/application ID (optional, for AAD authentication)",
+        "aad_client_secret": "Azure AD client secret (optional, for AAD authentication)"
+      },
+      "tls": {
+        "enabled": true,
+        "description": "TLS is always enabled for Azure Event Hubs connections (AMQP 1.0 over TLS)"
+      },
+      "connection_timeout": "30 seconds (configurable via Router.AZURE_EVENT_HUB_EXTENDED.connectionTimeout)"
+    },
+    "destination_config": {
+      "eventHubName": "Required. The Event Hub name within the Event Hubs Namespace.",
+      "eventHubsConnectionString": "Required (unless using AAD). Azure Event Hubs connection string starting with Endpoint=sb://.",
+      "useAADAuth": "Optional. Boolean flag to enable Azure Active Directory authentication instead of connection string.",
+      "aadTenantId": "Required when useAADAuth is true. Azure AD tenant ID.",
+      "aadClientId": "Required when useAADAuth is true. Azure AD application/client ID.",
+      "aadClientSecret": "Required when useAADAuth is true. Azure AD client secret.",
+      "partitionKey": "Optional. Static partition key for all events. If empty, userId from event is used.",
+      "enableBatchSend": "Optional. Boolean flag to enable batch send mode for throughput optimization. Default is false.",
+      "maxBatchSize": "Optional. Maximum number of events per batch when batch send is enabled. Default is 100.",
+      "customProperties": "Optional. JSON object of static key-value properties to attach to every event."
+    },
+    "config_validation": {
+      "eventHubName": "cannot be empty",
+      "eventHubsConnectionString": "required when useAADAuth is false; must start with 'Endpoint=sb://'"
+    },
+    "message_format": {
+      "structure": "Azure Event Hubs event with body (JSON payload), partition key, and application properties",
+      "event_hub": "Destination config 'eventHubName' field",
+      "partition_key": "Derived from userId field in the event JSON (gjson path 'userId'); overridden by config partitionKey if set",
+      "body": "JSON-serialized message field from the event payload (via gjson path 'message')",
+      "application_properties": {
+        "eventType": "Event type (track, identify, page, screen, group, alias)",
+        "messageId": "RudderStack messageId for deduplication",
+        "userId": "User identifier from the event",
+        "source": "rudderstack"
+      },
+      "encoding": "JSON serialization via jsonrs.Marshal for the event body"
+    },
+    "sample_track_event": {
+      "input_json": {
+        "message": {
+          "type": "track",
+          "event": "Product Viewed",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+          },
+          "messageId": "msg-uuid-001",
+          "rudderId": "rudder-uuid-001",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "event_hub_message": {
+        "eventHubName": "rudder-events",
+        "partitionKey": "user_123",
+        "body": {
+          "type": "track",
+          "event": "Product Viewed",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets"
+          },
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+          },
+          "messageId": "msg-uuid-001",
+          "rudderId": "rudder-uuid-001",
+          "originalTimestamp": "2026-02-25T12:00:00.000Z",
+          "sentAt": "2026-02-25T12:00:01.000Z",
+          "receivedAt": "2026-02-25T12:00:02.000Z"
+        },
+        "applicationProperties": {
+          "eventType": "track",
+          "messageId": "msg-uuid-001",
+          "userId": "user_123",
+          "source": "rudderstack"
+        }
+      }
+    },
+    "sample_identify_event": {
+      "input_json": {
+        "message": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "traits": {
+            "email": "user@example.com",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "plan": "enterprise"
+          },
+          "timestamp": "2026-02-25T12:01:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-002",
+          "rudderId": "rudder-uuid-002",
+          "originalTimestamp": "2026-02-25T12:01:00.000Z",
+          "sentAt": "2026-02-25T12:01:01.000Z",
+          "receivedAt": "2026-02-25T12:01:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "event_hub_message": {
+        "eventHubName": "rudder-events",
+        "partitionKey": "user_123",
+        "body": {
+          "type": "identify",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "traits": {
+            "email": "user@example.com",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "plan": "enterprise"
+          },
+          "timestamp": "2026-02-25T12:01:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-002",
+          "rudderId": "rudder-uuid-002",
+          "originalTimestamp": "2026-02-25T12:01:00.000Z",
+          "sentAt": "2026-02-25T12:01:01.000Z",
+          "receivedAt": "2026-02-25T12:01:02.000Z"
+        },
+        "applicationProperties": {
+          "eventType": "identify",
+          "messageId": "msg-uuid-002",
+          "userId": "user_123",
+          "source": "rudderstack"
+        }
+      }
+    },
+    "sample_page_event": {
+      "input_json": {
+        "message": {
+          "type": "page",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Home",
+          "properties": {
+            "url": "https://example.com/",
+            "path": "/",
+            "title": "Home Page",
+            "referrer": "https://google.com"
+          },
+          "timestamp": "2026-02-25T12:02:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-003",
+          "rudderId": "rudder-uuid-003",
+          "originalTimestamp": "2026-02-25T12:02:00.000Z",
+          "sentAt": "2026-02-25T12:02:01.000Z",
+          "receivedAt": "2026-02-25T12:02:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "event_hub_message": {
+        "eventHubName": "rudder-events",
+        "partitionKey": "user_123",
+        "body": {
+          "type": "page",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Home",
+          "properties": {
+            "url": "https://example.com/",
+            "path": "/",
+            "title": "Home Page",
+            "referrer": "https://google.com"
+          },
+          "timestamp": "2026-02-25T12:02:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-003",
+          "rudderId": "rudder-uuid-003",
+          "originalTimestamp": "2026-02-25T12:02:00.000Z",
+          "sentAt": "2026-02-25T12:02:01.000Z",
+          "receivedAt": "2026-02-25T12:02:02.000Z"
+        },
+        "applicationProperties": {
+          "eventType": "page",
+          "messageId": "msg-uuid-003",
+          "userId": "user_123",
+          "source": "rudderstack"
+        }
+      }
+    },
+    "sample_screen_event": {
+      "input_json": {
+        "message": {
+          "type": "screen",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Dashboard",
+          "properties": {
+            "feed_type": "recommended",
+            "variant": "control"
+          },
+          "timestamp": "2026-02-25T12:03:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-android",
+              "version": "1.20.0"
+            },
+            "os": {
+              "name": "Android",
+              "version": "14"
+            }
+          },
+          "messageId": "msg-uuid-004",
+          "rudderId": "rudder-uuid-004",
+          "originalTimestamp": "2026-02-25T12:03:00.000Z",
+          "sentAt": "2026-02-25T12:03:01.000Z",
+          "receivedAt": "2026-02-25T12:03:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "event_hub_message": {
+        "eventHubName": "rudder-events",
+        "partitionKey": "user_123",
+        "body": {
+          "type": "screen",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "name": "Dashboard",
+          "properties": {
+            "feed_type": "recommended",
+            "variant": "control"
+          },
+          "timestamp": "2026-02-25T12:03:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-android",
+              "version": "1.20.0"
+            },
+            "os": {
+              "name": "Android",
+              "version": "14"
+            }
+          },
+          "messageId": "msg-uuid-004",
+          "rudderId": "rudder-uuid-004",
+          "originalTimestamp": "2026-02-25T12:03:00.000Z",
+          "sentAt": "2026-02-25T12:03:01.000Z",
+          "receivedAt": "2026-02-25T12:03:02.000Z"
+        },
+        "applicationProperties": {
+          "eventType": "screen",
+          "messageId": "msg-uuid-004",
+          "userId": "user_123",
+          "source": "rudderstack"
+        }
+      }
+    },
+    "sample_group_event": {
+      "input_json": {
+        "message": {
+          "type": "group",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "groupId": "group_789",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "plan": "enterprise",
+            "employees": 250
+          },
+          "timestamp": "2026-02-25T12:04:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-005",
+          "rudderId": "rudder-uuid-005",
+          "originalTimestamp": "2026-02-25T12:04:00.000Z",
+          "sentAt": "2026-02-25T12:04:01.000Z",
+          "receivedAt": "2026-02-25T12:04:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "event_hub_message": {
+        "eventHubName": "rudder-events",
+        "partitionKey": "user_123",
+        "body": {
+          "type": "group",
+          "userId": "user_123",
+          "anonymousId": "anon_456",
+          "groupId": "group_789",
+          "traits": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "plan": "enterprise",
+            "employees": 250
+          },
+          "timestamp": "2026-02-25T12:04:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-005",
+          "rudderId": "rudder-uuid-005",
+          "originalTimestamp": "2026-02-25T12:04:00.000Z",
+          "sentAt": "2026-02-25T12:04:01.000Z",
+          "receivedAt": "2026-02-25T12:04:02.000Z"
+        },
+        "applicationProperties": {
+          "eventType": "group",
+          "messageId": "msg-uuid-005",
+          "userId": "user_123",
+          "source": "rudderstack"
+        }
+      }
+    },
+    "sample_alias_event": {
+      "input_json": {
+        "message": {
+          "type": "alias",
+          "userId": "user_123",
+          "previousId": "old_user_456",
+          "timestamp": "2026-02-25T12:05:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-006",
+          "rudderId": "rudder-uuid-006",
+          "originalTimestamp": "2026-02-25T12:05:00.000Z",
+          "sentAt": "2026-02-25T12:05:01.000Z",
+          "receivedAt": "2026-02-25T12:05:02.000Z"
+        },
+        "userId": "user_123"
+      },
+      "event_hub_message": {
+        "eventHubName": "rudder-events",
+        "partitionKey": "user_123",
+        "body": {
+          "type": "alias",
+          "userId": "user_123",
+          "previousId": "old_user_456",
+          "timestamp": "2026-02-25T12:05:00.000Z",
+          "context": {
+            "library": {
+              "name": "rudder-sdk-js",
+              "version": "2.48.0"
+            },
+            "ip": "203.0.113.50"
+          },
+          "messageId": "msg-uuid-006",
+          "rudderId": "rudder-uuid-006",
+          "originalTimestamp": "2026-02-25T12:05:00.000Z",
+          "sentAt": "2026-02-25T12:05:01.000Z",
+          "receivedAt": "2026-02-25T12:05:02.000Z"
+        },
+        "applicationProperties": {
+          "eventType": "alias",
+          "messageId": "msg-uuid-006",
+          "userId": "user_123",
+          "source": "rudderstack"
+        }
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "note": "No Segment equivalent. This is an extended Azure Event Hub destination using the native AMQP 1.0 protocol. The base AZURE_EVENT_HUB destination uses the Kafka-compatible protocol via the shared Kafka producer. This extended variant provides direct Azure Event Hubs SDK features not available through the Kafka compatibility layer.",
+    "producer_routing": "AZURE_EVENT_HUB_EXTENDED destination name routes through streammanager.NewProducer switch to azureeventhub.NewProducer",
+    "relationship_to_base": "The base AZURE_EVENT_HUB destination uses the Kafka-compatible endpoint (port 9093) via services/streammanager/kafka/NewProducerForAzureEventHubs. This AZURE_EVENT_HUB_EXTENDED variant uses the native AMQP 1.0 protocol for direct Azure Event Hubs SDK access",
+    "event_hub_name": "Derived from the destination config 'eventHubName' field; the specific Event Hub within the Event Hubs Namespace",
+    "partition_key": "Derived from userId field in the event JSON (gjson path 'userId'); used for consistent partition routing within the Event Hub. Can be overridden by static partitionKey in config",
+    "body": "The message field from the input JSON is extracted and JSON-serialized as the Event Hub event body",
+    "application_properties": "Azure Event Hubs application properties (key-value metadata) include eventType, messageId, userId, and source for downstream consumer filtering",
+    "custom_properties": "Additional static properties can be configured via the customProperties config field and are merged with event-level properties",
+    "timestamp_handling": "Event Hub enqueued time is assigned by the Azure broker; the event's original timestamp is preserved within the event body payload",
+    "batch_send": "Optional batch send mode accumulates events and sends as an EventDataBatch for throughput optimization",
+    "aad_auth": "Supports Azure Active Directory authentication via DefaultAzureCredential as an alternative to connection string-based authentication",
+    "envelope_fields": "RudderStack events include rudderId, originalTimestamp, sentAt, receivedAt — these are preserved within the event body payload",
+    "capture_integration": "Events sent via the AMQP protocol are compatible with Azure Event Hubs Capture for automatic archival to Azure Blob Storage or Azure Data Lake"
+  },
+  "producer_details": {
+    "constructor": "NewProducer",
+    "package": "services/streammanager/azureeventhub",
+    "config_struct": "azureEventHubExtendedConfig",
+    "config_fields": {
+      "EventHubName": "The Event Hub name within the Namespace",
+      "EventHubsConnectionString": "Connection string starting with Endpoint=sb:// (when not using AAD auth)",
+      "UseAADAuth": "Boolean flag for Azure Active Directory authentication",
+      "AADTenantId": "Azure AD tenant ID (when UseAADAuth is true)",
+      "AADClientId": "Azure AD application/client ID (when UseAADAuth is true)",
+      "AADClientSecret": "Azure AD client secret (when UseAADAuth is true)",
+      "PartitionKey": "Optional static partition key (overrides userId-based partitioning)",
+      "EnableBatchSend": "Boolean flag for batch send mode (default: false)",
+      "MaxBatchSize": "Maximum events per batch (default: 100)",
+      "CustomProperties": "JSON object of static key-value properties for every event"
+    },
+    "default_connection_timeout_seconds": 30,
+    "metrics": {
+      "creation_time": "router.azureeventhub_extended.creation_time",
+      "produce_time": "router.azureeventhub_extended.produce_time",
+      "publish_time": "router.azureeventhub_extended.publish_time",
+      "close_time": "router.azureeventhub_extended.close_producer_time",
+      "missing_user_id": "router.azureeventhub_extended.missing_user_id",
+      "missing_message": "router.azureeventhub_extended.missing_message",
+      "batch_size": "router.azureeventhub_extended.batch_size"
+    }
+  },
+  "parity_status": "not_applicable",
+  "parity_coverage_percent": null,
+  "notes": "Azure Event Hub Extended (AZURE_EVENT_HUB_EXTENDED) is a RudderStack-unique stream destination that provides direct access to Azure Event Hubs features via the native AMQP 1.0 protocol. This is distinct from the base AZURE_EVENT_HUB destination which uses the Kafka-compatible protocol (port 9093) via the shared Kafka producer package (services/streammanager/kafka/NewProducerForAzureEventHubs). The extended variant offers advantages including: (1) Azure Active Directory (AAD) authentication as an alternative to connection strings, (2) explicit partition key control via application properties, (3) custom application properties on each event for downstream consumer routing, (4) batch send operations via EventDataBatch for throughput optimization, and (5) native compatibility with Azure Event Hubs Capture for automatic archival. Segment does not have an Azure Event Hub destination in its catalog, so there is no parity comparison. The extended destination is registered in the stream manager factory (services/streammanager/streammanager.go) and listed in the Custom Destination Manager's ObjectStreamDestinations array (router/customdestinationmanager/customdestinationmanager.go). Since there is no direct Segment equivalent, payload parity comparison is not applicable — this fixture documents RudderStack's Azure Event Hub Extended payload format for regression testing and field-by-field validation."
+}

@@ -79,10 +79,10 @@ type App struct {
 	// These fields are nil-safe: when the corresponding feature is disabled,
 	// the subsystem is still instantiated but its Run() method returns immediately
 	// or its predicates return safe defaults (e.g., include everything for selective sync).
-	backfillService  *backfill.BackfillService        // E-032: Backfill orchestrator
-	healthMonitor    *healthmonitor.HealthMonitor      // E-033: Health monitoring aggregator
+	backfillService  *backfill.BackfillService           // E-032: Backfill orchestrator
+	healthMonitor    *healthmonitor.HealthMonitor        // E-033: Health monitoring aggregator
 	selectiveSyncSvc *selectivesync.SelectiveSyncService // E-034: Selective sync filter service
-	replayHandler    *replay.ReplayHandler             // E-035: Warehouse replay orchestrator
+	replayHandler    *replay.ReplayHandler               // E-035: Warehouse replay orchestrator
 
 	appName string
 

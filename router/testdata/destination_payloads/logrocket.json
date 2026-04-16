@@ -1,0 +1,338 @@
+{
+  "destination_type": "LOGROCKET",
+  "destination_tier": "cloud",
+  "segment_slug": "actions-logrocket",
+  "category": "Heatmaps & Recordings",
+  "event_types": ["track", "identify"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment sends track events to LogRocket via the Actions-based web destination. The LogRocket SDK track() method is invoked client-side to record custom events for session filtering and tagging.",
+      "endpoint": "LogRocket.track(eventName, eventProperties)",
+      "delivery_mode": "web_device_mode",
+      "example": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "category": "Widgets",
+          "currency": "USD"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "title": "Premium Widget - Example Store",
+            "referrer": "https://example.com/products"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "msg-seg-track-001"
+      },
+      "mapped_output": {
+        "method": "LogRocket.track",
+        "args": {
+          "event_name": "Product Viewed",
+          "event_properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets",
+            "currency": "USD"
+          }
+        }
+      }
+    },
+    "identify": {
+      "description": "Segment sends identify events to LogRocket via the Actions-based web destination. The LogRocket SDK identify() method is invoked client-side to associate user traits with the current recording session.",
+      "endpoint": "LogRocket.identify(userId, userTraits)",
+      "delivery_mode": "web_device_mode",
+      "example": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "traits": {
+          "email": "jane@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "company": "Example Corp",
+          "created_at": "2025-01-15T08:30:00.000Z",
+          "role": "admin"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://example.com/dashboard",
+            "title": "Dashboard - Example Store"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "msg-seg-identify-001"
+      },
+      "mapped_output": {
+        "method": "LogRocket.identify",
+        "args": {
+          "user_id": "user_123",
+          "user_traits": {
+            "email": "jane@example.com",
+            "name": "Jane Doe",
+            "plan": "enterprise",
+            "company": "Example Corp",
+            "created_at": "2025-01-15T08:30:00.000Z",
+            "role": "admin"
+          }
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack sends track events to LogRocket via the cloud destination Router. The Transformer service maps RudderStack event fields to LogRocket's track API format. Events are delivered as REST API calls from the server side.",
+      "endpoint": "LogRocket.track(eventName, eventProperties)",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "category": "Widgets",
+          "currency": "USD"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "title": "Premium Widget - Example Store",
+            "referrer": "https://example.com/products"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "msg-rs-track-001",
+        "rudderId": "rudder-uuid-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "mapped_output": {
+        "method": "LogRocket.track",
+        "args": {
+          "event_name": "Product Viewed",
+          "event_properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "category": "Widgets",
+            "currency": "USD"
+          }
+        }
+      }
+    },
+    "identify": {
+      "description": "RudderStack sends identify events to LogRocket via the cloud destination Router. The Transformer service maps RudderStack traits to LogRocket's identify API format.",
+      "endpoint": "LogRocket.identify(userId, userTraits)",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "traits": {
+          "email": "jane@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "company": "Example Corp",
+          "created_at": "2025-01-15T08:30:00.000Z",
+          "role": "admin"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://example.com/dashboard",
+            "title": "Dashboard - Example Store"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "msg-rs-identify-001",
+        "rudderId": "rudder-uuid-002",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "mapped_output": {
+        "method": "LogRocket.identify",
+        "args": {
+          "user_id": "user_123",
+          "user_traits": {
+            "email": "jane@example.com",
+            "name": "Jane Doe",
+            "plan": "enterprise",
+            "company": "Example Corp",
+            "created_at": "2025-01-15T08:30:00.000Z",
+            "role": "admin"
+          }
+        }
+      }
+    }
+  },
+  "field_mappings": {
+    "user_identification": {
+      "userId": {
+        "segment_mapping": "userId from identify call maps directly to LogRocket.identify() first argument",
+        "rudderstack_mapping": "userId from identify call maps directly to LogRocket.identify() first argument",
+        "parity": "equivalent"
+      },
+      "traits": {
+        "segment_mapping": "traits object passed as second argument to LogRocket.identify(userId, traits). All trait key-value pairs become searchable user attributes in LogRocket dashboard.",
+        "rudderstack_mapping": "traits object passed as second argument to LogRocket.identify(userId, traits). Transformer maps traits to LogRocket user properties format.",
+        "parity": "equivalent"
+      },
+      "anonymousId": {
+        "segment_mapping": "Not directly passed to LogRocket. LogRocket generates its own anonymous session ID for unidentified users.",
+        "rudderstack_mapping": "Not directly passed to LogRocket. LogRocket generates its own anonymous session ID for unidentified users.",
+        "parity": "equivalent"
+      },
+      "email": {
+        "segment_mapping": "Passed as traits.email; becomes primary user lookup field in LogRocket dashboard filters.",
+        "rudderstack_mapping": "Passed as traits.email; becomes primary user lookup field in LogRocket dashboard filters.",
+        "parity": "equivalent"
+      },
+      "name": {
+        "segment_mapping": "Passed as traits.name; displayed in LogRocket session list and user profile.",
+        "rudderstack_mapping": "Passed as traits.name; displayed in LogRocket session list and user profile.",
+        "parity": "equivalent"
+      }
+    },
+    "session_tracking": {
+      "session_url_capture": {
+        "segment_mapping": "LogRocket.getSessionURL() callback sends session recording URL back to Segment via analytics.track('LogRocket', { sessionURL }). Enables cross-referencing sessions with other analytics tools.",
+        "rudderstack_mapping": "LogRocket.getSessionURL() callback can send session recording URL back to RudderStack via rudderanalytics.track('LogRocket', { sessionURL }). Same cross-referencing capability.",
+        "parity": "equivalent"
+      },
+      "recording_config": {
+        "segment_mapping": "appID configured in Segment destination settings. Additional options: full network sanitization (yes/no), full input sanitization (yes/no). Advanced privacy via window.logRocketSettings.",
+        "rudderstack_mapping": "appID configured in RudderStack destination settings. Sanitization and privacy settings configured via destination config or SDK-level initialization options.",
+        "parity": "equivalent"
+      }
+    },
+    "custom_event_mapping": {
+      "event_name": {
+        "segment_mapping": "track call event field maps directly to LogRocket.track() first argument. Events become searchable via Custom Event filter in LogRocket dashboard.",
+        "rudderstack_mapping": "track call event field maps directly to LogRocket.track() first argument. Events become searchable via Custom Event filter in LogRocket dashboard.",
+        "parity": "equivalent"
+      },
+      "event_properties": {
+        "segment_mapping": "track call properties object passed as second argument to LogRocket.track(event, properties). Property values must be string, number, or boolean types (LogRocket limitation).",
+        "rudderstack_mapping": "track call properties object passed as second argument to LogRocket.track(event, properties). Property values must be string, number, or boolean types (LogRocket limitation).",
+        "parity": "equivalent"
+      },
+      "revenue_tracking": {
+        "segment_mapping": "properties.revenue included in track call for purchase/order events. LogRocket records revenue as a numeric custom event property.",
+        "rudderstack_mapping": "properties.revenue included in track call for purchase/order events. LogRocket records revenue as a numeric custom event property.",
+        "parity": "equivalent"
+      }
+    },
+    "context_fields": {
+      "library": {
+        "segment_mapping": "context.library.name = 'analytics.js'",
+        "rudderstack_mapping": "context.library.name = 'rudder-sdk-js'",
+        "parity": "different_sdk_identifier"
+      },
+      "page_context": {
+        "segment_mapping": "context.page includes url, title, referrer. LogRocket captures page context independently via its SDK; Segment page context provides supplementary data.",
+        "rudderstack_mapping": "context.page includes url, title, referrer. Same supplementary page context pattern.",
+        "parity": "equivalent"
+      },
+      "envelope_fields": {
+        "segment_mapping": "Standard Segment envelope: type, messageId, timestamp",
+        "rudderstack_mapping": "RudderStack adds additional envelope fields: rudderId, originalTimestamp, sentAt, receivedAt",
+        "parity": "rudderstack_superset"
+      }
+    }
+  },
+  "destination_config": {
+    "required_settings": {
+      "appID": {
+        "description": "LogRocket application ID from Settings > Project Setup in LogRocket dashboard (e.g., 'org-slug/app-slug')",
+        "type": "string",
+        "required": true
+      }
+    },
+    "optional_settings": {
+      "sanitize_network": {
+        "description": "Enable full network request/response sanitization to prevent sensitive data from being captured in session recordings",
+        "type": "boolean",
+        "default": false
+      },
+      "sanitize_inputs": {
+        "description": "Enable full text input sanitization to prevent user-typed content from appearing in session recordings",
+        "type": "boolean",
+        "default": false
+      }
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "needs_verification",
+    "track_parity": "high",
+    "identify_parity": "high",
+    "known_gaps": [
+      {
+        "gap_id": "LR-001",
+        "description": "Segment LogRocket destination (actions-logrocket) is a web/device-mode Actions destination that executes via bundled client-side JavaScript. RudderStack delivers LogRocket events via cloud-mode REST API through the Router. This architectural difference means Segment's integration runs within the same browser context as LogRocket's session recording SDK, while RudderStack sends events server-side.",
+        "severity": "medium",
+        "impact": "Server-side delivery may not correlate events with active LogRocket recording sessions as seamlessly as client-side device-mode delivery. Session URL cross-referencing requires client-side SDK initialization in both architectures."
+      },
+      {
+        "gap_id": "LR-002",
+        "description": "Segment's Actions-based architecture allows configurable trigger conditions and field mappings per action (Identify, Track). RudderStack uses fixed Transformer-defined mappings for LogRocket events.",
+        "severity": "low",
+        "impact": "Users cannot customize which Segment spec fields map to LogRocket fields without modifying Transformer logic. Standard track/identify mapping covers the primary use case."
+      },
+      {
+        "gap_id": "LR-003",
+        "description": "LogRocket property types are restricted to string, number, and boolean. Complex nested objects or arrays in event properties must be flattened or serialized before being sent to LogRocket.",
+        "severity": "low",
+        "impact": "Both Segment and RudderStack must handle property type coercion. Verification needed to ensure both platforms apply the same flattening/serialization strategy for complex properties."
+      },
+      {
+        "gap_id": "LR-004",
+        "description": "RudderStack event payloads include additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) not present in Segment payloads. These fields are not passed to LogRocket's SDK methods but exist in the event pipeline.",
+        "severity": "info",
+        "impact": "No impact on LogRocket functionality. Additional fields are stripped during Transformer mapping before delivery to LogRocket API."
+      }
+    ],
+    "recommended_validation": [
+      "Send identical track events through both Segment and RudderStack to the same LogRocket project and compare Custom Event entries in the LogRocket dashboard",
+      "Send identical identify events and verify user traits appear consistently in LogRocket user profiles",
+      "Verify session URL cross-referencing works in both platforms by sending LogRocket session URLs back to the respective CDP",
+      "Test complex property types (nested objects, arrays, null values) to verify consistent type coercion behavior",
+      "Compare LogRocket dashboard search/filter results for events ingested via both platforms"
+    ]
+  },
+  "notes": "LogRocket is a shared cloud destination in the Heatmaps & Recordings category. Segment slug: actions-logrocket (Actions-based web destination). RudderStack delivers via cloud-mode REST API through the Router with Transformer-based event mapping. LogRocket SDK provides two primary methods mapped from Segment spec: identify(userId, traits) for user identification and track(eventName, properties) for custom event tracking. Both methods enable session filtering and user association in LogRocket's session replay dashboard. The primary architectural difference is Segment's device-mode delivery (client-side SDK bundling) versus RudderStack's cloud-mode delivery (server-side REST API). Payload parity is expected to be high for field mapping since both platforms ultimately invoke the same LogRocket SDK methods with equivalent parameters. Configuration requires LogRocket appID from the project settings."
+}

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -499,6 +500,41 @@ func (rt *Handle) commitStatusList(workerJobStatuses *[]workerJobStatus) {
 			completedJobsList = append(completedJobsList, workerJobStatus.job)
 		}
 
+		// Delivery Dashboard Metrics (E-036): record per-destination delivery outcomes
+		destinationName := ""
+		rt.destinationsMapMu.RLock()
+		if dest, ok := rt.destinationsMap[parameters.DestinationID]; ok {
+			destinationName = dest.Destination.Name
+		}
+		rt.destinationsMapMu.RUnlock()
+
+		// Delivery latency: end-to-end duration from job creation to delivery outcome.
+		// Recorded for all terminal states (success, failure, aborted) to produce
+		// accurate p50/p95/p99 percentile distributions in the monitoring dashboard.
+		deliveryLatency := time.Since(workerJobStatus.job.CreatedAt)
+
+		switch workerJobStatus.status.JobState {
+		case jobsdb.Succeeded.State, jobsdb.Filtered.State:
+			rt.recordDeliverySuccess(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId)
+			rt.recordDeliveryLatency(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId, deliveryLatency)
+			// Successful delivery implies the circuit breaker allows traffic through.
+			rt.recordCircuitBreakerState(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId, "closed")
+		case jobsdb.Failed.State:
+			rt.recordDeliveryFailure(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId, workerJobStatus.status.ErrorCode)
+			rt.recordDeliveryLatency(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId, deliveryLatency)
+			if workerJobStatus.status.AttemptNum > 1 {
+				rt.recordRetryCount(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId)
+			}
+			// Detect circuit breaker open state from the error response set by
+			// customdestinationmanager when gobreaker.ErrOpenState is returned.
+			if strings.Contains(string(workerJobStatus.status.ErrorResponse), "circuit breaker is open") {
+				rt.recordCircuitBreakerState(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId, "open")
+			}
+		case jobsdb.Aborted.State:
+			rt.recordDeliveryFailure(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId, workerJobStatus.status.ErrorCode)
+			rt.recordDeliveryLatency(parameters.DestinationID, destinationName, workerJobStatus.job.WorkspaceId, deliveryLatency)
+		}
+
 		// REPORTING - ROUTER - END
 
 		statusList = append(statusList, workerJobStatus.status)
@@ -572,6 +608,40 @@ func (rt *Handle) commitStatusList(workerJobStatuses *[]workerJobStatus) {
 			panic(err)
 		}
 		routerutils.UpdateProcessedEventsMetrics(stats.Default, module, rt.destType, statusList, jobIDConnectionDetailsMap)
+	}
+
+	// Delivery Dashboard: Per-destination throughput tracking (E-036)
+	// Aggregate successful delivery counts per destination, then record throughput
+	// for each destination individually to enable per-destination dashboard views.
+	if len(statusList) > 0 {
+		type destKey struct {
+			destinationID   string
+			destinationName string
+			workspaceID     string
+		}
+		destCounts := make(map[destKey]int)
+		for _, resp := range *workerJobStatuses {
+			if resp.status.JobState == jobsdb.Succeeded.State {
+				var params routerutils.JobParameters
+				if err := jsonrs.Unmarshal(resp.job.Parameters, &params); err == nil {
+					dName := ""
+					rt.destinationsMapMu.RLock()
+					if dest, ok := rt.destinationsMap[params.DestinationID]; ok {
+						dName = dest.Destination.Name
+					}
+					rt.destinationsMapMu.RUnlock()
+					key := destKey{
+						destinationID:   params.DestinationID,
+						destinationName: dName,
+						workspaceID:     resp.job.WorkspaceId,
+					}
+					destCounts[key]++
+				}
+			}
+		}
+		for key, count := range destCounts {
+			rt.recordDeliveryThroughput(key.destinationID, key.destinationName, key.workspaceID, count)
+		}
 	}
 
 	if rt.guaranteeUserEventOrder {

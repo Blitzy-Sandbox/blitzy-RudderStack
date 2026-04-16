@@ -1,0 +1,418 @@
+{
+  "destination_type": "SNOWFLAKE",
+  "destination_tier": "warehouse",
+  "segment_reference_payload": {
+    "description": "Segment loads data into Snowflake via S3 staging with COPY INTO. All staging files are CSV format with gzip compression. Column names follow Segment conventions (snake_case, lowercase in source but Snowflake stores as uppercase by default).",
+    "staging": {
+      "object_storage": "S3",
+      "file_format": "CSV",
+      "compression": "gzip",
+      "pattern": ".*\\.csv\\.gz",
+      "staging_type": "external",
+      "copy_command": "COPY INTO <schema>.<table>(<columns>) FROM '<s3_path>' CREDENTIALS=(...) PATTERN='.*\\.csv\\.gz' FILE_FORMAT=(TYPE=csv FIELD_OPTIONALLY_ENCLOSED_BY='\"' ESCAPE_UNENCLOSED_FIELD=NONE) TRUNCATECOLUMNS=TRUE"
+    },
+    "tables": {
+      "tracks": {
+        "description": "One row per track event. Table name: TRACKS (uppercase).",
+        "columns": {
+          "id": "VARCHAR — unique event identifier",
+          "anonymous_id": "VARCHAR — anonymous user identifier",
+          "user_id": "VARCHAR — identified user identifier",
+          "event": "VARCHAR — event name",
+          "event_text": "VARCHAR — human-readable event name",
+          "sent_at": "TIMESTAMP_TZ — client-side send time",
+          "received_at": "TIMESTAMP_TZ — server-side receipt time",
+          "original_timestamp": "TIMESTAMP_TZ — client-side original timestamp",
+          "timestamp": "TIMESTAMP_TZ — canonical event timestamp",
+          "context_ip": "VARCHAR — IP address from context",
+          "context_library_name": "VARCHAR — SDK library name (analytics.js)",
+          "context_library_version": "VARCHAR — SDK library version",
+          "uuid_ts": "TIMESTAMP_TZ — deduplication timestamp"
+        },
+        "sample_row": {
+          "id": "msg-abc-123",
+          "anonymous_id": "anon-456",
+          "user_id": "user_123",
+          "event": "Product Viewed",
+          "event_text": "Product Viewed",
+          "sent_at": "2026-02-25T12:00:01.000Z",
+          "received_at": "2026-02-25T12:00:02.000Z",
+          "original_timestamp": "2026-02-25T12:00:00.000Z",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "context_ip": "203.0.113.42",
+          "context_library_name": "analytics.js",
+          "context_library_version": "2.1.0",
+          "uuid_ts": "2026-02-25T12:00:02.000Z"
+        }
+      },
+      "identifies": {
+        "description": "One row per identify event. Table name: IDENTIFIES (uppercase).",
+        "columns": {
+          "id": "VARCHAR — unique event identifier",
+          "anonymous_id": "VARCHAR — anonymous user identifier",
+          "user_id": "VARCHAR — identified user identifier",
+          "sent_at": "TIMESTAMP_TZ — client-side send time",
+          "received_at": "TIMESTAMP_TZ — server-side receipt time",
+          "original_timestamp": "TIMESTAMP_TZ — client-side original timestamp",
+          "timestamp": "TIMESTAMP_TZ — canonical event timestamp",
+          "context_ip": "VARCHAR — IP address from context",
+          "context_library_name": "VARCHAR — SDK library name",
+          "context_library_version": "VARCHAR — SDK library version",
+          "email": "VARCHAR — trait: email",
+          "name": "VARCHAR — trait: name",
+          "uuid_ts": "TIMESTAMP_TZ — deduplication timestamp"
+        }
+      },
+      "users": {
+        "description": "Deduplicated user traits table. Merged from identifies via primary key ID. Table name: USERS (uppercase).",
+        "columns": {
+          "id": "VARCHAR — user_id (primary key)",
+          "anonymous_id": "VARCHAR — last known anonymous_id",
+          "received_at": "TIMESTAMP_TZ — last update time",
+          "email": "VARCHAR — trait: email",
+          "name": "VARCHAR — trait: name",
+          "uuid_ts": "TIMESTAMP_TZ — deduplication timestamp"
+        }
+      },
+      "pages": {
+        "description": "One row per page event. Table name: PAGES (uppercase).",
+        "columns": {
+          "id": "VARCHAR — unique event identifier",
+          "anonymous_id": "VARCHAR — anonymous user identifier",
+          "user_id": "VARCHAR — identified user identifier",
+          "name": "VARCHAR — page name",
+          "path": "VARCHAR — page path",
+          "url": "VARCHAR — full page URL",
+          "title": "VARCHAR — page title",
+          "referrer": "VARCHAR — referrer URL",
+          "sent_at": "TIMESTAMP_TZ",
+          "received_at": "TIMESTAMP_TZ",
+          "timestamp": "TIMESTAMP_TZ",
+          "uuid_ts": "TIMESTAMP_TZ"
+        }
+      },
+      "screens": {
+        "description": "One row per screen event. Table name: SCREENS (uppercase).",
+        "columns": {
+          "id": "VARCHAR — unique event identifier",
+          "anonymous_id": "VARCHAR",
+          "user_id": "VARCHAR",
+          "name": "VARCHAR — screen name",
+          "sent_at": "TIMESTAMP_TZ",
+          "received_at": "TIMESTAMP_TZ",
+          "timestamp": "TIMESTAMP_TZ",
+          "uuid_ts": "TIMESTAMP_TZ"
+        }
+      },
+      "groups": {
+        "description": "One row per group event. Table name: GROUPS (uppercase).",
+        "columns": {
+          "id": "VARCHAR — unique event identifier",
+          "anonymous_id": "VARCHAR",
+          "user_id": "VARCHAR",
+          "group_id": "VARCHAR — group identifier",
+          "sent_at": "TIMESTAMP_TZ",
+          "received_at": "TIMESTAMP_TZ",
+          "timestamp": "TIMESTAMP_TZ",
+          "uuid_ts": "TIMESTAMP_TZ"
+        }
+      },
+      "aliases": {
+        "description": "One row per alias event. Table name: ALIASES (uppercase).",
+        "columns": {
+          "id": "VARCHAR — unique event identifier",
+          "previous_id": "VARCHAR — previous user identifier",
+          "user_id": "VARCHAR — new user identifier",
+          "sent_at": "TIMESTAMP_TZ",
+          "received_at": "TIMESTAMP_TZ",
+          "timestamp": "TIMESTAMP_TZ",
+          "uuid_ts": "TIMESTAMP_TZ"
+        }
+      }
+    },
+    "column_naming": {
+      "convention": "Segment uses snake_case column names. Snowflake stores identifiers as uppercase by default when unquoted. Segment columns appear as uppercase in Snowflake (e.g., ANONYMOUS_ID, USER_ID, RECEIVED_AT).",
+      "context_flattening": "Nested context fields are flattened with underscore separators: context.library.name → CONTEXT_LIBRARY_NAME",
+      "properties_flattening": "Event properties are flattened as top-level columns: properties.product_id → PRODUCT_ID",
+      "traits_flattening": "Identify traits become top-level columns in IDENTIFIES and USERS: traits.email → EMAIL"
+    },
+    "loading_method": {
+      "primary": "S3 staging → COPY INTO",
+      "merge_strategy": "Append-only for event tables (TRACKS, IDENTIFIES, PAGES, SCREENS, GROUPS, ALIASES). USERS table is deduplicated/merged.",
+      "deduplication": "Uses uuid_ts column for deduplication in USERS table merge"
+    }
+  },
+  "rudderstack_expected_payload": {
+    "description": "RudderStack loads data into Snowflake via S3/GCS/Azure Blob staging with COPY INTO, or via Snowpipe Streaming API (RudderStack-unique). Staging files are CSV format with gzip compression. Column names are UPPERCASE (Snowflake provider case convention applied via ToProviderCase).",
+    "staging": {
+      "object_storage": ["S3", "GCS", "AZURE_BLOB"],
+      "file_format": "CSV",
+      "compression": "gzip",
+      "pattern": ".*\\.csv\\.gz",
+      "staging_type": ["internal", "external"],
+      "copy_command": "COPY INTO <schema>.\"<table>\"(<columns>) FROM '<storage_path>' <auth> PATTERN='.*\\.csv\\.gz' FILE_FORMAT=(TYPE=csv FIELD_OPTIONALLY_ENCLOSED_BY='\"' ESCAPE_UNENCLOSED_FIELD=NONE) TRUNCATECOLUMNS=TRUE",
+      "auth_methods": {
+        "aws_credentials": "CREDENTIALS=(AWS_KEY_ID='...' AWS_SECRET_KEY='...' AWS_TOKEN='...')",
+        "storage_integration": "STORAGE_INTEGRATION=<integration_name>"
+      }
+    },
+    "snowpipe_streaming": {
+      "description": "Snowpipe Streaming is a RudderStack-unique loading method that uses the Snowflake Snowpipe Streaming API for low-latency ingestion. Not available in Segment.",
+      "enabled_via": "Destination config — useSnowpipeStreaming setting",
+      "provider_constant": "SNOWPIPE_STREAMING",
+      "latency": "Near real-time (seconds vs minutes for batch COPY INTO)"
+    },
+    "tables": {
+      "tracks": {
+        "description": "One row per track event. Table name: TRACKS (uppercase, via ToProviderCase for SNOWFLAKE).",
+        "columns": {
+          "ID": "VARCHAR — unique event identifier (messageId)",
+          "ANONYMOUS_ID": "VARCHAR — anonymous user identifier",
+          "USER_ID": "VARCHAR — identified user identifier",
+          "EVENT": "VARCHAR — event name",
+          "EVENT_TEXT": "VARCHAR — human-readable event name",
+          "SENT_AT": "TIMESTAMP_TZ — client-side send time",
+          "RECEIVED_AT": "TIMESTAMP_TZ — server-side receipt time",
+          "ORIGINAL_TIMESTAMP": "TIMESTAMP_TZ — client-side original timestamp",
+          "TIMESTAMP": "TIMESTAMP_TZ — canonical event timestamp",
+          "CONTEXT_IP": "VARCHAR — IP address from context",
+          "CONTEXT_LIBRARY_NAME": "VARCHAR — SDK library name (rudder-sdk-js, rudder-sdk-go, etc.)",
+          "CONTEXT_LIBRARY_VERSION": "VARCHAR — SDK library version",
+          "UUID_TS": "TIMESTAMP_TZ — deduplication timestamp (RudderStack-specific)",
+          "LOADED_AT": "TIMESTAMP_TZ — warehouse load timestamp (RudderStack-specific)"
+        },
+        "sample_row": {
+          "ID": "msg-xyz-789",
+          "ANONYMOUS_ID": "anon-456",
+          "USER_ID": "user_123",
+          "EVENT": "Product Viewed",
+          "EVENT_TEXT": "Product Viewed",
+          "SENT_AT": "2026-02-25T12:00:01.000Z",
+          "RECEIVED_AT": "2026-02-25T12:00:02.000Z",
+          "ORIGINAL_TIMESTAMP": "2026-02-25T12:00:00.000Z",
+          "TIMESTAMP": "2026-02-25T12:00:00.000Z",
+          "CONTEXT_IP": "203.0.113.42",
+          "CONTEXT_LIBRARY_NAME": "rudder-sdk-js",
+          "CONTEXT_LIBRARY_VERSION": "2.48.0",
+          "UUID_TS": "2026-02-25T12:00:02.000Z",
+          "LOADED_AT": "2026-02-25T12:05:00.000Z"
+        }
+      },
+      "identifies": {
+        "description": "One row per identify event. Table name: IDENTIFIES (uppercase). Primary key: ID.",
+        "columns": {
+          "ID": "VARCHAR — unique event identifier",
+          "ANONYMOUS_ID": "VARCHAR — anonymous user identifier",
+          "USER_ID": "VARCHAR — identified user identifier",
+          "SENT_AT": "TIMESTAMP_TZ — client-side send time",
+          "RECEIVED_AT": "TIMESTAMP_TZ — server-side receipt time",
+          "ORIGINAL_TIMESTAMP": "TIMESTAMP_TZ — client-side original timestamp",
+          "TIMESTAMP": "TIMESTAMP_TZ — canonical event timestamp",
+          "CONTEXT_IP": "VARCHAR — IP address from context",
+          "CONTEXT_LIBRARY_NAME": "VARCHAR — SDK library name",
+          "CONTEXT_LIBRARY_VERSION": "VARCHAR — SDK library version",
+          "EMAIL": "VARCHAR — trait: email",
+          "NAME": "VARCHAR — trait: name",
+          "UUID_TS": "TIMESTAMP_TZ — deduplication timestamp"
+        }
+      },
+      "users": {
+        "description": "Deduplicated user traits table. Merged from identifies via MERGE statement with staging table. Primary key: ID (derived from USER_ID). Table name: USERS (uppercase).",
+        "columns": {
+          "ID": "VARCHAR — user_id as primary key",
+          "ANONYMOUS_ID": "VARCHAR — last known anonymous_id",
+          "RECEIVED_AT": "TIMESTAMP_TZ — last update time",
+          "EMAIL": "VARCHAR — trait: email",
+          "NAME": "VARCHAR — trait: name",
+          "UUID_TS": "TIMESTAMP_TZ — deduplication timestamp"
+        },
+        "merge_strategy": {
+          "description": "RudderStack uses staging table + MERGE INTO for USERS table deduplication. allowMerge config controls this behavior. When merge is disabled or table is in appendOnlyTables, append-only mode is used.",
+          "merge_window": "Configurable per-destination via Warehouse.snowflake.mergeWindow.<dest_id>.column and .duration. Default column: RECEIVED_AT.",
+          "primary_key": "ID",
+          "partition_key": "ID"
+        }
+      },
+      "pages": {
+        "description": "One row per page event. Table name: PAGES (uppercase).",
+        "columns": {
+          "ID": "VARCHAR — unique event identifier",
+          "ANONYMOUS_ID": "VARCHAR",
+          "USER_ID": "VARCHAR",
+          "NAME": "VARCHAR — page name",
+          "PATH": "VARCHAR — page path",
+          "URL": "VARCHAR — full page URL",
+          "TITLE": "VARCHAR — page title",
+          "REFERRER": "VARCHAR — referrer URL",
+          "SENT_AT": "TIMESTAMP_TZ",
+          "RECEIVED_AT": "TIMESTAMP_TZ",
+          "TIMESTAMP": "TIMESTAMP_TZ",
+          "UUID_TS": "TIMESTAMP_TZ"
+        }
+      },
+      "screens": {
+        "description": "One row per screen event. Table name: SCREENS (uppercase).",
+        "columns": {
+          "ID": "VARCHAR — unique event identifier",
+          "ANONYMOUS_ID": "VARCHAR",
+          "USER_ID": "VARCHAR",
+          "NAME": "VARCHAR — screen name",
+          "SENT_AT": "TIMESTAMP_TZ",
+          "RECEIVED_AT": "TIMESTAMP_TZ",
+          "TIMESTAMP": "TIMESTAMP_TZ",
+          "UUID_TS": "TIMESTAMP_TZ"
+        }
+      },
+      "groups": {
+        "description": "One row per group event. Table name: GROUPS (uppercase).",
+        "columns": {
+          "ID": "VARCHAR — unique event identifier",
+          "ANONYMOUS_ID": "VARCHAR",
+          "USER_ID": "VARCHAR",
+          "GROUP_ID": "VARCHAR — group identifier",
+          "SENT_AT": "TIMESTAMP_TZ",
+          "RECEIVED_AT": "TIMESTAMP_TZ",
+          "TIMESTAMP": "TIMESTAMP_TZ",
+          "UUID_TS": "TIMESTAMP_TZ"
+        }
+      },
+      "aliases": {
+        "description": "One row per alias event. Table name: ALIASES (uppercase).",
+        "columns": {
+          "ID": "VARCHAR — unique event identifier",
+          "PREVIOUS_ID": "VARCHAR — previous user identifier",
+          "USER_ID": "VARCHAR — new user identifier",
+          "SENT_AT": "TIMESTAMP_TZ",
+          "RECEIVED_AT": "TIMESTAMP_TZ",
+          "TIMESTAMP": "TIMESTAMP_TZ",
+          "UUID_TS": "TIMESTAMP_TZ"
+        }
+      },
+      "rudder_discards": {
+        "description": "RudderStack-specific table for tracking discarded columns that exceed schema limits. No Segment equivalent.",
+        "columns": {
+          "ROW_ID": "VARCHAR — event row identifier",
+          "COLUMN_NAME": "VARCHAR — discarded column name",
+          "COLUMN_VALUE": "VARCHAR — discarded column value",
+          "TABLE_NAME": "VARCHAR — source table name",
+          "RECEIVED_AT": "TIMESTAMP_TZ"
+        }
+      },
+      "rudder_identity_merge_rules": {
+        "description": "RudderStack-specific identity merge rules table used for warehouse identity resolution.",
+        "columns": {
+          "MERGE_PROPERTY_1_TYPE": "VARCHAR — first merge property type",
+          "MERGE_PROPERTY_1_VALUE": "VARCHAR — first merge property value",
+          "MERGE_PROPERTY_2_TYPE": "VARCHAR — second merge property type",
+          "MERGE_PROPERTY_2_VALUE": "VARCHAR — second merge property value"
+        }
+      },
+      "rudder_identity_mappings": {
+        "description": "RudderStack-specific identity mappings table for resolved identity graph in warehouse.",
+        "columns": {
+          "MERGE_PROPERTY_TYPE": "VARCHAR — merge property type",
+          "MERGE_PROPERTY_VALUE": "VARCHAR — merge property value",
+          "RUDDER_ID": "VARCHAR — resolved RudderStack identity ID",
+          "UPDATED_AT": "TIMESTAMP_TZ — last update timestamp"
+        }
+      }
+    },
+    "column_naming": {
+      "convention": "RudderStack applies ToProviderCase(SNOWFLAKE, name) which uppercases all identifiers. All column names are stored as UPPERCASE in Snowflake.",
+      "context_flattening": "Nested context fields are flattened with underscore separators: context.library.name → CONTEXT_LIBRARY_NAME",
+      "properties_flattening": "Event properties are flattened as top-level UPPERCASE columns: properties.product_id → PRODUCT_ID",
+      "traits_flattening": "Identify traits become top-level UPPERCASE columns: traits.email → EMAIL"
+    },
+    "loading_method": {
+      "primary": "S3/GCS/Azure Blob staging → COPY INTO",
+      "alternative": "Snowpipe Streaming API (RudderStack-unique, near real-time)",
+      "merge_strategy": "Configurable via allowMerge (default: true). Staging table created, data COPY'd in, then MERGE INTO target table for USERS. Event tables (TRACKS, IDENTIFIES, etc.) default to append-only unless merge is configured.",
+      "deduplication": "Uses UUID_TS column and configurable merge window (column + duration) for dedup in MERGE operations. Primary key maps: USERS→ID, IDENTIFIES→ID, RUDDER_DISCARDS→ROW_ID.",
+      "append_only_tables": "Configurable via Warehouse.snowflake.appendOnlyTables — tables listed here skip merge and use append-only loading"
+    },
+    "iceberg_support": {
+      "description": "RudderStack supports Snowflake-managed Iceberg tables as an alternative table format. When EnableIcebergSetting is true, CREATE OR REPLACE ICEBERG TABLE syntax is used with CATALOG='SNOWFLAKE' and an external volume.",
+      "column_types_differ": {
+        "int": "number(10,0) instead of number",
+        "bigint": "number(19,0) instead of number",
+        "datetime": "timestamp_ntz(6) instead of timestamp_tz",
+        "json": "varchar instead of variant"
+      }
+    },
+    "data_type_mapping": {
+      "description": "RudderStack maps internal types to Snowflake types via standardTableManager.dataTypesMap",
+      "boolean": "BOOLEAN",
+      "int": "NUMBER",
+      "bigint": "NUMBER",
+      "float": "DOUBLE PRECISION",
+      "string": "VARCHAR",
+      "datetime": "TIMESTAMP_TZ",
+      "json": "VARIANT"
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "staging_file_format": {
+      "segment": "CSV with gzip compression exclusively",
+      "rudderstack": "CSV with gzip compression (primary). Snowpipe Streaming uses internal Snowflake ingestion format.",
+      "parity_gap": "Both use CSV for batch loading. RudderStack additionally supports Snowpipe Streaming API which bypasses file staging entirely."
+    },
+    "object_storage": {
+      "segment": "S3 staging only",
+      "rudderstack": "S3, GCS, or Azure Blob staging depending on cloudProvider config. Also supports Snowflake internal staging via storage integration.",
+      "parity_gap": "RudderStack supports broader staging options (GCS, Azure). Segment is S3-only for Snowflake staging."
+    },
+    "column_naming_conventions": {
+      "segment_columns": "Lowercase snake_case in event spec (anonymous_id, user_id, received_at). Stored as UPPERCASE in Snowflake due to default unquoted identifier behavior.",
+      "rudderstack_columns": "Explicitly uppercased via ToProviderCase(SNOWFLAKE, name). All columns stored as UPPERCASE (ANONYMOUS_ID, USER_ID, RECEIVED_AT).",
+      "parity_status": "Functionally equivalent — both result in UPPERCASE columns in Snowflake. No naming convention gap for standard columns.",
+      "context_library_name": {
+        "segment_value": "analytics.js (or analytics-python, analytics-node, etc.)",
+        "rudderstack_value": "rudder-sdk-js (or rudder-sdk-go, rudder-sdk-python, etc.)",
+        "parity_gap": "Different SDK library identifiers — expected difference, not a parity issue"
+      }
+    },
+    "rudderstack_additional_columns": {
+      "LOADED_AT": "RudderStack adds a LOADED_AT timestamp column to track when data was loaded into the warehouse. Not present in Segment.",
+      "RUDDER_DISCARDS_TABLE": "RudderStack creates a RUDDER_DISCARDS table for tracking columns that exceeded schema limits. No Segment equivalent."
+    },
+    "identity_tables": {
+      "segment": "Segment does not create identity tables in the warehouse. Identity resolution is handled externally by Segment Unify.",
+      "rudderstack": "RudderStack creates RUDDER_IDENTITY_MERGE_RULES and RUDDER_IDENTITY_MAPPINGS tables for batch warehouse-level identity resolution.",
+      "parity_gap": "RudderStack performs identity resolution at the warehouse level; Segment handles it in the Unify service. Different architectural approach."
+    },
+    "snowpipe_streaming": {
+      "segment": "Not available. Segment uses batch COPY INTO exclusively for Snowflake loading.",
+      "rudderstack": "Snowpipe Streaming API available as alternative loading method. Provides near real-time data availability (seconds vs minutes).",
+      "parity_gap": "RudderStack-unique feature. Provides lower latency data availability in Snowflake."
+    },
+    "internal_vs_external_staging": {
+      "segment": "External staging only (S3 → COPY INTO with AWS credentials).",
+      "rudderstack": "Both internal staging (via Snowflake storage integration) and external staging (S3/GCS/Azure Blob with credentials). Auth method determined by destination config: AWS credentials or STORAGE_INTEGRATION setting.",
+      "parity_gap": "RudderStack supports storage integration (internal staging) in addition to external credential-based staging."
+    },
+    "merge_behavior": {
+      "segment": "Append-only for event tables. USERS table is deduplicated.",
+      "rudderstack": "Configurable merge via allowMerge config (default: true). Supports append-only mode per table via appendOnlyTables config. USERS table uses staging table + MERGE INTO with configurable merge window (column + duration) and duplicate sampling for debugging.",
+      "parity_gap": "RudderStack provides more granular merge control (per-table append-only, configurable merge windows, duplicate detection/sampling)."
+    },
+    "table_format": {
+      "segment": "Standard Snowflake tables only.",
+      "rudderstack": "Standard Snowflake tables (default) or Snowflake-managed Iceberg tables (when EnableIcebergSetting is true). Iceberg tables use different column type mappings (e.g., number(10,0) for int, timestamp_ntz(6) for datetime, varchar for json instead of variant).",
+      "parity_gap": "RudderStack-unique feature. Iceberg table support provides open table format compatibility."
+    },
+    "delete_support": {
+      "segment": "Standard GDPR deletion support.",
+      "rudderstack": "Configurable DeleteBy operation via enableDeleteByJobs config. Supports deletion by user_id across specified tables.",
+      "parity_gap": "Both support deletion. RudderStack implementation is configurable per destination."
+    }
+  },
+  "notes": "Snowflake shared warehouse destination. Key parity gaps: staging file format, column naming conventions. Snowpipe Streaming API is RudderStack-unique. Reference: gap report warehouse payload comparison table. RudderStack integration source: warehouse/integrations/snowflake/. Both platforms use S3-based CSV staging with COPY INTO as the primary loading method. Column naming is functionally equivalent (both uppercase in Snowflake). Major RudderStack differentiators: Snowpipe Streaming for near real-time loading, Iceberg table format support, multi-cloud staging (S3/GCS/Azure), configurable merge windows, warehouse-level identity resolution tables (RUDDER_IDENTITY_MERGE_RULES, RUDDER_IDENTITY_MAPPINGS), and fine-grained append-only table configuration."
+}

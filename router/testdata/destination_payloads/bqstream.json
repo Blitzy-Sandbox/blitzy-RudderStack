@@ -1,0 +1,244 @@
+{
+  "destination_type": "BQSTREAM",
+  "destination_tier": "stream",
+  "segment_reference_payload": null,
+  "rudderstack_expected_payload": {
+    "destination_config": {
+      "projectId": "my-gcp-project",
+      "datasetId": "rudderstack_events",
+      "tableId": "tracks",
+      "credentials": "<service-account-json>"
+    },
+    "produce_payload": {
+      "datasetId": "rudderstack_events",
+      "tableId": "tracks",
+      "properties": [
+        {
+          "insertId": "msg-bqstream-001",
+          "anonymous_id": "anon-uuid-001",
+          "user_id": "user_123",
+          "event": "Product Viewed",
+          "context_library_name": "rudder-sdk-js",
+          "context_library_version": "2.48.0",
+          "context_ip": "203.0.113.42",
+          "context_user_agent": "Mozilla/5.0",
+          "timestamp": "2026-02-25T12:00:00.000Z",
+          "original_timestamp": "2026-02-25T12:00:00.000Z",
+          "sent_at": "2026-02-25T12:00:01.000Z",
+          "received_at": "2026-02-25T12:00:02.000Z",
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets",
+          "rudder_id": "rudder-uuid-001",
+          "message_id": "msg-bqstream-001",
+          "channel": "web",
+          "type": "track"
+        }
+      ]
+    },
+    "produce_payload_single_record": {
+      "datasetId": "rudderstack_events",
+      "tableId": "identifies",
+      "properties": {
+        "insertId": "msg-bqstream-002",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "context_ip": "203.0.113.42",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "original_timestamp": "2026-02-25T12:05:00.000Z",
+        "sent_at": "2026-02-25T12:05:01.000Z",
+        "received_at": "2026-02-25T12:05:02.000Z",
+        "email": "user@example.com",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "phone": "+15551234567",
+        "rudder_id": "rudder-uuid-002",
+        "message_id": "msg-bqstream-002",
+        "channel": "web",
+        "type": "identify"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "event_type_payloads": {
+    "track": {
+      "datasetId": "rudderstack_events",
+      "tableId": "tracks",
+      "properties": {
+        "insertId": "msg-bqstream-track-001",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "event": "Product Viewed",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "original_timestamp": "2026-02-25T12:00:00.000Z",
+        "sent_at": "2026-02-25T12:00:01.000Z",
+        "received_at": "2026-02-25T12:00:02.000Z",
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "currency": "USD",
+        "category": "Widgets",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "context_ip": "203.0.113.42",
+        "rudder_id": "rudder-uuid-track-001",
+        "message_id": "msg-bqstream-track-001",
+        "channel": "web",
+        "type": "track"
+      }
+    },
+    "identify": {
+      "datasetId": "rudderstack_events",
+      "tableId": "identifies",
+      "properties": {
+        "insertId": "msg-bqstream-identify-001",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "original_timestamp": "2026-02-25T12:05:00.000Z",
+        "sent_at": "2026-02-25T12:05:01.000Z",
+        "received_at": "2026-02-25T12:05:02.000Z",
+        "email": "user@example.com",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "phone": "+15551234567",
+        "company": "Acme Corp",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "context_ip": "203.0.113.42",
+        "rudder_id": "rudder-uuid-identify-001",
+        "message_id": "msg-bqstream-identify-001",
+        "channel": "web",
+        "type": "identify"
+      }
+    },
+    "page": {
+      "datasetId": "rudderstack_events",
+      "tableId": "pages",
+      "properties": {
+        "insertId": "msg-bqstream-page-001",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "name": "Home",
+        "timestamp": "2026-02-25T12:10:00.000Z",
+        "original_timestamp": "2026-02-25T12:10:00.000Z",
+        "sent_at": "2026-02-25T12:10:01.000Z",
+        "received_at": "2026-02-25T12:10:02.000Z",
+        "url": "https://example.com/",
+        "path": "/",
+        "title": "Home - Example",
+        "referrer": "https://google.com/",
+        "search": "",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "context_ip": "203.0.113.42",
+        "rudder_id": "rudder-uuid-page-001",
+        "message_id": "msg-bqstream-page-001",
+        "channel": "web",
+        "type": "page"
+      }
+    },
+    "screen": {
+      "datasetId": "rudderstack_events",
+      "tableId": "screens",
+      "properties": {
+        "insertId": "msg-bqstream-screen-001",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "name": "Dashboard",
+        "timestamp": "2026-02-25T12:15:00.000Z",
+        "original_timestamp": "2026-02-25T12:15:00.000Z",
+        "sent_at": "2026-02-25T12:15:01.000Z",
+        "received_at": "2026-02-25T12:15:02.000Z",
+        "context_library_name": "rudder-sdk-android",
+        "context_library_version": "1.20.0",
+        "context_os_name": "Android",
+        "context_os_version": "14",
+        "context_device_model": "Pixel 8",
+        "context_device_manufacturer": "Google",
+        "context_ip": "203.0.113.99",
+        "rudder_id": "rudder-uuid-screen-001",
+        "message_id": "msg-bqstream-screen-001",
+        "channel": "mobile",
+        "type": "screen"
+      }
+    },
+    "group": {
+      "datasetId": "rudderstack_events",
+      "tableId": "groups",
+      "properties": {
+        "insertId": "msg-bqstream-group-001",
+        "anonymous_id": "anon-uuid-001",
+        "user_id": "user_123",
+        "group_id": "group_456",
+        "timestamp": "2026-02-25T12:20:00.000Z",
+        "original_timestamp": "2026-02-25T12:20:00.000Z",
+        "sent_at": "2026-02-25T12:20:01.000Z",
+        "received_at": "2026-02-25T12:20:02.000Z",
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "employees": 250,
+        "plan": "enterprise",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "context_ip": "203.0.113.42",
+        "rudder_id": "rudder-uuid-group-001",
+        "message_id": "msg-bqstream-group-001",
+        "channel": "web",
+        "type": "group"
+      }
+    },
+    "alias": {
+      "datasetId": "rudderstack_events",
+      "tableId": "aliases",
+      "properties": {
+        "insertId": "msg-bqstream-alias-001",
+        "user_id": "user_123",
+        "previous_id": "anon-uuid-001",
+        "timestamp": "2026-02-25T12:25:00.000Z",
+        "original_timestamp": "2026-02-25T12:25:00.000Z",
+        "sent_at": "2026-02-25T12:25:01.000Z",
+        "received_at": "2026-02-25T12:25:02.000Z",
+        "context_library_name": "rudder-sdk-js",
+        "context_library_version": "2.48.0",
+        "context_ip": "203.0.113.42",
+        "rudder_id": "rudder-uuid-alias-001",
+        "message_id": "msg-bqstream-alias-001",
+        "channel": "web",
+        "type": "alias"
+      }
+    }
+  },
+  "field_mappings": {
+    "note": "No Segment equivalent for direct comparison. Fixture documents RudderStack's streaming insert format to BigQuery.",
+    "destination_config": {
+      "projectId": "GCP project ID for BigQuery client initialization",
+      "datasetId": "BigQuery dataset identifier; passed in produce payload and destination config",
+      "tableId": "BigQuery table identifier; passed in produce payload and destination config",
+      "credentials": "GCP service account JSON credentials for BigQuery API authentication"
+    },
+    "produce_payload_format": {
+      "datasetId": "Extracted via gjson from produce JSON; routes to BigQuery dataset",
+      "tableId": "Extracted via gjson from produce JSON; routes to BigQuery table",
+      "properties": "Can be a single GenericRecord object or an array of GenericRecord objects; each GenericRecord is a map[string]bigquery.Value representing one BigQuery table row"
+    },
+    "generic_record_fields": {
+      "insertId": "Optional deduplication key; extracted by GenericRecord.Save() and passed to BigQuery streaming insert as insertId; removed from the row data before insertion",
+      "flattened_properties": "All event properties, context fields, and metadata are flattened into top-level key-value pairs in the GenericRecord map; nested objects are flattened using underscore convention (e.g., context.library.name becomes context_library_name)",
+      "timestamp_fields": "timestamp, original_timestamp, sent_at, received_at stored as ISO-8601 string values",
+      "rudder_envelope": "rudder_id, message_id, channel, type are RudderStack envelope fields added to every record"
+    }
+  },
+  "notes": "BQSTREAM is a RudderStack-unique stream connector; Segment handles BigQuery via warehouse sync only (no direct streaming insert equivalent). The BQStream producer uses the Google BigQuery streaming insert API (bigquery.Inserter.Put) to write GenericRecord maps directly to BigQuery tables. Each GenericRecord is a map[string]bigquery.Value where all event fields are flattened to top-level keys. The insertId field provides deduplication and is separated from row data by the Save() method. The producer supports both single-record and batch (array) inserts. Destination config requires projectId, datasetId, tableId, and GCP credentials. Timeout is configurable via common.Opts. No Segment payload comparison is possible."
+}

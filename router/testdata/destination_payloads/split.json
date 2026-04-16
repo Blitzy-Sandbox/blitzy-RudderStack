@@ -1,0 +1,694 @@
+{
+  "destination_type": "SPLIT",
+  "destination_tier": "cloud",
+  "segment_reference_payload": {
+    "description": "Segment sends Track and Identify events to Split via a partner-maintained cloud-mode integration. Track events are mapped to Split event types for metric tracking and experimentation analysis. Identify events map user traits to Split traffic type attributes. The integration is configured in Split's Admin Settings under Integrations > Segment, which generates the API key used for authentication. Split processes events through its Events API endpoint as a JSON array of event objects.",
+    "endpoint": {
+      "track": "https://events.split.io/api/events/bulk",
+      "identify": "https://events.split.io/api/events/bulk"
+    },
+    "http_method": "POST",
+    "content_type": "application/json",
+    "auth": {
+      "type": "bearer_token",
+      "header": "Authorization: Bearer <api_key>",
+      "config_field": "apiKey",
+      "description": "Split SDK API key obtained from Split Admin Settings > Integrations > Segment. Each configured integration generates a unique key per workspace and environment."
+    },
+    "batch_support": {
+      "enabled": true,
+      "format": "JSON array of event objects in request body",
+      "max_events_per_batch": 10000,
+      "max_payload_size_bytes": 1048576,
+      "description": "Split Events API accepts bulk event submission as a JSON array. Segment batches multiple events into a single HTTP request for efficiency."
+    },
+    "track": {
+      "input": {
+        "type": "track",
+        "messageId": "seg-msg-split-trk-001",
+        "anonymousId": "anon-seg-split-001",
+        "userId": "user_split_123",
+        "event": "Experiment Viewed",
+        "properties": {
+          "experiment_id": "exp-landing-page-v2",
+          "variation_id": "variant-b",
+          "revenue": 49.99,
+          "currency": "USD",
+          "product_id": "SKU-WIDGET-001",
+          "category": "Widgets",
+          "label": "premium_landing_page"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://example.com/landing/widget-v2",
+            "path": "/landing/widget-v2",
+            "referrer": "https://example.com/",
+            "title": "Premium Widget - Landing Page V2"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "locale": "en-US"
+        },
+        "timestamp": "2026-03-15T10:30:00.000Z",
+        "sentAt": "2026-03-15T10:30:01.000Z",
+        "receivedAt": "2026-03-15T10:30:01.500Z",
+        "integrations": {
+          "Split": true
+        }
+      },
+      "mapped_output": [
+        {
+          "eventTypeId": "Experiment Viewed",
+          "trafficTypeName": "user",
+          "key": "user_split_123",
+          "timestamp": 1773837000000,
+          "value": 49.99,
+          "properties": {
+            "experiment_id": "exp-landing-page-v2",
+            "variation_id": "variant-b",
+            "currency": "USD",
+            "product_id": "SKU-WIDGET-001",
+            "category": "Widgets",
+            "label": "premium_landing_page"
+          },
+          "environmentName": "production"
+        }
+      ],
+      "mapping_notes": "Segment event name maps to Split eventTypeId. userId (preferred) or anonymousId maps to Split key. Properties object is passed through to Split properties. Numeric revenue/value fields can be mapped to Split value field. trafficTypeName and environmentName come from destination settings configuration. timestamp is converted from ISO-8601 to Unix epoch milliseconds."
+    },
+    "track_impression": {
+      "description": "Split impression tracking event — records which feature flag treatment was shown to a user. This is the primary event type for Split's experimentation and feature flag analytics.",
+      "input": {
+        "type": "track",
+        "messageId": "seg-msg-split-imp-001",
+        "anonymousId": "anon-seg-split-001",
+        "userId": "user_split_123",
+        "event": "get_treatment",
+        "properties": {
+          "splitName": "landing_page_experiment",
+          "treatment": "variant_b",
+          "label": "in segment",
+          "changeNumber": 1678901234567,
+          "bucketingKey": "user_split_123",
+          "machineIp": "10.0.1.42",
+          "machineName": "web-server-03"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.50"
+        },
+        "timestamp": "2026-03-15T10:29:55.000Z",
+        "sentAt": "2026-03-15T10:29:56.000Z",
+        "receivedAt": "2026-03-15T10:29:56.500Z"
+      },
+      "mapped_output": [
+        {
+          "eventTypeId": "get_treatment",
+          "trafficTypeName": "user",
+          "key": "user_split_123",
+          "timestamp": 1773836995000,
+          "properties": {
+            "splitName": "landing_page_experiment",
+            "treatment": "variant_b",
+            "label": "in segment",
+            "changeNumber": 1678901234567,
+            "bucketingKey": "user_split_123",
+            "machineIp": "10.0.1.42",
+            "machineName": "web-server-03"
+          },
+          "environmentName": "production"
+        }
+      ],
+      "mapping_notes": "Impression events use 'get_treatment' as the event name / eventTypeId. Feature flag context fields (splitName, treatment, label, changeNumber) are passed through as properties. bucketingKey, machineIp, and machineName provide additional evaluation context. This event type drives Split's metrics and experimentation dashboards."
+    },
+    "identify": {
+      "input": {
+        "type": "identify",
+        "messageId": "seg-msg-split-idn-001",
+        "anonymousId": "anon-seg-split-001",
+        "userId": "user_split_123",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "createdAt": "2025-06-15T08:00:00.000Z",
+          "totalSpend": 1250.00,
+          "featureFlagsEnabled": true,
+          "experimentGroup": "power-users"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "locale": "en-US"
+        },
+        "timestamp": "2026-03-15T10:28:00.000Z",
+        "sentAt": "2026-03-15T10:28:01.000Z",
+        "receivedAt": "2026-03-15T10:28:01.500Z",
+        "integrations": {
+          "Split": true
+        }
+      },
+      "mapped_output": {
+        "key": "user_split_123",
+        "trafficTypeName": "user",
+        "environmentName": "production",
+        "values": {
+          "email": "jane.doe@example.com",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "createdAt": "2025-06-15T08:00:00.000Z",
+          "totalSpend": 1250.00,
+          "featureFlagsEnabled": true,
+          "experimentGroup": "power-users"
+        }
+      },
+      "mapping_notes": "Segment Identify traits are mapped to Split traffic type attributes (values). userId (preferred) or anonymousId maps to Split key. trafficTypeName and environmentName come from destination settings. Trait values are limited to 255 characters for string types. Nested objects (e.g., traits.company as an object) are serialized to string representation in Split — flattening recommended for complex traits. Boolean and numeric trait values are preserved as-is."
+    },
+    "identify_audience_sync": {
+      "description": "Segment Engage audience membership synced to Split as traffic type attributes via Identify events.",
+      "input": {
+        "type": "identify",
+        "messageId": "seg-msg-split-aud-001",
+        "userId": "user_split_123",
+        "traits": {
+          "high_value_customers": true,
+          "churning_users": false,
+          "beta_testers": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-03-15T10:35:00.000Z"
+      },
+      "mapped_output": {
+        "key": "user_split_123",
+        "trafficTypeName": "user",
+        "environmentName": "production",
+        "values": {
+          "high_value_customers": true,
+          "churning_users": false,
+          "beta_testers": true
+        }
+      },
+      "mapping_notes": "Segment Engage audience names are snake_cased and sent as boolean traits (true = in audience, false = removed). These map directly to Split traffic type attributes, enabling Split to use audience membership for feature flag targeting rules."
+    }
+  },
+  "rudderstack_expected_payload": {
+    "description": "RudderStack sends Track and Identify events to Split via the Transformer service (port 9090), which handles field mapping and payload formatting. Track events are converted to Split event format with eventTypeId, key, and properties. Identify events are mapped to Split traffic type attribute updates. RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to internal event representation but the Transformer strips these before sending to Split's API. The destination is classified as a cloud destination processed through the Router's HTTP transport.",
+    "endpoint": {
+      "track": "https://events.split.io/api/events/bulk",
+      "identify": "https://events.split.io/api/events/bulk"
+    },
+    "http_method": "POST",
+    "content_type": "application/json",
+    "auth": {
+      "type": "bearer_token",
+      "header": "Authorization: Bearer <api_key>",
+      "config_field": "apiKey",
+      "description": "Split API key configured in RudderStack dashboard destination settings. Stored in backend-config and delivered to the Transformer during event processing."
+    },
+    "batch_support": {
+      "enabled": true,
+      "format": "JSON array of event objects in request body",
+      "max_events_per_batch": 10000,
+      "max_payload_size_bytes": 1048576,
+      "description": "RudderStack batches events for Split following the same bulk API format. Batching behavior is controlled by Router configuration (maxBatchSize, batchTimeoutMs)."
+    },
+    "track": {
+      "input": {
+        "type": "track",
+        "messageId": "rs-msg-split-trk-001",
+        "rudderId": "rudder-uuid-split-trk-001",
+        "anonymousId": "anon-rs-split-001",
+        "userId": "user_split_123",
+        "event": "Experiment Viewed",
+        "properties": {
+          "experiment_id": "exp-landing-page-v2",
+          "variation_id": "variant-b",
+          "revenue": 49.99,
+          "currency": "USD",
+          "product_id": "SKU-WIDGET-001",
+          "category": "Widgets",
+          "label": "premium_landing_page"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://example.com/landing/widget-v2",
+            "path": "/landing/widget-v2",
+            "referrer": "https://example.com/",
+            "title": "Premium Widget - Landing Page V2"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "locale": "en-US"
+        },
+        "timestamp": "2026-03-15T10:30:00.000Z",
+        "originalTimestamp": "2026-03-15T10:30:00.000Z",
+        "sentAt": "2026-03-15T10:30:01.000Z",
+        "receivedAt": "2026-03-15T10:30:01.500Z"
+      },
+      "mapped_output": [
+        {
+          "eventTypeId": "Experiment Viewed",
+          "trafficTypeName": "user",
+          "key": "user_split_123",
+          "timestamp": 1773837000000,
+          "value": 49.99,
+          "properties": {
+            "experiment_id": "exp-landing-page-v2",
+            "variation_id": "variant-b",
+            "currency": "USD",
+            "product_id": "SKU-WIDGET-001",
+            "category": "Widgets",
+            "label": "premium_landing_page"
+          },
+          "environmentName": "production"
+        }
+      ],
+      "mapping_notes": "RudderStack event name maps to Split eventTypeId. userId (preferred) or anonymousId maps to Split key. The Transformer handles field mapping identically to Segment's integration — event properties are passed through, revenue maps to value, and timestamp is converted to epoch milliseconds. RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are present in the internal pipeline representation but are stripped by the Transformer before delivery to Split's API."
+    },
+    "track_impression": {
+      "description": "RudderStack impression tracking event — records Split feature flag treatment shown to a user. Follows the same get_treatment event pattern as Segment's integration.",
+      "input": {
+        "type": "track",
+        "messageId": "rs-msg-split-imp-001",
+        "rudderId": "rudder-uuid-split-imp-001",
+        "anonymousId": "anon-rs-split-001",
+        "userId": "user_split_123",
+        "event": "get_treatment",
+        "properties": {
+          "splitName": "landing_page_experiment",
+          "treatment": "variant_b",
+          "label": "in segment",
+          "changeNumber": 1678901234567,
+          "bucketingKey": "user_split_123",
+          "machineIp": "10.0.1.42",
+          "machineName": "web-server-03"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "ip": "203.0.113.50"
+        },
+        "timestamp": "2026-03-15T10:29:55.000Z",
+        "originalTimestamp": "2026-03-15T10:29:55.000Z",
+        "sentAt": "2026-03-15T10:29:56.000Z",
+        "receivedAt": "2026-03-15T10:29:56.500Z"
+      },
+      "mapped_output": [
+        {
+          "eventTypeId": "get_treatment",
+          "trafficTypeName": "user",
+          "key": "user_split_123",
+          "timestamp": 1773836995000,
+          "properties": {
+            "splitName": "landing_page_experiment",
+            "treatment": "variant_b",
+            "label": "in segment",
+            "changeNumber": 1678901234567,
+            "bucketingKey": "user_split_123",
+            "machineIp": "10.0.1.42",
+            "machineName": "web-server-03"
+          },
+          "environmentName": "production"
+        }
+      ],
+      "mapping_notes": "RudderStack impression events follow the same mapping as Segment. Feature flag context properties (splitName, treatment, label, changeNumber, bucketingKey) are passed through to Split as properties. The Transformer maps these identically to Segment's partner integration."
+    },
+    "identify": {
+      "input": {
+        "type": "identify",
+        "messageId": "rs-msg-split-idn-001",
+        "rudderId": "rudder-uuid-split-idn-001",
+        "anonymousId": "anon-rs-split-001",
+        "userId": "user_split_123",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "createdAt": "2025-06-15T08:00:00.000Z",
+          "totalSpend": 1250.00,
+          "featureFlagsEnabled": true,
+          "experimentGroup": "power-users"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "locale": "en-US"
+        },
+        "timestamp": "2026-03-15T10:28:00.000Z",
+        "originalTimestamp": "2026-03-15T10:28:00.000Z",
+        "sentAt": "2026-03-15T10:28:01.000Z",
+        "receivedAt": "2026-03-15T10:28:01.500Z"
+      },
+      "mapped_output": {
+        "key": "user_split_123",
+        "trafficTypeName": "user",
+        "environmentName": "production",
+        "values": {
+          "email": "jane.doe@example.com",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "createdAt": "2025-06-15T08:00:00.000Z",
+          "totalSpend": 1250.00,
+          "featureFlagsEnabled": true,
+          "experimentGroup": "power-users"
+        }
+      },
+      "mapping_notes": "RudderStack Identify traits are mapped to Split traffic type attributes (values) identically to Segment. userId (preferred) or anonymousId maps to Split key. Trait values support strings (up to 255 chars), numbers, and booleans. Nested object traits are serialized to strings. The Transformer handles the mapping, stripping RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) before delivery."
+    },
+    "rudderstack_envelope_fields": {
+      "description": "RudderStack-specific fields present in internal pipeline representation but stripped by Transformer before Split API delivery.",
+      "fields": {
+        "rudderId": "UUID assigned by RudderStack Gateway during event ingestion — unique per event instance in the RudderStack pipeline",
+        "originalTimestamp": "Client-side timestamp from the SDK, preserved separately from server-assigned timestamp",
+        "sentAt": "Timestamp when the SDK dispatched the event to the Gateway",
+        "receivedAt": "Timestamp when the Gateway received the event"
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify"
+  ],
+  "field_mappings": {
+    "impression_tracking": {
+      "description": "Split's primary analytics use case is feature flag impression tracking. When a Split SDK evaluates a feature flag (getTreatment call), it generates an impression event that records which treatment was shown to which user. These impression events are the foundation for Split's experimentation metrics and feature flag analytics. In the Segment/RudderStack integration, impression data flows as Track events with the 'get_treatment' event name.",
+      "event_name": "get_treatment",
+      "split_event_fields": {
+        "eventTypeId": {
+          "value": "get_treatment",
+          "source": "event name (hardcoded for impressions)",
+          "description": "Identifies this as a feature flag impression event in Split's system"
+        },
+        "trafficTypeName": {
+          "value": "user",
+          "source": "destination settings configuration",
+          "description": "Split traffic type — determines which identity namespace the event is attributed to"
+        },
+        "key": {
+          "segment_source": "userId (fallback: anonymousId)",
+          "rudderstack_source": "userId (fallback: anonymousId)",
+          "description": "The user identifier within the configured traffic type. Both platforms use userId as primary, falling back to anonymousId."
+        },
+        "timestamp": {
+          "format": "Unix epoch milliseconds (number)",
+          "segment_source": "timestamp (ISO-8601 converted to epoch ms)",
+          "rudderstack_source": "timestamp (ISO-8601 converted to epoch ms)",
+          "description": "When the impression was recorded. Transformer converts ISO-8601 to epoch milliseconds."
+        }
+      },
+      "impression_context_properties": {
+        "splitName": {
+          "type": "string",
+          "description": "Name of the feature flag (split) that was evaluated",
+          "example": "landing_page_experiment"
+        },
+        "treatment": {
+          "type": "string",
+          "description": "The treatment (variation) returned by the evaluation — e.g., 'on', 'off', 'variant_a', 'variant_b'",
+          "example": "variant_b"
+        },
+        "label": {
+          "type": "string",
+          "description": "Evaluation label indicating which targeting rule matched — e.g., 'in segment', 'default rule', 'killed'",
+          "example": "in segment"
+        },
+        "changeNumber": {
+          "type": "number",
+          "description": "The version number of the split definition at evaluation time — used for debugging and audit",
+          "example": 1678901234567
+        },
+        "bucketingKey": {
+          "type": "string",
+          "description": "Optional bucketing key used for deterministic treatment assignment — defaults to key if not specified",
+          "example": "user_split_123"
+        },
+        "machineIp": {
+          "type": "string",
+          "description": "IP address of the machine that evaluated the feature flag — used for debugging server-side evaluations",
+          "example": "10.0.1.42"
+        },
+        "machineName": {
+          "type": "string",
+          "description": "Hostname of the machine that evaluated the feature flag",
+          "example": "web-server-03"
+        }
+      },
+      "parity_status": "Equivalent — both Segment and RudderStack pass impression context properties through to Split identically via the properties field"
+    },
+    "feature_flag_context": {
+      "description": "Beyond impression tracking, Split uses feature flag context to enrich event analysis. When track events carry feature flag metadata, Split can correlate user actions with which treatments they were exposed to. This enables metric impact analysis — measuring how a feature flag treatment affects user behavior (conversion rates, revenue, engagement).",
+      "enrichment_pattern": {
+        "description": "Track events sent alongside or after impression events carry the same userId/key, allowing Split to attribute the action to the treatment the user received.",
+        "example_flow": [
+          "1. User evaluates feature flag 'checkout_redesign' → impression recorded with treatment='new_checkout'",
+          "2. User completes checkout → track event 'Order Completed' sent to Split",
+          "3. Split correlates: user saw 'new_checkout' treatment AND completed an order → metric impact calculated"
+        ]
+      },
+      "metric_event_fields": {
+        "eventTypeId": {
+          "description": "Name of the business metric event (e.g., 'Order Completed', 'Button Clicked')",
+          "segment_source": "event (Segment track event name)",
+          "rudderstack_source": "event (RudderStack track event name)"
+        },
+        "value": {
+          "description": "Optional numeric value for the event — used in SUM/AVG metric calculations (e.g., order revenue, items count)",
+          "segment_source": "properties.revenue or properties.value",
+          "rudderstack_source": "properties.revenue or properties.value",
+          "type": "number (optional)"
+        },
+        "properties": {
+          "description": "Additional event properties for metric filtering and segmentation in Split. Limited to 300 unique property names per event type, 256 character limit per property value.",
+          "segment_source": "properties object (passed through)",
+          "rudderstack_source": "properties object (passed through)",
+          "supported_types": ["string", "number", "boolean"],
+          "max_properties_per_event_type": 300,
+          "max_property_value_length": 256
+        }
+      },
+      "parity_status": "Equivalent — both platforms pass event properties through to Split in the same format, enabling identical metric correlation and impact analysis"
+    },
+    "event_property_mapping": {
+      "description": "Mapping of Segment/RudderStack event fields to Split Events API fields. Both platforms use the same mapping rules, with the Transformer handling the conversion for RudderStack events.",
+      "track_field_mapping": {
+        "eventTypeId": {
+          "split_field": "eventTypeId",
+          "split_type": "string",
+          "required": true,
+          "segment_source_field": "event",
+          "rudderstack_source_field": "event",
+          "description": "Event type name in Split. Mapped from the track event name. Can be overridden in Split's integration settings by specifying a different property path for the event name.",
+          "constraints": "Must match an event type configured in Split. If not pre-configured, Split auto-creates the event type on first receipt."
+        },
+        "trafficTypeName": {
+          "split_field": "trafficTypeName",
+          "split_type": "string",
+          "required": true,
+          "segment_source_field": "destination settings (trafficType)",
+          "rudderstack_source_field": "destination config (trafficType)",
+          "description": "Split traffic type that the event belongs to. Configured at the destination level, not per-event. Common values: 'user', 'account', 'device'.",
+          "default_value": "user"
+        },
+        "key": {
+          "split_field": "key",
+          "split_type": "string",
+          "required": true,
+          "segment_source_field": "userId (fallback: anonymousId)",
+          "rudderstack_source_field": "userId (fallback: anonymousId)",
+          "description": "Unique identifier for the entity within the traffic type. Mapped from userId with anonymousId as fallback. The identity mapping (userId vs anonymousId) is configurable in Split's Segment integration settings.",
+          "max_length": 250
+        },
+        "timestamp": {
+          "split_field": "timestamp",
+          "split_type": "number",
+          "required": false,
+          "segment_source_field": "timestamp (ISO-8601 → epoch ms)",
+          "rudderstack_source_field": "timestamp (ISO-8601 → epoch ms)",
+          "description": "Event timestamp in Unix epoch milliseconds. If not provided, Split uses server receipt time. Both platforms convert ISO-8601 timestamps to epoch milliseconds during transformation.",
+          "format": "Unix epoch milliseconds"
+        },
+        "value": {
+          "split_field": "value",
+          "split_type": "number",
+          "required": false,
+          "segment_source_field": "properties.revenue or properties.value",
+          "rudderstack_source_field": "properties.revenue or properties.value",
+          "description": "Optional numeric value for metric calculations. Typically mapped from revenue or a designated value property. Used in Split for SUM, AVG, and per-treatment metric analysis."
+        },
+        "properties": {
+          "split_field": "properties",
+          "split_type": "object",
+          "required": false,
+          "segment_source_field": "properties (passed through, excluding revenue if mapped to value)",
+          "rudderstack_source_field": "properties (passed through, excluding revenue if mapped to value)",
+          "description": "Key-value pairs providing additional event context. Limited to 300 unique property names per event type. Values must be strings (max 256 chars), numbers, or booleans. Nested objects are not supported — they are serialized to string representation.",
+          "constraints": {
+            "max_properties_per_event_type": 300,
+            "max_property_value_length": 256,
+            "supported_value_types": ["string", "number", "boolean"],
+            "nested_object_handling": "Serialized to string representation"
+          }
+        },
+        "environmentName": {
+          "split_field": "environmentName",
+          "split_type": "string",
+          "required": false,
+          "segment_source_field": "destination settings (environment)",
+          "rudderstack_source_field": "destination config (environment)",
+          "description": "Split environment name for the event. Configured at the destination level. Common values: 'production', 'staging'. If not specified, events are attributed to the default environment.",
+          "default_value": "production"
+        }
+      },
+      "identify_field_mapping": {
+        "key": {
+          "split_field": "key",
+          "split_type": "string",
+          "required": true,
+          "segment_source_field": "userId (fallback: anonymousId)",
+          "rudderstack_source_field": "userId (fallback: anonymousId)",
+          "description": "User identifier mapped to the Split traffic type. Identical mapping as track events."
+        },
+        "trafficTypeName": {
+          "split_field": "trafficTypeName",
+          "split_type": "string",
+          "required": true,
+          "segment_source_field": "destination settings (trafficType)",
+          "rudderstack_source_field": "destination config (trafficType)",
+          "description": "Split traffic type for the identity. Same configuration as track events."
+        },
+        "environmentName": {
+          "split_field": "environmentName",
+          "split_type": "string",
+          "required": false,
+          "segment_source_field": "destination settings (environment)",
+          "rudderstack_source_field": "destination config (environment)",
+          "description": "Split environment for the identity update."
+        },
+        "values": {
+          "split_field": "values",
+          "split_type": "object",
+          "required": false,
+          "segment_source_field": "traits (all key-value pairs)",
+          "rudderstack_source_field": "traits (all key-value pairs)",
+          "description": "Traffic type attributes derived from identify traits. Each trait becomes a key-value attribute on the user's traffic type record. String values are limited to 255 characters. Nested objects are serialized to string representation.",
+          "constraints": {
+            "max_attribute_value_length": 255,
+            "supported_value_types": ["string", "number", "boolean"],
+            "nested_object_handling": "Serialized to string — flattening recommended"
+          }
+        }
+      },
+      "context_library_difference": {
+        "description": "The SDK library name in context differs between Segment and RudderStack. This field is NOT sent to Split's API but is present in the internal event representation.",
+        "segment": "context.library.name = 'analytics.js' (or analytics-ios, analytics-android)",
+        "rudderstack": "context.library.name = 'rudder-sdk-js' (or rudder-sdk-ios, rudder-sdk-android)",
+        "impact": "No impact on Split payloads — context.library is not forwarded to Split's Events API. Difference is only visible in the source pipeline."
+      },
+      "message_id_difference": {
+        "description": "Event message ID format differs between Segment and RudderStack. This field is NOT sent to Split's API.",
+        "segment": "messageId generated by analytics.js SDK (UUID v4 format)",
+        "rudderstack": "messageId generated by rudder-sdk SDK (UUID v4 format, different generation strategy)",
+        "impact": "No impact on Split payloads — messageId is used internally for deduplication in the pipeline, not forwarded to Split."
+      },
+      "rudderstack_additional_fields": {
+        "description": "RudderStack includes additional envelope fields in the internal event representation that are not present in Segment events. These fields are stripped by the Transformer before delivery to Split.",
+        "fields": {
+          "rudderId": "Unique event instance ID assigned by RudderStack Gateway",
+          "originalTimestamp": "Original client-side timestamp preserved separately",
+          "sentAt": "SDK dispatch timestamp",
+          "receivedAt": "Gateway receipt timestamp"
+        },
+        "impact": "No impact on Split payloads — all additional fields are stripped during transformation. The final payload sent to Split is identical between Segment and RudderStack."
+      }
+    },
+    "destination_settings": {
+      "description": "Configuration fields required to set up Split as a destination in both Segment and RudderStack.",
+      "segment_settings": {
+        "apiKey": {
+          "type": "string",
+          "required": true,
+          "description": "Split SDK API key from Admin Settings > Integrations > Segment"
+        },
+        "trafficType": {
+          "type": "string",
+          "required": true,
+          "default": "user",
+          "description": "Split traffic type for identity and event mapping"
+        },
+        "environment": {
+          "type": "string",
+          "required": false,
+          "default": "production",
+          "description": "Split environment name"
+        },
+        "enableTrack": {
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Whether to send Track events to Split"
+        },
+        "enableIdentify": {
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Whether to send Identify events to Split"
+        }
+      },
+      "rudderstack_settings": {
+        "apiKey": {
+          "type": "string",
+          "required": true,
+          "description": "Split SDK API key — same key format as Segment configuration"
+        },
+        "trafficType": {
+          "type": "string",
+          "required": true,
+          "default": "user",
+          "description": "Split traffic type for identity and event mapping"
+        },
+        "environment": {
+          "type": "string",
+          "required": false,
+          "default": "production",
+          "description": "Split environment name"
+        }
+      },
+      "parity_status": "RudderStack destination settings mirror Segment's core configuration fields (apiKey, trafficType, environment). Segment's additional toggles (enableTrack, enableIdentify) can be replicated via RudderStack's destination event filtering."
+    }
+  },
+  "notes": "Split (now part of Harness Feature Management and Experimentation) is a feature flagging and experimentation platform in the Feature Flagging category. This payload parity fixture covers Track and Identify event types — the only two call types accepted by Split's Segment integration. Key parity observations: (1) Endpoint and payload format — both Segment and RudderStack send events to the same Split Events API (https://events.split.io/api/events/bulk) using identical JSON array format with Bearer token authentication; (2) Impression tracking — the 'get_treatment' event pattern for recording feature flag evaluations maps identically between platforms, preserving all impression context fields (splitName, treatment, label, changeNumber); (3) Field mapping parity — event name → eventTypeId, userId/anonymousId → key, properties → properties, traits → values mappings are functionally equivalent; (4) Context library difference — context.library.name differs ('analytics.js' vs 'rudder-sdk-js') but this field is not forwarded to Split; (5) Envelope fields — RudderStack's additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are present in the internal pipeline but stripped by the Transformer before delivery; (6) Final payload parity — after transformation, the payloads delivered to Split's API are identical between Segment and RudderStack; (7) Audience sync — Segment Engage audiences can sync to Split via Identify events with boolean traits, applicable to RudderStack when audience sync features are available; (8) Property constraints — Split limits events to 300 properties per event type with 256-char string values, and trait values to 255 chars. RudderStack source: Transformer service cloud destination handler for SPLIT."
+}

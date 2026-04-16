@@ -6,6 +6,8 @@ import (
 
 	"github.com/rudderlabs/rudder-go-kit/config"
 	backendconfig "github.com/rudderlabs/rudder-server/backend-config"
+	"github.com/rudderlabs/rudder-server/services/streammanager/amazonmsk"
+	"github.com/rudderlabs/rudder-server/services/streammanager/azureeventhub"
 	"github.com/rudderlabs/rudder-server/services/streammanager/bqstream"
 	"github.com/rudderlabs/rudder-server/services/streammanager/common"
 	"github.com/rudderlabs/rudder-server/services/streammanager/eventbridge"
@@ -17,6 +19,8 @@ import (
 	"github.com/rudderlabs/rudder-server/services/streammanager/kinesis"
 	"github.com/rudderlabs/rudder-server/services/streammanager/lambda"
 	"github.com/rudderlabs/rudder-server/services/streammanager/personalize"
+	"github.com/rudderlabs/rudder-server/services/streammanager/pulsar"
+	"github.com/rudderlabs/rudder-server/services/streammanager/redisstream"
 	"github.com/rudderlabs/rudder-server/services/streammanager/wunderkind"
 )
 
@@ -52,6 +56,14 @@ func NewProducer(destination *backendconfig.DestinationT, opts common.Opts) (com
 		return googlecloudfunction.NewProducer(destination, opts)
 	case "WUNDERKIND":
 		return wunderkind.NewProducer(config.Default, destination, opts)
+	case "AZURE_EVENT_HUB_EXTENDED":
+		return azureeventhub.NewProducer(destination, opts)
+	case "APACHE_PULSAR":
+		return pulsar.NewProducer(destination, opts)
+	case "REDIS_STREAM":
+		return redisstream.NewProducer(destination, opts)
+	case "AMAZON_MSK":
+		return amazonmsk.NewProducer(destination, opts)
 	default:
 		return nil, fmt.Errorf("no provider configured for StreamManager") // 404, "No provider configured for StreamManager", ""
 	}

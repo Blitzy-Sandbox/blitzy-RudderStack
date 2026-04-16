@@ -1,0 +1,1098 @@
+{
+  "destination_type": "POSTHOG",
+  "destination_tier": "cloud",
+  "segment_slug": "posthog",
+  "category": "Analytics",
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment track call mapped to a PostHog custom capture event. The Segment event name becomes the PostHog event name. All Segment properties are forwarded as PostHog event properties. The userId or anonymousId is mapped to distinct_id.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "track",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "event": "Product Purchased",
+        "properties": {
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "price": 49.99,
+          "quantity": 2,
+          "currency": "USD",
+          "revenue": 99.98,
+          "coupon": "SAVE10"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://example.com/checkout",
+            "path": "/checkout",
+            "title": "Checkout",
+            "referrer": "https://example.com/cart"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "locale": "en-US",
+          "timezone": "America/New_York"
+        },
+        "timestamp": "2024-09-15T14:32:10.456Z",
+        "messageId": "seg-msg-track-001",
+        "sentAt": "2024-09-15T14:32:10.500Z"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "Product Purchased",
+        "distinct_id": "user-123",
+        "properties": {
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "price": 49.99,
+          "quantity": 2,
+          "currency": "USD",
+          "revenue": 99.98,
+          "coupon": "SAVE10",
+          "$current_url": "https://example.com/checkout",
+          "$referrer": "https://example.com/cart",
+          "$browser": "Chrome",
+          "$os": "Mac OS X",
+          "$lib": "rudder-sdk-js"
+        },
+        "timestamp": "2024-09-15T14:32:10.456Z"
+      }
+    },
+    "identify": {
+      "description": "Segment identify call mapped to a PostHog $identify event. User traits are split into $set (mutable properties) and $set_once (immutable properties). The userId becomes the distinct_id and the anonymousId is sent as $anon_distinct_id for identity merging.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "identify",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "phone": "+1-555-0199",
+          "company": {
+            "name": "Acme Corp",
+            "id": "company-789"
+          },
+          "plan": "enterprise",
+          "logins": 42,
+          "createdAt": "2023-01-15T08:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://example.com/settings",
+            "path": "/settings",
+            "title": "User Settings",
+            "referrer": "https://example.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "locale": "en-US"
+        },
+        "timestamp": "2024-09-15T14:35:22.789Z",
+        "messageId": "seg-msg-identify-001",
+        "sentAt": "2024-09-15T14:35:22.800Z"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "$identify",
+        "distinct_id": "user-123",
+        "properties": {
+          "$anon_distinct_id": "anon-456",
+          "$set": {
+            "email": "jane.doe@example.com",
+            "name": "Jane Doe",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "phone": "+1-555-0199",
+            "company_name": "Acme Corp",
+            "company_id": "company-789",
+            "plan": "enterprise",
+            "logins": 42
+          },
+          "$set_once": {
+            "createdAt": "2023-01-15T08:00:00.000Z"
+          },
+          "$browser": "Chrome",
+          "$os": "Mac OS X",
+          "$lib": "rudder-sdk-js"
+        },
+        "timestamp": "2024-09-15T14:35:22.789Z"
+      }
+    },
+    "page": {
+      "description": "Segment page call mapped to a PostHog $pageview event. Page name, URL, path, title, and referrer are mapped to PostHog's standard $-prefixed page properties. Additional page properties are included in the event properties.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "page",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "name": "Home",
+        "category": "Landing",
+        "properties": {
+          "url": "https://example.com/",
+          "path": "/",
+          "title": "Example - Home",
+          "referrer": "https://www.google.com/search?q=example",
+          "search": "?utm_source=google&utm_medium=cpc",
+          "keywords": ["analytics", "product"]
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "campaign": {
+            "source": "google",
+            "medium": "cpc",
+            "name": "brand_campaign"
+          },
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "ip": "198.51.100.22",
+          "locale": "en-GB",
+          "screen": {
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "timestamp": "2024-09-15T14:40:05.123Z",
+        "messageId": "seg-msg-page-001",
+        "sentAt": "2024-09-15T14:40:05.200Z"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "$pageview",
+        "distinct_id": "user-123",
+        "properties": {
+          "$current_url": "https://example.com/",
+          "$pathname": "/",
+          "$host": "example.com",
+          "$referrer": "https://www.google.com/search?q=example",
+          "$title": "Example - Home",
+          "name": "Home",
+          "category": "Landing",
+          "search": "?utm_source=google&utm_medium=cpc",
+          "keywords": ["analytics", "product"],
+          "$screen_width": 1920,
+          "$screen_height": 1080,
+          "utm_source": "google",
+          "utm_medium": "cpc",
+          "utm_campaign": "brand_campaign",
+          "$browser": "Chrome",
+          "$os": "Windows",
+          "$lib": "rudder-sdk-js"
+        },
+        "timestamp": "2024-09-15T14:40:05.123Z"
+      }
+    },
+    "screen": {
+      "description": "Segment screen call mapped to a PostHog $screen event. Screen name is mapped to $screen_name. Mobile screen views are treated as the mobile equivalent of $pageview. All additional screen properties are forwarded.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "screen",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "name": "Product Detail",
+        "category": "Shopping",
+        "properties": {
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "variation": "blue"
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ios",
+            "version": "4.1.0"
+          },
+          "device": {
+            "id": "device-ABC123",
+            "manufacturer": "Apple",
+            "model": "iPhone 15",
+            "name": "iPhone",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.5"
+          },
+          "app": {
+            "name": "ExampleApp",
+            "version": "3.2.1",
+            "build": "456"
+          },
+          "ip": "203.0.113.90",
+          "locale": "en-US"
+        },
+        "timestamp": "2024-09-15T14:42:30.567Z",
+        "messageId": "seg-msg-screen-001",
+        "sentAt": "2024-09-15T14:42:30.600Z"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "$screen",
+        "distinct_id": "user-123",
+        "properties": {
+          "$screen_name": "Product Detail",
+          "category": "Shopping",
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "variation": "blue",
+          "$device_id": "device-ABC123",
+          "$device_manufacturer": "Apple",
+          "$device_model": "iPhone 15",
+          "$device_name": "iPhone",
+          "$device_type": "ios",
+          "$os": "iOS",
+          "$os_version": "17.5",
+          "$app_name": "ExampleApp",
+          "$app_version": "3.2.1",
+          "$app_build": "456",
+          "$lib": "rudder-sdk-ios"
+        },
+        "timestamp": "2024-09-15T14:42:30.567Z"
+      }
+    },
+    "group": {
+      "description": "Segment group call mapped to a PostHog $groupidentify event. The Segment groupId becomes the $group_key and the group type defaults to the Segment group category or 'company'. Group traits are forwarded via $group_set for setting group-level properties.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "group",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "groupId": "group-abc-789",
+        "traits": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employees": 250,
+          "plan": "enterprise",
+          "website": "https://acme.example.com",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US"
+          },
+          "createdAt": "2022-06-01T00:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.50",
+          "locale": "en-US"
+        },
+        "timestamp": "2024-09-15T14:45:00.890Z",
+        "messageId": "seg-msg-group-001",
+        "sentAt": "2024-09-15T14:45:00.950Z"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "$groupidentify",
+        "distinct_id": "user-123",
+        "properties": {
+          "$group_type": "company",
+          "$group_key": "group-abc-789",
+          "$group_set": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "employees": 250,
+            "plan": "enterprise",
+            "website": "https://acme.example.com",
+            "address_street": "123 Main St",
+            "address_city": "San Francisco",
+            "address_state": "CA",
+            "address_postalCode": "94105",
+            "address_country": "US",
+            "createdAt": "2022-06-01T00:00:00.000Z"
+          },
+          "$lib": "rudder-sdk-js"
+        },
+        "timestamp": "2024-09-15T14:45:00.890Z"
+      }
+    },
+    "alias": {
+      "description": "Segment alias call mapped to a PostHog $create_alias event. Links the previousId to the userId so that events from both identities are merged into a single person profile in PostHog. The userId becomes the distinct_id and the previousId is sent as the alias property.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "alias",
+        "userId": "user-123",
+        "previousId": "anon-456",
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.50",
+          "locale": "en-US",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        },
+        "timestamp": "2024-09-15T14:47:15.234Z",
+        "messageId": "seg-msg-alias-001",
+        "sentAt": "2024-09-15T14:47:15.280Z"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "$create_alias",
+        "distinct_id": "user-123",
+        "properties": {
+          "alias": "anon-456",
+          "$lib": "rudder-sdk-js"
+        },
+        "timestamp": "2024-09-15T14:47:15.234Z"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack track call output for PostHog destination. Maps the RudderStack event directly to the PostHog Capture API format with api_key injected from destination config. The rudderId, sentAt, receivedAt, and originalTimestamp envelope fields are stripped from the output but used internally for delivery timing.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "track",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "event": "Product Purchased",
+        "properties": {
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "price": 49.99,
+          "quantity": 2,
+          "currency": "USD",
+          "revenue": 99.98,
+          "coupon": "SAVE10"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.0.0"
+          },
+          "page": {
+            "url": "https://example.com/checkout",
+            "path": "/checkout",
+            "title": "Checkout",
+            "referrer": "https://example.com/cart"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "locale": "en-US",
+          "timezone": "America/New_York"
+        },
+        "rudderId": "rudder-id-001",
+        "originalTimestamp": "2024-09-15T14:32:10.456Z",
+        "sentAt": "2024-09-15T14:32:10.500Z",
+        "receivedAt": "2024-09-15T14:32:10.600Z",
+        "timestamp": "2024-09-15T14:32:10.556Z",
+        "messageId": "rs-msg-track-001"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "Product Purchased",
+        "distinct_id": "user-123",
+        "properties": {
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "price": 49.99,
+          "quantity": 2,
+          "currency": "USD",
+          "revenue": 99.98,
+          "coupon": "SAVE10",
+          "$current_url": "https://example.com/checkout",
+          "$referrer": "https://example.com/cart",
+          "$browser": "Chrome",
+          "$os": "Mac OS X",
+          "$lib": "rudder-sdk-js"
+        },
+        "timestamp": "2024-09-15T14:32:10.556Z"
+      }
+    },
+    "identify": {
+      "description": "RudderStack identify call output for PostHog destination. Traits are split into $set for mutable properties and $set_once for immutable properties (e.g. createdAt). The anonymousId is mapped to $anon_distinct_id to merge anonymous and known user identities.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "identify",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "phone": "+1-555-0199",
+          "company": {
+            "name": "Acme Corp",
+            "id": "company-789"
+          },
+          "plan": "enterprise",
+          "logins": 42,
+          "createdAt": "2023-01-15T08:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.0.0"
+          },
+          "page": {
+            "url": "https://example.com/settings",
+            "path": "/settings",
+            "title": "User Settings",
+            "referrer": "https://example.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.50",
+          "locale": "en-US"
+        },
+        "rudderId": "rudder-id-002",
+        "originalTimestamp": "2024-09-15T14:35:22.789Z",
+        "sentAt": "2024-09-15T14:35:22.800Z",
+        "receivedAt": "2024-09-15T14:35:22.850Z",
+        "timestamp": "2024-09-15T14:35:22.839Z",
+        "messageId": "rs-msg-identify-001"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "$identify",
+        "distinct_id": "user-123",
+        "properties": {
+          "$anon_distinct_id": "anon-456",
+          "$set": {
+            "email": "jane.doe@example.com",
+            "name": "Jane Doe",
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "phone": "+1-555-0199",
+            "company_name": "Acme Corp",
+            "company_id": "company-789",
+            "plan": "enterprise",
+            "logins": 42
+          },
+          "$set_once": {
+            "createdAt": "2023-01-15T08:00:00.000Z"
+          },
+          "$browser": "Chrome",
+          "$os": "Mac OS X",
+          "$lib": "rudder-sdk-js"
+        },
+        "timestamp": "2024-09-15T14:35:22.839Z"
+      }
+    },
+    "page": {
+      "description": "RudderStack page call output for PostHog destination. Maps to $pageview event with standard PostHog $-prefixed page properties. UTM campaign parameters from context are extracted into top-level properties.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "page",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "name": "Home",
+        "category": "Landing",
+        "properties": {
+          "url": "https://example.com/",
+          "path": "/",
+          "title": "Example - Home",
+          "referrer": "https://www.google.com/search?q=example",
+          "search": "?utm_source=google&utm_medium=cpc",
+          "keywords": ["analytics", "product"]
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.0.0"
+          },
+          "campaign": {
+            "source": "google",
+            "medium": "cpc",
+            "name": "brand_campaign"
+          },
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "ip": "198.51.100.22",
+          "locale": "en-GB",
+          "screen": {
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "rudderId": "rudder-id-003",
+        "originalTimestamp": "2024-09-15T14:40:05.123Z",
+        "sentAt": "2024-09-15T14:40:05.200Z",
+        "receivedAt": "2024-09-15T14:40:05.270Z",
+        "timestamp": "2024-09-15T14:40:05.193Z",
+        "messageId": "rs-msg-page-001"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "$pageview",
+        "distinct_id": "user-123",
+        "properties": {
+          "$current_url": "https://example.com/",
+          "$pathname": "/",
+          "$host": "example.com",
+          "$referrer": "https://www.google.com/search?q=example",
+          "$title": "Example - Home",
+          "name": "Home",
+          "category": "Landing",
+          "search": "?utm_source=google&utm_medium=cpc",
+          "keywords": ["analytics", "product"],
+          "$screen_width": 1920,
+          "$screen_height": 1080,
+          "utm_source": "google",
+          "utm_medium": "cpc",
+          "utm_campaign": "brand_campaign",
+          "$browser": "Chrome",
+          "$os": "Windows",
+          "$lib": "rudder-sdk-js"
+        },
+        "timestamp": "2024-09-15T14:40:05.193Z"
+      }
+    },
+    "screen": {
+      "description": "RudderStack screen call output for PostHog destination. Maps to $screen event with $screen_name for mobile screen views. Device and app metadata from context are mapped to PostHog $-prefixed device properties.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "screen",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "name": "Product Detail",
+        "category": "Shopping",
+        "properties": {
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "variation": "blue"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-ios",
+            "version": "2.0.0"
+          },
+          "device": {
+            "id": "device-ABC123",
+            "manufacturer": "Apple",
+            "model": "iPhone 15",
+            "name": "iPhone",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.5"
+          },
+          "app": {
+            "name": "ExampleApp",
+            "version": "3.2.1",
+            "build": "456"
+          },
+          "ip": "203.0.113.90",
+          "locale": "en-US"
+        },
+        "rudderId": "rudder-id-004",
+        "originalTimestamp": "2024-09-15T14:42:30.567Z",
+        "sentAt": "2024-09-15T14:42:30.600Z",
+        "receivedAt": "2024-09-15T14:42:30.650Z",
+        "timestamp": "2024-09-15T14:42:30.617Z",
+        "messageId": "rs-msg-screen-001"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "$screen",
+        "distinct_id": "user-123",
+        "properties": {
+          "$screen_name": "Product Detail",
+          "category": "Shopping",
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "variation": "blue",
+          "$device_id": "device-ABC123",
+          "$device_manufacturer": "Apple",
+          "$device_model": "iPhone 15",
+          "$device_name": "iPhone",
+          "$device_type": "ios",
+          "$os": "iOS",
+          "$os_version": "17.5",
+          "$app_name": "ExampleApp",
+          "$app_version": "3.2.1",
+          "$app_build": "456",
+          "$lib": "rudder-sdk-ios"
+        },
+        "timestamp": "2024-09-15T14:42:30.617Z"
+      }
+    },
+    "group": {
+      "description": "RudderStack group call output for PostHog destination. Maps to $groupidentify event. The groupId becomes $group_key, and group traits are sent via $group_set. The default $group_type is 'company' unless overridden by configuration.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "group",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "groupId": "group-abc-789",
+        "traits": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employees": 250,
+          "plan": "enterprise",
+          "website": "https://acme.example.com",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US"
+          },
+          "createdAt": "2022-06-01T00:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.0.0"
+          },
+          "ip": "203.0.113.50",
+          "locale": "en-US"
+        },
+        "rudderId": "rudder-id-005",
+        "originalTimestamp": "2024-09-15T14:45:00.890Z",
+        "sentAt": "2024-09-15T14:45:00.950Z",
+        "receivedAt": "2024-09-15T14:45:01.010Z",
+        "timestamp": "2024-09-15T14:45:00.950Z",
+        "messageId": "rs-msg-group-001"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "$groupidentify",
+        "distinct_id": "user-123",
+        "properties": {
+          "$group_type": "company",
+          "$group_key": "group-abc-789",
+          "$group_set": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "employees": 250,
+            "plan": "enterprise",
+            "website": "https://acme.example.com",
+            "address_street": "123 Main St",
+            "address_city": "San Francisco",
+            "address_state": "CA",
+            "address_postalCode": "94105",
+            "address_country": "US",
+            "createdAt": "2022-06-01T00:00:00.000Z"
+          },
+          "$lib": "rudder-sdk-js"
+        },
+        "timestamp": "2024-09-15T14:45:00.950Z"
+      }
+    },
+    "alias": {
+      "description": "RudderStack alias call output for PostHog destination. Maps to $create_alias event to merge two distinct identities. The userId becomes the distinct_id and previousId becomes the alias property for identity linking.",
+      "endpoint": "POST /i/v0/e/",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "alias",
+        "userId": "user-123",
+        "previousId": "anon-456",
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.0.0"
+          },
+          "ip": "203.0.113.50",
+          "locale": "en-US",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        },
+        "rudderId": "rudder-id-006",
+        "originalTimestamp": "2024-09-15T14:47:15.234Z",
+        "sentAt": "2024-09-15T14:47:15.280Z",
+        "receivedAt": "2024-09-15T14:47:15.330Z",
+        "timestamp": "2024-09-15T14:47:15.284Z",
+        "messageId": "rs-msg-alias-001"
+      },
+      "mapped_output": {
+        "api_key": "<posthog_project_api_key>",
+        "event": "$create_alias",
+        "distinct_id": "user-123",
+        "properties": {
+          "alias": "anon-456",
+          "$lib": "rudder-sdk-js"
+        },
+        "timestamp": "2024-09-15T14:47:15.284Z"
+      }
+    }
+  },
+  "field_mappings": {
+    "user_identification": {
+      "description": "Maps Segment/RudderStack user identity fields to PostHog distinct_id. PostHog uses a single distinct_id for all user identification. For anonymous users, the anonymousId is used; for known users, userId takes precedence.",
+      "mappings": [
+        {
+          "source_field": "userId",
+          "destination_field": "distinct_id",
+          "transform": "direct",
+          "notes": "Used as primary distinct_id when present; identifies a known user in PostHog"
+        },
+        {
+          "source_field": "anonymousId",
+          "destination_field": "distinct_id",
+          "transform": "fallback_when_userId_absent",
+          "notes": "Used as distinct_id only when userId is not provided (anonymous users)"
+        },
+        {
+          "source_field": "anonymousId",
+          "destination_field": "properties.$anon_distinct_id",
+          "transform": "direct_on_identify",
+          "notes": "Set on $identify events to enable identity merging between anonymous and identified users"
+        }
+      ]
+    },
+    "identify_trait_splitting": {
+      "description": "Segment/RudderStack identify traits are split into PostHog $set (mutable) and $set_once (immutable) property groups. Properties that represent initial or creation-time values are routed to $set_once; all others go to $set.",
+      "mappings": [
+        {
+          "source_field": "traits.*",
+          "destination_field": "properties.$set.*",
+          "transform": "default_all_traits",
+          "notes": "All traits are placed in $set by default (overwritten on every identify call)"
+        },
+        {
+          "source_field": "traits.createdAt",
+          "destination_field": "properties.$set_once.createdAt",
+          "transform": "move_to_set_once",
+          "notes": "createdAt is moved from $set to $set_once since it should never change after initial set"
+        },
+        {
+          "source_field": "traits.company.name",
+          "destination_field": "properties.$set.company_name",
+          "transform": "flatten_nested_object",
+          "notes": "Nested company object is flattened: company.name → company_name, company.id → company_id"
+        },
+        {
+          "source_field": "traits.company.id",
+          "destination_field": "properties.$set.company_id",
+          "transform": "flatten_nested_object",
+          "notes": "Nested company object is flattened with underscore separator"
+        }
+      ]
+    },
+    "event_name_mapping": {
+      "description": "Maps Segment/RudderStack event call types to PostHog event names. Track events preserve their custom event name; other call types are mapped to PostHog's standard special event names.",
+      "mappings": [
+        {
+          "source_field": "event (track)",
+          "destination_field": "event",
+          "transform": "direct",
+          "notes": "Custom track event name is used as-is in PostHog"
+        },
+        {
+          "source_field": "type=identify",
+          "destination_field": "event=$identify",
+          "transform": "constant",
+          "notes": "All identify calls become $identify events"
+        },
+        {
+          "source_field": "type=page",
+          "destination_field": "event=$pageview",
+          "transform": "constant",
+          "notes": "All page calls become $pageview events"
+        },
+        {
+          "source_field": "type=screen",
+          "destination_field": "event=$screen",
+          "transform": "constant",
+          "notes": "All screen calls become $screen events"
+        },
+        {
+          "source_field": "type=group",
+          "destination_field": "event=$groupidentify",
+          "transform": "constant",
+          "notes": "All group calls become $groupidentify events with $group_type, $group_key, $group_set"
+        },
+        {
+          "source_field": "type=alias",
+          "destination_field": "event=$create_alias",
+          "transform": "constant",
+          "notes": "All alias calls become $create_alias events with previousId as alias property"
+        }
+      ]
+    },
+    "page_properties": {
+      "description": "Maps Segment/RudderStack page properties to PostHog standard $-prefixed page properties used for web analytics features like pageview tracking and session replay.",
+      "mappings": [
+        {
+          "source_field": "properties.url",
+          "destination_field": "properties.$current_url",
+          "transform": "rename",
+          "notes": "Page URL mapped to PostHog's standard $current_url property"
+        },
+        {
+          "source_field": "properties.path",
+          "destination_field": "properties.$pathname",
+          "transform": "rename",
+          "notes": "Page path mapped to PostHog's standard $pathname property"
+        },
+        {
+          "source_field": "properties.url (hostname)",
+          "destination_field": "properties.$host",
+          "transform": "extract_hostname",
+          "notes": "Hostname is extracted from the full URL and set as $host"
+        },
+        {
+          "source_field": "properties.referrer",
+          "destination_field": "properties.$referrer",
+          "transform": "rename",
+          "notes": "Referrer URL mapped to PostHog's standard $referrer property"
+        },
+        {
+          "source_field": "properties.title",
+          "destination_field": "properties.$title",
+          "transform": "rename",
+          "notes": "Page title mapped to PostHog's standard $title property"
+        }
+      ]
+    },
+    "group_properties": {
+      "description": "Maps Segment/RudderStack group fields to PostHog $groupidentify event structure. PostHog groups require explicit $group_type (analytics entity type) and $group_key (unique identifier) with properties sent via $group_set.",
+      "mappings": [
+        {
+          "source_field": "groupId",
+          "destination_field": "properties.$group_key",
+          "transform": "direct",
+          "notes": "Group identifier becomes the PostHog $group_key"
+        },
+        {
+          "source_field": "category (or default 'company')",
+          "destination_field": "properties.$group_type",
+          "transform": "default_to_company",
+          "notes": "Group type defaults to 'company' if no category is provided; maps to PostHog group analytics entity type"
+        },
+        {
+          "source_field": "traits.*",
+          "destination_field": "properties.$group_set.*",
+          "transform": "wrap_in_group_set",
+          "notes": "All group traits are placed inside $group_set for PostHog group property assignment"
+        },
+        {
+          "source_field": "traits.address.*",
+          "destination_field": "properties.$group_set.address_*",
+          "transform": "flatten_nested_with_prefix",
+          "notes": "Nested address object is flattened with underscore separator inside $group_set"
+        }
+      ]
+    },
+    "context_fields": {
+      "description": "Maps Segment/RudderStack context metadata to PostHog $-prefixed properties for browser, device, OS, and campaign attribution. These enrichments enable PostHog features like session replay, web analytics, and attribution reports.",
+      "mappings": [
+        {
+          "source_field": "context.userAgent",
+          "destination_field": "properties.$browser, properties.$os",
+          "transform": "parse_user_agent",
+          "notes": "User agent string is parsed into $browser and $os values"
+        },
+        {
+          "source_field": "context.screen.width",
+          "destination_field": "properties.$screen_width",
+          "transform": "rename",
+          "notes": "Screen dimensions mapped to PostHog viewport properties"
+        },
+        {
+          "source_field": "context.screen.height",
+          "destination_field": "properties.$screen_height",
+          "transform": "rename",
+          "notes": "Screen height mapped to PostHog viewport property"
+        },
+        {
+          "source_field": "context.campaign.source",
+          "destination_field": "properties.utm_source",
+          "transform": "rename",
+          "notes": "Campaign source mapped to standard utm_source parameter"
+        },
+        {
+          "source_field": "context.campaign.medium",
+          "destination_field": "properties.utm_medium",
+          "transform": "rename",
+          "notes": "Campaign medium mapped to standard utm_medium parameter"
+        },
+        {
+          "source_field": "context.campaign.name",
+          "destination_field": "properties.utm_campaign",
+          "transform": "rename",
+          "notes": "Campaign name mapped to standard utm_campaign parameter"
+        },
+        {
+          "source_field": "context.library.name",
+          "destination_field": "properties.$lib",
+          "transform": "rename",
+          "notes": "Library name set as $lib property; Segment uses analytics.js while RudderStack uses rudder-sdk-js"
+        },
+        {
+          "source_field": "context.device.id",
+          "destination_field": "properties.$device_id",
+          "transform": "rename",
+          "notes": "Mobile device ID mapped to PostHog $device_id property"
+        },
+        {
+          "source_field": "context.device.manufacturer",
+          "destination_field": "properties.$device_manufacturer",
+          "transform": "rename",
+          "notes": "Device manufacturer mapped to PostHog property"
+        },
+        {
+          "source_field": "context.device.model",
+          "destination_field": "properties.$device_model",
+          "transform": "rename",
+          "notes": "Device model mapped to PostHog property"
+        },
+        {
+          "source_field": "context.os.name",
+          "destination_field": "properties.$os",
+          "transform": "rename",
+          "notes": "Operating system name from context.os mapped to $os"
+        },
+        {
+          "source_field": "context.os.version",
+          "destination_field": "properties.$os_version",
+          "transform": "rename",
+          "notes": "OS version from context.os mapped to $os_version"
+        },
+        {
+          "source_field": "context.app.name",
+          "destination_field": "properties.$app_name",
+          "transform": "rename",
+          "notes": "Mobile app name mapped to PostHog $app_name property"
+        },
+        {
+          "source_field": "context.app.version",
+          "destination_field": "properties.$app_version",
+          "transform": "rename",
+          "notes": "Mobile app version mapped to PostHog $app_version property"
+        },
+        {
+          "source_field": "context.app.build",
+          "destination_field": "properties.$app_build",
+          "transform": "rename",
+          "notes": "Mobile app build number mapped to PostHog $app_build property"
+        }
+      ]
+    }
+  },
+  "destination_config": {
+    "required_settings": [
+      {
+        "key": "apiKey",
+        "type": "string",
+        "description": "PostHog project API key (phc_... format). Found in Project Settings > Project Variables. Used as the api_key field in all Capture API requests.",
+        "example": "phc_1a2b3c4d5e6f7g8h9i0jklmnopqrstuv"
+      },
+      {
+        "key": "hostUrl",
+        "type": "string",
+        "description": "PostHog instance URL for API requests. Use 'https://us.i.posthog.com' for US Cloud, 'https://eu.i.posthog.com' for EU Cloud, or your self-hosted instance URL.",
+        "example": "https://us.i.posthog.com",
+        "default": "https://us.i.posthog.com"
+      }
+    ],
+    "optional_settings": [
+      {
+        "key": "groupTypeMapping",
+        "type": "object",
+        "description": "Mapping from Segment/RudderStack group categories to PostHog group types. If not set, all groups default to 'company' type. PostHog supports up to 5 group types per project.",
+        "example": {
+          "organization": "company",
+          "team": "team",
+          "project": "project"
+        }
+      },
+      {
+        "key": "useV2Endpoint",
+        "type": "boolean",
+        "description": "Whether to use PostHog's newer /i/v0/e/ endpoint format. Defaults to true for new configurations.",
+        "default": true
+      }
+    ]
+  },
+  "parity_assessment": {
+    "overall_status": "high",
+    "event_parity": {
+      "track": {
+        "status": "full",
+        "notes": "Custom event names and properties are forwarded identically. Both Segment and RudderStack produce equivalent PostHog capture events."
+      },
+      "identify": {
+        "status": "full",
+        "notes": "User identification with $set/$set_once trait splitting is supported. Both platforms merge anonymous and identified users via $anon_distinct_id."
+      },
+      "page": {
+        "status": "full",
+        "notes": "Page views mapped to $pageview with all standard PostHog page properties ($current_url, $pathname, $host, $referrer, $title)."
+      },
+      "screen": {
+        "status": "full",
+        "notes": "Mobile screen views mapped to $screen with $screen_name. Device and app context properties are forwarded."
+      },
+      "group": {
+        "status": "full",
+        "notes": "Group analytics mapped to $groupidentify with $group_type, $group_key, and $group_set. Nested trait objects are flattened."
+      },
+      "alias": {
+        "status": "full",
+        "notes": "Identity merging via $create_alias is supported. Links previousId to userId in PostHog's identity graph."
+      }
+    },
+    "known_gaps": [
+      {
+        "gap_id": "PH-001",
+        "description": "RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) not present in Segment payloads. These are stripped before delivery to PostHog and do not affect the destination payload, but timestamp computation may differ slightly.",
+        "severity": "low",
+        "impact": "No functional impact on PostHog event data. The computed timestamp in RudderStack uses (originalTimestamp + (receivedAt - sentAt)) which may differ from Segment's direct timestamp passthrough by milliseconds."
+      },
+      {
+        "gap_id": "PH-002",
+        "description": "Context library name differs between platforms: Segment sends 'analytics.js' / 'analytics-ios' while RudderStack sends 'rudder-sdk-js' / 'rudder-sdk-ios'. This maps to the $lib property in PostHog.",
+        "severity": "low",
+        "impact": "The $lib property value will differ in PostHog, which may affect filtering or segmentation by SDK source. Functionally equivalent."
+      },
+      {
+        "gap_id": "PH-003",
+        "description": "PostHog's group analytics feature requires group types to be pre-configured in the PostHog project settings. The default group type 'company' must exist. Custom group type mappings depend on destination configuration.",
+        "severity": "medium",
+        "impact": "If PostHog project does not have matching group types configured, $groupidentify events may fail silently or create unexpected group type entries."
+      },
+      {
+        "gap_id": "PH-004",
+        "description": "Nested object flattening strategy may differ between Segment and RudderStack. Segment may preserve nested objects while RudderStack flattens with underscore separators (e.g. address.city → address_city).",
+        "severity": "low",
+        "impact": "Property names in PostHog may differ between Segment-sourced and RudderStack-sourced events for nested trait/property objects. PostHog handles both formats."
+      }
+    ],
+    "recommended_validation": [
+      "Verify distinct_id is correctly resolved from userId with anonymousId fallback",
+      "Validate $identify events include $anon_distinct_id for anonymous-to-identified user merging",
+      "Confirm $set and $set_once trait splitting places createdAt in $set_once",
+      "Check $pageview events include all 5 standard PostHog page properties ($current_url, $pathname, $host, $referrer, $title)",
+      "Verify $screen events include $screen_name from the screen name field",
+      "Validate $groupidentify events include $group_type, $group_key, and $group_set",
+      "Confirm $create_alias events link previousId as the alias property",
+      "Ensure api_key from destination config is injected into every outbound event",
+      "Verify UTM campaign parameters are extracted from context.campaign to top-level utm_* properties",
+      "Compare timestamp handling between Segment direct passthrough and RudderStack computed timestamp"
+    ]
+  },
+  "notes": "PostHog shared cloud destination. Category: Analytics. PostHog is an open-source product analytics platform that provides event tracking, session replay, feature flags, experiments, and surveys. RudderStack sends events to PostHog via the Capture API (POST /i/v0/e/) with the project API key. All six standard event types (track, identify, page, screen, group, alias) are supported with full field mapping parity. Key integration points include distinct_id resolution from userId/anonymousId, $set/$set_once trait splitting for identify calls, $pageview/$screen event mapping for page/screen calls, $groupidentify for group analytics, and $create_alias for identity merging. PostHog supports both US Cloud (us.i.posthog.com) and EU Cloud (eu.i.posthog.com) regions as well as self-hosted instances."
+}

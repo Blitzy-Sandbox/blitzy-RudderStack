@@ -1,0 +1,927 @@
+{
+  "destination_type": "VWO",
+  "destination_tier": "cloud",
+  "segment_slug": "actions-vwo-cloud",
+  "category": "A/B Testing",
+  "event_types": ["track", "identify", "page"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment converts Track calls to VWO Data360 custom events via the VWO Events API. Event names are prepended with 'segment.' before delivery (e.g., 'Order Completed' becomes 'segment.Order Completed'). The vwo_uuid is required in properties for user association. Events appear under UNREGISTERED EVENTS in VWO Data360 > Events and can be registered as metrics for A/B test campaigns.",
+      "endpoint": "POST https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "track",
+        "event": "Experiment Converted",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:32:10.456Z",
+        "properties": {
+          "vwo_uuid": "D-5E39A24CC8B44A6C9A1B2F9D3E7A8B01",
+          "experimentId": "camp-42",
+          "variationId": "variation-2",
+          "goalIdentifier": "purchase_complete",
+          "revenue": 149.99,
+          "orderId": "ORD-9087",
+          "currency": "USD",
+          "productName": "Premium Widget",
+          "goalType": "REVENUE"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.8.1"
+          },
+          "page": {
+            "path": "/checkout/confirmation",
+            "referrer": "https://www.example.com/cart",
+            "title": "Order Confirmation",
+            "url": "https://www.example.com/checkout/confirmation"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "seg-msg-track-vwo-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "d": {
+            "event": {
+              "props": {
+                "vwo_sdkName": "segment",
+                "vwo_sdkVersion": "2.8.1",
+                "vwo_envKey": "{VWO_SDK_KEY}",
+                "$visitor": {
+                  "props": {
+                    "vwo_fs_environment": "{VWO_SDK_KEY}"
+                  }
+                },
+                "isCustomEvent": true,
+                "page": {
+                  "url": "https://www.example.com/checkout/confirmation",
+                  "path": "/checkout/confirmation",
+                  "title": "Order Confirmation",
+                  "referrer": "https://www.example.com/cart"
+                }
+              },
+              "name": "segment.Experiment Converted",
+              "time": 1726407130456
+            },
+            "visitor": {
+              "props": {
+                "segment.experimentId": "camp-42",
+                "segment.variationId": "variation-2",
+                "segment.goalIdentifier": "purchase_complete",
+                "segment.revenue": 149.99,
+                "segment.orderId": "ORD-9087",
+                "segment.currency": "USD",
+                "segment.productName": "Premium Widget",
+                "segment.goalType": "REVENUE"
+              }
+            }
+          }
+        },
+        "query_params": {
+          "en": "segment.Experiment Converted",
+          "a": "{VWO_ACCOUNT_ID}",
+          "env": "{VWO_SDK_KEY}",
+          "eTime": 1726407130456
+        }
+      }
+    },
+    "identify": {
+      "description": "Segment Identify calls forward user traits to VWO Data360 as visitor attributes. Each trait key is prepended with 'segment.' before being sent to VWO. The vwo_uuid is required in traits for visitor association. Attributes appear under UNREGISTERED ATTRIBUTES in VWO Data360 > Attributes and can be registered for campaign targeting and segmentation.",
+      "endpoint": "POST https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "identify",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:30:05.123Z",
+        "traits": {
+          "vwo_uuid": "D-5E39A24CC8B44A6C9A1B2F9D3E7A8B01",
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "company": "Acme Corp",
+          "role": "Engineering Manager",
+          "logins": 47,
+          "createdAt": "2023-01-15T08:00:00.000Z",
+          "experimentGroup": "treatment-A",
+          "abTestParticipant": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.8.1"
+          },
+          "page": {
+            "path": "/dashboard",
+            "referrer": "https://www.example.com/login",
+            "title": "Dashboard",
+            "url": "https://www.example.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "seg-msg-identify-vwo-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "d": {
+            "event": {
+              "props": {
+                "vwo_sdkName": "segment",
+                "vwo_sdkVersion": "2.8.1",
+                "vwo_envKey": "{VWO_SDK_KEY}",
+                "$visitor": {
+                  "props": {
+                    "vwo_fs_environment": "{VWO_SDK_KEY}"
+                  }
+                },
+                "isCustomEvent": true
+              },
+              "name": "vwo_syncVisitorProp",
+              "time": 1726407005123
+            },
+            "visitor": {
+              "props": {
+                "segment.email": "jane.doe@example.com",
+                "segment.name": "Jane Doe",
+                "segment.plan": "enterprise",
+                "segment.company": "Acme Corp",
+                "segment.role": "Engineering Manager",
+                "segment.logins": 47,
+                "segment.createdAt": "2023-01-15T08:00:00.000Z",
+                "segment.experimentGroup": "treatment-A",
+                "segment.abTestParticipant": true
+              }
+            }
+          }
+        },
+        "query_params": {
+          "en": "vwo_syncVisitorProp",
+          "a": "{VWO_ACCOUNT_ID}",
+          "env": "{VWO_SDK_KEY}",
+          "eTime": 1726407005123
+        }
+      }
+    },
+    "page": {
+      "description": "Segment Page calls are converted to VWO Data360 page visit events. The event name follows the pattern 'segment.page' and is sent with page properties including URL, path, title, and referrer. The vwo_uuid is required in properties for visitor association. Page events are only supported for web page sources; server-side sources in VWO FullStack Suite do not support the Page Visit event type.",
+      "endpoint": "POST https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "page",
+        "name": "Experiment Results",
+        "category": "Testing",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:31:00.789Z",
+        "properties": {
+          "vwo_uuid": "D-5E39A24CC8B44A6C9A1B2F9D3E7A8B01",
+          "title": "Experiment Results — Campaign #42",
+          "url": "https://www.example.com/experiments/42/results",
+          "path": "/experiments/42/results",
+          "referrer": "https://www.example.com/experiments",
+          "search": "?variation=2&metric=conversion_rate",
+          "experimentId": "camp-42",
+          "variationName": "Redesigned Checkout"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.8.1"
+          },
+          "page": {
+            "path": "/experiments/42/results",
+            "referrer": "https://www.example.com/experiments",
+            "title": "Experiment Results — Campaign #42",
+            "url": "https://www.example.com/experiments/42/results"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "seg-msg-page-vwo-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "d": {
+            "event": {
+              "props": {
+                "vwo_sdkName": "segment",
+                "vwo_sdkVersion": "2.8.1",
+                "vwo_envKey": "{VWO_SDK_KEY}",
+                "$visitor": {
+                  "props": {
+                    "vwo_fs_environment": "{VWO_SDK_KEY}"
+                  }
+                },
+                "isCustomEvent": true,
+                "page": {
+                  "url": "https://www.example.com/experiments/42/results",
+                  "path": "/experiments/42/results",
+                  "title": "Experiment Results — Campaign #42",
+                  "referrer": "https://www.example.com/experiments"
+                }
+              },
+              "name": "segment.page",
+              "time": 1726407060789
+            },
+            "visitor": {
+              "props": {
+                "segment.title": "Experiment Results — Campaign #42",
+                "segment.url": "https://www.example.com/experiments/42/results",
+                "segment.path": "/experiments/42/results",
+                "segment.referrer": "https://www.example.com/experiments",
+                "segment.search": "?variation=2&metric=conversion_rate",
+                "segment.experimentId": "camp-42",
+                "segment.variationName": "Redesigned Checkout",
+                "segment.name": "Experiment Results",
+                "segment.category": "Testing"
+              }
+            }
+          }
+        },
+        "query_params": {
+          "en": "segment.page",
+          "a": "{VWO_ACCOUNT_ID}",
+          "env": "{VWO_SDK_KEY}",
+          "eTime": 1726407060789
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack converts Track calls to VWO Data360 events via the VWO server-side event tracking endpoint. Event names follow VWO's naming conventions for experiment goal tracking and custom event delivery. The RudderStack transformer maps event properties to VWO's visitor properties format and includes additional RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt).",
+      "endpoint": "POST https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "track",
+        "event": "Experiment Converted",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:32:10.456Z",
+        "properties": {
+          "vwo_uuid": "D-5E39A24CC8B44A6C9A1B2F9D3E7A8B01",
+          "experimentId": "camp-42",
+          "variationId": "variation-2",
+          "goalIdentifier": "purchase_complete",
+          "revenue": 149.99,
+          "orderId": "ORD-9087",
+          "currency": "USD",
+          "productName": "Premium Widget",
+          "goalType": "REVENUE"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.2.1"
+          },
+          "page": {
+            "path": "/checkout/confirmation",
+            "referrer": "https://www.example.com/cart",
+            "title": "Order Confirmation",
+            "url": "https://www.example.com/checkout/confirmation"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "rs-msg-track-vwo-001",
+        "rudderId": "rudder-uuid-track-vwo-001",
+        "originalTimestamp": "2024-09-15T14:32:10.456Z",
+        "sentAt": "2024-09-15T14:32:11.000Z",
+        "receivedAt": "2024-09-15T14:32:12.000Z"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "d": {
+            "event": {
+              "props": {
+                "vwo_sdkName": "rudderstack",
+                "vwo_sdkVersion": "3.2.1",
+                "vwo_envKey": "{VWO_SDK_KEY}",
+                "$visitor": {
+                  "props": {
+                    "vwo_fs_environment": "{VWO_SDK_KEY}"
+                  }
+                },
+                "isCustomEvent": true,
+                "page": {
+                  "url": "https://www.example.com/checkout/confirmation",
+                  "path": "/checkout/confirmation",
+                  "title": "Order Confirmation",
+                  "referrer": "https://www.example.com/cart"
+                }
+              },
+              "name": "Experiment Converted",
+              "time": 1726407130456
+            },
+            "visitor": {
+              "props": {
+                "experimentId": "camp-42",
+                "variationId": "variation-2",
+                "goalIdentifier": "purchase_complete",
+                "revenue": 149.99,
+                "orderId": "ORD-9087",
+                "currency": "USD",
+                "productName": "Premium Widget",
+                "goalType": "REVENUE"
+              }
+            }
+          }
+        },
+        "query_params": {
+          "en": "Experiment Converted",
+          "a": "{VWO_ACCOUNT_ID}",
+          "env": "{VWO_SDK_KEY}",
+          "eTime": 1726407130456
+        }
+      },
+      "key_differences": [
+        {
+          "field": "context.library.name",
+          "segment_value": "analytics.js",
+          "rudderstack_value": "rudder-sdk-js",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "envelope_fields",
+          "segment_value": "messageId only",
+          "rudderstack_value": "rudderId, messageId, originalTimestamp, sentAt, receivedAt",
+          "impact": "rudderstack_superset"
+        },
+        {
+          "field": "mapped_output.body.d.event.props.vwo_sdkName",
+          "segment_value": "segment",
+          "rudderstack_value": "rudderstack",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "mapped_output.body.d.event.name",
+          "segment_value": "segment.Experiment Converted",
+          "rudderstack_value": "Experiment Converted",
+          "impact": "different_prefix_convention"
+        },
+        {
+          "field": "mapped_output.body.d.visitor.props key prefix",
+          "segment_value": "segment.{propertyName}",
+          "rudderstack_value": "{propertyName}",
+          "impact": "different_prefix_convention"
+        }
+      ]
+    },
+    "identify": {
+      "description": "RudderStack Identify calls forward user traits to VWO Data360 as visitor attributes via the vwo_syncVisitorProp event. The RudderStack transformer maps traits to VWO visitor properties. Unlike Segment which prepends 'segment.' to trait keys, RudderStack sends trait keys directly or with a configurable prefix depending on transformer configuration.",
+      "endpoint": "POST https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "identify",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:30:05.123Z",
+        "traits": {
+          "vwo_uuid": "D-5E39A24CC8B44A6C9A1B2F9D3E7A8B01",
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "company": "Acme Corp",
+          "role": "Engineering Manager",
+          "logins": 47,
+          "createdAt": "2023-01-15T08:00:00.000Z",
+          "experimentGroup": "treatment-A",
+          "abTestParticipant": true
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.2.1"
+          },
+          "page": {
+            "path": "/dashboard",
+            "referrer": "https://www.example.com/login",
+            "title": "Dashboard",
+            "url": "https://www.example.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "rs-msg-identify-vwo-001",
+        "rudderId": "rudder-uuid-identify-vwo-001",
+        "originalTimestamp": "2024-09-15T14:30:05.123Z",
+        "sentAt": "2024-09-15T14:30:06.000Z",
+        "receivedAt": "2024-09-15T14:30:07.000Z"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "d": {
+            "event": {
+              "props": {
+                "vwo_sdkName": "rudderstack",
+                "vwo_sdkVersion": "3.2.1",
+                "vwo_envKey": "{VWO_SDK_KEY}",
+                "$visitor": {
+                  "props": {
+                    "vwo_fs_environment": "{VWO_SDK_KEY}"
+                  }
+                },
+                "isCustomEvent": true
+              },
+              "name": "vwo_syncVisitorProp",
+              "time": 1726407005123
+            },
+            "visitor": {
+              "props": {
+                "email": "jane.doe@example.com",
+                "name": "Jane Doe",
+                "plan": "enterprise",
+                "company": "Acme Corp",
+                "role": "Engineering Manager",
+                "logins": 47,
+                "createdAt": "2023-01-15T08:00:00.000Z",
+                "experimentGroup": "treatment-A",
+                "abTestParticipant": true
+              }
+            }
+          }
+        },
+        "query_params": {
+          "en": "vwo_syncVisitorProp",
+          "a": "{VWO_ACCOUNT_ID}",
+          "env": "{VWO_SDK_KEY}",
+          "eTime": 1726407005123
+        }
+      },
+      "key_differences": [
+        {
+          "field": "context.library.name",
+          "segment_value": "analytics.js",
+          "rudderstack_value": "rudder-sdk-js",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "envelope_fields",
+          "segment_value": "messageId only",
+          "rudderstack_value": "rudderId, messageId, originalTimestamp, sentAt, receivedAt",
+          "impact": "rudderstack_superset"
+        },
+        {
+          "field": "mapped_output.body.d.event.props.vwo_sdkName",
+          "segment_value": "segment",
+          "rudderstack_value": "rudderstack",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "mapped_output.body.d.visitor.props key prefix",
+          "segment_value": "segment.{traitName}",
+          "rudderstack_value": "{traitName}",
+          "impact": "different_prefix_convention"
+        }
+      ]
+    },
+    "page": {
+      "description": "RudderStack Page calls are converted to VWO page visit events. The RudderStack transformer maps page properties (URL, path, title, referrer, category, name) to VWO's event format. Page events are supported for web page sources only; VWO FullStack server-side sources do not process page visit events.",
+      "endpoint": "POST https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "page",
+        "name": "Experiment Results",
+        "category": "Testing",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:31:00.789Z",
+        "properties": {
+          "vwo_uuid": "D-5E39A24CC8B44A6C9A1B2F9D3E7A8B01",
+          "title": "Experiment Results — Campaign #42",
+          "url": "https://www.example.com/experiments/42/results",
+          "path": "/experiments/42/results",
+          "referrer": "https://www.example.com/experiments",
+          "search": "?variation=2&metric=conversion_rate",
+          "experimentId": "camp-42",
+          "variationName": "Redesigned Checkout"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.2.1"
+          },
+          "page": {
+            "path": "/experiments/42/results",
+            "referrer": "https://www.example.com/experiments",
+            "title": "Experiment Results — Campaign #42",
+            "url": "https://www.example.com/experiments/42/results"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "rs-msg-page-vwo-001",
+        "rudderId": "rudder-uuid-page-vwo-001",
+        "originalTimestamp": "2024-09-15T14:31:00.789Z",
+        "sentAt": "2024-09-15T14:31:01.000Z",
+        "receivedAt": "2024-09-15T14:31:02.000Z"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://dev.visualwebsiteoptimizer.com/server-side/track-user",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "d": {
+            "event": {
+              "props": {
+                "vwo_sdkName": "rudderstack",
+                "vwo_sdkVersion": "3.2.1",
+                "vwo_envKey": "{VWO_SDK_KEY}",
+                "$visitor": {
+                  "props": {
+                    "vwo_fs_environment": "{VWO_SDK_KEY}"
+                  }
+                },
+                "isCustomEvent": true,
+                "page": {
+                  "url": "https://www.example.com/experiments/42/results",
+                  "path": "/experiments/42/results",
+                  "title": "Experiment Results — Campaign #42",
+                  "referrer": "https://www.example.com/experiments"
+                }
+              },
+              "name": "page",
+              "time": 1726407060789
+            },
+            "visitor": {
+              "props": {
+                "title": "Experiment Results — Campaign #42",
+                "url": "https://www.example.com/experiments/42/results",
+                "path": "/experiments/42/results",
+                "referrer": "https://www.example.com/experiments",
+                "search": "?variation=2&metric=conversion_rate",
+                "experimentId": "camp-42",
+                "variationName": "Redesigned Checkout",
+                "name": "Experiment Results",
+                "category": "Testing"
+              }
+            }
+          }
+        },
+        "query_params": {
+          "en": "page",
+          "a": "{VWO_ACCOUNT_ID}",
+          "env": "{VWO_SDK_KEY}",
+          "eTime": 1726407060789
+        }
+      },
+      "key_differences": [
+        {
+          "field": "context.library.name",
+          "segment_value": "analytics.js",
+          "rudderstack_value": "rudder-sdk-js",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "envelope_fields",
+          "segment_value": "messageId only",
+          "rudderstack_value": "rudderId, messageId, originalTimestamp, sentAt, receivedAt",
+          "impact": "rudderstack_superset"
+        },
+        {
+          "field": "mapped_output.body.d.event.props.vwo_sdkName",
+          "segment_value": "segment",
+          "rudderstack_value": "rudderstack",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "mapped_output.body.d.event.name",
+          "segment_value": "segment.page",
+          "rudderstack_value": "page",
+          "impact": "different_prefix_convention"
+        },
+        {
+          "field": "mapped_output.body.d.visitor.props key prefix",
+          "segment_value": "segment.{propertyName}",
+          "rudderstack_value": "{propertyName}",
+          "impact": "different_prefix_convention"
+        }
+      ]
+    }
+  },
+  "field_mappings": {
+    "visitor_identification": {
+      "vwo_uuid": {
+        "segment_mapping": "VWO requires a vwo_uuid key for all calls — the VWO UUID (for website via _vwo_uuid cookie) or User ID (for FullStack). Track and Page calls require vwo_uuid in properties; Identify calls require vwo_uuid in traits. Segment provides middleware to auto-extract the _vwo_uuid cookie.",
+        "rudderstack_mapping": "RudderStack requires vwo_uuid in properties (track/page) or traits (identify) for visitor association. The vwo_uuid can be sourced from VWO's _vwo_uuid cookie on the client side or from the FullStack User ID for server-side sources.",
+        "parity": "equivalent"
+      },
+      "user_id": {
+        "segment_mapping": "userId from the Segment event is used as a secondary identifier; for FullStack mode, it is passed as the vwo_uuid directly to associate with VWO campaign user IDs",
+        "rudderstack_mapping": "userId from the RudderStack event serves the same secondary identifier role; for FullStack mode, userId maps to the VWO campaign user ID through the vwo_uuid field",
+        "parity": "equivalent"
+      },
+      "anonymous_id": {
+        "segment_mapping": "anonymousId is available in the event envelope but is not directly used by VWO — the vwo_uuid takes precedence for visitor identification in VWO's system",
+        "rudderstack_mapping": "anonymousId is available in the event envelope and is not directly mapped to VWO fields — vwo_uuid is the primary VWO visitor identifier",
+        "parity": "equivalent"
+      }
+    },
+    "experiment_tracking": {
+      "campaign_key": {
+        "segment_mapping": "VWO FullStack campaign key can be passed as a property to associate tracked events with specific A/B test campaigns. In VWO Data360, events appear in the campaign report when the campaign key is specified.",
+        "rudderstack_mapping": "Campaign key can be included in event properties and forwarded to VWO for campaign association. The RudderStack transformer passes this through to the VWO event properties.",
+        "parity": "equivalent"
+      },
+      "goal_identifier": {
+        "segment_mapping": "Goal identifiers for FullStack campaigns are passed in event properties. VWO's track API associates goal conversions with the specified campaign and user. Goal identifiers can track across multiple campaigns when the same identifier is shared.",
+        "rudderstack_mapping": "Goal identifiers are passed in event properties and forwarded to VWO. The same cross-campaign goal tracking capability is available when the same goal identifier is used across campaigns.",
+        "parity": "equivalent"
+      },
+      "goal_type": {
+        "segment_mapping": "Goal types (REVENUE, CUSTOM, ALL) can be specified in event properties to filter which goal types are tracked. Revenue goals require a revenue property value.",
+        "rudderstack_mapping": "Goal types are passed in event properties. Revenue goals require the revenue property. The RudderStack transformer preserves goal type classification in the mapped output.",
+        "parity": "equivalent"
+      },
+      "variation_tracking": {
+        "segment_mapping": "Variation assignment data (variation name, ID) can be passed as event properties for attribution. VWO's SDK typically handles variation assignment internally via activate/getVariation APIs.",
+        "rudderstack_mapping": "Variation assignment data is passed as event properties and forwarded to VWO. VWO's server-side SDK manages variation assignment independently through its bucketing algorithm (MurmurHash).",
+        "parity": "equivalent"
+      },
+      "revenue_tracking": {
+        "segment_mapping": "Revenue values are sent in event properties as numeric values. VWO's track API accepts revenue for REVENUE-type goals. Revenue is recorded against the campaign's conversion report.",
+        "rudderstack_mapping": "Revenue values are included in event properties and forwarded to VWO. The RudderStack transformer preserves numeric types for revenue fields in the mapped output.",
+        "parity": "equivalent"
+      }
+    },
+    "goal_conversion_mapping": {
+      "custom_goals": {
+        "segment_mapping": "Custom goal conversions are tracked via Track calls with goalIdentifier as a property. Event properties are forwarded as custom event attributes to VWO Data360. Custom events appear under UNREGISTERED EVENTS and can be registered as metrics.",
+        "rudderstack_mapping": "Custom goal conversions follow the same pattern — Track calls with goalIdentifier in properties. Event properties are mapped to VWO visitor properties in the transformer output.",
+        "parity": "equivalent"
+      },
+      "revenue_goals": {
+        "segment_mapping": "Revenue goal conversions require goalType = 'REVENUE' and a numeric revenue property. The revenue value is attributed to the campaign's revenue report in VWO.",
+        "rudderstack_mapping": "Revenue goal conversions follow the same requirement — goalType and revenue property. The RudderStack transformer preserves revenue as a numeric value in the VWO payload.",
+        "parity": "equivalent"
+      },
+      "cross_campaign_goals": {
+        "segment_mapping": "Goals with the same identifier across multiple campaigns are tracked simultaneously with a single Track call. VWO counts the conversion for each campaign the user was part of.",
+        "rudderstack_mapping": "Cross-campaign goal tracking follows the same mechanism via shared goal identifiers. VWO's server-side processing handles multi-campaign attribution independently.",
+        "parity": "equivalent"
+      }
+    },
+    "event_name_mapping": {
+      "track_event_name": {
+        "segment_mapping": "Segment prepends 'segment.' to all event names before sending to VWO Data360 (e.g., 'Order Completed' becomes 'segment.Order Completed'). Events appear under UNREGISTERED EVENTS in VWO.",
+        "rudderstack_mapping": "RudderStack may send event names directly or with a configurable prefix depending on transformer configuration. The default behavior maps the event name to VWO's event.name field.",
+        "parity": "different_prefix_convention"
+      },
+      "page_event_name": {
+        "segment_mapping": "Segment sends page events as 'segment.page' event name to VWO Data360",
+        "rudderstack_mapping": "RudderStack sends page events with a 'page' event name (or configured equivalent) to VWO",
+        "parity": "different_prefix_convention"
+      },
+      "identify_event_name": {
+        "segment_mapping": "Segment sends identify calls as 'vwo_syncVisitorProp' internal event to sync visitor properties to VWO Data360",
+        "rudderstack_mapping": "RudderStack sends identify calls as 'vwo_syncVisitorProp' internal event to sync visitor properties, following the same VWO convention",
+        "parity": "equivalent"
+      }
+    },
+    "attribute_mapping": {
+      "trait_prefix": {
+        "segment_mapping": "Each trait key is prepended with 'segment.' before being sent to VWO (e.g., traits.email becomes 'segment.email' in VWO attributes). This namespace prefixing prevents collisions with native VWO attributes.",
+        "rudderstack_mapping": "RudderStack trait keys may be sent directly or with a configurable prefix. The default transformer behavior determines the prefix convention, which may differ from Segment's 'segment.' prefix.",
+        "parity": "different_prefix_convention"
+      },
+      "data_types": {
+        "segment_mapping": "VWO Data360 accepts string, numeric, boolean, and date attribute types. Segment preserves the original data types from traits when forwarding to VWO.",
+        "rudderstack_mapping": "RudderStack preserves original data types from traits (string, numeric, boolean, date) when forwarding to VWO through the transformer.",
+        "parity": "equivalent"
+      },
+      "nested_objects": {
+        "segment_mapping": "Nested objects in traits are flattened or serialized as strings before being sent to VWO, as VWO Data360 attributes support primitive types only",
+        "rudderstack_mapping": "Nested objects in traits are flattened or serialized by the RudderStack transformer before delivery to VWO, matching the primitive type constraint",
+        "parity": "equivalent"
+      }
+    },
+    "page_visit_mapping": {
+      "page_url": {
+        "segment_mapping": "Page URL from context.page.url or properties.url is included in the page event payload sent to VWO",
+        "rudderstack_mapping": "Page URL from context.page.url or properties.url is included in the page event payload sent to VWO",
+        "parity": "equivalent"
+      },
+      "page_path": {
+        "segment_mapping": "Page path from context.page.path or properties.path is forwarded to VWO for page-level analytics",
+        "rudderstack_mapping": "Page path from context.page.path or properties.path is forwarded to VWO",
+        "parity": "equivalent"
+      },
+      "page_title": {
+        "segment_mapping": "Page title from context.page.title or properties.title is sent to VWO for page identification in reports",
+        "rudderstack_mapping": "Page title from context.page.title or properties.title is sent to VWO",
+        "parity": "equivalent"
+      },
+      "page_referrer": {
+        "segment_mapping": "Page referrer from context.page.referrer or properties.referrer is forwarded to VWO for traffic source analysis",
+        "rudderstack_mapping": "Page referrer from context.page.referrer or properties.referrer is forwarded to VWO",
+        "parity": "equivalent"
+      },
+      "page_category_and_name": {
+        "segment_mapping": "Page name and category from the Page call are included as event properties sent to VWO",
+        "rudderstack_mapping": "Page name and category from the Page call are included as event properties in the VWO payload",
+        "parity": "equivalent"
+      }
+    },
+    "context_fields": {
+      "library": {
+        "segment_mapping": "context.library.name = 'analytics.js' for web sources; included in VWO payload as vwo_sdkName = 'segment'",
+        "rudderstack_mapping": "context.library.name = 'rudder-sdk-js' for web sources; included in VWO payload as vwo_sdkName = 'rudderstack'",
+        "parity": "different_sdk_identifier"
+      },
+      "page_context": {
+        "segment_mapping": "context.page includes path, referrer, title, url from the current page; forwarded in event props.page object",
+        "rudderstack_mapping": "context.page includes path, referrer, title, url from the current page; forwarded in event props.page object",
+        "parity": "equivalent"
+      },
+      "user_agent": {
+        "segment_mapping": "context.userAgent is available in the event envelope for device/browser identification",
+        "rudderstack_mapping": "context.userAgent is available in the event envelope for device/browser identification",
+        "parity": "equivalent"
+      },
+      "ip_address": {
+        "segment_mapping": "context.ip is included in the event envelope; VWO may use it for geolocation-based segmentation",
+        "rudderstack_mapping": "context.ip is included in the event envelope; available for VWO geolocation processing",
+        "parity": "equivalent"
+      },
+      "envelope_fields": {
+        "segment_mapping": "Segment events include messageId for deduplication",
+        "rudderstack_mapping": "RudderStack events include rudderId, messageId, originalTimestamp, sentAt, and receivedAt providing richer event metadata and precise timing information",
+        "parity": "rudderstack_superset"
+      }
+    },
+    "timestamp_handling": {
+      "event_timestamp": {
+        "segment_mapping": "Segment sends timestamp as ISO-8601 string; VWO expects epoch milliseconds in the event.time field",
+        "rudderstack_mapping": "RudderStack sends timestamp as ISO-8601 string; the transformer converts to epoch milliseconds for VWO's event.time field",
+        "parity": "equivalent"
+      },
+      "additional_timestamps": {
+        "segment_mapping": "Segment provides a single timestamp field per event",
+        "rudderstack_mapping": "RudderStack provides originalTimestamp, sentAt, and receivedAt in addition to the primary timestamp, enabling more precise event timing analysis",
+        "parity": "rudderstack_superset"
+      }
+    }
+  },
+  "destination_config": {
+    "required_settings": {
+      "accountId": {
+        "description": "VWO Account ID. Found in VWO app under Settings > Account. Used as the 'a' query parameter in API requests to identify the VWO account.",
+        "type": "string",
+        "required": true
+      }
+    },
+    "optional_settings": {
+      "sdkKey": {
+        "description": "VWO FullStack SDK Key. Mandatory when using the VWO FullStack suite for server-side A/B testing. Used as the 'env' query parameter and vwo_envKey in event props to link to the correct FullStack environment.",
+        "type": "string",
+        "required_for": "fullstack_mode"
+      },
+      "isSPA": {
+        "description": "When enabled, indicates the website is a Single Page Application. Affects how page tracking events are handled and session continuity is maintained.",
+        "type": "boolean",
+        "default": false
+      },
+      "sendExperimentTrack": {
+        "description": "When enabled, VWO experiment participation and variation assignment events are automatically tracked. Maps to VWO's activate API tracking calls.",
+        "type": "boolean",
+        "default": true
+      },
+      "sendExperimentIdentify": {
+        "description": "When enabled, visitor identification events include experiment context (variation assignments, campaign participation) as additional traits.",
+        "type": "boolean",
+        "default": true
+      },
+      "region": {
+        "description": "VWO Region to sync data to. Affects the API endpoint domain. Options: 'US' (default), 'EU' for European data residency.",
+        "type": "string",
+        "default": "US",
+        "allowed_values": ["US", "EU"]
+      },
+      "useExistingJquery": {
+        "description": "When enabled, VWO client-side uses the existing jQuery on the page instead of loading its own. Relevant for device-mode only; does not affect cloud-mode delivery.",
+        "type": "boolean",
+        "default": false
+      },
+      "settingsTolerance": {
+        "description": "Timeout in milliseconds to wait for VWO settings file to load. Relevant for client-side SDK integration. Acceptable range: 1000-5000ms.",
+        "type": "integer",
+        "default": 2000
+      },
+      "libraryTolerance": {
+        "description": "Timeout in milliseconds to wait for VWO library to load on the page. Relevant for device-mode only. Acceptable range: 1000-5000ms.",
+        "type": "integer",
+        "default": 2500
+      },
+      "eventBatching": {
+        "description": "Configuration for VWO's event batching feature. When enabled, events are queued and dispatched in a single network request. Configurable batch size (max 5000 events) and time interval.",
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "eventsPerRequest": {
+            "type": "integer",
+            "default": 100,
+            "max": 5000
+          },
+          "requestTimeInterval": {
+            "type": "integer",
+            "description": "Time interval in seconds between batch dispatches",
+            "default": 60
+          }
+        }
+      }
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "high_parity",
+    "track_parity": "equivalent",
+    "identify_parity": "equivalent",
+    "page_parity": "equivalent",
+    "known_gaps": [
+      {
+        "gap_id": "VWO-GAP-001",
+        "description": "Segment prepends 'segment.' to all event names and trait keys before sending to VWO Data360, creating a namespace prefix (e.g., 'segment.Order Completed'). RudderStack may use a different prefix convention or send event names/trait keys without a prefix depending on transformer configuration.",
+        "severity": "medium",
+        "impact": "Events and attributes in VWO Data360 may appear with different name prefixes between Segment and RudderStack, requiring alignment of VWO campaign metrics and attribute configurations during migration."
+      },
+      {
+        "gap_id": "VWO-GAP-002",
+        "description": "Segment provides automated middleware to extract the _vwo_uuid cookie value and inject it into event payloads, reducing manual integration effort. RudderStack requires explicit inclusion of vwo_uuid in track/identify/page call properties or traits.",
+        "severity": "medium",
+        "impact": "RudderStack users must manually pass the VWO UUID via a client-side plugin or event callback, adding integration complexity for web-based implementations."
+      },
+      {
+        "gap_id": "VWO-GAP-003",
+        "description": "Segment's VWO Cloud Mode (Actions) destination supports a 'Sync Audience' action for exporting Segment Engage audiences to VWO for campaign targeting. RudderStack does not have a built-in audience sync mechanism for VWO.",
+        "severity": "low",
+        "impact": "Audience-based campaign targeting in VWO must be achieved through alternative methods (manual segment creation in VWO, or custom event-based targeting) when using RudderStack."
+      },
+      {
+        "gap_id": "VWO-GAP-004",
+        "description": "Segment offers both VWO Cloud Mode (Actions) and VWO Web Mode (Actions) destinations. The Web Mode destination uses VWO's client-side SmartCode for direct browser-level integration with experiment rendering. RudderStack's VWO integration is primarily cloud-mode.",
+        "severity": "low",
+        "impact": "Client-side A/B test rendering and variation assignment visibility differ in delivery mode. VWO's SmartCode handles experiment rendering independently of the CDP integration."
+      },
+      {
+        "gap_id": "VWO-GAP-005",
+        "description": "VWO supports maximum 50 mappings per destination instance in Segment's Actions framework. The RudderStack transformer handles mappings differently through its configuration-driven approach, potentially supporting more flexible mapping rules.",
+        "severity": "low",
+        "impact": "No functional limitation — RudderStack's transformer approach may offer more flexibility for complex mapping scenarios."
+      },
+      {
+        "gap_id": "VWO-GAP-006",
+        "description": "VWO's event batching feature supports a maximum of 5000 events per batch with a 10 MB payload limit. Both Segment and RudderStack cloud-mode delivery patterns must respect these limits when configuring batch delivery to VWO's endpoints.",
+        "severity": "low",
+        "impact": "Both platforms are subject to the same VWO server-side batch limits. Proper batch size configuration is required to prevent 413 Payload Too Large responses."
+      }
+    ],
+    "recommended_validation": [
+      "Verify Track events appear under UNREGISTERED EVENTS in VWO Data360 > Events with the correct event name and properties",
+      "Verify Identify calls create visitor attributes in VWO Data360 > Attributes under UNREGISTERED ATTRIBUTES",
+      "Verify Page events are delivered as page visit events with correct URL, path, title, and referrer properties",
+      "Confirm vwo_uuid correctly associates events with VWO visitor profiles for both website (cookie) and FullStack (User ID) modes",
+      "Validate FullStack goal tracking by sending a Track call with goalIdentifier and verifying the conversion appears in the VWO campaign report",
+      "Test revenue goal tracking by sending a Track call with goalType = 'REVENUE' and a numeric revenue value",
+      "Verify cross-campaign goal tracking works when the same goalIdentifier is used across multiple VWO FullStack campaigns",
+      "Confirm event property data types (string, numeric, boolean) are preserved correctly in VWO Data360",
+      "Test EU region data residency by configuring the EU endpoint and verifying events are delivered to the correct VWO region",
+      "Validate event batching configuration works correctly with the specified batch size and time interval limits",
+      "Verify timestamp conversion from ISO-8601 to epoch milliseconds is accurate in the VWO event.time field",
+      "Confirm that nested object properties are correctly flattened or serialized before delivery to VWO"
+    ]
+  },
+  "notes": "VWO (Visual Website Optimizer, category: A/B Testing) provides experimentation, personalization, and customer data platform (Data360) capabilities. Segment offers two VWO destination variants: VWO Cloud Mode (Actions) and VWO Web Mode (Actions). RudderStack targets cloud-mode delivery via VWO's server-side event tracking endpoint (dev.visualwebsiteoptimizer.com/server-side/track-user). The integration supports three event types: Track (experiment goal conversions and custom events), Identify (visitor attribute sync), and Page (page visit tracking). VWO requires a vwo_uuid for all calls — sourced from the _vwo_uuid cookie for websites or the User ID for FullStack server-side implementations. Key VWO concepts include: FullStack campaigns (server-side A/B testing with MurmurHash bucketing), Data360 (customer data platform for events and attributes), goal tracking (CUSTOM and REVENUE goal types with cross-campaign support), and event batching (batch event delivery to reduce network requests, max 5000 events per batch). The primary payload differences between Segment and RudderStack are: (1) event name prefix convention — Segment prepends 'segment.' to event names and trait keys while RudderStack may use a different convention, (2) SDK identifier — Segment uses 'segment' as vwo_sdkName while RudderStack uses 'rudderstack', (3) RudderStack includes additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt). Both platforms produce functionally equivalent VWO API payloads for all three supported event types."
+}

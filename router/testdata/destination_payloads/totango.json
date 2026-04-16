@@ -1,0 +1,421 @@
+{
+  "destination_type": "TOTANGO",
+  "destination_tier": "cloud",
+  "segment_slug": "totango",
+  "category": "Customer Success",
+  "api_base_url": "https://sdr.totango.com/pixel.gif",
+  "event_types": ["track", "identify"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment maps track calls to the Totango HTTP API activity tracking endpoint (GET/POST https://sdr.totango.com/pixel.gif). The event name maps to the Totango action (sdr_a parameter) and the properties.category maps to the Totango module (sdr_m parameter). Both module (category) and action (event) are mandatory when sending activity to Totango. Track events must include context.groupId which maps to the Totango Account ID (sdr_o parameter). Track calls without context.groupId will not be forwarded to Totango. Revenue is a special property that maps to monetary value tracking in Totango.",
+      "api_endpoint": "GET https://sdr.totango.com/pixel.gif",
+      "headers": {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      "query_parameters": {
+        "sdr_s": "SP-0000-11",
+        "sdr_o": "acct_456",
+        "sdr_u": "user_123",
+        "sdr_a": "Completed Purchase",
+        "sdr_m": "Conversion"
+      },
+      "request_body": null,
+      "source_event": {
+        "type": "track",
+        "event": "Completed Purchase",
+        "userId": "user_123",
+        "anonymousId": "anon_789",
+        "properties": {
+          "revenue": 42.99,
+          "shippingMethod": "2-day",
+          "category": "Conversion",
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "groupId": "acct_456",
+          "traits": {
+            "email": "alex@initech.com",
+            "name": "Alex Keener"
+          },
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-abc-123"
+      }
+    },
+    "identify": {
+      "description": "Segment maps identify calls to the Totango HTTP API user attribute endpoint (GET/POST https://sdr.totango.com/pixel.gif) to create or update user attributes. The userId maps to the Totango user identifier (sdr_u parameter). Identify traits are mapped to user-level attributes using the sdr_u.[attribute_name] parameter format. context.groupId is required and maps to the Totango Account ID (sdr_o parameter) — every identify call sent to Totango must include the Account ID. Account-level traits from the group call can also be sent alongside user attributes. Key traits include email (often used as the primary user ID in Totango), name, and any custom user attributes.",
+      "api_endpoint": "GET https://sdr.totango.com/pixel.gif",
+      "headers": {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      "query_parameters": {
+        "sdr_s": "SP-0000-11",
+        "sdr_o": "acct_456",
+        "sdr_u": "user_123",
+        "sdr_u.Name": "Alex Keener",
+        "sdr_u.email": "alex@initech.com",
+        "sdr_u.role": "Product Manager",
+        "sdr_u.department": "Engineering",
+        "sdr_u.createdAt": "2026-01-15T10:00:00.000Z"
+      },
+      "request_body": null,
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_789",
+        "traits": {
+          "name": "Alex Keener",
+          "email": "alex@initech.com",
+          "role": "Product Manager",
+          "department": "Engineering",
+          "createdAt": "2026-01-15T10:00:00.000Z",
+          "plan": "enterprise",
+          "lastSeenAt": "2026-02-25T12:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "groupId": "acct_456",
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-def-456"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack maps track calls to the Totango HTTP API activity tracking endpoint (GET/POST https://sdr.totango.com/pixel.gif). The event name maps to the Totango action (sdr_a parameter) and properties.category maps to the Totango module (sdr_m parameter). Both module (category) and action (event) are mandatory when sending activity to Totango. Track events must include context.groupId which maps to the Totango Account ID (sdr_o parameter). RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event. The Transformer service (port 9090) handles the mapping from RudderStack event format to Totango's query-parameter-based API format.",
+      "api_endpoint": "GET https://sdr.totango.com/pixel.gif",
+      "headers": {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      "query_parameters": {
+        "sdr_s": "SP-0000-11",
+        "sdr_o": "acct_456",
+        "sdr_u": "user_123",
+        "sdr_a": "Completed Purchase",
+        "sdr_m": "Conversion"
+      },
+      "request_body": null,
+      "source_event": {
+        "type": "track",
+        "event": "Completed Purchase",
+        "userId": "user_123",
+        "anonymousId": "anon_789",
+        "properties": {
+          "revenue": 42.99,
+          "shippingMethod": "2-day",
+          "category": "Conversion",
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "groupId": "acct_456",
+          "traits": {
+            "email": "alex@initech.com",
+            "name": "Alex Keener"
+          },
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-xyz-001",
+        "rudderId": "rudder-uuid-001"
+      }
+    },
+    "identify": {
+      "description": "RudderStack maps identify calls to the Totango HTTP API user attribute endpoint (GET/POST https://sdr.totango.com/pixel.gif) to create or update user attributes. The userId maps to the Totango user identifier (sdr_u parameter). Identify traits are mapped to user-level attributes using the sdr_u.[attribute_name] parameter format. context.groupId is required and maps to the Totango Account ID (sdr_o parameter). RudderStack adds envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) to the source event. The Transformer service (port 9090) handles the mapping from RudderStack event format to Totango's query-parameter-based API format.",
+      "api_endpoint": "GET https://sdr.totango.com/pixel.gif",
+      "headers": {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      "query_parameters": {
+        "sdr_s": "SP-0000-11",
+        "sdr_o": "acct_456",
+        "sdr_u": "user_123",
+        "sdr_u.Name": "Alex Keener",
+        "sdr_u.email": "alex@initech.com",
+        "sdr_u.role": "Product Manager",
+        "sdr_u.department": "Engineering",
+        "sdr_u.createdAt": "2026-01-15T10:00:00.000Z"
+      },
+      "request_body": null,
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_789",
+        "traits": {
+          "name": "Alex Keener",
+          "email": "alex@initech.com",
+          "role": "Product Manager",
+          "department": "Engineering",
+          "createdAt": "2026-01-15T10:00:00.000Z",
+          "plan": "enterprise",
+          "lastSeenAt": "2026-02-25T12:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "groupId": "acct_456",
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-xyz-002",
+        "rudderId": "rudder-uuid-002"
+      }
+    }
+  },
+  "field_mappings": {
+    "user_identification": {
+      "totango_field": "sdr_u",
+      "segment_mapping": "Segment maps userId from identify/track calls to the Totango user identifier (sdr_u parameter). Totango often uses the user's email address as the primary user identifier, but any unique identifier can be used. The userId must match the User ID used to identify the user in Totango.",
+      "rudderstack_mapping": "RudderStack maps userId from identify/track calls to the Totango user identifier (sdr_u parameter). Identical mapping to Segment.",
+      "parity": "match",
+      "notes": "Totango requires a stable user identifier. Both platforms pass userId through directly. Totango commonly uses email addresses as user IDs but supports any unique string."
+    },
+    "account_identification": {
+      "totango_field": "sdr_o",
+      "segment_mapping": "Segment maps context.groupId from every identify, track, and page call to the Totango Account ID (sdr_o parameter). groupId is mandatory for all calls sent to Totango — calls without context.groupId are not forwarded. The groupId must match the Account ID used in Totango.",
+      "rudderstack_mapping": "RudderStack maps context.groupId from every identify and track call to the Totango Account ID (sdr_o parameter). groupId is mandatory for all calls. RudderStack automatically sets context.groupId when the SDK's group method is called.",
+      "parity": "match",
+      "notes": "Totango is account-centric — every user and activity must be tied to an account. Both platforms require context.groupId on every call. Ensure Totango and Segment/RudderStack share the same unique account identifiers."
+    },
+    "service_id": {
+      "totango_field": "sdr_s",
+      "segment_mapping": "Segment sends the configured Totango Service ID (e.g., SP-0000-11) as the sdr_s parameter. The Service ID is configured in the Segment destination settings for Totango.",
+      "rudderstack_mapping": "RudderStack sends the configured Totango Service ID as the sdr_s parameter. The Service ID is configured in the RudderStack destination settings for Totango.",
+      "parity": "match",
+      "notes": "The Service ID identifies the Totango service instance and is required on every API call. It follows the format SP-XXXX-YY."
+    },
+    "activity_action": {
+      "totango_field": "sdr_a",
+      "segment_mapping": "Segment maps the track event name directly to the Totango action parameter (sdr_a). The action represents the specific user activity being tracked (e.g., 'Completed Purchase', 'Login', 'Share Document'). Both action and module are mandatory for activity tracking in Totango.",
+      "rudderstack_mapping": "RudderStack maps the track event name directly to the Totango action parameter (sdr_a). Event names are passed through without transformation.",
+      "parity": "match",
+      "notes": "Totango uses action names to classify and aggregate user activities. New action names are automatically recognized and metrics collection begins. Actions can be managed (ignored/tracked) in Totango Settings > Events > Status."
+    },
+    "activity_module": {
+      "totango_field": "sdr_m",
+      "segment_mapping": "Segment maps properties.category from track calls to the Totango module parameter (sdr_m). Modules represent functional sections of the application (e.g., 'Conversion', 'Dashboard', 'Document Management'). By default, Totango derives the module from the user's current URL for client-side integrations, but server-side integrations must explicitly pass the module via properties.category.",
+      "rudderstack_mapping": "RudderStack maps properties.category from track calls to the Totango module parameter (sdr_m). Modules must be explicitly passed in properties.category for server-side integrations.",
+      "parity": "match",
+      "notes": "Module (category) is mandatory alongside action (event) when sending activity to Totango. Totango uses modules to organize activities by application section, enabling usage analysis per module."
+    },
+    "user_attributes": {
+      "totango_field": "sdr_u.[attribute_name]",
+      "segment_mapping": "Segment maps identify traits to Totango user-level attributes using the sdr_u.[attribute_name] parameter format. Common traits include name (sdr_u.Name), email (sdr_u.email), role, department, and any custom user attributes. All identify traits are forwarded as user attribute updates.",
+      "rudderstack_mapping": "RudderStack maps identify traits to Totango user-level attributes using the same sdr_u.[attribute_name] parameter format. All identify traits are forwarded as user attribute updates.",
+      "parity": "match",
+      "notes": "User attributes are displayed on the user profile in Totango and can be used for filtering and segmentation. Custom attributes are automatically created on first send — no pre-definition required."
+    },
+    "account_attributes": {
+      "totango_field": "sdr_o.[attribute_name]",
+      "segment_mapping": "Segment maps group traits to Totango account-level attributes using the sdr_o.[attribute_name] parameter format. Common account attributes include Account Type, Contract Value, Success Manager, plan, status, and any custom account attributes. The group call creates or updates accounts in Totango. Special attributes: sdr_o.Contract Value accepts a numeric MRR/ARR value; sdr_o.Create Date accepts ISO 8601 format; sdr_o.parent_id sets account hierarchy.",
+      "rudderstack_mapping": "RudderStack maps group traits to Totango account-level attributes using the same sdr_o.[attribute_name] parameter format. All group traits are forwarded as account attribute updates.",
+      "parity": "match",
+      "notes": "Account attributes power Totango's health scoring, segmentation, and customer success workflows. The Account Name (sdr_o.account_name or group traits.name) is the display name in the Totango dashboard."
+    },
+    "event_timestamp": {
+      "totango_field": "timestamp (implicit — current time used if not provided)",
+      "segment_mapping": "Segment does not explicitly map event timestamps to a Totango API parameter for the HTTP API. Totango uses the time of receipt as the activity timestamp. For touchpoints created via the Touchpoints API, create_date can be specified in Unix epoch milliseconds.",
+      "rudderstack_mapping": "RudderStack does not explicitly map event timestamps to the Totango HTTP API. The activity timestamp in Totango reflects the time of receipt. RudderStack's originalTimestamp, sentAt, and receivedAt envelope fields are available in the source event but are not forwarded to the Totango API.",
+      "parity": "match",
+      "notes": "Totango's HTTP API (pixel.gif) does not accept an explicit timestamp parameter for activity events — it uses the server receipt time. The Touchpoints API does accept create_date in epoch milliseconds. This is a Totango platform limitation, not a Segment/RudderStack parity issue."
+    },
+    "message_id": {
+      "totango_field": "N/A (no deduplication via messageId)",
+      "segment_mapping": "Segment generates a messageId for every event, but the Totango HTTP API does not accept or use messageId for event deduplication. The messageId is present in the source event but is not forwarded to the Totango API.",
+      "rudderstack_mapping": "RudderStack generates a messageId for every event, but the Totango HTTP API does not accept or use messageId. The messageId is present in the source event but not forwarded.",
+      "parity": "match",
+      "notes": "Unlike Vitally and other destinations that use messageId for deduplication, Totango's HTTP API does not support message-level deduplication. Each API call creates a new activity record."
+    },
+    "account_association_via_group": {
+      "totango_field": "context.groupId → sdr_o",
+      "segment_mapping": "Segment requires context.groupId on every call (identify, track, page) sent to Totango. For client-side libraries (Analytics.js), calling group() once per session caches the groupId and attaches it to future calls. For server-side libraries, context.groupId must be included in every call explicitly.",
+      "rudderstack_mapping": "RudderStack requires context.groupId on every call sent to Totango. The RudderStack SDK's group method sets context.groupId which is then cached and attached to subsequent calls. For server-side integrations, context.groupId must be included explicitly in every call.",
+      "parity": "match",
+      "notes": "Totango is fundamentally account-centric. All user activities and attributes must be linked to an account. Calls without context.groupId will not be forwarded to Totango. If the account does not exist in Totango based on the Account ID, the HTTP API will create the account automatically."
+    },
+    "account_name": {
+      "totango_field": "sdr_o.account_name / group traits.name",
+      "segment_mapping": "Segment maps group traits.name to the Totango account display name. This is set via the group call and appears in the Totango dashboard as the account name.",
+      "rudderstack_mapping": "RudderStack maps group traits.name to the Totango account display name in the same manner.",
+      "parity": "match",
+      "notes": "The account name is the human-readable label in Totango. It is set via group calls with a name trait."
+    },
+    "revenue_tracking": {
+      "totango_field": "properties.revenue (via activity context)",
+      "segment_mapping": "Segment supports revenue as a special semantic property on track calls. For Totango, revenue values from track events can be used to populate account-level financial metrics (Contract Value, MRR) when configured with appropriate account attributes via group calls.",
+      "rudderstack_mapping": "RudderStack supports the same revenue semantic property on track calls. Revenue mapping to Totango account attributes follows the same pattern.",
+      "parity": "match",
+      "notes": "Direct revenue tracking in Totango is primarily managed through account-level attributes (Contract Value, MRR/ARR) set via account attribute updates, not through individual event properties. However, revenue properties on track events provide event-level financial context."
+    },
+    "datacenter_region": {
+      "totango_field": "API endpoint selection (US vs EU)",
+      "segment_mapping": "Segment allows configuring the Totango datacenter region (US or EU) in the destination settings. US uses https://sdr.totango.com/pixel.gif; EU uses https://sdr-eu1.totango.com/pixel.gif.",
+      "rudderstack_mapping": "RudderStack allows configuring the Totango datacenter region in the destination settings. The same US and EU endpoint URLs are supported.",
+      "parity": "match",
+      "notes": "Totango supports both US and EU datacenters. The Region option in destination settings controls which API endpoint is used for data delivery."
+    }
+  },
+  "authentication": {
+    "method": "Service ID (sdr_s parameter)",
+    "header": "N/A (authentication via query parameter sdr_s, not HTTP header)",
+    "description": "Totango's HTTP API (pixel.gif) authenticates via the Service ID (sdr_s parameter) included in every request. The Service ID follows the format SP-XXXX-YY and identifies the Totango service instance. For REST APIs (Search, Touchpoints, Tasks), Totango uses an app-token header. The Segment/RudderStack integration primarily uses the HTTP API with Service ID authentication.",
+    "segment_config": "The Totango Service ID is configured in the Segment destination settings when enabling the Totango destination. The Service ID is obtained from the Totango Settings > Integrations page.",
+    "rudderstack_config": "The Totango Service ID is configured in the RudderStack destination settings for Totango. The Service ID is obtained from the Totango Settings > Integrations page.",
+    "rate_limiting": {
+      "limit": "100 calls/minute per token (REST APIs); HTTP API has higher limits for collection endpoints",
+      "type": "per-token",
+      "headers": []
+    },
+    "parity": "match"
+  },
+  "api_endpoints": {
+    "activity_tracking": {
+      "method": "GET/POST",
+      "path": "/pixel.gif",
+      "base_url_us": "https://sdr.totango.com",
+      "base_url_eu": "https://sdr-eu1.totango.com",
+      "description": "Logs a user activity event in Totango. The event is recorded on the account timeline with the specified action and module. Creates the account and user automatically if they do not exist in Totango.",
+      "required_fields": ["sdr_s", "sdr_o", "sdr_u", "sdr_a", "sdr_m"],
+      "optional_fields": ["sdr_u.[attribute]", "sdr_o.[attribute]"],
+      "maps_from": "track"
+    },
+    "user_attribute_update": {
+      "method": "GET/POST",
+      "path": "/pixel.gif",
+      "base_url_us": "https://sdr.totango.com",
+      "base_url_eu": "https://sdr-eu1.totango.com",
+      "description": "Creates or updates user attributes in Totango. Attributes are set using the sdr_u.[attribute_name] parameter format. The user is created automatically if they do not exist.",
+      "required_fields": ["sdr_s", "sdr_o", "sdr_u"],
+      "optional_fields": ["sdr_u.[attribute_name]"],
+      "maps_from": "identify"
+    },
+    "account_attribute_update": {
+      "method": "GET/POST",
+      "path": "/pixel.gif",
+      "base_url_us": "https://sdr.totango.com",
+      "base_url_eu": "https://sdr-eu1.totango.com",
+      "description": "Creates or updates account attributes in Totango. Attributes are set using the sdr_o.[attribute_name] parameter format. The account is created automatically if it does not exist. Special attributes include Contract Value (numeric MRR/ARR), Create Date (ISO 8601), Success Manager (role name), and parent_id (account hierarchy).",
+      "required_fields": ["sdr_s", "sdr_o"],
+      "optional_fields": ["sdr_o.[attribute_name]", "sdr_o.Contract Value", "sdr_o.Create Date", "sdr_o.Success Manager", "sdr_o.parent_id"],
+      "maps_from": "group (account-level traits)"
+    },
+    "combined_activity_and_attributes": {
+      "method": "GET/POST",
+      "path": "/pixel.gif",
+      "base_url_us": "https://sdr.totango.com",
+      "base_url_eu": "https://sdr-eu1.totango.com",
+      "description": "Combines activity tracking with user and account attribute updates in a single API call. Totango supports sending action, module, user attributes, and account attributes together in one request.",
+      "required_fields": ["sdr_s", "sdr_o", "sdr_u"],
+      "optional_fields": ["sdr_a", "sdr_m", "sdr_u.[attribute]", "sdr_o.[attribute]"],
+      "notes": "Both Segment and RudderStack may combine activity and attribute data in a single call for efficiency."
+    },
+    "touchpoints": {
+      "method": "POST",
+      "path": "/api/v3/touchpoints/",
+      "base_url_us": "https://api.totango.com",
+      "base_url_eu": "https://api-eu1.totango.com",
+      "description": "Creates touchpoints (notes, tasks, alerts) on accounts in Totango. Uses app-token authentication. Not directly mapped from standard Segment/RudderStack calls but can be used for enrichment.",
+      "required_fields": ["account_id", "content", "activity_type_id"],
+      "optional_fields": ["created_by", "create_date", "disable_sync", "touchpointType", "touchpoint_tags", "subject"],
+      "notes": "Touchpoints are typically created via direct API integration, not through Segment/RudderStack event forwarding. The Touchpoints API requires app-token header authentication."
+    }
+  },
+  "parity_status": "match",
+  "known_gaps": [
+    {
+      "gap_id": "TG-001",
+      "field": "RudderStack envelope fields",
+      "description": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to the source event envelope. These additional fields are present in the source event processed by the Transformer but do not impact the final Totango API payload — they are stripped during transformation before the API call is made to Totango's HTTP API.",
+      "severity": "informational",
+      "remediation": "No impact on destination payload. These fields are stripped by the Transformer before sending to Totango."
+    },
+    {
+      "gap_id": "TG-002",
+      "field": "context.library",
+      "description": "Segment uses analytics.js as the library name; RudderStack uses rudder-sdk-js. This difference is present in the source event but does not propagate to the Totango API payload. Totango does not use or display the SDK library information in its collection API.",
+      "severity": "informational",
+      "remediation": "No impact on destination payload — library metadata is not forwarded to the Totango API."
+    },
+    {
+      "gap_id": "TG-003",
+      "field": "messageId format",
+      "description": "Segment and RudderStack use different UUID generation strategies for messageId. However, unlike other destinations that use messageId for deduplication, Totango's HTTP API does not accept or use messageId at all. Each API call creates a new activity record regardless of messageId.",
+      "severity": "informational",
+      "remediation": "No functional impact. Totango's HTTP API does not support message-level deduplication."
+    },
+    {
+      "gap_id": "TG-004",
+      "field": "Timestamp handling",
+      "description": "Totango's HTTP API (pixel.gif) does not accept an explicit event timestamp parameter. Activities are timestamped at the time of receipt by Totango's collection gateway. Both Segment and RudderStack event timestamps (timestamp, originalTimestamp) are not forwarded to Totango for activity events. The Touchpoints API does support create_date in epoch milliseconds, but touchpoints are not created via standard Segment/RudderStack event flows.",
+      "severity": "low",
+      "remediation": "This is a Totango platform limitation, not a Segment/RudderStack parity issue. Both platforms are equally affected. For use cases requiring historical timestamp preservation, consider the Totango Touchpoints API via direct integration."
+    },
+    {
+      "gap_id": "TG-005",
+      "field": "No event deduplication",
+      "description": "Totango's HTTP API does not support message-level deduplication. If the same event is sent twice (e.g., due to retry logic), Totango will create two separate activity records. Both Segment and RudderStack retry failed API calls, which could result in duplicate activities in Totango.",
+      "severity": "low",
+      "remediation": "This is a Totango platform limitation. Both platforms mitigate via at-least-once delivery semantics. Duplicate activities may need to be handled at the Totango reporting level."
+    },
+    {
+      "gap_id": "TG-006",
+      "field": "groupId requirement enforcement",
+      "description": "Totango requires context.groupId on every identify, track, and page call. Calls without groupId are not forwarded. Segment and RudderStack both enforce this requirement, but the enforcement mechanism differs: Segment's client-side library caches groupId after a group() call and automatically attaches it; RudderStack follows the same caching pattern. Server-side libraries for both platforms require explicit context.groupId on every call.",
+      "severity": "informational",
+      "remediation": "No parity gap. Both platforms enforce the same groupId requirement. Server-side users must ensure context.groupId is included in every call."
+    },
+    {
+      "gap_id": "TG-007",
+      "field": "page call support",
+      "description": "Segment supports page calls to Totango, mapping page category to the Totango module (sdr_m) and generating a heartbeat-like activity signal. RudderStack's Totango destination fixture documents track and identify as primary event types. Page call mapping behavior may differ in implementation detail, though the underlying Totango API supports the same activity tracking for page views.",
+      "severity": "low",
+      "remediation": "Verify that both platforms map page calls consistently. The Totango HTTP API treats page-derived activities the same as track-derived activities. RudderStack should ensure page calls with properties.category are forwarded as activity events with the appropriate module."
+    },
+    {
+      "gap_id": "TG-008",
+      "field": "Segment Engage integration",
+      "description": "Segment can send computed traits and audiences generated by Engage to Totango as user attributes via identify calls. The property name is the snake_cased version of the audience name with a true/false value indicating membership. RudderStack does not have an equivalent Engage/Audiences feature in Phase 1.",
+      "severity": "medium",
+      "remediation": "Segment Engage/Audiences integration is explicitly out of scope for Phase 1 (deferred to Phase 2). RudderStack users can achieve similar results via User Transformations or external audience computation tools."
+    },
+    {
+      "gap_id": "TG-009",
+      "field": "Tag management via API",
+      "description": "Totango does not support updating tags via API — tags can only be managed via CSV upload. This limitation affects both Segment and RudderStack equally and is a Totango platform constraint, not a parity issue.",
+      "severity": "informational",
+      "remediation": "No parity gap. Tags must be managed via CSV upload or the Totango UI for both platforms."
+    }
+  ],
+  "notes": "Totango is a shared cloud destination in the Customer Success category. It is a B2B customer success platform that helps recurring revenue businesses simplify the complexities of customer success by connecting customer data, monitoring health changes, and driving proactive engagements. The Totango destination uses the Totango HTTP API (https://sdr.totango.com/pixel.gif for US, https://sdr-eu1.totango.com/pixel.gif for EU) with query-parameter-based data format (sdr_s, sdr_o, sdr_u, sdr_a, sdr_m, sdr_o.*, sdr_u.*). Unlike many other cloud destinations that use JSON REST APIs, Totango's collection API is a pixel/beacon-style endpoint accepting URL query parameters via GET or POST requests. Both Segment and RudderStack integrate with Totango using the same underlying HTTP API: identify→user attribute updates, track→activity logging (action+module), and group→account attribute updates. The integration is delivered via the Router as a cloud REST destination, with event transformation handled by the external Transformer service (port 9090). Totango is fundamentally account-centric — every user and activity must be tied to an Account ID (context.groupId). Calls without groupId are not forwarded to Totango. Both platforms require context.groupId on every call. The Totango HTTP API does not support message-level deduplication or explicit event timestamps — activities are timestamped at receipt time. Account and user creation is automatic: if the account or user does not exist, the HTTP API creates them. Rate limiting: 100 calls/minute per token for REST APIs; the collection HTTP API has higher limits. Overall payload parity between Segment and RudderStack for Totango is high, with no functional differences in the data delivered to the Totango API."
+}

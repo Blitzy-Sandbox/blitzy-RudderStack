@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	gwtypes "github.com/rudderlabs/rudder-server/gateway/types"
 
@@ -191,6 +192,79 @@ func (gw *Handle) replaySourceIDAuth(delegate http.HandlerFunc) http.HandlerFunc
 		}
 		delegate.ServeHTTP(w, r)
 	})
+}
+
+// sourceFunctionsAuth middleware to authenticate Source Functions webhook requests (E-015).
+// Authentication supports multiple token extraction methods for flexibility:
+//   - Bearer token from Authorization header
+//   - X-Functions-Token custom header
+//   - WriteKey from BasicAuth (backward-compatible fallback)
+//
+// The extracted token is validated as a writeKey. If valid and the source is enabled,
+// the source auth info is added to the request context. Otherwise, the request is rejected.
+// This follows the same pattern as webhookAuth (lines 64-96).
+func (gw *Handle) sourceFunctionsAuth(delegate http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		reqType := r.Context().Value(gwtypes.CtxParamCallType).(string)
+		var arctx *gwtypes.AuthRequestContext
+		var errorMessage string
+		defer func() {
+			gw.handleHttpError(w, r, errorMessage)
+			gw.handleFailureStats(errorMessage, reqType, arctx)
+		}()
+
+		// Extract function auth token from headers using multiple strategies
+		token := extractFunctionsToken(r)
+		if token == "" {
+			errorMessage = response.NoWriteKeyInBasicAuth
+			return
+		}
+
+		// Validate token as a writeKey (functions use writeKey-based auth)
+		arctx = gw.authRequestContextForWriteKey(token)
+		if arctx == nil {
+			stat := gwstats.SourceStat{
+				Source:   "invalidWriteKey",
+				SourceID: "invalidWriteKey",
+				WriteKey: token,
+				ReqType:  reqType,
+			}
+			stat.RequestFailed("invalidWriteKey")
+			stat.Report(gw.stats)
+			errorMessage = response.InvalidWriteKey
+			return
+		}
+		if !arctx.SourceEnabled {
+			errorMessage = response.SourceDisabled
+			return
+		}
+
+		augmentAuthRequestContext(arctx, r)
+		delegate.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), gwtypes.CtxParamAuthRequestContext, arctx)))
+	}
+}
+
+// extractFunctionsToken extracts the authentication token for Source Functions requests.
+// It checks multiple sources in priority order:
+//  1. Authorization header with Bearer token prefix
+//  2. X-Functions-Token custom header
+//  3. BasicAuth writeKey (backward compatibility fallback)
+func extractFunctionsToken(r *http.Request) string {
+	// Check Authorization header for Bearer token
+	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+		if token := strings.TrimPrefix(authHeader, "Bearer "); token != authHeader {
+			return token
+		}
+	}
+
+	// Check X-Functions-Token header
+	if token := r.Header.Get("X-Functions-Token"); token != "" {
+		return token
+	}
+
+	// Fall back to BasicAuth writeKey for backward compatibility
+	writeKey, _, _ := r.BasicAuth()
+	return writeKey
 }
 
 // sourceDestIDAuth middleware to authenticate sourceID and destinationID

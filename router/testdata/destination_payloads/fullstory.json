@@ -1,0 +1,691 @@
+{
+  "destination_type": "FULLSTORY",
+  "destination_tier": "cloud",
+  "segment_slug": "actions-fullstory-cloud",
+  "category": "Analytics, Heatmaps & Recordings",
+  "event_types": ["track", "identify", "page"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment converts Track calls to FullStory Create Event API calls, sending the event name and all properties as custom event data indexed by FullStory for search and segmentation.",
+      "endpoint": "POST https://api.fullstory.com/v2/events",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:32:10.456Z",
+        "properties": {
+          "orderId": "ORD-9087",
+          "revenue": 149.99,
+          "currency": "USD",
+          "products": [
+            {
+              "productId": "PROD-001",
+              "name": "Premium Widget",
+              "price": 99.99,
+              "quantity": 1
+            },
+            {
+              "productId": "PROD-002",
+              "name": "Widget Accessory",
+              "price": 50.00,
+              "quantity": 1
+            }
+          ],
+          "coupon": "SAVE10",
+          "paymentMethod": "credit_card"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.8.1"
+          },
+          "page": {
+            "path": "/checkout/confirmation",
+            "referrer": "https://www.example.com/cart",
+            "title": "Order Confirmation",
+            "url": "https://www.example.com/checkout/confirmation"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "seg-msg-track-fs-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://api.fullstory.com/v2/events",
+        "headers": {
+          "Authorization": "Basic {FULLSTORY_API_KEY}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "session": {
+            "use_most_recent": true
+          },
+          "user": {
+            "uid": "user-abc-123"
+          },
+          "name": "Order Completed",
+          "timestamp": "2024-09-15T14:32:10.456Z",
+          "properties": {
+            "orderId": "ORD-9087",
+            "revenue_real": 149.99,
+            "currency": "USD",
+            "coupon": "SAVE10",
+            "paymentMethod": "credit_card",
+            "products": [
+              {
+                "productId": "PROD-001",
+                "name": "Premium Widget",
+                "price_real": 99.99,
+                "quantity_int": 1
+              },
+              {
+                "productId": "PROD-002",
+                "name": "Widget Accessory",
+                "price_real": 50.00,
+                "quantity_int": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    "identify": {
+      "description": "Segment Identify calls are transformed and sent to FullStory's Set Identity or Identify User API. userId maps to uid, traits are sent as user properties, with email and displayName as special FullStory fields.",
+      "endpoint": "POST https://api.fullstory.com/v2/users",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "identify",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:30:05.123Z",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "logins": 47,
+          "company": "Acme Corp",
+          "role": "Engineering Manager",
+          "createdAt": "2023-01-15T08:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.8.1"
+          },
+          "page": {
+            "path": "/dashboard",
+            "referrer": "https://www.example.com/login",
+            "title": "Dashboard",
+            "url": "https://www.example.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "seg-msg-identify-fs-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://api.fullstory.com/v2/users",
+        "headers": {
+          "Authorization": "Basic {FULLSTORY_API_KEY}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "uid": "user-abc-123",
+          "display_name": "Jane Doe",
+          "email": "jane.doe@example.com",
+          "properties": {
+            "plan": "enterprise",
+            "logins_int": 47,
+            "company": "Acme Corp",
+            "role": "Engineering Manager",
+            "createdAt": "2023-01-15T08:00:00.000Z"
+          }
+        }
+      }
+    },
+    "page": {
+      "description": "Segment Page calls are sent to FullStory as page property events. When 'Track All Pages' or 'Track Categorized Pages' is enabled, Segment fires the event as a track call to FullStory's Create Event API with the page name and properties.",
+      "endpoint": "POST https://api.fullstory.com/v2/events",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "page",
+        "name": "Pricing",
+        "category": "Product",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:28:00.789Z",
+        "properties": {
+          "title": "Pricing - Acme Product",
+          "url": "https://www.example.com/pricing",
+          "path": "/pricing",
+          "referrer": "https://www.example.com/features",
+          "search": "?plan=enterprise",
+          "tab": "annual"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.8.1"
+          },
+          "page": {
+            "path": "/pricing",
+            "referrer": "https://www.example.com/features",
+            "title": "Pricing - Acme Product",
+            "url": "https://www.example.com/pricing"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "seg-msg-page-fs-001"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://api.fullstory.com/v2/events",
+        "headers": {
+          "Authorization": "Basic {FULLSTORY_API_KEY}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "session": {
+            "use_most_recent": true
+          },
+          "user": {
+            "uid": "user-abc-123"
+          },
+          "name": "Viewed Product Pricing Page",
+          "timestamp": "2024-09-15T14:28:00.789Z",
+          "properties": {
+            "pageName": "Pricing",
+            "category": "Product",
+            "title": "Pricing - Acme Product",
+            "url": "https://www.example.com/pricing",
+            "path": "/pricing",
+            "referrer": "https://www.example.com/features",
+            "search": "?plan=enterprise",
+            "tab": "annual"
+          }
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack delivers Track events to FullStory via the cloud REST API. The event name maps to FullStory's event name, all properties are forwarded, and the user is identified by userId mapped to FullStory uid.",
+      "endpoint": "POST https://api.fullstory.com/v2/events",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:32:10.456Z",
+        "properties": {
+          "orderId": "ORD-9087",
+          "revenue": 149.99,
+          "currency": "USD",
+          "products": [
+            {
+              "productId": "PROD-001",
+              "name": "Premium Widget",
+              "price": 99.99,
+              "quantity": 1
+            },
+            {
+              "productId": "PROD-002",
+              "name": "Widget Accessory",
+              "price": 50.00,
+              "quantity": 1
+            }
+          ],
+          "coupon": "SAVE10",
+          "paymentMethod": "credit_card"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.2.0"
+          },
+          "page": {
+            "path": "/checkout/confirmation",
+            "referrer": "https://www.example.com/cart",
+            "title": "Order Confirmation",
+            "url": "https://www.example.com/checkout/confirmation"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "rudderId": "rudder-uuid-track-fs-001",
+        "messageId": "rs-msg-track-fs-001",
+        "originalTimestamp": "2024-09-15T14:32:10.456Z",
+        "sentAt": "2024-09-15T14:32:10.556Z",
+        "receivedAt": "2024-09-15T14:32:10.789Z"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://api.fullstory.com/v2/events",
+        "headers": {
+          "Authorization": "Basic {FULLSTORY_API_KEY}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "session": {
+            "use_most_recent": true
+          },
+          "user": {
+            "uid": "user-abc-123"
+          },
+          "name": "Order Completed",
+          "timestamp": "2024-09-15T14:32:10.456Z",
+          "properties": {
+            "orderId": "ORD-9087",
+            "revenue_real": 149.99,
+            "currency": "USD",
+            "coupon": "SAVE10",
+            "paymentMethod": "credit_card",
+            "products": [
+              {
+                "productId": "PROD-001",
+                "name": "Premium Widget",
+                "price_real": 99.99,
+                "quantity_int": 1
+              },
+              {
+                "productId": "PROD-002",
+                "name": "Widget Accessory",
+                "price_real": 50.00,
+                "quantity_int": 1
+              }
+            ]
+          }
+        }
+      },
+      "key_differences": [
+        {
+          "field": "context.library.name",
+          "segment_value": "analytics.js",
+          "rudderstack_value": "rudder-sdk-js",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "envelope_fields",
+          "segment_value": "messageId only",
+          "rudderstack_value": "rudderId, messageId, originalTimestamp, sentAt, receivedAt",
+          "impact": "rudderstack_superset"
+        }
+      ]
+    },
+    "identify": {
+      "description": "RudderStack delivers Identify events to FullStory via the cloud REST API. userId maps to uid, traits.name maps to display_name, traits.email maps to email, and remaining traits are sent as user properties.",
+      "endpoint": "POST https://api.fullstory.com/v2/users",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "identify",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:30:05.123Z",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "logins": 47,
+          "company": "Acme Corp",
+          "role": "Engineering Manager",
+          "createdAt": "2023-01-15T08:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.2.0"
+          },
+          "page": {
+            "path": "/dashboard",
+            "referrer": "https://www.example.com/login",
+            "title": "Dashboard",
+            "url": "https://www.example.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "rudderId": "rudder-uuid-identify-fs-001",
+        "messageId": "rs-msg-identify-fs-001",
+        "originalTimestamp": "2024-09-15T14:30:05.123Z",
+        "sentAt": "2024-09-15T14:30:05.223Z",
+        "receivedAt": "2024-09-15T14:30:05.456Z"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://api.fullstory.com/v2/users",
+        "headers": {
+          "Authorization": "Basic {FULLSTORY_API_KEY}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "uid": "user-abc-123",
+          "display_name": "Jane Doe",
+          "email": "jane.doe@example.com",
+          "properties": {
+            "plan": "enterprise",
+            "logins_int": 47,
+            "company": "Acme Corp",
+            "role": "Engineering Manager",
+            "createdAt": "2023-01-15T08:00:00.000Z"
+          }
+        }
+      },
+      "key_differences": [
+        {
+          "field": "context.library.name",
+          "segment_value": "analytics.js",
+          "rudderstack_value": "rudder-sdk-js",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "envelope_fields",
+          "segment_value": "messageId only",
+          "rudderstack_value": "rudderId, messageId, originalTimestamp, sentAt, receivedAt",
+          "impact": "rudderstack_superset"
+        }
+      ]
+    },
+    "page": {
+      "description": "RudderStack delivers Page events to FullStory via the cloud REST API as tracked events. The page name and category are combined into the FullStory event name, and page properties are forwarded as event properties.",
+      "endpoint": "POST https://api.fullstory.com/v2/events",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "page",
+        "name": "Pricing",
+        "category": "Product",
+        "userId": "user-abc-123",
+        "anonymousId": "anon-xyz-789",
+        "timestamp": "2024-09-15T14:28:00.789Z",
+        "properties": {
+          "title": "Pricing - Acme Product",
+          "url": "https://www.example.com/pricing",
+          "path": "/pricing",
+          "referrer": "https://www.example.com/features",
+          "search": "?plan=enterprise",
+          "tab": "annual"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.2.0"
+          },
+          "page": {
+            "path": "/pricing",
+            "referrer": "https://www.example.com/features",
+            "title": "Pricing - Acme Product",
+            "url": "https://www.example.com/pricing"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "ip": "203.0.113.42"
+        },
+        "rudderId": "rudder-uuid-page-fs-001",
+        "messageId": "rs-msg-page-fs-001",
+        "originalTimestamp": "2024-09-15T14:28:00.789Z",
+        "sentAt": "2024-09-15T14:28:00.889Z",
+        "receivedAt": "2024-09-15T14:28:01.123Z"
+      },
+      "mapped_output": {
+        "method": "POST",
+        "url": "https://api.fullstory.com/v2/events",
+        "headers": {
+          "Authorization": "Basic {FULLSTORY_API_KEY}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "session": {
+            "use_most_recent": true
+          },
+          "user": {
+            "uid": "user-abc-123"
+          },
+          "name": "Viewed Product Pricing Page",
+          "timestamp": "2024-09-15T14:28:00.789Z",
+          "properties": {
+            "pageName": "Pricing",
+            "category": "Product",
+            "title": "Pricing - Acme Product",
+            "url": "https://www.example.com/pricing",
+            "path": "/pricing",
+            "referrer": "https://www.example.com/features",
+            "search": "?plan=enterprise",
+            "tab": "annual"
+          }
+        }
+      },
+      "key_differences": [
+        {
+          "field": "context.library.name",
+          "segment_value": "analytics.js",
+          "rudderstack_value": "rudder-sdk-js",
+          "impact": "cosmetic"
+        },
+        {
+          "field": "envelope_fields",
+          "segment_value": "messageId only",
+          "rudderstack_value": "rudderId, messageId, originalTimestamp, sentAt, receivedAt",
+          "impact": "rudderstack_superset"
+        },
+        {
+          "field": "page_event_naming",
+          "segment_value": "Viewed {category} {name} Page",
+          "rudderstack_value": "Viewed {category} {name} Page",
+          "impact": "equivalent"
+        }
+      ]
+    }
+  },
+  "field_mappings": {
+    "user_identification": {
+      "user_id": {
+        "segment_mapping": "userId is sent as the uid parameter in FS.identify() or the uid field in the Server API Create/Update User endpoint",
+        "rudderstack_mapping": "userId is mapped to the uid field in the FullStory Server API Create/Update User and Create Event endpoints",
+        "parity": "equivalent"
+      },
+      "anonymous_id": {
+        "segment_mapping": "anonymousId is used as a fallback uid when userId is absent; sent to FS.identify(anonymousId)",
+        "rudderstack_mapping": "anonymousId is used as a fallback uid when userId is absent in cloud-mode delivery to FullStory Server API",
+        "parity": "equivalent"
+      },
+      "display_name": {
+        "segment_mapping": "traits.name is mapped to the special displayName property in FS.identify(), which FullStory renders in its user interface",
+        "rudderstack_mapping": "traits.name is mapped to the display_name field in the FullStory Server API user payload",
+        "parity": "equivalent"
+      },
+      "email": {
+        "segment_mapping": "traits.email is mapped to the special email property in FS.identify(), used for user lookup and display in FullStory",
+        "rudderstack_mapping": "traits.email is mapped to the email field in the FullStory Server API user payload",
+        "parity": "equivalent"
+      },
+      "custom_traits": {
+        "segment_mapping": "All additional traits beyond email and displayName are sent as custom user properties (userVars) with FullStory type suffixes in v1 API or inferred types in v2 API",
+        "rudderstack_mapping": "All additional traits are sent as custom user properties in the FullStory Server API properties object with appropriate type annotation",
+        "parity": "equivalent"
+      }
+    },
+    "custom_event_mapping": {
+      "event_name": {
+        "segment_mapping": "Track event name maps directly to the FullStory event name via FS.event(eventName, ...) or Create Event API name field; event names must be <= 250 characters",
+        "rudderstack_mapping": "Track event name maps directly to the FullStory Create Event API name field; same 250-character limit applies",
+        "parity": "equivalent"
+      },
+      "event_properties": {
+        "segment_mapping": "Track event properties are forwarded as the event properties payload; numeric types gain _real/_int suffixes in v1 API, types inferred in v2 API; nested objects supported; arrays of objects ignored except for Order Completed products",
+        "rudderstack_mapping": "Track event properties are forwarded as the event properties payload in the FullStory Server API; same type annotation and nesting rules apply through the RudderStack transformer",
+        "parity": "equivalent"
+      },
+      "revenue_tracking": {
+        "segment_mapping": "properties.revenue is sent as a real-type property; Order Completed events receive special handling — products array items are split into individual Product Purchased events with orderId and checkoutId propagated",
+        "rudderstack_mapping": "properties.revenue is sent as a real-type property via the FullStory Server API; Order Completed product splitting follows the same Segment ecommerce spec pattern when configured in the transformer",
+        "parity": "equivalent"
+      },
+      "event_timestamp": {
+        "segment_mapping": "Track event timestamp is sent to FullStory; if absent, FullStory uses server receipt time",
+        "rudderstack_mapping": "Track event timestamp (originalTimestamp) is sent to FullStory via the Create Event API timestamp field; if absent, FullStory uses server receipt time",
+        "parity": "equivalent"
+      }
+    },
+    "session_tagging": {
+      "session_association": {
+        "segment_mapping": "Cloud-mode events are associated with the user's most recent FullStory session by setting session.use_most_recent to true in the Create Event API; session must have had activity within the past 30 minutes",
+        "rudderstack_mapping": "Cloud-mode events are associated with the user's most recent FullStory session by setting session.use_most_recent to true; same 30-minute session activity requirement applies",
+        "parity": "equivalent"
+      },
+      "session_id_stitching": {
+        "segment_mapping": "When FullStory device-mode SDK is also loaded, the FullStory session ID can be passed via context.integrations.FullStory.sessionId for explicit session association in cloud-mode",
+        "rudderstack_mapping": "RudderStack supports explicit session ID stitching via integrations object when the FullStory client-side SDK provides a session ID; delivered to session.id in Server API",
+        "parity": "equivalent"
+      },
+      "session_url_capture": {
+        "segment_mapping": "FullStory session replay URL is automatically appended to event properties via the device-mode SDK middleware for cross-destination session linking",
+        "rudderstack_mapping": "FullStory session replay URL capture requires client-side SDK integration; in pure cloud-mode, session URLs are available via the FullStory API after event ingestion",
+        "parity": "different_delivery_mode"
+      },
+      "user_session_attribution": {
+        "segment_mapping": "Server events without session context create standalone events associated with the user only; FullStory creates a synthetic user if no matching uid is found",
+        "rudderstack_mapping": "Server events without session context are delivered with user.uid only, creating standalone events; FullStory auto-creates users for unrecognized uids",
+        "parity": "equivalent"
+      }
+    },
+    "page_event_mapping": {
+      "page_name": {
+        "segment_mapping": "Page name is mapped to FullStory's pageName property; either category or name is used. In cloud-mode, page calls are converted to track events named 'Viewed {category} {name} Page'",
+        "rudderstack_mapping": "Page name is mapped to pageName property in the event payload; page calls are converted to track events with naming pattern 'Viewed {category} {name} Page' via the transformer",
+        "parity": "equivalent"
+      },
+      "page_properties": {
+        "segment_mapping": "Page properties (title, url, path, referrer, search, and custom properties) are forwarded as event properties in the FullStory Create Event API call",
+        "rudderstack_mapping": "Page properties are forwarded as event properties in the FullStory Create Event API call; standard page properties (title, url, path, referrer) plus custom properties are included",
+        "parity": "equivalent"
+      },
+      "page_category": {
+        "segment_mapping": "Page category is included in the event name generation pattern and forwarded as a property; either category or name maps to pageName in device-mode",
+        "rudderstack_mapping": "Page category is included in the event name generation pattern and forwarded as a category property in the event payload",
+        "parity": "equivalent"
+      }
+    },
+    "context_fields": {
+      "library": {
+        "segment_mapping": "context.library.name = 'analytics.js' for web sources",
+        "rudderstack_mapping": "context.library.name = 'rudder-sdk-js' for web sources",
+        "parity": "different_sdk_identifier"
+      },
+      "page_context": {
+        "segment_mapping": "context.page includes path, referrer, title, url from the current page",
+        "rudderstack_mapping": "context.page includes path, referrer, title, url from the current page",
+        "parity": "equivalent"
+      },
+      "user_agent": {
+        "segment_mapping": "context.userAgent is sent with each event for device/browser identification",
+        "rudderstack_mapping": "context.userAgent is sent with each event for device/browser identification",
+        "parity": "equivalent"
+      },
+      "ip_address": {
+        "segment_mapping": "context.ip is included for geolocation; FullStory does not directly use this in its API but it is part of the event envelope",
+        "rudderstack_mapping": "context.ip is included in the event envelope; FullStory Server API does not require IP but it is available for downstream processing",
+        "parity": "equivalent"
+      },
+      "envelope_fields": {
+        "segment_mapping": "Segment events include messageId for deduplication",
+        "rudderstack_mapping": "RudderStack events include rudderId, messageId, originalTimestamp, sentAt, and receivedAt providing richer event metadata",
+        "parity": "rudderstack_superset"
+      }
+    }
+  },
+  "destination_config": {
+    "required_settings": {
+      "apiKey": {
+        "description": "FullStory API Key with appropriate permissions (Admin or Architect for data retrieval). Used in Authorization header as Basic auth. Generated from FullStory Settings > API Keys.",
+        "type": "string",
+        "required": true
+      },
+      "fsOrg": {
+        "description": "FullStory Organization ID. Found in the FullStory recording snippet as window['_fs_org']. Used to associate events with the correct FullStory organization.",
+        "type": "string",
+        "required": true
+      }
+    },
+    "optional_settings": {
+      "useRecentSession": {
+        "description": "When enabled, cloud-mode events are associated with the user's most recent FullStory session (must have activity within 30 minutes). Maps to session.use_most_recent in the Server API.",
+        "type": "boolean",
+        "default": true
+      },
+      "trackAllPages": {
+        "description": "When enabled, all page calls are sent to FullStory as custom track events with the naming pattern 'Viewed {category} {name} Page'.",
+        "type": "boolean",
+        "default": false
+      },
+      "trackCategorizedPages": {
+        "description": "When enabled, only page calls that include a category are sent to FullStory as custom track events. Ignored if trackAllPages is true.",
+        "type": "boolean",
+        "default": false
+      },
+      "enableIframe": {
+        "description": "When enabled, FullStory recording works within an iframe context. Relevant for device-mode; does not affect cloud-mode API delivery.",
+        "type": "boolean",
+        "default": false
+      },
+      "typePropertySuffix": {
+        "description": "When enabled, numeric and date properties include FullStory v1 type suffixes (_real, _int, _date, _bool, _str). Set to false for v2 API type inference.",
+        "type": "boolean",
+        "default": false
+      }
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "high_parity",
+    "track_parity": "equivalent",
+    "identify_parity": "equivalent",
+    "page_parity": "equivalent",
+    "known_gaps": [
+      {
+        "gap_id": "FS-GAP-001",
+        "description": "Segment device-mode SDK middleware automatically inserts FullStory session replay URLs into event properties for cross-destination linking. RudderStack cloud-mode does not automatically capture session replay URLs without client-side SDK integration.",
+        "severity": "low",
+        "impact": "Session replay URL cross-linking requires separate client-side FullStory SDK setup when using RudderStack cloud-mode only."
+      },
+      {
+        "gap_id": "FS-GAP-002",
+        "description": "Segment FullStory device-mode actions (V2) use the latest FullStory Browser API (version 2) with automatic type inference, while cloud-mode delivery may use explicit type suffixes depending on transformer configuration.",
+        "severity": "low",
+        "impact": "Property type handling may differ between device-mode and cloud-mode delivery; both approaches are valid with FullStory's API."
+      },
+      {
+        "gap_id": "FS-GAP-003",
+        "description": "FullStory's Order Completed event receives special handling (product splitting into Product Purchased events) which is automatically supported by Segment's FullStory integration. RudderStack must implement equivalent product splitting logic in the transformer.",
+        "severity": "medium",
+        "impact": "Revenue analytics and product-level event attribution require transformer-level implementation of Order Completed product splitting."
+      },
+      {
+        "gap_id": "FS-GAP-004",
+        "description": "FullStory property naming requires alphanumeric characters, underscores, and hyphens only, starting with an alphabetic character, with a maximum of 512 characters. Property name sanitization must be implemented in the RudderStack transformer to match Segment's automatic sanitization.",
+        "severity": "medium",
+        "impact": "Events with non-conforming property names will be rejected by FullStory if property name sanitization is not applied."
+      },
+      {
+        "gap_id": "FS-GAP-005",
+        "description": "Segment supports both classic FullStory destination and Actions-based FullStory destination with V1 and V2 API presets. RudderStack cloud-mode targets the v2 Server API directly, which provides equivalent functionality but through a single delivery path.",
+        "severity": "low",
+        "impact": "RudderStack offers a simplified single-path cloud integration vs. Segment's multiple destination variants, with no functional loss."
+      }
+    ],
+    "recommended_validation": [
+      "Verify FullStory user creation via Identify call by checking the user appears in FullStory with correct display_name and email",
+      "Verify Track events appear in FullStory's OmniSearch under the correct event name with all properties indexed",
+      "Verify Page events are converted to track events with correct 'Viewed {category} {name} Page' naming pattern",
+      "Verify session stitching works correctly when use_most_recent is enabled and the user has an active session",
+      "Validate Order Completed events trigger product splitting into individual Product Purchased events in FullStory",
+      "Confirm property type annotation (v1 suffixes or v2 inference) produces correct FullStory property types",
+      "Verify API key authentication is correctly formatted as 'Basic {API_KEY}' in the Authorization header",
+      "Test that events with userId but no active session create standalone user-associated events in FullStory",
+      "Validate property name sanitization handles special characters and length limits per FullStory requirements"
+    ]
+  },
+  "notes": "FullStory (category: Analytics, Heatmaps & Recordings) provides session replay, heatmaps, and product analytics. Segment offers three FullStory destination variants: classic FullStory (device-mode, under maintenance), FullStory Device Mode (Actions), and FullStory Cloud Mode (Actions). RudderStack targets cloud-mode delivery via the FullStory Server API v2, supporting track, identify, and page event types. The integration uses Basic authentication with a FullStory API key. Key FullStory concepts include: uid-based user identification (via FS.identify or Server API), custom event tracking (via FS.event or Create Event API), session stitching (associating server events with browser sessions), and special trait handling (email and displayName). The FullStory v2 API infers property types automatically, eliminating the need for v1-style type suffixes. Cloud-mode events can be stitched to existing sessions using session.use_most_recent or explicit session.id. The primary payload differences between Segment and RudderStack are the SDK library identifier (analytics.js vs rudder-sdk-js) and RudderStack's additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt). Both platforms produce equivalent FullStory API payloads for all three supported event types."
+}

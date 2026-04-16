@@ -1,0 +1,444 @@
+{
+  "destination_type": "MAILCHIMP",
+  "destination_tier": "cloud",
+  "segment_slug": "mailchimp",
+  "category": "Email Marketing",
+  "api_endpoint": "PUT https://{dc}.api.mailchimp.com/3.0/lists/{list_id}/members/{subscriber_hash}",
+  "event_types": ["track", "identify"],
+  "segment_reference_payload": {
+    "identify": {
+      "description": "Segment maps identify calls to the Mailchimp Marketing API v3 PUT /lists/{list_id}/members/{subscriber_hash} endpoint. The subscriber_hash is the MD5 hash of the lowercased email address from traits.email. If the member does not exist, a new subscriber is created; if the member exists, it is updated. Traits are mapped to Mailchimp merge fields (FNAME, LNAME, ADDRESS, PHONE, BIRTHDAY) and the subscriber status is set based on the double opt-in configuration.",
+      "api_endpoint": "PUT https://{dc}.api.mailchimp.com/3.0/lists/{list_id}/members/{subscriber_hash}",
+      "headers": {
+        "Authorization": "Basic base64(anystring:{api_key})",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "email_address": "alex@example.com",
+        "status_if_new": "subscribed",
+        "status": "subscribed",
+        "merge_fields": {
+          "FNAME": "Alex",
+          "LNAME": "Keener",
+          "ADDRESS": {
+            "addr1": "123 Main St",
+            "addr2": "",
+            "city": "San Francisco",
+            "state": "CA",
+            "zip": "94105",
+            "country": "US"
+          },
+          "PHONE": "+14155551234",
+          "BIRTHDAY": "01/15"
+        },
+        "language": "en",
+        "vip": false,
+        "tags": ["premium", "newsletter"],
+        "ip_signup": "203.0.113.42",
+        "timestamp_signup": "2026-01-15T10:30:00+00:00"
+      },
+      "url_parameters": {
+        "dc": "us6",
+        "list_id": "a1b2c3d4e5",
+        "subscriber_hash": "b4c9a289323b21a01c3e940f150eb9b8"
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "traits": {
+          "email": "alex@example.com",
+          "firstName": "Alex",
+          "lastName": "Keener",
+          "phone": "+14155551234",
+          "birthday": "01/15",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US"
+          },
+          "language": "en",
+          "company": "Acme Corp",
+          "plan": "premium",
+          "tags": ["premium", "newsletter"]
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.42"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-abc-123"
+      },
+      "notes": "Segment derives subscriber_hash by computing MD5(lowercase(traits.email)). The list_id is configured in the Segment destination settings. The {dc} data center prefix is extracted from the API key (e.g., 'us6' from 'abc123-us6'). Double opt-in behavior is controlled by the destination setting; when enabled, status_if_new is set to 'pending' instead of 'subscribed'."
+    },
+    "track": {
+      "description": "Segment maps track calls to the Mailchimp Marketing API v3 POST /lists/{list_id}/members/{subscriber_hash}/events endpoint, creating a custom event associated with the subscriber. The event name from the Segment spec is mapped to the 'name' field in the Mailchimp event. Event properties are sent under the 'properties' object with string values (Mailchimp events only support string property values). Track events require that the subscriber already exists in the list.",
+      "api_endpoint": "POST https://{dc}.api.mailchimp.com/3.0/lists/{list_id}/members/{subscriber_hash}/events",
+      "headers": {
+        "Authorization": "Basic base64(anystring:{api_key})",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "name": "product_viewed",
+        "properties": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": "49.99",
+          "currency": "USD",
+          "category": "Widgets"
+        },
+        "is_syncing": false,
+        "occurred_at": "2026-02-25T12:00:00+00:00"
+      },
+      "url_parameters": {
+        "dc": "us6",
+        "list_id": "a1b2c3d4e5",
+        "subscriber_hash": "b4c9a289323b21a01c3e940f150eb9b8"
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "traits": {
+            "email": "alex@example.com"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-def-456"
+      },
+      "notes": "Segment normalizes the event name to lowercase with underscores replacing spaces (e.g., 'Product Viewed' becomes 'product_viewed'). Mailchimp event names can only contain lowercase letters, numbers, and underscores, with a maximum length of 30 characters. All property values are converted to strings since Mailchimp events do not support typed property values. The subscriber must already exist in the Mailchimp list; track events for unknown subscribers return HTTP 404."
+    }
+  },
+  "rudderstack_expected_payload": {
+    "identify": {
+      "description": "RudderStack maps identify calls to the Mailchimp Marketing API v3 PUT /lists/{list_id}/members/{subscriber_hash} endpoint, creating or updating subscriber records. The subscriber_hash is computed as MD5(lowercase(traits.email)). Traits are mapped to Mailchimp merge fields, with special handling for standard merge fields (FNAME, LNAME, ADDRESS, PHONE, BIRTHDAY). Custom traits are mapped to additional merge fields configured in the Mailchimp audience settings and the RudderStack dashboard.",
+      "api_endpoint": "PUT https://{dc}.api.mailchimp.com/3.0/lists/{list_id}/members/{subscriber_hash}",
+      "headers": {
+        "Authorization": "Basic base64(anystring:{api_key})",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "email_address": "alex@example.com",
+        "status_if_new": "subscribed",
+        "status": "subscribed",
+        "merge_fields": {
+          "FNAME": "Alex",
+          "LNAME": "Keener",
+          "ADDRESS": {
+            "addr1": "123 Main St",
+            "addr2": "",
+            "city": "San Francisco",
+            "state": "CA",
+            "zip": "94105",
+            "country": "US"
+          },
+          "PHONE": "+14155551234",
+          "BIRTHDAY": "01/15"
+        },
+        "language": "en",
+        "vip": false,
+        "tags": ["premium", "newsletter"],
+        "ip_signup": "203.0.113.42",
+        "timestamp_signup": "2026-01-15T10:30:00+00:00"
+      },
+      "url_parameters": {
+        "dc": "us6",
+        "list_id": "a1b2c3d4e5",
+        "subscriber_hash": "b4c9a289323b21a01c3e940f150eb9b8"
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "traits": {
+          "email": "alex@example.com",
+          "firstName": "Alex",
+          "lastName": "Keener",
+          "phone": "+14155551234",
+          "birthday": "01/15",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US"
+          },
+          "language": "en",
+          "company": "Acme Corp",
+          "plan": "premium",
+          "tags": ["premium", "newsletter"]
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "ip": "203.0.113.42"
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-xyz-789",
+        "rudderId": "rudder-uuid-001"
+      },
+      "notes": "RudderStack computes subscriber_hash as MD5(lowercase(traits.email)). The list_id is configured in the RudderStack destination settings as 'listId'. The data center prefix is extracted from the API key suffix. RudderStack supports double opt-in via the 'Enable Double Opt-In' dashboard toggle, which sets status_if_new to 'pending'. Custom merge fields are mapped via the 'Merge Fields Mapping' setting in the RudderStack dashboard. The Transformer service handles the Segment Spec to Mailchimp API payload transformation."
+    },
+    "track": {
+      "description": "RudderStack maps track calls to the Mailchimp Marketing API v3 POST /lists/{list_id}/members/{subscriber_hash}/events endpoint, creating custom events associated with the subscriber. The event name is normalized to lowercase with spaces replaced by underscores. Event properties are converted to string values since Mailchimp events only accept string property values. The subscriber must already exist in the Mailchimp audience.",
+      "api_endpoint": "POST https://{dc}.api.mailchimp.com/3.0/lists/{list_id}/members/{subscriber_hash}/events",
+      "headers": {
+        "Authorization": "Basic base64(anystring:{api_key})",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "name": "product_viewed",
+        "properties": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "price": "49.99",
+          "currency": "USD",
+          "category": "Widgets"
+        },
+        "is_syncing": false,
+        "occurred_at": "2026-02-25T12:00:00+00:00"
+      },
+      "url_parameters": {
+        "dc": "us6",
+        "list_id": "a1b2c3d4e5",
+        "subscriber_hash": "b4c9a289323b21a01c3e940f150eb9b8"
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "traits": {
+            "email": "alex@example.com"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-uvw-012",
+        "rudderId": "rudder-uuid-002"
+      },
+      "notes": "RudderStack normalizes the event name to lowercase with underscores (e.g., 'Product Viewed' becomes 'product_viewed') to comply with Mailchimp's event naming restrictions. The subscriber_hash is derived from context.traits.email or the email associated with the userId in a previous identify call. All property values are stringified. The Transformer service handles the event name normalization and property type conversion."
+    }
+  },
+  "field_mappings": {
+    "subscriber_identification": {
+      "email": {
+        "mailchimp_field": "email_address",
+        "segment_mapping": "Segment maps traits.email to email_address as the primary subscriber identifier. The MD5 hash of the lowercased email is used as the subscriber_hash in the API URL path.",
+        "rudderstack_mapping": "RudderStack maps traits.email to email_address as the primary subscriber identifier. The MD5 hash of the lowercased email is used as the subscriber_hash in the API URL path.",
+        "parity": "match",
+        "notes": "Both platforms use email as the primary subscriber identifier for Mailchimp. The subscriber_hash (MD5 of lowercased email) computation is identical."
+      },
+      "subscriber_hash": {
+        "mailchimp_field": "URL path parameter: /members/{subscriber_hash}",
+        "segment_mapping": "Segment computes MD5(lowercase(traits.email)) for the subscriber_hash URL parameter.",
+        "rudderstack_mapping": "RudderStack computes MD5(lowercase(traits.email)) for the subscriber_hash URL parameter.",
+        "parity": "match",
+        "notes": "Identical MD5 hash computation for subscriber identification in the URL path."
+      }
+    },
+    "merge_fields": {
+      "traits.firstName": {
+        "mailchimp_field": "merge_fields.FNAME",
+        "segment_mapping": "Segment maps traits.firstName or traits.first_name to merge_fields.FNAME.",
+        "rudderstack_mapping": "RudderStack maps traits.firstName or traits.first_name to merge_fields.FNAME.",
+        "parity": "match"
+      },
+      "traits.lastName": {
+        "mailchimp_field": "merge_fields.LNAME",
+        "segment_mapping": "Segment maps traits.lastName or traits.last_name to merge_fields.LNAME.",
+        "rudderstack_mapping": "RudderStack maps traits.lastName or traits.last_name to merge_fields.LNAME.",
+        "parity": "match"
+      },
+      "traits.phone": {
+        "mailchimp_field": "merge_fields.PHONE",
+        "segment_mapping": "Segment maps traits.phone to merge_fields.PHONE.",
+        "rudderstack_mapping": "RudderStack maps traits.phone to merge_fields.PHONE.",
+        "parity": "match"
+      },
+      "traits.address": {
+        "mailchimp_field": "merge_fields.ADDRESS",
+        "segment_mapping": "Segment maps traits.address to the Mailchimp ADDRESS merge field object with subfields: addr1 (from street), addr2, city, state, zip (from postalCode), country.",
+        "rudderstack_mapping": "RudderStack maps traits.address to the Mailchimp ADDRESS merge field object with subfields: addr1 (from street), addr2, city, state, zip (from postalCode), country.",
+        "parity": "match",
+        "notes": "Both platforms decompose the Segment Spec address object into Mailchimp's structured ADDRESS merge field format (addr1, addr2, city, state, zip, country)."
+      },
+      "traits.birthday": {
+        "mailchimp_field": "merge_fields.BIRTHDAY",
+        "segment_mapping": "Segment maps traits.birthday to merge_fields.BIRTHDAY. Expected format is MM/DD.",
+        "rudderstack_mapping": "RudderStack maps traits.birthday to merge_fields.BIRTHDAY. Expected format is MM/DD.",
+        "parity": "match",
+        "notes": "The BIRTHDAY merge field requires MM/DD format. Both platforms pass the value as-is from the traits without additional date formatting."
+      },
+      "custom_merge_fields": {
+        "mailchimp_field": "merge_fields.{TAG}",
+        "segment_mapping": "Segment maps additional traits to custom merge fields based on the merge field tag name configured in the Mailchimp audience settings. Users configure the mapping in the Segment destination settings.",
+        "rudderstack_mapping": "RudderStack maps additional traits to custom merge fields via the 'Merge Fields Mapping' configuration in the RudderStack dashboard. The mapping associates Segment Spec trait names with Mailchimp merge field tags.",
+        "parity": "match",
+        "notes": "Both platforms support custom merge field mapping. The configuration mechanism differs (Segment uses Actions mappings, RudderStack uses dashboard merge field mapping), but the resulting Mailchimp API payload structure is identical."
+      }
+    },
+    "subscriber_status": {
+      "mailchimp_field": "status / status_if_new",
+      "segment_mapping": "Segment sets status_if_new to 'subscribed' by default, or 'pending' when double opt-in is enabled in the destination settings. The status field on updates defaults to 'subscribed'.",
+      "rudderstack_mapping": "RudderStack sets status_if_new to 'subscribed' by default, or 'pending' when the 'Enable Double Opt-In' toggle is enabled in the destination settings. The status field on updates defaults to 'subscribed'.",
+      "parity": "match",
+      "notes": "Both platforms support double opt-in configuration. When enabled, new subscribers receive a confirmation email before becoming fully subscribed."
+    },
+    "list_association": {
+      "mailchimp_field": "URL path parameter: /lists/{list_id}",
+      "segment_mapping": "Segment configures the Mailchimp audience (list) ID in the destination settings. Each Segment→Mailchimp connection targets a single audience.",
+      "rudderstack_mapping": "RudderStack configures the Mailchimp audience (list) ID as the 'listId' setting in the destination configuration. Each connection targets a single audience. RudderStack also supports per-event audience targeting via context.externalId with type 'mailchimpListId'.",
+      "parity": "divergence",
+      "notes": "RudderStack provides an additional per-event list targeting mechanism via context.externalId, allowing dynamic audience assignment per event. Segment supports only static list configuration per connection."
+    },
+    "tags": {
+      "mailchimp_field": "tags",
+      "segment_mapping": "Segment supports adding tags to subscribers via the Mailchimp destination. Tags can be configured in the destination settings or passed via event traits.",
+      "rudderstack_mapping": "RudderStack supports adding tags to subscribers. Tags can be provided as an array in traits.tags or configured in the destination settings.",
+      "parity": "match",
+      "notes": "Both platforms support subscriber tagging. Tags are useful for segmentation and automation triggers within Mailchimp."
+    },
+    "language": {
+      "mailchimp_field": "language",
+      "segment_mapping": "Segment maps traits.language to the Mailchimp subscriber language field (ISO 639-1 two-letter language code).",
+      "rudderstack_mapping": "RudderStack maps traits.language to the Mailchimp subscriber language field (ISO 639-1 two-letter language code).",
+      "parity": "match"
+    },
+    "ip_signup": {
+      "mailchimp_field": "ip_signup",
+      "segment_mapping": "Segment maps context.ip to ip_signup for new subscriber records.",
+      "rudderstack_mapping": "RudderStack maps context.ip to ip_signup for new subscriber records.",
+      "parity": "match",
+      "notes": "The IP address is captured from the event context and passed to Mailchimp for geolocation and compliance purposes."
+    },
+    "track_event_name": {
+      "mailchimp_field": "name (events endpoint)",
+      "segment_mapping": "Segment normalizes the event name to lowercase with underscores replacing spaces. The normalized name is sent to POST /lists/{list_id}/members/{subscriber_hash}/events.",
+      "rudderstack_mapping": "RudderStack normalizes the event name to lowercase with underscores replacing spaces. The normalized name is sent to POST /lists/{list_id}/members/{subscriber_hash}/events.",
+      "parity": "match",
+      "notes": "Mailchimp event names can only contain lowercase letters, numbers, and underscores, with a maximum of 30 characters. Both platforms apply the same normalization."
+    },
+    "track_event_properties": {
+      "mailchimp_field": "properties (events endpoint)",
+      "segment_mapping": "Segment maps event properties to the Mailchimp events properties object. All values are converted to strings since Mailchimp events only accept string property values.",
+      "rudderstack_mapping": "RudderStack maps event properties to the Mailchimp events properties object. All values are converted to strings since Mailchimp events only accept string property values.",
+      "parity": "match",
+      "notes": "Mailchimp events support a maximum of 30 properties per event. Property names must be lowercase with underscores and a maximum of 30 characters."
+    },
+    "track_event_timestamp": {
+      "mailchimp_field": "occurred_at (events endpoint)",
+      "segment_mapping": "Segment maps the event timestamp to occurred_at in ISO 8601 format.",
+      "rudderstack_mapping": "RudderStack maps the event timestamp (or originalTimestamp) to occurred_at in ISO 8601 format.",
+      "parity": "match",
+      "notes": "Both platforms use ISO 8601 timestamp format for the occurred_at field."
+    }
+  },
+  "authentication": {
+    "method": "HTTP Basic Auth",
+    "header": "Authorization: Basic base64(anystring:{api_key})",
+    "description": "Mailchimp Marketing API v3 uses HTTP Basic authentication. The username can be any string (commonly 'anystring'), and the password is the API key. The data center prefix is extracted from the API key (e.g., 'us6' from 'abc123def456-us6') and used in the API base URL.",
+    "segment_config": {
+      "api_key": "Configured in Segment destination settings as 'API Key'. The data center is automatically extracted from the API key suffix.",
+      "list_id": "Configured in Segment destination settings as 'Audience ID' (formerly 'List ID').",
+      "double_opt_in": "Configurable toggle in Segment destination settings. When enabled, new subscribers receive a confirmation email."
+    },
+    "rudderstack_config": {
+      "api_key": "Configured in RudderStack destination settings as 'apiKey'. The data center prefix is parsed from the key.",
+      "list_id": "Configured in RudderStack destination settings as 'listId'.",
+      "double_opt_in": "Configurable via 'Enable Double Opt-In' toggle in RudderStack destination settings.",
+      "merge_fields_mapping": "Optional mapping configuration in RudderStack dashboard to associate Segment Spec trait names with Mailchimp merge field tags."
+    },
+    "parity": "match"
+  },
+  "parity_status": "high",
+  "known_gaps": [
+    {
+      "gap_id": "MC-001",
+      "field": "Per-event audience targeting",
+      "description": "RudderStack supports per-event audience (list) targeting via context.externalId with type 'mailchimpListId', allowing dynamic audience assignment per event. Segment supports only static audience configuration per destination connection.",
+      "severity": "low",
+      "remediation": "This is a RudderStack-specific enhancement. Document as an advanced feature for power users. No remediation needed for parity since Segment users use one connection per audience."
+    },
+    {
+      "gap_id": "MC-002",
+      "field": "RudderStack envelope fields",
+      "description": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to the source event envelope. These fields do not impact the Mailchimp API payload as they are stripped during transformation.",
+      "severity": "informational",
+      "remediation": "No impact on destination payload. These fields are removed by the Transformer before the Mailchimp API call."
+    },
+    {
+      "gap_id": "MC-003",
+      "field": "context.library",
+      "description": "Segment uses 'analytics.js' as the library name; RudderStack uses 'rudder-sdk-js'. This difference is present in the source event but does not propagate to the Mailchimp API payload.",
+      "severity": "informational",
+      "remediation": "No impact on destination payload — library metadata is not sent to Mailchimp."
+    },
+    {
+      "gap_id": "MC-004",
+      "field": "Merge fields configuration mechanism",
+      "description": "Segment uses its Actions mapping UI for configuring custom merge field mappings. RudderStack uses a dedicated 'Merge Fields Mapping' dashboard setting. The resulting Mailchimp API payloads are identical, but the configuration UI/UX differs.",
+      "severity": "low",
+      "remediation": "Document the RudderStack merge field mapping configuration process. The API-level output is equivalent."
+    },
+    {
+      "gap_id": "MC-005",
+      "field": "Segment Actions variant",
+      "description": "Segment does not currently offer an Actions-based Mailchimp destination. The Mailchimp integration in Segment is a classic server-side destination. Both platforms use the same Mailchimp Marketing API v3 endpoints.",
+      "severity": "informational",
+      "remediation": "No remediation needed. Both platforms use the classic integration pattern for Mailchimp."
+    },
+    {
+      "gap_id": "MC-006",
+      "field": "Subscriber update vs create semantics",
+      "description": "Both platforms use PUT for upsert behavior (create if new, update if existing). The Mailchimp API handles the merge semantics. When status_if_new is provided, it only applies to new subscribers. Existing subscriber status is controlled by the status field.",
+      "severity": "informational",
+      "remediation": "No remediation needed — both platforms leverage Mailchimp's native upsert semantics identically."
+    },
+    {
+      "gap_id": "MC-007",
+      "field": "Track event subscriber lookup",
+      "description": "Both platforms require the subscriber's email to compute the subscriber_hash for track events. Segment retrieves the email from context.traits.email or a previous identify call. RudderStack follows the same pattern, checking context.traits.email. If the email is unavailable, the track event cannot be delivered to Mailchimp.",
+      "severity": "low",
+      "remediation": "Ensure consistent email resolution between identify and track calls. Document that track events require the subscriber email in context.traits for Mailchimp delivery."
+    }
+  ],
+  "notes": "Mailchimp is a shared cloud destination in the Email Marketing category. Both Segment and RudderStack deliver events to the Mailchimp Marketing API v3 (https://{dc}.api.mailchimp.com/3.0/). The integration supports two primary operations: (1) identify calls create or update subscribers via PUT /lists/{list_id}/members/{subscriber_hash}, and (2) track calls create custom events via POST /lists/{list_id}/members/{subscriber_hash}/events. The subscriber_hash is always the MD5 hash of the lowercased email address. Mailchimp uses the concept of 'audiences' (formerly 'lists') as the primary organizational unit for subscribers. Each audience has configurable merge fields (default: FNAME, LNAME, ADDRESS, PHONE, BIRTHDAY) that can be extended with custom fields. The Mailchimp Events API (used for track calls) stores events associated with subscribers for use in automation triggers and segmentation. Event names are restricted to lowercase alphanumeric characters and underscores (max 30 chars). Event properties are string-only and limited to 30 properties per event. Parity assessment: HIGH — both platforms produce nearly identical Mailchimp API payloads for both identify and track calls. The primary differences are in configuration UI (merge field mapping) and RudderStack's additional per-event audience targeting capability. The Mailchimp Marketing API v3 supports rate limiting of 10 concurrent connections per user. Both platforms handle rate limiting through their respective retry/backoff mechanisms."
+}

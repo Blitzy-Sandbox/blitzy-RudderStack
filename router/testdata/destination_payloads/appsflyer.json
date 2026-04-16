@@ -1,0 +1,1186 @@
+{
+  "destination_type": "APPSFLYER",
+  "destination_tier": "cloud",
+  "category": "Attribution",
+  "event_types": ["track", "identify"],
+  "segment_reference_payload": {
+    "track_standard_event": {
+      "description": "Segment maps track events to AppsFlyer's S2S In-App Events API (POST https://api2.appsflyer.com/inappevent/<app_id>). The event name is mapped to 'eventName', event properties are JSON-stringified into 'eventValue', device identifiers (IDFA for iOS, advertising_id for Android) are extracted from context.device, and the AppsFlyer device ID (appsflyer_id) is derived from context.device.id or an integration-specific field. The Segment Transformer handles the conversion from Segment spec fields to AppsFlyer's S2S API body format.",
+      "input_event": {
+        "type": "track",
+        "event": "Product Added",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "category": "Electronics",
+          "price": 49.99,
+          "quantity": 1,
+          "currency": "USD"
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ios",
+            "version": "4.1.0"
+          },
+          "app": {
+            "name": "Example App",
+            "version": "3.2.1",
+            "build": "321",
+            "namespace": "com.example.app"
+          },
+          "device": {
+            "id": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+            "advertisingId": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+            "adTrackingEnabled": true,
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.2"
+          },
+          "locale": "en-US",
+          "ip": "203.0.113.50",
+          "timezone": "America/New_York",
+          "network": {
+            "carrier": "Verizon",
+            "wifi": true
+          }
+        },
+        "integrations": {
+          "AppsFlyer": {
+            "appsFlyerId": "1609312895083-5765022"
+          }
+        },
+        "messageId": "seg-msg-track-af-001"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api2.appsflyer.com/inappevent/com.example.app",
+        "headers": {
+          "authentication": "<appsflyer_dev_key>",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": {
+          "appsflyer_id": "1609312895083-5765022",
+          "customer_user_id": "user_123",
+          "eventName": "Product Added",
+          "eventValue": "{\"product_id\":\"SKU-001\",\"product_name\":\"Premium Widget\",\"category\":\"Electronics\",\"price\":49.99,\"quantity\":1,\"currency\":\"USD\"}",
+          "eventCurrency": "USD",
+          "eventTime": "2026-02-25 12:00:00.000",
+          "ip": "203.0.113.50",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "os": "17.2",
+          "att": 3,
+          "af_events_api": "true"
+        },
+        "notes": "AppsFlyer S2S API uses POST requests with a JSON body. The app_id in the URL path is derived from context.app.namespace (iOS bundle ID or Android package name). Authentication uses the 'authentication' header carrying the AppsFlyer dev key configured in destination settings. The 'appsflyer_id' is the mandatory device identifier used by AppsFlyer for attribution — it is obtained from the integrations.AppsFlyer.appsFlyerId field or context.device.id. The 'eventValue' is a JSON-stringified representation of the event properties. The 'eventTime' uses 'yyyy-MM-dd HH:mm:ss.SSS' format converted from ISO 8601."
+      }
+    },
+    "track_revenue_event": {
+      "description": "Segment maps revenue-bearing track events to AppsFlyer's S2S In-App Events API with af_revenue and af_currency included in the eventValue JSON string. Revenue events are critical for AppsFlyer's LTV and ROI analytics. The event name for purchase events typically maps to 'af_purchase' using AppsFlyer's predefined event names, or the original event name is passed through. Segment extracts properties.revenue and properties.currency and places them into the eventValue JSON as 'af_revenue' and 'af_currency'.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T14:30:00.000Z",
+        "properties": {
+          "order_id": "ORD-98765",
+          "revenue": 149.97,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 3
+            }
+          ],
+          "coupon": "SAVE20",
+          "discount": 30.00,
+          "tax": 12.50,
+          "shipping": 5.99
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ios",
+            "version": "4.1.0"
+          },
+          "app": {
+            "name": "Example App",
+            "version": "3.2.1",
+            "build": "321",
+            "namespace": "com.example.app"
+          },
+          "device": {
+            "id": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+            "advertisingId": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+            "adTrackingEnabled": true,
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.2"
+          },
+          "locale": "en-US",
+          "ip": "203.0.113.50",
+          "timezone": "America/New_York"
+        },
+        "integrations": {
+          "AppsFlyer": {
+            "appsFlyerId": "1609312895083-5765022"
+          }
+        },
+        "messageId": "seg-msg-track-af-002"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api2.appsflyer.com/inappevent/com.example.app",
+        "headers": {
+          "authentication": "<appsflyer_dev_key>",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": {
+          "appsflyer_id": "1609312895083-5765022",
+          "customer_user_id": "user_123",
+          "eventName": "af_purchase",
+          "eventValue": "{\"af_revenue\":149.97,\"af_currency\":\"USD\",\"af_order_id\":\"ORD-98765\",\"af_content_id\":\"SKU-001\",\"af_content\":\"Premium Widget\",\"af_quantity\":3,\"af_coupon_code\":\"SAVE20\",\"af_price\":49.99}",
+          "eventCurrency": "USD",
+          "eventTime": "2026-02-25 14:30:00.000",
+          "ip": "203.0.113.50",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "os": "17.2",
+          "att": 3,
+          "af_events_api": "true"
+        },
+        "notes": "Revenue events use AppsFlyer's predefined event name 'af_purchase' (mapped from 'Order Completed'). Revenue-related fields are included in the eventValue JSON using AppsFlyer's standard parameter names: af_revenue (total revenue), af_currency (ISO 4217 code), af_order_id (from properties.order_id), af_content_id (product ID), af_content (product name), af_quantity, af_coupon_code (from properties.coupon), and af_price (unit price). The 'eventCurrency' top-level field is also set for AppsFlyer's revenue processing pipeline. AppsFlyer supports negative af_revenue values for refund/cancellation events."
+      }
+    },
+    "track_android_event": {
+      "description": "Segment maps Android track events to AppsFlyer's S2S In-App Events API using Android-specific device identifiers. The Google Advertising ID (GAID) is mapped to the 'advertising_id' parameter instead of 'idfa'. The app_id in the URL path uses the Android package name. The 'os' parameter is set to the Android version string.",
+      "input_event": {
+        "type": "track",
+        "event": "Tutorial Complete",
+        "userId": "user_456",
+        "anonymousId": "anon_def_789",
+        "timestamp": "2026-02-25T16:00:00.000Z",
+        "properties": {
+          "tutorial_name": "Onboarding",
+          "steps_completed": 5,
+          "total_steps": 5,
+          "completion_time_seconds": 180
+        },
+        "context": {
+          "library": {
+            "name": "analytics-android",
+            "version": "4.11.0"
+          },
+          "app": {
+            "name": "Example App",
+            "version": "3.2.1",
+            "build": "321",
+            "namespace": "com.example.app"
+          },
+          "device": {
+            "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "advertisingId": "38400000-8cf0-11bd-b23e-10b96e40000d",
+            "adTrackingEnabled": true,
+            "manufacturer": "Samsung",
+            "model": "Galaxy S24",
+            "type": "android"
+          },
+          "os": {
+            "name": "Android",
+            "version": "14"
+          },
+          "locale": "en-US",
+          "ip": "198.51.100.25",
+          "timezone": "America/Los_Angeles"
+        },
+        "integrations": {
+          "AppsFlyer": {
+            "appsFlyerId": "1609312895083-9876543"
+          }
+        },
+        "messageId": "seg-msg-track-af-003"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api2.appsflyer.com/inappevent/com.example.app",
+        "headers": {
+          "authentication": "<appsflyer_dev_key>",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": {
+          "appsflyer_id": "1609312895083-9876543",
+          "customer_user_id": "user_456",
+          "eventName": "Tutorial Complete",
+          "eventValue": "{\"tutorial_name\":\"Onboarding\",\"steps_completed\":5,\"total_steps\":5,\"completion_time_seconds\":180}",
+          "eventTime": "2026-02-25 16:00:00.000",
+          "ip": "198.51.100.25",
+          "advertising_id": "38400000-8cf0-11bd-b23e-10b96e40000d",
+          "os": "14",
+          "af_events_api": "true"
+        },
+        "notes": "Android events use 'advertising_id' (Google Advertising ID / GAID) instead of 'idfa'. The 'os' parameter carries the Android version string. The 'att' (App Tracking Transparency) parameter is omitted for Android since ATT is an iOS-only framework. The app_id in the URL path remains the Android package name from context.app.namespace. Custom event names are passed through directly when no predefined event mapping applies."
+      }
+    },
+    "track_custom_event_with_appsflyer_predefined_mapping": {
+      "description": "Segment maps certain standard e-commerce event names to AppsFlyer's predefined in-app event names. For example, 'Product Viewed' maps to 'af_content_view', 'Product Added' maps to 'af_add_to_cart', 'Checkout Started' maps to 'af_initiated_checkout'. This mapping ensures events appear correctly in AppsFlyer's standard reports and partner postback integrations.",
+      "input_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_789",
+        "anonymousId": "anon_ghi_012",
+        "timestamp": "2026-02-25T18:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-002",
+          "name": "Wireless Headphones",
+          "category": "Audio",
+          "price": 79.99,
+          "brand": "AudioTech",
+          "variant": "Black",
+          "url": "https://example.com/products/SKU-002",
+          "image_url": "https://example.com/images/SKU-002.jpg"
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ios",
+            "version": "4.1.0"
+          },
+          "app": {
+            "name": "Example App",
+            "version": "3.2.1",
+            "build": "321",
+            "namespace": "com.example.app"
+          },
+          "device": {
+            "id": "C6483EC1-D32F-22E5-9EFD-BB18B6C194EC",
+            "advertisingId": "7E103979-9357-5CB5-BF6C-87215972F8ED",
+            "adTrackingEnabled": false,
+            "manufacturer": "Apple",
+            "model": "iPhone 14",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "16.7"
+          },
+          "locale": "en-GB",
+          "ip": "192.0.2.100",
+          "timezone": "Europe/London"
+        },
+        "integrations": {
+          "AppsFlyer": {
+            "appsFlyerId": "1609312895083-1122334"
+          }
+        },
+        "messageId": "seg-msg-track-af-004"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api2.appsflyer.com/inappevent/com.example.app",
+        "headers": {
+          "authentication": "<appsflyer_dev_key>",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": {
+          "appsflyer_id": "1609312895083-1122334",
+          "customer_user_id": "user_789",
+          "eventName": "af_content_view",
+          "eventValue": "{\"af_content_id\":\"SKU-002\",\"af_content\":\"Wireless Headphones\",\"af_content_type\":\"Audio\",\"af_price\":79.99,\"af_brand\":\"AudioTech\"}",
+          "eventTime": "2026-02-25 18:00:00.000",
+          "ip": "192.0.2.100",
+          "idfa": "7E103979-9357-5CB5-BF6C-87215972F8ED",
+          "os": "16.7",
+          "att": 2,
+          "af_events_api": "true"
+        },
+        "notes": "Segment maps 'Product Viewed' to AppsFlyer predefined event name 'af_content_view'. Properties are mapped to AppsFlyer's standard parameter names: product_id → af_content_id, name → af_content, category → af_content_type, price → af_price, brand → af_brand. The 'att' value is set to 2 (denied) because context.device.adTrackingEnabled is false — the IDFA may still be sent but AppsFlyer will treat it as potentially limited. Predefined event name mapping enables AppsFlyer's built-in reports and partner postback matching."
+      }
+    },
+    "identify_user_association": {
+      "description": "Segment maps identify events to AppsFlyer by associating a customer_user_id with an appsflyer_id. AppsFlyer does not have a dedicated user identification endpoint equivalent to Segment's identify call; instead, user identity is established through the customer_user_id parameter on subsequent event calls. Some implementations use the AppsFlyer SDK's setCustomerUserId method which does not have a direct S2S equivalent, so the Segment Transformer may store the userId association for use in subsequent track events.",
+      "input_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T11:00:00.000Z",
+        "traits": {
+          "email": "user@example.com",
+          "name": "Jane Smith",
+          "phone": "+1-555-0123",
+          "plan": "premium",
+          "created_at": "2025-01-15T08:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ios",
+            "version": "4.1.0"
+          },
+          "app": {
+            "name": "Example App",
+            "version": "3.2.1",
+            "build": "321",
+            "namespace": "com.example.app"
+          },
+          "device": {
+            "id": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+            "advertisingId": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+            "adTrackingEnabled": true,
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.2"
+          },
+          "locale": "en-US",
+          "ip": "203.0.113.50"
+        },
+        "integrations": {
+          "AppsFlyer": {
+            "appsFlyerId": "1609312895083-5765022"
+          }
+        },
+        "messageId": "seg-msg-identify-af-001"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api2.appsflyer.com/inappevent/com.example.app",
+        "headers": {
+          "authentication": "<appsflyer_dev_key>",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": {
+          "appsflyer_id": "1609312895083-5765022",
+          "customer_user_id": "user_123",
+          "eventName": "identify",
+          "eventValue": "{\"email\":\"user@example.com\",\"name\":\"Jane Smith\",\"phone\":\"+1-555-0123\",\"plan\":\"premium\",\"created_at\":\"2025-01-15T08:00:00.000Z\"}",
+          "eventTime": "2026-02-25 11:00:00.000",
+          "ip": "203.0.113.50",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "os": "17.2",
+          "att": 3,
+          "af_events_api": "true"
+        },
+        "notes": "AppsFlyer does not have a dedicated identify endpoint. Segment maps identify calls to an in-app event with eventName 'identify' where the user traits are serialized into eventValue. The primary purpose is to associate the customer_user_id (userId from Segment) with the appsflyer_id for cross-platform attribution. User traits become event properties in AppsFlyer. Some Segment implementations may skip sending the identify event to AppsFlyer entirely and only use the customer_user_id association on subsequent track events."
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track_standard_event": {
+      "description": "RudderStack maps track events to AppsFlyer's S2S In-App Events API via the Transformer service. The mapping follows the same AppsFlyer API format as Segment. RudderStack extracts device identifiers from context.device, maps the event name to 'eventName', serializes event properties into 'eventValue' as a JSON string, and derives the appsflyer_id from integrations.AppsFlyer.appsFlyerId or externalId. RudderStack-specific envelope fields (rudderId, sentAt, receivedAt) are present in the source event but are NOT forwarded to AppsFlyer's API.",
+      "input_event": {
+        "type": "track",
+        "event": "Product Added",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "product_name": "Premium Widget",
+          "category": "Electronics",
+          "price": 49.99,
+          "quantity": 1,
+          "currency": "USD"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-ios",
+            "version": "2.x.x"
+          },
+          "app": {
+            "name": "Example App",
+            "version": "3.2.1",
+            "build": "321",
+            "namespace": "com.example.app"
+          },
+          "device": {
+            "id": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+            "advertisingId": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+            "adTrackingEnabled": true,
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.2"
+          },
+          "locale": "en-US",
+          "ip": "203.0.113.50",
+          "timezone": "America/New_York",
+          "network": {
+            "carrier": "Verizon",
+            "wifi": true
+          },
+          "externalId": [
+            {
+              "type": "appsFlyerExternalId",
+              "id": "1609312895083-5765022"
+            }
+          ]
+        },
+        "messageId": "rs-msg-track-af-001",
+        "rudderId": "rudder-uuid-af-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api2.appsflyer.com/inappevent/com.example.app",
+        "headers": {
+          "authentication": "<appsflyer_dev_key>",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": {
+          "appsflyer_id": "1609312895083-5765022",
+          "customer_user_id": "user_123",
+          "eventName": "Product Added",
+          "eventValue": "{\"product_id\":\"SKU-001\",\"product_name\":\"Premium Widget\",\"category\":\"Electronics\",\"price\":49.99,\"quantity\":1,\"currency\":\"USD\"}",
+          "eventCurrency": "USD",
+          "eventTime": "2026-02-25 12:00:00.000",
+          "ip": "203.0.113.50",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "os": "17.2",
+          "att": 3,
+          "af_events_api": "true"
+        },
+        "notes": "RudderStack Transformer produces identical AppsFlyer S2S API calls as Segment for standard track events. The appsflyer_id is resolved from context.externalId where type is 'appsFlyerExternalId'. RudderStack-specific envelope fields (rudderId, sentAt, receivedAt, originalTimestamp) are present in the source event but are NOT forwarded to AppsFlyer's API — only Segment spec fields are mapped to AppsFlyer parameters. The Transformer handles the timestamp format conversion from ISO 8601 to AppsFlyer's 'yyyy-MM-dd HH:mm:ss.SSS' format."
+      }
+    },
+    "track_revenue_event": {
+      "description": "RudderStack maps revenue-bearing track events to AppsFlyer's S2S In-App Events API with af_revenue and af_currency included in the eventValue JSON string. The Transformer extracts properties.revenue and properties.currency and maps them to AppsFlyer standard parameters within the eventValue. Event name mapping from 'Order Completed' to 'af_purchase' is applied via the RudderStack Transformer's event name mapping configuration.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T14:30:00.000Z",
+        "properties": {
+          "order_id": "ORD-98765",
+          "revenue": 149.97,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 3
+            }
+          ],
+          "coupon": "SAVE20",
+          "discount": 30.00,
+          "tax": 12.50,
+          "shipping": 5.99
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-ios",
+            "version": "2.x.x"
+          },
+          "app": {
+            "name": "Example App",
+            "version": "3.2.1",
+            "build": "321",
+            "namespace": "com.example.app"
+          },
+          "device": {
+            "id": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+            "advertisingId": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+            "adTrackingEnabled": true,
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.2"
+          },
+          "locale": "en-US",
+          "ip": "203.0.113.50",
+          "timezone": "America/New_York",
+          "externalId": [
+            {
+              "type": "appsFlyerExternalId",
+              "id": "1609312895083-5765022"
+            }
+          ]
+        },
+        "messageId": "rs-msg-track-af-002",
+        "rudderId": "rudder-uuid-af-002",
+        "originalTimestamp": "2026-02-25T14:30:00.000Z",
+        "sentAt": "2026-02-25T14:30:01.000Z",
+        "receivedAt": "2026-02-25T14:30:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api2.appsflyer.com/inappevent/com.example.app",
+        "headers": {
+          "authentication": "<appsflyer_dev_key>",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": {
+          "appsflyer_id": "1609312895083-5765022",
+          "customer_user_id": "user_123",
+          "eventName": "af_purchase",
+          "eventValue": "{\"af_revenue\":149.97,\"af_currency\":\"USD\",\"af_order_id\":\"ORD-98765\",\"af_content_id\":\"SKU-001\",\"af_content\":\"Premium Widget\",\"af_quantity\":3,\"af_coupon_code\":\"SAVE20\",\"af_price\":49.99}",
+          "eventCurrency": "USD",
+          "eventTime": "2026-02-25 14:30:00.000",
+          "ip": "203.0.113.50",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "os": "17.2",
+          "att": 3,
+          "af_events_api": "true"
+        },
+        "notes": "Revenue mapping is identical between Segment and RudderStack for AppsFlyer. Both platforms extract properties.revenue into af_revenue and properties.currency into af_currency within the eventValue JSON string. The RudderStack Transformer maps 'Order Completed' to 'af_purchase'. AppsFlyer's revenue processing pipeline uses both the eventValue.af_revenue field and the top-level eventCurrency field. Negative af_revenue values are supported for refund/cancellation events."
+      }
+    },
+    "track_android_event": {
+      "description": "RudderStack maps Android track events to AppsFlyer's S2S In-App Events API using Android-specific device identifiers. The Transformer detects the platform from context.device.type or context.os.name and uses 'advertising_id' (GAID) instead of 'idfa'. The ATT parameter is omitted since it is iOS-only.",
+      "input_event": {
+        "type": "track",
+        "event": "Tutorial Complete",
+        "userId": "user_456",
+        "anonymousId": "anon_def_789",
+        "timestamp": "2026-02-25T16:00:00.000Z",
+        "properties": {
+          "tutorial_name": "Onboarding",
+          "steps_completed": 5,
+          "total_steps": 5,
+          "completion_time_seconds": 180
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-android",
+            "version": "2.x.x"
+          },
+          "app": {
+            "name": "Example App",
+            "version": "3.2.1",
+            "build": "321",
+            "namespace": "com.example.app"
+          },
+          "device": {
+            "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "advertisingId": "38400000-8cf0-11bd-b23e-10b96e40000d",
+            "adTrackingEnabled": true,
+            "manufacturer": "Samsung",
+            "model": "Galaxy S24",
+            "type": "android"
+          },
+          "os": {
+            "name": "Android",
+            "version": "14"
+          },
+          "locale": "en-US",
+          "ip": "198.51.100.25",
+          "timezone": "America/Los_Angeles",
+          "externalId": [
+            {
+              "type": "appsFlyerExternalId",
+              "id": "1609312895083-9876543"
+            }
+          ]
+        },
+        "messageId": "rs-msg-track-af-003",
+        "rudderId": "rudder-uuid-af-003",
+        "originalTimestamp": "2026-02-25T16:00:00.000Z",
+        "sentAt": "2026-02-25T16:00:01.000Z",
+        "receivedAt": "2026-02-25T16:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api2.appsflyer.com/inappevent/com.example.app",
+        "headers": {
+          "authentication": "<appsflyer_dev_key>",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": {
+          "appsflyer_id": "1609312895083-9876543",
+          "customer_user_id": "user_456",
+          "eventName": "Tutorial Complete",
+          "eventValue": "{\"tutorial_name\":\"Onboarding\",\"steps_completed\":5,\"total_steps\":5,\"completion_time_seconds\":180}",
+          "eventTime": "2026-02-25 16:00:00.000",
+          "ip": "198.51.100.25",
+          "advertising_id": "38400000-8cf0-11bd-b23e-10b96e40000d",
+          "os": "14",
+          "af_events_api": "true"
+        },
+        "notes": "RudderStack Transformer detects the platform from context.device.type ('android') and maps context.device.advertisingId to 'advertising_id' (GAID) instead of 'idfa'. The 'att' parameter is omitted for Android since App Tracking Transparency is iOS-only. The 'os' parameter carries the Android version string. API call structure is identical to Segment's Android event mapping. The appsflyer_id is resolved from context.externalId."
+      }
+    },
+    "track_custom_event_with_appsflyer_predefined_mapping": {
+      "description": "RudderStack maps certain standard e-commerce event names to AppsFlyer's predefined in-app event names via the Transformer. The mapping table is configurable in the destination settings but follows the same default mapping as Segment: 'Product Viewed' → 'af_content_view', 'Product Added' → 'af_add_to_cart', 'Checkout Started' → 'af_initiated_checkout', 'Product Added to Wishlist' → 'af_add_to_wishlist'. Properties are mapped to AppsFlyer standard parameter names (af_content_id, af_content, af_content_type, af_price, af_brand).",
+      "input_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_789",
+        "anonymousId": "anon_ghi_012",
+        "timestamp": "2026-02-25T18:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-002",
+          "name": "Wireless Headphones",
+          "category": "Audio",
+          "price": 79.99,
+          "brand": "AudioTech",
+          "variant": "Black",
+          "url": "https://example.com/products/SKU-002",
+          "image_url": "https://example.com/images/SKU-002.jpg"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-ios",
+            "version": "2.x.x"
+          },
+          "app": {
+            "name": "Example App",
+            "version": "3.2.1",
+            "build": "321",
+            "namespace": "com.example.app"
+          },
+          "device": {
+            "id": "C6483EC1-D32F-22E5-9EFD-BB18B6C194EC",
+            "advertisingId": "7E103979-9357-5CB5-BF6C-87215972F8ED",
+            "adTrackingEnabled": false,
+            "manufacturer": "Apple",
+            "model": "iPhone 14",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "16.7"
+          },
+          "locale": "en-GB",
+          "ip": "192.0.2.100",
+          "timezone": "Europe/London",
+          "externalId": [
+            {
+              "type": "appsFlyerExternalId",
+              "id": "1609312895083-1122334"
+            }
+          ]
+        },
+        "messageId": "rs-msg-track-af-004",
+        "rudderId": "rudder-uuid-af-004",
+        "originalTimestamp": "2026-02-25T18:00:00.000Z",
+        "sentAt": "2026-02-25T18:00:01.000Z",
+        "receivedAt": "2026-02-25T18:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api2.appsflyer.com/inappevent/com.example.app",
+        "headers": {
+          "authentication": "<appsflyer_dev_key>",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": {
+          "appsflyer_id": "1609312895083-1122334",
+          "customer_user_id": "user_789",
+          "eventName": "af_content_view",
+          "eventValue": "{\"af_content_id\":\"SKU-002\",\"af_content\":\"Wireless Headphones\",\"af_content_type\":\"Audio\",\"af_price\":79.99,\"af_brand\":\"AudioTech\"}",
+          "eventTime": "2026-02-25 18:00:00.000",
+          "ip": "192.0.2.100",
+          "idfa": "7E103979-9357-5CB5-BF6C-87215972F8ED",
+          "os": "16.7",
+          "att": 2,
+          "af_events_api": "true"
+        },
+        "notes": "RudderStack Transformer applies the same predefined event mapping as Segment: 'Product Viewed' → 'af_content_view'. The ATT status is set to 2 (denied) because adTrackingEnabled is false. Properties are mapped to AppsFlyer standard names identically to Segment. The appsflyer_id is resolved from context.externalId with type 'appsFlyerExternalId'."
+      }
+    },
+    "identify_user_association": {
+      "description": "RudderStack maps identify events to AppsFlyer similarly to Segment — by sending an in-app event with eventName 'identify' and user traits serialized into eventValue. The customer_user_id is set to the userId for cross-platform attribution. RudderStack resolves the appsflyer_id from context.externalId.",
+      "input_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T11:00:00.000Z",
+        "traits": {
+          "email": "user@example.com",
+          "name": "Jane Smith",
+          "phone": "+1-555-0123",
+          "plan": "premium",
+          "created_at": "2025-01-15T08:00:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-ios",
+            "version": "2.x.x"
+          },
+          "app": {
+            "name": "Example App",
+            "version": "3.2.1",
+            "build": "321",
+            "namespace": "com.example.app"
+          },
+          "device": {
+            "id": "B5372DB0-C21E-11E4-8DFC-AA07A5B093DB",
+            "advertisingId": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+            "adTrackingEnabled": true,
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro",
+            "type": "ios"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.2"
+          },
+          "locale": "en-US",
+          "ip": "203.0.113.50",
+          "externalId": [
+            {
+              "type": "appsFlyerExternalId",
+              "id": "1609312895083-5765022"
+            }
+          ]
+        },
+        "messageId": "rs-msg-identify-af-001",
+        "rudderId": "rudder-uuid-af-identify-001",
+        "originalTimestamp": "2026-02-25T11:00:00.000Z",
+        "sentAt": "2026-02-25T11:00:01.000Z",
+        "receivedAt": "2026-02-25T11:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api2.appsflyer.com/inappevent/com.example.app",
+        "headers": {
+          "authentication": "<appsflyer_dev_key>",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": {
+          "appsflyer_id": "1609312895083-5765022",
+          "customer_user_id": "user_123",
+          "eventName": "identify",
+          "eventValue": "{\"email\":\"user@example.com\",\"name\":\"Jane Smith\",\"phone\":\"+1-555-0123\",\"plan\":\"premium\",\"created_at\":\"2025-01-15T08:00:00.000Z\"}",
+          "eventTime": "2026-02-25 11:00:00.000",
+          "ip": "203.0.113.50",
+          "idfa": "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          "os": "17.2",
+          "att": 3,
+          "af_events_api": "true"
+        },
+        "notes": "RudderStack Transformer produces the same identify → in-app event mapping as Segment. The appsflyer_id is resolved from context.externalId with type 'appsFlyerExternalId'. RudderStack-specific envelope fields are not forwarded to AppsFlyer. The identify event serves to bind the customer_user_id (userId) to the appsflyer_id for cross-platform attribution linkage."
+      }
+    }
+  },
+  "field_mappings": {
+    "in_app_event_mapping": {
+      "event_name": {
+        "source_field": "event",
+        "appsflyer_parameter": "eventName",
+        "description": "The RudderStack/Segment track event name maps to AppsFlyer's 'eventName' parameter. Standard e-commerce events are optionally mapped to AppsFlyer predefined event names (e.g., 'Order Completed' → 'af_purchase', 'Product Viewed' → 'af_content_view', 'Product Added' → 'af_add_to_cart'). Custom event names are passed through directly.",
+        "parity_status": "needs_verification",
+        "known_gap": "Verify that both platforms apply identical event name mapping tables. The mapping from Segment/RudderStack standard e-commerce events to AppsFlyer predefined events may differ in coverage or naming."
+      },
+      "event_value": {
+        "source_field": "properties",
+        "appsflyer_parameter": "eventValue",
+        "description": "Event properties are JSON-serialized into a string for AppsFlyer's 'eventValue' parameter. For revenue events, properties are additionally mapped to AppsFlyer standard parameters (af_revenue, af_currency, af_order_id, etc.) within the JSON string. The eventValue must not exceed 1KB as per AppsFlyer's API limitation.",
+        "parity_status": "needs_verification",
+        "known_gap": "Verify identical JSON serialization (key ordering, numeric formatting, string escaping) and verify both platforms respect the 1KB payload limit by truncating or omitting extra properties."
+      },
+      "timestamp": {
+        "source_field": "timestamp",
+        "appsflyer_parameter": "eventTime",
+        "description": "ISO 8601 timestamp from the event is converted to 'yyyy-MM-dd HH:mm:ss.SSS' format for AppsFlyer's 'eventTime' parameter. Events arriving after 02:00 UTC with eventTime from the previous day are timestamped with arrival time by AppsFlyer.",
+        "parity_status": "needs_verification",
+        "known_gap": "Verify timezone handling during format conversion. AppsFlyer eventTime may be interpreted as UTC or local time depending on implementation. Both platforms must use consistent timezone handling."
+      },
+      "event_currency": {
+        "source_field": "properties.currency",
+        "appsflyer_parameter": "eventCurrency",
+        "description": "ISO 4217 currency code extracted from properties.currency and set as the top-level 'eventCurrency' parameter. Used by AppsFlyer's revenue processing pipeline alongside af_currency in eventValue.",
+        "parity_status": "needs_verification",
+        "known_gap": "Verify both platforms set eventCurrency consistently. Some implementations only set it for revenue events while others always include it when currency is present in properties."
+      }
+    },
+    "revenue_reporting": {
+      "af_revenue": {
+        "source_field": "properties.revenue",
+        "appsflyer_parameter": "eventValue.af_revenue",
+        "description": "Revenue amount extracted from properties.revenue and included in the eventValue JSON as 'af_revenue'. AppsFlyer uses this field for LTV, ROAS, and ROI reporting. Supports negative values for refunds/cancellations. The value range should be -1,000,000 to 1,000,000. Precision up to five decimal places.",
+        "parity_status": "equivalent"
+      },
+      "af_currency": {
+        "source_field": "properties.currency",
+        "appsflyer_parameter": "eventValue.af_currency",
+        "description": "ISO 4217 currency code included in the eventValue JSON as 'af_currency'. Represents the currency of the af_revenue value. Defaults to 'USD' if not specified in some implementations.",
+        "parity_status": "needs_verification",
+        "known_gap": "Verify default currency handling when properties.currency is omitted. Segment may default to 'USD' while RudderStack behavior needs confirmation."
+      },
+      "af_order_id": {
+        "source_field": "properties.order_id",
+        "appsflyer_parameter": "eventValue.af_order_id",
+        "description": "Order identifier mapped from properties.order_id to af_order_id in the eventValue JSON. Used for deduplication and order-level attribution in AppsFlyer.",
+        "parity_status": "equivalent"
+      },
+      "af_content_id": {
+        "source_field": "properties.product_id",
+        "appsflyer_parameter": "eventValue.af_content_id",
+        "description": "Product identifier mapped from properties.product_id to af_content_id. For multi-product events, this may contain a JSON array of product IDs.",
+        "parity_status": "needs_verification",
+        "known_gap": "Verify multi-product handling. Segment/RudderStack 'Order Completed' events include a products array — verify both platforms serialize multiple product IDs consistently."
+      },
+      "af_quantity": {
+        "source_field": "properties.quantity",
+        "appsflyer_parameter": "eventValue.af_quantity",
+        "description": "Item quantity mapped from properties.quantity. AppsFlyer does not actively use af_quantity for internal calculations but it is available in raw data exports.",
+        "parity_status": "equivalent"
+      },
+      "af_price": {
+        "source_field": "properties.price",
+        "appsflyer_parameter": "eventValue.af_price",
+        "description": "Unit price per item mapped from properties.price to af_price in the eventValue JSON.",
+        "parity_status": "equivalent"
+      }
+    },
+    "device_identification": {
+      "appsflyer_id": {
+        "segment_source": "integrations.AppsFlyer.appsFlyerId",
+        "rudderstack_source": "context.externalId[type=appsFlyerExternalId].id",
+        "appsflyer_parameter": "appsflyer_id",
+        "description": "The AppsFlyer device ID is the mandatory primary identifier for all S2S events. AppsFlyer uses this ID to attribute the event to the original device and media source. Segment extracts it from integrations.AppsFlyer.appsFlyerId. RudderStack extracts it from context.externalId with type 'appsFlyerExternalId'. The appsflyer_id is generated by the AppsFlyer SDK on the client device and must be forwarded to the server for S2S event reporting.",
+        "parity_status": "needs_verification",
+        "known_gap": "Verify that both platforms resolve the appsflyer_id from the correct location. Segment uses integrations object while RudderStack uses externalId array. The source field differs but the resolved value should be identical."
+      },
+      "customer_user_id": {
+        "source_field": "userId",
+        "appsflyer_parameter": "customer_user_id",
+        "description": "The app-level user identifier mapped from userId to customer_user_id. Used by AppsFlyer for cross-device and cross-platform user association. Equivalent to AppsFlyer SDK's setCustomerUserId method.",
+        "parity_status": "equivalent"
+      },
+      "ios_identifiers": {
+        "idfa": {
+          "source_field": "context.device.advertisingId",
+          "appsflyer_parameter": "idfa",
+          "condition": "context.device.type == 'ios' OR context.os.name == 'iOS'",
+          "description": "iOS Identifier for Advertisers (IDFA) extracted from context.device.advertisingId when the device is iOS. Required for Incrementality measurement in AppsFlyer. On iOS 14+, availability depends on ATT authorization.",
+          "parity_status": "equivalent"
+        },
+        "idfv": {
+          "source_field": "context.device.id",
+          "appsflyer_parameter": "idfv",
+          "condition": "context.device.type == 'ios' OR context.os.name == 'iOS'",
+          "description": "iOS Identifier for Vendor (IDFV) extracted from context.device.id for iOS devices. Available without ATT consent and serves as a fallback device identifier.",
+          "parity_status": "needs_verification",
+          "known_gap": "Verify both platforms send the idfv parameter. Some S2S implementations may omit idfv and rely solely on appsflyer_id + idfa."
+        },
+        "att": {
+          "source_field": "context.device.adTrackingEnabled",
+          "appsflyer_parameter": "att",
+          "description": "App Tracking Transparency authorization status for iOS 14+. Mapped from context.device.adTrackingEnabled: true maps to 3 (authorized), false maps to 2 (denied). AppsFlyer uses this to determine IDFA reliability and attribution methodology. Integer values: 0=not determined, 1=restricted, 2=denied, 3=authorized.",
+          "parity_status": "needs_verification",
+          "known_gap": "Segment may pass the raw ATT status integer (0-3) via integrations.AppsFlyer.att while RudderStack derives it from the boolean adTrackingEnabled flag. The boolean-to-integer mapping loses granularity for statuses 0 and 1."
+        }
+      },
+      "android_identifiers": {
+        "advertising_id": {
+          "source_field": "context.device.advertisingId",
+          "appsflyer_parameter": "advertising_id",
+          "condition": "context.device.type == 'android' OR context.os.name == 'Android'",
+          "description": "Google Advertising ID (GAID) extracted from context.device.advertisingId when the device is Android. Used as the primary Android device attribution identifier.",
+          "parity_status": "equivalent"
+        },
+        "oaid": {
+          "source_field": "context.device.oaid",
+          "appsflyer_parameter": "oaid",
+          "condition": "Huawei devices without Google services",
+          "description": "Open Anonymous Device Identifier (OAID) for Huawei devices that do not have Google Play Services. Extracted from context.device.oaid if available.",
+          "parity_status": "needs_verification",
+          "known_gap": "Verify both platforms support OAID forwarding for Huawei devices. This may not be implemented in either platform's Transformer."
+        },
+        "amazon_aid": {
+          "source_field": "context.device.amazonAdId",
+          "appsflyer_parameter": "amazon_aid",
+          "condition": "Amazon Fire devices",
+          "description": "Amazon Advertising ID for Fire devices. Extracted from context.device.amazonAdId if available.",
+          "parity_status": "needs_verification",
+          "known_gap": "Verify both platforms support Amazon AID forwarding for Fire devices."
+        }
+      }
+    },
+    "ip_and_geolocation": {
+      "ip": {
+        "source_field": "context.ip",
+        "appsflyer_parameter": "ip",
+        "description": "Client IP address from context.ip. Used by AppsFlyer for geo-based attribution, fraud detection, and regional reporting.",
+        "parity_status": "equivalent"
+      }
+    },
+    "os_and_platform": {
+      "os": {
+        "source_field": "context.os.version",
+        "appsflyer_parameter": "os",
+        "description": "Operating system version from context.os.version. Mandatory for iOS apps since iOS 14 (starting July 1, 2021). For Android, this carries the Android API level or version string.",
+        "parity_status": "equivalent"
+      }
+    },
+    "s2s_api_marker": {
+      "af_events_api": {
+        "value": "true",
+        "appsflyer_parameter": "af_events_api",
+        "description": "Static marker set to 'true' for all S2S API events. Indicates to AppsFlyer that the event was sent via the server-to-server API rather than the SDK. This affects how events are processed and displayed in the AppsFlyer dashboard.",
+        "parity_status": "equivalent"
+      }
+    },
+    "predefined_event_name_mapping": {
+      "description": "Both Segment and RudderStack map standard e-commerce event names to AppsFlyer's predefined in-app event names for enhanced reporting and partner postback integration.",
+      "mapping_table": {
+        "Order Completed": "af_purchase",
+        "Product Added": "af_add_to_cart",
+        "Product Viewed": "af_content_view",
+        "Products Searched": "af_search",
+        "Checkout Started": "af_initiated_checkout",
+        "Product Added to Wishlist": "af_add_to_wishlist",
+        "Payment Info Entered": "af_add_payment_info",
+        "Promotion Viewed": "af_ad_view",
+        "Promotion Clicked": "af_ad_click",
+        "Product Shared": "af_share",
+        "Product Reviewed": "af_rate",
+        "Application Installed": "af_app_install",
+        "Application Opened": "af_app_open",
+        "Application Updated": "af_update",
+        "Order Refunded": "af_purchase",
+        "Sign Up": "af_complete_registration"
+      },
+      "parity_status": "needs_verification",
+      "known_gap": "Verify that both platforms implement identical predefined event name mappings. The mapping table may differ in coverage — some Segment/RudderStack standard events may not have a corresponding AppsFlyer predefined event name."
+    },
+    "predefined_property_name_mapping": {
+      "description": "Both platforms map standard e-commerce property names to AppsFlyer's predefined parameter names within the eventValue JSON.",
+      "mapping_table": {
+        "product_id": "af_content_id",
+        "name": "af_content",
+        "category": "af_content_type",
+        "price": "af_price",
+        "quantity": "af_quantity",
+        "revenue": "af_revenue",
+        "currency": "af_currency",
+        "order_id": "af_order_id",
+        "coupon": "af_coupon_code",
+        "brand": "af_brand",
+        "query": "af_search_string",
+        "rating": "af_rating_value"
+      },
+      "parity_status": "needs_verification",
+      "known_gap": "Verify identical property name transformation between platforms. Some implementations may pass raw property names alongside or instead of predefined parameter names."
+    }
+  },
+  "parity_analysis": {
+    "overall_status": "needs_verification",
+    "track_parity": {
+      "status": "high_confidence",
+      "description": "Both Segment and RudderStack map track events to the same AppsFlyer S2S In-App Events API (POST https://api2.appsflyer.com/inappevent/<app_id>) using identical request body parameters. The core event mapping (eventName, eventValue, device identifiers, revenue fields, timestamp) follows the same logic. Both platforms use the Transformer service to convert their respective event formats to AppsFlyer's API body format.",
+      "known_gaps": [
+        "appsflyer_id resolution: Segment uses integrations.AppsFlyer.appsFlyerId, RudderStack uses context.externalId[type=appsFlyerExternalId]",
+        "eventValue JSON serialization ordering and formatting may differ between Transformers",
+        "eventTime timezone handling during ISO 8601 to 'yyyy-MM-dd HH:mm:ss.SSS' conversion",
+        "ATT status mapping from boolean adTrackingEnabled to integer (0/1/2/3)",
+        "Default currency handling when properties.currency is omitted",
+        "OAID and Amazon AID forwarding for non-standard Android devices",
+        "Predefined event and property name mapping table completeness"
+      ]
+    },
+    "identify_parity": {
+      "status": "needs_verification",
+      "description": "AppsFlyer does not have a dedicated identify API endpoint. Both platforms map identify events to an in-app event with eventName 'identify' and user traits in eventValue. The primary value is the customer_user_id association with the appsflyer_id. Some implementations may skip sending identify events to AppsFlyer entirely.",
+      "known_gaps": [
+        "Verify that both platforms actually send identify events to AppsFlyer S2S API rather than dropping them",
+        "Verify the eventName used for identify events (some implementations use 'Identify' vs 'identify')",
+        "Verify trait serialization into eventValue JSON is identical"
+      ]
+    },
+    "destination_api_differences": [
+      {
+        "area": "AppsFlyer ID Resolution",
+        "segment_approach": "Extracts appsflyer_id from integrations.AppsFlyer.appsFlyerId field in the event payload",
+        "rudderstack_approach": "Extracts appsflyer_id from context.externalId array where type is 'appsFlyerExternalId'",
+        "gap": "Different source location for the same value. Both approaches require the client SDK to forward the AppsFlyer device ID to the server."
+      },
+      {
+        "area": "Event Name Mapping",
+        "segment_approach": "Maps standard e-commerce events to AppsFlyer predefined names (af_purchase, af_content_view, etc.) via Segment Transformer",
+        "rudderstack_approach": "Maps standard e-commerce events to AppsFlyer predefined names via RudderStack Transformer with configurable mapping",
+        "gap": "Verify identical mapping tables and handling of unmapped custom events"
+      },
+      {
+        "area": "Revenue Processing",
+        "segment_approach": "Extracts revenue/currency from properties, places as af_revenue/af_currency in eventValue, also sets top-level eventCurrency",
+        "rudderstack_approach": "Same extraction logic for revenue fields, same eventValue structure and top-level eventCurrency",
+        "gap": "Verify default currency handling and numeric formatting of revenue values"
+      },
+      {
+        "area": "Device Identification",
+        "segment_approach": "Extracts IDFA from context.device.advertisingId for iOS, advertising_id (GAID) for Android. ATT status from integrations.AppsFlyer.att or derived from adTrackingEnabled",
+        "rudderstack_approach": "Same device identifier extraction from context.device. ATT derived from adTrackingEnabled boolean",
+        "gap": "Verify ATT status granularity — Segment may support raw ATT integer (0-3) while RudderStack derives from boolean"
+      },
+      {
+        "area": "API Endpoint Version",
+        "segment_approach": "Uses api2.appsflyer.com/inappevent/<app_id> (legacy V2 endpoint)",
+        "rudderstack_approach": "May use api2.appsflyer.com or api3.appsflyer.com depending on configuration",
+        "gap": "Verify endpoint version compatibility. AppsFlyer API V3 (api3.appsflyer.com) uses a different authentication mechanism (S2S key instead of dev key)"
+      },
+      {
+        "area": "Payload Size",
+        "segment_approach": "Subject to AppsFlyer's 1KB eventValue limit; may truncate properties if exceeded",
+        "rudderstack_approach": "Same 1KB limitation applies; verify truncation behavior",
+        "gap": "Verify both platforms handle the 1KB eventValue limit consistently"
+      },
+      {
+        "area": "SDK Library Identification",
+        "segment_approach": "context.library.name is 'analytics-ios'/'analytics-android'",
+        "rudderstack_approach": "context.library.name is 'rudder-sdk-ios'/'rudder-sdk-android'",
+        "gap": "No impact on AppsFlyer API calls — library name is not forwarded to AppsFlyer. Internal diagnostics only."
+      }
+    ]
+  },
+  "destination_config": {
+    "required_settings": {
+      "devKey": {
+        "type": "string",
+        "description": "AppsFlyer Dev Key used for API authentication. Sent in the 'authentication' HTTP header. Found in the AppsFlyer dashboard under App Settings. Required for all S2S API calls.",
+        "sensitive": true
+      },
+      "appId": {
+        "type": "string",
+        "description": "Application identifier used in the API endpoint URL path. For iOS apps this is the iTunes bundle ID (e.g., 'com.example.app' or 'id123456789'). For Android apps this is the package name (e.g., 'com.example.app'). If not explicitly configured, derived from context.app.namespace.",
+        "sensitive": false
+      }
+    },
+    "optional_settings": {
+      "useRichEventNames": {
+        "type": "boolean",
+        "default": true,
+        "description": "When true, maps standard e-commerce event names to AppsFlyer predefined event names (af_purchase, af_content_view, etc.). When false, passes event names through without transformation."
+      },
+      "eventNameMapping": {
+        "type": "object",
+        "description": "Custom mapping of RudderStack/Segment event names to AppsFlyer event names. Overrides the default predefined event name mapping. Keys are source event names, values are AppsFlyer event names.",
+        "example": {
+          "Custom Purchase": "af_purchase",
+          "Level Up": "af_level_achieved",
+          "Subscribe": "af_subscribe"
+        }
+      },
+      "sharingFilter": {
+        "type": "string",
+        "description": "AppsFlyer sharing filter configuration. Controls which partners receive postback data for events. Values: 'all' (share with all partners), 'none' (block all sharing), or a comma-separated list of partner IDs.",
+        "default": "all"
+      },
+      "apiVersion": {
+        "type": "string",
+        "default": "v2",
+        "description": "AppsFlyer S2S API version. 'v2' uses the api2.appsflyer.com endpoint with dev key authentication. 'v3' uses the api3.appsflyer.com endpoint with S2S token authentication.",
+        "enum": ["v2", "v3"]
+      },
+      "s2sKey": {
+        "type": "string",
+        "description": "AppsFlyer S2S authentication key. Required when apiVersion is 'v3'. Generated in the AppsFlyer dashboard under Security Center. Replaces the dev key for V3 API authentication.",
+        "sensitive": true,
+        "condition": "Required when apiVersion == 'v3'"
+      },
+      "defaultCurrency": {
+        "type": "string",
+        "default": "USD",
+        "description": "Default ISO 4217 currency code used when properties.currency is not specified in revenue events."
+      }
+    }
+  },
+  "known_gaps": [
+    {
+      "gap_id": "AF-001",
+      "description": "AppsFlyer ID source location: Segment reads the appsflyer_id from integrations.AppsFlyer.appsFlyerId while RudderStack reads from context.externalId[type=appsFlyerExternalId]. Both require the client SDK to capture and forward the AppsFlyer device ID to the server. If the appsflyer_id is missing, the S2S event will be rejected by AppsFlyer since it is a mandatory parameter.",
+      "severity": "high",
+      "impact": "Events without a valid appsflyer_id are rejected by the AppsFlyer S2S API. The different source location means SDKs must be configured to send the appsflyer_id in the correct field for each platform."
+    },
+    {
+      "gap_id": "AF-002",
+      "description": "ATT authorization status mapping: Segment may support passing the raw ATT integer status (0=not determined, 1=restricted, 2=denied, 3=authorized) via integrations.AppsFlyer.att, while RudderStack derives the ATT value from the boolean context.device.adTrackingEnabled flag. The boolean-to-integer mapping loses granularity for statuses 0 (not determined) and 1 (restricted), both of which would map to false/2.",
+      "severity": "medium",
+      "impact": "Incorrect ATT status may affect AppsFlyer's SKAN (SKAdNetwork) attribution modeling, probabilistic attribution fallback, and IDFA availability determination on iOS 14.5+ devices."
+    },
+    {
+      "gap_id": "AF-003",
+      "description": "eventValue JSON serialization: The eventValue parameter carries a JSON-stringified representation of event properties mapped to AppsFlyer standard parameter names. JSON key ordering, numeric formatting (integer vs float for revenue), and string escaping may differ between Segment and RudderStack Transformer implementations.",
+      "severity": "low",
+      "impact": "AppsFlyer parses the eventValue JSON string server-side so key ordering is irrelevant. Numeric formatting differences are unlikely to cause issues as AppsFlyer handles both integer and float revenue values."
+    },
+    {
+      "gap_id": "AF-004",
+      "description": "eventTime format and timezone handling: Both platforms must convert ISO 8601 timestamps to AppsFlyer's 'yyyy-MM-dd HH:mm:ss.SSS' format. If the timezone offset is not handled consistently, events may be timestamped differently. AppsFlyer's documentation states events arriving after 02:00 UTC with an eventTime from the previous day are re-stamped with arrival time.",
+      "severity": "medium",
+      "impact": "Inconsistent timezone handling could cause events to appear on different calendar days in AppsFlyer reports, affecting daily metrics and cohort analysis."
+    },
+    {
+      "gap_id": "AF-005",
+      "description": "eventValue 1KB payload limit: AppsFlyer enforces a 1KB maximum size for the eventValue JSON string. Both platforms must handle payload truncation or property omission when the serialized properties exceed 1KB. The truncation strategy may differ.",
+      "severity": "medium",
+      "impact": "Events with many properties may lose data if truncation is applied differently. Large e-commerce events with nested product arrays are most likely to exceed the 1KB limit."
+    },
+    {
+      "gap_id": "AF-006",
+      "description": "Predefined event name mapping completeness: The mapping from Segment/RudderStack standard e-commerce events to AppsFlyer predefined event names may not be identical between platforms. Some events may not have a mapping in one platform but do in the other.",
+      "severity": "medium",
+      "impact": "Different event names in AppsFlyer affect report categorization, partner postback matching, and standard conversion metric calculations."
+    },
+    {
+      "gap_id": "AF-007",
+      "description": "RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are present in the source event but should NOT be forwarded to AppsFlyer's API. These fields do not affect parity but represent additional metadata in the RudderStack event pipeline.",
+      "severity": "low",
+      "impact": "No functional impact on AppsFlyer integration. Envelope fields are internal to RudderStack's pipeline."
+    },
+    {
+      "gap_id": "AF-008",
+      "description": "SDK library identification: Segment context.library.name is 'analytics-ios'/'analytics-android', RudderStack uses 'rudder-sdk-ios'/'rudder-sdk-android'. This field is not forwarded to AppsFlyer's API.",
+      "severity": "low",
+      "impact": "No impact on AppsFlyer API calls. Library name is a source event field not mapped to any AppsFlyer parameter."
+    },
+    {
+      "gap_id": "AF-009",
+      "description": "API version compatibility: AppsFlyer is transitioning from V2 (api2.appsflyer.com with dev key auth) to V3 (api3.appsflyer.com with S2S token auth). Verify both platforms support V3 API configuration and the different authentication mechanism.",
+      "severity": "medium",
+      "impact": "V2 API may be deprecated in the future. Both platforms need V3 support for long-term compatibility."
+    },
+    {
+      "gap_id": "AF-010",
+      "description": "OAID and Amazon AID device identifier support: AppsFlyer accepts oaid (Huawei Open Anonymous Device Identifier) and amazon_aid (Amazon Advertising ID) for non-Google Android devices. Verify both platforms forward these identifiers when available in the event context.",
+      "severity": "low",
+      "impact": "Without OAID/Amazon AID support, attribution is limited for Huawei AppGallery and Amazon Fire device users."
+    },
+    {
+      "gap_id": "AF-011",
+      "description": "S2S event deduplication: AppsFlyer S2S events do not get deduplicated by default. Both platforms must implement server-side deduplication to prevent duplicate events during retries or error recovery. Verify neither platform sends duplicate events.",
+      "severity": "medium",
+      "impact": "Duplicate events inflate attribution metrics, LTV calculations, revenue reporting, and partner postback counts."
+    },
+    {
+      "gap_id": "AF-012",
+      "description": "Identify event handling: AppsFlyer has no dedicated identify endpoint. The behavior when receiving an identify-type event (mapped to an in-app event with eventName 'identify') may differ between platforms. Some implementations may drop identify events entirely for AppsFlyer.",
+      "severity": "medium",
+      "impact": "If one platform sends identify events and the other drops them, the customer_user_id association timing may differ, affecting cross-device attribution linkage."
+    }
+  ],
+  "notes": "AppsFlyer is a shared cloud destination in the Attribution category. Both Segment and RudderStack support AppsFlyer as a cloud-mode (server-side) destination via their respective Transformer services, mapping track and identify events to AppsFlyer's S2S In-App Events API (POST https://api2.appsflyer.com/inappevent/<app_id>). AppsFlyer is the market-leading mobile attribution platform used for install attribution, in-app event tracking, LTV/ROAS reporting, SKAdNetwork (SKAN) attribution, and partner postback integrations. The S2S API requires the appsflyer_id (mandatory device identifier generated by the AppsFlyer SDK) and supports per-event parameters including eventName, eventValue (JSON string of event properties), device identifiers (IDFA for iOS, GAID for Android), customer_user_id (app-level user ID), and IP address. Key parity focus areas: (1) appsflyer_id resolution from different source locations (integrations object vs externalId array), (2) predefined event name mapping from standard e-commerce events to AppsFlyer's af_* event names, (3) revenue field extraction and eventValue serialization, (4) ATT authorization status handling on iOS 14.5+, (5) eventTime timestamp format conversion, (6) multi-platform device identifier routing (IDFA vs GAID vs OAID). Unlike Singular which uses GET requests with query parameters, AppsFlyer uses POST requests with JSON bodies, and unlike Branch which supports deep linking, AppsFlyer focuses primarily on install and event attribution. Refer to gap report §Attribution (~17% category coverage with ~6 RudderStack connectors including AppsFlyer, Branch, Adjust, and Singular)."
+}

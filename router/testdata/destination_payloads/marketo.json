@@ -1,0 +1,784 @@
+{
+  "destination_type": "MARKETO",
+  "destination_tier": "cloud",
+  "event_types": ["track", "identify"],
+  "segment_reference_payload": {
+    "identify": {
+      "description": "Segment maps identify calls to the Marketo Sync Leads REST API endpoint POST /rest/v1/leads.json with action 'createOrUpdate'. Traits from the identify call are mapped to Marketo lead fields: email→email, firstName→firstName, lastName→lastName, company→company, phone→phone, title→title, and custom traits to custom lead fields. The email field serves as the default dedup key (lookupField). Segment batches up to 300 lead records per API call as supported by the Marketo Sync Leads endpoint.",
+      "api_endpoint": "POST https://{munchkin_id}.mktorest.com/rest/v1/leads.json",
+      "headers": {
+        "Authorization": "Bearer {access_token}",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "action": "createOrUpdate",
+        "lookupField": "email",
+        "input": [
+          {
+            "email": "alex@example.com",
+            "firstName": "Alex",
+            "lastName": "Keener",
+            "company": "Acme Corp",
+            "title": "Product Manager",
+            "phone": "+14155551234",
+            "mobilePhone": "+14155559876",
+            "address": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US",
+            "website": "https://alex.example.com",
+            "industry": "Technology",
+            "numberOfEmployees": 500,
+            "annualRevenue": 50000000,
+            "leadSource": "Web",
+            "customField_plan__c": "enterprise",
+            "customField_signupDate__c": "2026-01-15"
+          }
+        ]
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "traits": {
+          "email": "alex@example.com",
+          "firstName": "Alex",
+          "lastName": "Keener",
+          "phone": "+14155551234",
+          "company": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "employee_count": 500,
+            "revenue": 50000000
+          },
+          "title": "Product Manager",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US"
+          },
+          "website": "https://alex.example.com",
+          "plan": "enterprise",
+          "signedUpAt": "2026-01-15",
+          "mobilePhone": "+14155559876",
+          "leadSource": "Web"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.x.x"
+          },
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          "locale": "en-US",
+          "page": {
+            "url": "https://example.com/signup",
+            "title": "Sign Up - Example",
+            "path": "/signup",
+            "referrer": "https://google.com/"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-abc-123"
+      },
+      "notes": "Segment sends identify calls to Marketo's Sync Leads endpoint with action 'createOrUpdate'. The lookupField defaults to 'email' for deduplication. Marketo supports up to 300 lead records per Sync Leads API call. Company-level traits (company.name, company.industry, company.employee_count) are flattened to Marketo lead-level fields (company, industry, numberOfEmployees). Custom traits are mapped to Marketo custom lead fields using the field API name. The access_token is obtained via OAuth2 client_credentials grant from POST /identity/oauth/token."
+    },
+    "track": {
+      "description": "Segment maps track calls to the Marketo Add Custom Activities REST API endpoint POST /rest/v1/activities/external.json. The event name is mapped to a Marketo custom activity type via the activityTypeId. Event properties are mapped to custom activity attributes. The lead is identified by leadId which is resolved from the userId or email via a prior lead lookup. Each custom activity includes a primaryAttributeValue which serves as the main descriptive value for the activity.",
+      "api_endpoint": "POST https://{munchkin_id}.mktorest.com/rest/v1/activities/external.json",
+      "headers": {
+        "Authorization": "Bearer {access_token}",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "input": [
+          {
+            "leadId": 12345,
+            "activityDate": "2026-02-25T12:00:00Z",
+            "activityTypeId": 100001,
+            "primaryAttributeValue": "Product Viewed",
+            "attributes": [
+              {
+                "apiName": "productId",
+                "value": "SKU-001"
+              },
+              {
+                "apiName": "productName",
+                "value": "Premium Widget"
+              },
+              {
+                "apiName": "price",
+                "value": "49.99"
+              },
+              {
+                "apiName": "quantity",
+                "value": "1"
+              },
+              {
+                "apiName": "currency",
+                "value": "USD"
+              },
+              {
+                "apiName": "category",
+                "value": "Widgets"
+              },
+              {
+                "apiName": "revenue",
+                "value": "49.99"
+              }
+            ]
+          }
+        ]
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "quantity": 1,
+          "currency": "USD",
+          "category": "Widgets",
+          "revenue": 49.99,
+          "url": "https://example.com/products/premium-widget"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.x.x"
+          },
+          "traits": {
+            "email": "alex@example.com",
+            "firstName": "Alex",
+            "lastName": "Keener"
+          },
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          "locale": "en-US",
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "title": "Premium Widget - Example Store",
+            "path": "/products/premium-widget",
+            "referrer": "https://google.com/"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-def-456"
+      },
+      "notes": "Segment maps track event names to Marketo custom activity types via a pre-configured activityTypeId mapping. The leadId is resolved by looking up the lead in Marketo using the userId or email from context.traits. Custom activity attributes are created as name/value pairs where the apiName must match a pre-registered custom activity attribute in the Marketo instance. All attribute values are sent as strings. The activityDate is taken from the event timestamp. Marketo custom activities are write-once (immutable) historical records."
+    }
+  },
+  "rudderstack_expected_payload": {
+    "identify": {
+      "description": "RudderStack maps identify calls to the Marketo Sync Leads REST API endpoint POST /rest/v1/leads.json with action 'createOrUpdate'. Traits from the identify call are mapped to Marketo lead fields following the same field mapping as Segment: email→email, firstName→firstName, lastName→lastName, company→company, phone→phone, title→title, and custom traits to custom lead fields. The email field serves as the default dedup key. RudderStack batches lead records per the Marketo 300-record limit. The Transformer service handles field mapping and batching logic.",
+      "api_endpoint": "POST https://{munchkin_id}.mktorest.com/rest/v1/leads.json",
+      "headers": {
+        "Authorization": "Bearer {access_token}",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "action": "createOrUpdate",
+        "lookupField": "email",
+        "input": [
+          {
+            "email": "alex@example.com",
+            "firstName": "Alex",
+            "lastName": "Keener",
+            "company": "Acme Corp",
+            "title": "Product Manager",
+            "phone": "+14155551234",
+            "mobilePhone": "+14155559876",
+            "address": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US",
+            "website": "https://alex.example.com",
+            "industry": "Technology",
+            "numberOfEmployees": 500,
+            "annualRevenue": 50000000,
+            "leadSource": "Web",
+            "customField_plan__c": "enterprise",
+            "customField_signupDate__c": "2026-01-15"
+          }
+        ]
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "traits": {
+          "email": "alex@example.com",
+          "firstName": "Alex",
+          "lastName": "Keener",
+          "phone": "+14155551234",
+          "company": {
+            "name": "Acme Corp",
+            "industry": "Technology",
+            "employee_count": 500,
+            "revenue": 50000000
+          },
+          "title": "Product Manager",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US"
+          },
+          "website": "https://alex.example.com",
+          "plan": "enterprise",
+          "signedUpAt": "2026-01-15",
+          "mobilePhone": "+14155559876",
+          "leadSource": "Web"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          "locale": "en-US",
+          "page": {
+            "url": "https://example.com/signup",
+            "title": "Sign Up - Example",
+            "path": "/signup",
+            "referrer": "https://google.com/"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-abc-123",
+        "rudderId": "rudder-uuid-001"
+      },
+      "notes": "RudderStack sends identify calls to Marketo's Sync Leads endpoint with identical field mapping as Segment. The RudderStack source event includes additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) that are stripped by the Transformer before sending to the Marketo API. The Transformer resolves company traits from nested objects (company.name→company, company.industry→industry, company.employee_count→numberOfEmployees). The access_token is obtained via OAuth2 client_credentials flow and cached by the RudderStack server."
+    },
+    "track": {
+      "description": "RudderStack maps track calls to the Marketo Add Custom Activities REST API endpoint POST /rest/v1/activities/external.json. The event name is mapped to a Marketo custom activity type via the activityTypeId lookup. Event properties are mapped to custom activity attributes as name/value pairs. The lead is identified by leadId resolved from the userId or email via context.traits. The Transformer service handles the lead lookup and activity type resolution.",
+      "api_endpoint": "POST https://{munchkin_id}.mktorest.com/rest/v1/activities/external.json",
+      "headers": {
+        "Authorization": "Bearer {access_token}",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "input": [
+          {
+            "leadId": 12345,
+            "activityDate": "2026-02-25T12:00:00Z",
+            "activityTypeId": 100001,
+            "primaryAttributeValue": "Product Viewed",
+            "attributes": [
+              {
+                "apiName": "productId",
+                "value": "SKU-001"
+              },
+              {
+                "apiName": "productName",
+                "value": "Premium Widget"
+              },
+              {
+                "apiName": "price",
+                "value": "49.99"
+              },
+              {
+                "apiName": "quantity",
+                "value": "1"
+              },
+              {
+                "apiName": "currency",
+                "value": "USD"
+              },
+              {
+                "apiName": "category",
+                "value": "Widgets"
+              },
+              {
+                "apiName": "revenue",
+                "value": "49.99"
+              }
+            ]
+          }
+        ]
+      },
+      "source_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "quantity": 1,
+          "currency": "USD",
+          "category": "Widgets",
+          "revenue": 49.99,
+          "url": "https://example.com/products/premium-widget"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "traits": {
+            "email": "alex@example.com",
+            "firstName": "Alex",
+            "lastName": "Keener"
+          },
+          "ip": "203.0.113.42",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          "locale": "en-US",
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "title": "Premium Widget - Example Store",
+            "path": "/products/premium-widget",
+            "referrer": "https://google.com/"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-def-456",
+        "rudderId": "rudder-uuid-002"
+      },
+      "notes": "RudderStack sends track calls to Marketo's Add Custom Activities endpoint with the same payload structure as Segment. The RudderStack source event includes additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) that are stripped by the Transformer. The leadId resolution follows the same lookup pattern: the Transformer queries Marketo's GET /rest/v1/leads.json?filterType=email&filterValues={email} to resolve the lead's integer ID before posting the activity. All activity attribute values are converted to strings by the Transformer."
+    }
+  },
+  "field_mappings": {
+    "lead_field_mapping": {
+      "email": {
+        "marketo_field": "email",
+        "marketo_field_type": "email",
+        "segment_mapping": "Segment maps traits.email to the Marketo email lead field. Email serves as the default deduplication key (lookupField) for the Sync Leads endpoint.",
+        "rudderstack_mapping": "RudderStack maps traits.email to the Marketo email lead field. Email serves as the default deduplication key for lead upsert operations.",
+        "parity": "match",
+        "notes": "Email is the primary deduplication key in Marketo. The Sync Leads API uses lookupField='email' by default. Only ASCII characters are supported in Marketo email fields. Email is case-insensitive for deduplication."
+      },
+      "firstName": {
+        "marketo_field": "firstName",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.firstName or traits.first_name to Marketo firstName lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.firstName or traits.first_name to Marketo firstName lead field.",
+        "parity": "match"
+      },
+      "lastName": {
+        "marketo_field": "lastName",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.lastName or traits.last_name to Marketo lastName lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.lastName or traits.last_name to Marketo lastName lead field.",
+        "parity": "match"
+      },
+      "company": {
+        "marketo_field": "company",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.company or traits.company.name to the Marketo company lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.company or traits.company.name to the Marketo company lead field. Nested company objects are flattened: company.name→company.",
+        "parity": "match",
+        "notes": "Marketo's company field is a string on the lead record. Company-level details (industry, employeeCount, revenue) map to separate lead fields rather than a nested object."
+      },
+      "title": {
+        "marketo_field": "title",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.title to Marketo title lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.title to Marketo title lead field.",
+        "parity": "match"
+      },
+      "phone": {
+        "marketo_field": "phone",
+        "marketo_field_type": "phone",
+        "segment_mapping": "Segment maps traits.phone to Marketo phone lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.phone to Marketo phone lead field.",
+        "parity": "match"
+      },
+      "mobilePhone": {
+        "marketo_field": "mobilePhone",
+        "marketo_field_type": "phone",
+        "segment_mapping": "Segment maps traits.mobilePhone to Marketo mobilePhone lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.mobilePhone to Marketo mobilePhone lead field.",
+        "parity": "match"
+      },
+      "address": {
+        "marketo_field": "address",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.address.street or traits.address to Marketo address lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.address.street or traits.address (if string) to Marketo address lead field.",
+        "parity": "match",
+        "notes": "Marketo address fields are flat strings (not nested objects). traits.address.street maps to 'address', traits.address.city maps to 'city', etc."
+      },
+      "city": {
+        "marketo_field": "city",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.address.city or traits.city to Marketo city lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.address.city or traits.city to Marketo city lead field.",
+        "parity": "match"
+      },
+      "state": {
+        "marketo_field": "state",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.address.state or traits.state to Marketo state lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.address.state or traits.state to Marketo state lead field.",
+        "parity": "match"
+      },
+      "postalCode": {
+        "marketo_field": "postalCode",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.address.postalCode or traits.postalCode to Marketo postalCode lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.address.postalCode or traits.postalCode to Marketo postalCode lead field.",
+        "parity": "match"
+      },
+      "country": {
+        "marketo_field": "country",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.address.country or traits.country to Marketo country lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.address.country or traits.country to Marketo country lead field.",
+        "parity": "match"
+      },
+      "website": {
+        "marketo_field": "website",
+        "marketo_field_type": "url",
+        "segment_mapping": "Segment maps traits.website to Marketo website lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.website to Marketo website lead field.",
+        "parity": "match"
+      },
+      "industry": {
+        "marketo_field": "industry",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.industry or traits.company.industry to Marketo industry lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.industry or traits.company.industry to Marketo industry lead field.",
+        "parity": "match"
+      },
+      "numberOfEmployees": {
+        "marketo_field": "numberOfEmployees",
+        "marketo_field_type": "integer",
+        "segment_mapping": "Segment maps traits.employees or traits.company.employee_count to Marketo numberOfEmployees lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.employees or traits.company.employee_count to Marketo numberOfEmployees lead field.",
+        "parity": "match"
+      },
+      "annualRevenue": {
+        "marketo_field": "annualRevenue",
+        "marketo_field_type": "currency",
+        "segment_mapping": "Segment maps traits.company.revenue or traits.annualRevenue to Marketo annualRevenue lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.company.revenue or traits.annualRevenue to Marketo annualRevenue lead field.",
+        "parity": "match"
+      },
+      "leadSource": {
+        "marketo_field": "leadSource",
+        "marketo_field_type": "string",
+        "segment_mapping": "Segment maps traits.leadSource to Marketo leadSource lead field.",
+        "rudderstack_mapping": "RudderStack maps traits.leadSource to Marketo leadSource lead field.",
+        "parity": "match",
+        "notes": "leadSource in Marketo indicates the original source of the lead (e.g., Web, Tradeshow, Referral). It is commonly used for attribution reporting."
+      },
+      "custom_fields": {
+        "marketo_field": "{custom_field_api_name}",
+        "marketo_field_type": "varies",
+        "segment_mapping": "Segment maps custom traits (not matching standard Marketo lead fields) to Marketo custom lead fields using the custom field's REST API name. Custom fields must be pre-created in the Marketo instance.",
+        "rudderstack_mapping": "RudderStack maps custom traits to Marketo custom lead fields using the custom field's REST API name. Custom field mapping is configured in the destination settings.",
+        "parity": "match",
+        "notes": "Marketo custom lead fields must be created in the Marketo Admin UI or via the Lead Fields API before they can be populated by the Sync Leads endpoint. Custom field API names typically end with '__c'. Maximum 1000 custom fields per Marketo subscription."
+      }
+    },
+    "activity_type_mapping": {
+      "description": "Marketo requires pre-registered custom activity types. Each track event name must map to a Marketo custom activity type ID (activityTypeId). The mapping is configured in the destination settings. Custom activity types must be created and approved in Marketo Admin before use.",
+      "event_name_to_activity_type": {
+        "segment_mapping": "Segment maps the track event name to a Marketo custom activity type via a configured activityTypeId lookup table. Each event name (e.g., 'Product Viewed', 'Order Completed') maps to a specific integer activityTypeId in the Marketo instance.",
+        "rudderstack_mapping": "RudderStack maps the track event name to a Marketo custom activity type via a configured activityTypeId lookup table in the destination settings. The Transformer service resolves the event name to the corresponding activityTypeId.",
+        "parity": "match",
+        "notes": "Custom activity types in Marketo have a numeric ID (activityTypeId) assigned upon creation. The apiName is the programmatic name (e.g., 'productViewed_c'). Each custom activity type can have up to 20 custom attributes."
+      },
+      "primary_attribute_value": {
+        "segment_mapping": "Segment maps the track event name or a configured primary property to the Marketo custom activity's primaryAttributeValue. This value is the main descriptor shown in the Marketo activity log for the lead.",
+        "rudderstack_mapping": "RudderStack maps the track event name or a configured primary property to the Marketo custom activity's primaryAttributeValue.",
+        "parity": "match",
+        "notes": "Every Marketo custom activity must have a primaryAttributeValue. It serves as the human-readable label in the Marketo UI activity log. Common practice is to use the event name as the primaryAttributeValue."
+      },
+      "activity_attributes": {
+        "segment_mapping": "Segment maps track event properties to Marketo custom activity attributes as an array of {apiName, value} objects. Property names are mapped to pre-registered custom activity attribute API names. All values are converted to strings.",
+        "rudderstack_mapping": "RudderStack maps track event properties to Marketo custom activity attributes as an array of {apiName, value} objects. The Transformer converts all property values to string format per Marketo API requirements.",
+        "parity": "match",
+        "notes": "Marketo custom activity attributes must be pre-registered via the Custom Activities Metadata API or Marketo Admin UI. Maximum 20 attributes per custom activity type. Attribute values are always strings in the API payload regardless of the declared data type."
+      },
+      "activity_date": {
+        "segment_mapping": "Segment maps the event timestamp to the Marketo activityDate field in ISO-8601 format (YYYY-MM-DDTHH:MM:SSZ).",
+        "rudderstack_mapping": "RudderStack maps the event timestamp to the Marketo activityDate field in ISO-8601 format. The Transformer converts from the source event timestamp.",
+        "parity": "match",
+        "notes": "The activityDate must be in ISO-8601 format. Marketo uses this to order activities chronologically in the lead's activity log."
+      }
+    },
+    "dedup_key": {
+      "description": "Marketo uses a configurable dedup key (lookupField) for the Sync Leads endpoint. The default and most commonly used dedup key is 'email'. Alternative dedup keys include 'id' (Marketo internal ID) or any custom field configured as a dedup field in the Marketo instance.",
+      "default_key": "email",
+      "alternative_keys": ["id", "sfdcLeadId", "sfdcContactId", "custom_dedup_field"],
+      "segment_behavior": "Segment uses 'email' as the default lookupField for Marketo lead deduplication. The lookupField can be configured in the destination settings to use an alternative dedup key.",
+      "rudderstack_behavior": "RudderStack uses 'email' as the default lookupField for Marketo lead deduplication. The lookupField can be configured in the RudderStack dashboard destination settings.",
+      "parity": "match",
+      "notes": "The dedup key determines how Marketo matches incoming lead records to existing leads. If a lead with the matching dedup key value exists, it is updated; otherwise a new lead is created. For the 'email' lookupField, email matching is case-insensitive. Only one lookupField can be specified per API call. Marketo supports additional dedup keys for Salesforce CRM integration (sfdcLeadId, sfdcContactId)."
+    },
+    "lead_id_resolution": {
+      "description": "For track calls (custom activities), both platforms must resolve the Marketo integer leadId from the event's userId or email. This requires a lookup call to Marketo's GET /rest/v1/leads.json?filterType=email&filterValues={email} endpoint before posting the custom activity.",
+      "segment_mapping": "Segment resolves the leadId by querying Marketo's Leads API using the email from traits or context.traits. The resolved integer leadId is then used in the custom activity payload.",
+      "rudderstack_mapping": "RudderStack resolves the leadId by querying Marketo's Leads API using the email from traits or context.traits. The Transformer service handles the lead lookup and caches resolved leadIds for performance.",
+      "parity": "match",
+      "notes": "The leadId is a Marketo-internal integer identifier. It cannot be derived from external identifiers without a Marketo API call. Both platforms must perform this lookup for track events. Failed lookups (lead not found) result in the activity being dropped or queued for retry depending on configuration."
+    }
+  },
+  "authentication": {
+    "method": "OAuth 2.0 Client Credentials",
+    "token_endpoint": "POST https://{munchkin_id}.mktorest.com/identity/oauth/token",
+    "token_request": {
+      "grant_type": "client_credentials",
+      "client_id": "{client_id}",
+      "client_secret": "{client_secret}"
+    },
+    "token_response": {
+      "access_token": "{access_token}",
+      "token_type": "bearer",
+      "expires_in": 3600,
+      "scope": "lead-read,lead-write,activity-read,activity-write"
+    },
+    "header_format": "Authorization: Bearer {access_token}",
+    "segment_config": "Segment requires the Munchkin Account ID, Client ID, and Client Secret configured in the Marketo destination settings. Segment handles OAuth token acquisition and refresh automatically.",
+    "rudderstack_config": "RudderStack requires the Munchkin Account ID, Client ID, and Client Secret configured in the Marketo destination settings in the RudderStack dashboard. The server handles OAuth token acquisition, caching, and refresh transparently.",
+    "parity": "match",
+    "notes": "Marketo access tokens expire after 3600 seconds (1 hour). Both platforms must implement token caching and automatic refresh. The Munchkin Account ID determines the API base URL: https://{munchkin_id}.mktorest.com. API credentials are created in Marketo Admin under LaunchPoint services with an API-only user role."
+  },
+  "api_configuration": {
+    "base_url_pattern": "https://{munchkin_id}.mktorest.com",
+    "api_version": "REST v1",
+    "rate_limits": {
+      "daily_quota": 50000,
+      "daily_quota_description": "50,000 API calls per day, resets at 12:00 AM CST",
+      "rate_limit": "100 calls per 20 seconds",
+      "concurrency_limit": "10 concurrent API calls",
+      "max_uri_length": "8KB",
+      "max_body_size": "1MB (standard), 10MB (bulk APIs)"
+    },
+    "endpoints": {
+      "sync_leads": {
+        "method": "POST",
+        "path": "/rest/v1/leads.json",
+        "description": "Create or update lead records. Supports up to 300 records per call.",
+        "max_batch_size": 300,
+        "used_for": "identify calls"
+      },
+      "add_custom_activities": {
+        "method": "POST",
+        "path": "/rest/v1/activities/external.json",
+        "description": "Add custom activity records to leads. Each activity is linked to a lead via leadId.",
+        "used_for": "track calls"
+      },
+      "get_leads": {
+        "method": "GET",
+        "path": "/rest/v1/leads.json",
+        "description": "Query leads by filter type and values. Used for leadId resolution before posting custom activities.",
+        "used_for": "lead lookup for track calls"
+      },
+      "oauth_token": {
+        "method": "POST",
+        "path": "/identity/oauth/token",
+        "description": "Obtain OAuth2 access token via client_credentials grant.",
+        "used_for": "authentication"
+      },
+      "get_activity_types": {
+        "method": "GET",
+        "path": "/rest/v1/activities/types.json",
+        "description": "List all available activity types including custom activity types. Used to validate activityTypeId mappings.",
+        "used_for": "configuration validation"
+      }
+    },
+    "error_handling": {
+      "description": "Marketo returns HTTP 200 for most responses including errors. Errors are indicated by success=false in the JSON response body with error codes and messages in the errors array.",
+      "common_error_codes": {
+        "601": "Access token invalid — token expired or revoked, re-authenticate",
+        "602": "Access token expired — refresh the OAuth token",
+        "606": "Rate limit exceeded — implement exponential backoff",
+        "607": "Daily quota reached — retry after midnight CST",
+        "610": "Requested resource not found — invalid leadId or activityTypeId",
+        "611": "System error — retry with backoff",
+        "1004": "Lead not found — skip activity or queue for retry",
+        "1007": "Duplicate lead — dedup conflict, verify lookupField configuration"
+      }
+    }
+  },
+  "parity_summary": {
+    "overall_status": "HIGH_PARITY",
+    "identify_parity": "MATCH",
+    "track_parity": "MATCH",
+    "known_gaps": [
+      {
+        "gap_id": "MKT-001",
+        "severity": "medium",
+        "field": "Lead lookup caching strategy",
+        "description": "Both Segment and RudderStack must resolve Marketo leadId from email before posting custom activities. The caching strategy for resolved leadIds may differ between platforms, potentially causing different API call volumes and latency characteristics for track events.",
+        "remediation": "Implement leadId caching in the Transformer with configurable TTL (recommended 1 hour to match Marketo token expiry). Verify that cache invalidation occurs when a lead is deleted or merged in Marketo."
+      },
+      {
+        "gap_id": "MKT-002",
+        "severity": "medium",
+        "field": "Custom activity type pre-registration",
+        "description": "Marketo requires custom activity types to be pre-created and approved in the Marketo Admin UI or via the Custom Activities Metadata API before they can be used. Both platforms require manual configuration to map event names to activityTypeIds. If an unmapped event is received, it will fail with a Marketo API error.",
+        "remediation": "Document the required Marketo Admin setup steps for custom activity types. Consider implementing automatic activity type discovery via GET /rest/v1/activities/types.json to validate configuration at startup."
+      },
+      {
+        "gap_id": "MKT-003",
+        "severity": "low",
+        "field": "Custom field mapping configuration",
+        "description": "Segment's Marketo destination may offer different UI options for configuring custom field mappings compared to RudderStack's dashboard. The underlying API calls are identical but the user configuration experience differs.",
+        "remediation": "Ensure RudderStack's Marketo destination settings expose all necessary custom field mapping options. Test with Marketo instances that have extensive custom field schemas."
+      },
+      {
+        "gap_id": "MKT-004",
+        "severity": "low",
+        "field": "RudderStack envelope fields",
+        "description": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to the source event envelope. These additional fields do not impact the Marketo API payload but differ from Segment's event structure.",
+        "remediation": "No impact on destination payload. These fields are stripped during transformation before the Marketo API call."
+      },
+      {
+        "gap_id": "MKT-005",
+        "severity": "low",
+        "field": "context.library",
+        "description": "Segment uses analytics.js as the library name; RudderStack uses rudder-sdk-js. This difference is present in the source event but does not propagate to the Marketo API payload.",
+        "remediation": "No impact on destination payload — library metadata is used internally but not sent to Marketo."
+      },
+      {
+        "gap_id": "MKT-006",
+        "severity": "medium",
+        "field": "Bulk import vs REST API path",
+        "description": "Marketo offers a Bulk Import API (POST /bulk/v1/leads.json) for high-volume lead imports that bypasses the 300-record-per-call limit of the Sync Leads REST API. Segment may use the Bulk API for large batch imports while RudderStack uses the standard REST API. The Bulk API returns results as CSV files rather than JSON and does not return Marketo lead IDs.",
+        "remediation": "Evaluate implementing Bulk Import API support for high-volume identify call batches. The standard REST API (300 records/call) is sufficient for real-time event-driven use cases."
+      },
+      {
+        "gap_id": "MKT-007",
+        "severity": "low",
+        "field": "Program and campaign association",
+        "description": "Marketo's Push Lead endpoint (POST /rest/v1/leads/push.json) supports associating leads with programs and campaigns. The standard Sync Leads endpoint does not support this association. Segment may use Push Lead for leads originating from specific campaigns.",
+        "remediation": "Consider supporting the Push Lead endpoint as an alternative to Sync Leads when programId or campaignId is provided in the event context."
+      },
+      {
+        "gap_id": "MKT-008",
+        "severity": "low",
+        "field": "Lead partition support",
+        "description": "Marketo instances with multiple lead partitions require partition specification when creating leads. Both platforms should support partition configuration but behavior may vary.",
+        "remediation": "Add lead partition configuration option to destination settings. Test with multi-partition Marketo instances."
+      }
+    ],
+    "matching_features": [
+      "Lead upsert via Sync Leads REST API (POST /rest/v1/leads.json)",
+      "Custom activity creation via Add Custom Activities API (POST /rest/v1/activities/external.json)",
+      "OAuth 2.0 client_credentials authentication with automatic token refresh",
+      "Email-based lead deduplication (lookupField=email)",
+      "Lead field mapping for standard fields (email, firstName, lastName, company, phone, title, address)",
+      "Custom lead field mapping via Marketo field API names",
+      "Custom activity attribute mapping as name/value pairs",
+      "Lead ID resolution for track events via Marketo Leads API lookup",
+      "Batch support up to 300 leads per Sync Leads API call",
+      "ISO-8601 timestamp format for activityDate",
+      "Configurable dedup key (lookupField) for lead matching"
+    ]
+  },
+  "source_event_fixtures": {
+    "identify_event": {
+      "type": "identify",
+      "userId": "user_123",
+      "anonymousId": "anon_456",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "traits": {
+        "email": "alex@example.com",
+        "firstName": "Alex",
+        "lastName": "Keener",
+        "phone": "+14155551234",
+        "mobilePhone": "+14155559876",
+        "company": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employee_count": 500,
+          "revenue": 50000000
+        },
+        "title": "Product Manager",
+        "address": {
+          "street": "123 Main St",
+          "city": "San Francisco",
+          "state": "CA",
+          "postalCode": "94105",
+          "country": "US"
+        },
+        "website": "https://alex.example.com",
+        "plan": "enterprise",
+        "signedUpAt": "2026-01-15",
+        "leadSource": "Web"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        },
+        "ip": "203.0.113.42",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        "locale": "en-US",
+        "page": {
+          "url": "https://example.com/signup",
+          "title": "Sign Up - Example",
+          "path": "/signup",
+          "referrer": "https://google.com/"
+        }
+      },
+      "messageId": "rs-msg-abc-123",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    },
+    "track_event": {
+      "type": "track",
+      "event": "Product Viewed",
+      "userId": "user_123",
+      "anonymousId": "anon_456",
+      "timestamp": "2026-02-25T12:05:00.000Z",
+      "properties": {
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "quantity": 1,
+        "currency": "USD",
+        "category": "Widgets",
+        "revenue": 49.99,
+        "url": "https://example.com/products/premium-widget",
+        "image_url": "https://example.com/images/premium-widget.png"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        },
+        "traits": {
+          "email": "alex@example.com",
+          "firstName": "Alex",
+          "lastName": "Keener"
+        },
+        "ip": "203.0.113.42",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        "locale": "en-US",
+        "page": {
+          "url": "https://example.com/products/premium-widget",
+          "title": "Premium Widget - Example Store",
+          "path": "/products/premium-widget",
+          "referrer": "https://google.com/"
+        }
+      },
+      "messageId": "rs-msg-def-456",
+      "originalTimestamp": "2026-02-25T12:05:00.000Z",
+      "sentAt": "2026-02-25T12:05:01.000Z",
+      "receivedAt": "2026-02-25T12:05:02.000Z"
+    }
+  },
+  "notes": "Marketo shared cloud destination. Category: Marketing Automation. Marketo (now Adobe Marketo Engage) is a leading B2B marketing automation platform. RudderStack's Marketo integration is delivered via the Router as a cloud REST destination, with event transformation handled by the external Transformer service (port 9090). The Marketo REST API uses OAuth 2.0 client_credentials for authentication with 1-hour token expiry. The primary integration paths are: identify calls → Sync Leads (POST /rest/v1/leads.json) for lead creation/update, and track calls → Add Custom Activities (POST /rest/v1/activities/external.json) for event recording. The default dedup key is email (lookupField='email'). Marketo's API returns HTTP 200 for all responses including errors; error detection requires inspecting the JSON body's 'success' field. API rate limits: 50,000 calls/day, 100 calls/20 seconds, 10 concurrent calls. Custom activity types and custom lead fields must be pre-created in the Marketo Admin before use. Activity attribute values are always transmitted as strings regardless of declared data type. Lead records support up to 300 records per batch in the Sync Leads endpoint. Both Segment and RudderStack follow the same Marketo API integration pattern with functionally equivalent payloads, making this a high-parity destination."
+}

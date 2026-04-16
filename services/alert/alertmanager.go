@@ -12,6 +12,15 @@ var (
 	pagerDutyRoutingKey string
 	instanceName        string
 	victorOpsRoutingKey string
+	// Slack provider config
+	slackWebhookURL string
+	// Email provider config
+	emailSMTPHost     string
+	emailSMTPPort     string
+	emailFrom         string
+	emailTo           string
+	emailAuthUser     string
+	emailAuthPassword string
 )
 
 func Init() {
@@ -24,6 +33,15 @@ func loadConfig() {
 	pagerDutyRoutingKey = config.GetString("PG_ROUTING_KEY", "")
 	instanceName = config.GetString("INSTANCE_ID", "")
 	victorOpsRoutingKey = config.GetString("VICTOROPS_ROUTING_KEY", "")
+	// Slack provider config
+	slackWebhookURL = config.GetString("SLACK_WEBHOOK_URL", "")
+	// Email provider config
+	emailSMTPHost = config.GetString("EMAIL_SMTP_HOST", "")
+	emailSMTPPort = config.GetString("EMAIL_SMTP_PORT", "587")
+	emailFrom = config.GetString("EMAIL_FROM", "")
+	emailTo = config.GetString("EMAIL_TO", "")
+	emailAuthUser = config.GetString("EMAIL_AUTH_USER", "")
+	emailAuthPassword = config.GetString("EMAIL_AUTH_PASSWORD", "")
 }
 
 // AlertManager interface
@@ -42,6 +60,21 @@ func New() (AlertManager, error) {
 	case "pagerduty":
 		return &PagerDuty{
 			routingKey:   pagerDutyRoutingKey,
+			instanceName: instanceName,
+		}, nil
+	case "slack":
+		return &Slack{
+			webhookURL:   slackWebhookURL,
+			instanceName: instanceName,
+		}, nil
+	case "email":
+		return &Email{
+			smtpHost:     emailSMTPHost,
+			smtpPort:     emailSMTPPort,
+			from:         emailFrom,
+			to:           emailTo,
+			authUser:     emailAuthUser,
+			authPassword: emailAuthPassword,
 			instanceName: instanceName,
 		}, nil
 	}

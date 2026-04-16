@@ -262,9 +262,9 @@ func TestSelectiveSyncRepository_Get(t *testing.T) {
 		destID := "get_existing_dest"
 
 		cfg := selectivesync.SelectiveSyncConfig{
-			SourceID:      sourceID,
-			DestinationID: destID,
-			WorkspaceID:   testWorkspaceID,
+			SourceID:       sourceID,
+			DestinationID:  destID,
+			WorkspaceID:    testWorkspaceID,
 			ExcludedTables: []string{"users", "identifies"},
 			ExcludedColumns: map[string][]string{
 				"users":      {"email", "phone"},

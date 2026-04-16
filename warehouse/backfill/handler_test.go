@@ -86,12 +86,12 @@ func TestHandler_TriggerBackfill(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		body           func() []byte          // request body factory
-		mockSvc        *mockBackfillService    // mock service for this subtest
-		wantStatus     int                     // expected HTTP status code
-		wantErrMsg     string                  // expected error message (substring match); empty for success paths
-		wantJobID      int64                   // expected job ID for success paths
-		wantBackfillSt string                  // expected backfill status string for success paths
+		body           func() []byte        // request body factory
+		mockSvc        *mockBackfillService // mock service for this subtest
+		wantStatus     int                  // expected HTTP status code
+		wantErrMsg     string               // expected error message (substring match); empty for success paths
+		wantJobID      int64                // expected job ID for success paths
+		wantBackfillSt string               // expected backfill status string for success paths
 	}{
 		// -----------------------------------------------------------------
 		// 1. Happy path: valid request returns 201 with job ID
@@ -422,11 +422,11 @@ func TestHandler_GetBackfillStatus(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		jobIDParam string                 // value injected as chi URL param
+		jobIDParam string // value injected as chi URL param
 		mockSvc    *mockBackfillService
 		wantStatus int
-		wantErrMsg string                 // non-empty for error paths
-		wantJob    *backfill.BackfillJob  // expected job for success path
+		wantErrMsg string                // non-empty for error paths
+		wantJob    *backfill.BackfillJob // expected job for success path
 	}{
 		// -----------------------------------------------------------------
 		// 1. Valid job ID returns 200 with job details

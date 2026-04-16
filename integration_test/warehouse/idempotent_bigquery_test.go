@@ -989,7 +989,7 @@ func (u *bqTestUploader) GetTableSchemaInWarehouse(tableName string) whutils.Mod
 
 func (u *bqTestUploader) UseRudderStorage() bool  { return false }
 func (u *bqTestUploader) GetLoadFileType() string { return "json" }
-func (u *bqTestUploader) CanAppend() bool          { return true }
+func (u *bqTestUploader) CanAppend() bool         { return true }
 
 // ---------------------------------------------------------------------------
 // createBigQueryTestLoadFile — creates a gzipped NDJSON load file for BigQuery

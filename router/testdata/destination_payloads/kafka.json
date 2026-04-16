@@ -1,0 +1,448 @@
+{
+  "destination_type": "KAFKA",
+  "destination_tier": "stream",
+  "segment_reference_payload": {
+    "track": {
+      "topic": "segment-events",
+      "key": "user_123",
+      "value": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "referrer": "https://example.com/products",
+            "title": "Premium Widget - Example Store"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          "ip": "203.0.113.50",
+          "locale": "en-US"
+        },
+        "messageId": "msg-abc-123-def-456",
+        "integrations": {
+          "All": true
+        }
+      },
+      "headers": {},
+      "partition": null
+    },
+    "identify": {
+      "topic": "segment-events",
+      "key": "user_123",
+      "value": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:01:00.000Z",
+        "traits": {
+          "email": "user@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "company": {
+            "id": "company_789",
+            "name": "Acme Corp"
+          }
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.50"
+        },
+        "messageId": "msg-ghi-789-jkl-012"
+      }
+    },
+    "page": {
+      "topic": "segment-events",
+      "key": "user_123",
+      "value": {
+        "type": "page",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "name": "Products",
+        "category": "Shopping",
+        "timestamp": "2026-02-25T12:02:00.000Z",
+        "properties": {
+          "url": "https://example.com/products",
+          "title": "Products - Example Store",
+          "referrer": "https://example.com",
+          "path": "/products",
+          "search": ""
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.50"
+        },
+        "messageId": "msg-mno-345-pqr-678"
+      }
+    },
+    "screen": {
+      "topic": "segment-events",
+      "key": "user_123",
+      "value": {
+        "type": "screen",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "name": "ProductDetail",
+        "category": "Shopping",
+        "timestamp": "2026-02-25T12:03:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "variant": "detail_view"
+        },
+        "context": {
+          "library": {
+            "name": "analytics-ios",
+            "version": "4.1.0"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.3"
+          },
+          "device": {
+            "type": "ios",
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro"
+          }
+        },
+        "messageId": "msg-stu-901-vwx-234"
+      }
+    },
+    "group": {
+      "topic": "segment-events",
+      "key": "user_123",
+      "value": {
+        "type": "group",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "groupId": "group_789",
+        "timestamp": "2026-02-25T12:04:00.000Z",
+        "traits": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employees": 500,
+          "plan": "enterprise"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.50"
+        },
+        "messageId": "msg-yza-567-bcd-890"
+      }
+    },
+    "alias": {
+      "topic": "segment-events",
+      "key": "user_123",
+      "value": {
+        "type": "alias",
+        "userId": "user_123",
+        "previousId": "anon_456",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "ip": "203.0.113.50"
+        },
+        "messageId": "msg-efg-123-hij-456"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "topic": "rudder-events",
+      "key": "user_123",
+      "value": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "referrer": "https://example.com/products",
+            "title": "Premium Widget - Example Store"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          "ip": "203.0.113.50",
+          "locale": "en-US"
+        },
+        "rudderId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "messageId": "2026-02-25T12:00:00.000Z-user_123-rs-msg-001",
+        "integrations": {
+          "All": true
+        },
+        "channel": "web"
+      },
+      "headers": {},
+      "partition": null
+    },
+    "identify": {
+      "topic": "rudder-events",
+      "key": "user_123",
+      "value": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:01:00.000Z",
+        "originalTimestamp": "2026-02-25T12:01:00.000Z",
+        "sentAt": "2026-02-25T12:01:01.000Z",
+        "receivedAt": "2026-02-25T12:01:02.000Z",
+        "traits": {
+          "email": "user@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "company": {
+            "id": "company_789",
+            "name": "Acme Corp"
+          }
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "ip": "203.0.113.50"
+        },
+        "rudderId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        "messageId": "2026-02-25T12:01:00.000Z-user_123-rs-msg-002",
+        "channel": "web"
+      }
+    },
+    "page": {
+      "topic": "rudder-events",
+      "key": "user_123",
+      "value": {
+        "type": "page",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "name": "Products",
+        "category": "Shopping",
+        "timestamp": "2026-02-25T12:02:00.000Z",
+        "originalTimestamp": "2026-02-25T12:02:00.000Z",
+        "sentAt": "2026-02-25T12:02:01.000Z",
+        "receivedAt": "2026-02-25T12:02:02.000Z",
+        "properties": {
+          "url": "https://example.com/products",
+          "title": "Products - Example Store",
+          "referrer": "https://example.com",
+          "path": "/products",
+          "search": ""
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "ip": "203.0.113.50"
+        },
+        "rudderId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "messageId": "2026-02-25T12:02:00.000Z-user_123-rs-msg-003",
+        "channel": "web"
+      }
+    },
+    "screen": {
+      "topic": "rudder-events",
+      "key": "user_123",
+      "value": {
+        "type": "screen",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "name": "ProductDetail",
+        "category": "Shopping",
+        "timestamp": "2026-02-25T12:03:00.000Z",
+        "originalTimestamp": "2026-02-25T12:03:00.000Z",
+        "sentAt": "2026-02-25T12:03:01.000Z",
+        "receivedAt": "2026-02-25T12:03:02.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "variant": "detail_view"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-ios",
+            "version": "2.14.0"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.3"
+          },
+          "device": {
+            "type": "ios",
+            "manufacturer": "Apple",
+            "model": "iPhone 15 Pro"
+          }
+        },
+        "rudderId": "d4e5f6a7-b8c9-0123-defa-234567890123",
+        "messageId": "2026-02-25T12:03:00.000Z-user_123-rs-msg-004",
+        "channel": "mobile"
+      }
+    },
+    "group": {
+      "topic": "rudder-events",
+      "key": "user_123",
+      "value": {
+        "type": "group",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "groupId": "group_789",
+        "timestamp": "2026-02-25T12:04:00.000Z",
+        "originalTimestamp": "2026-02-25T12:04:00.000Z",
+        "sentAt": "2026-02-25T12:04:01.000Z",
+        "receivedAt": "2026-02-25T12:04:02.000Z",
+        "traits": {
+          "name": "Acme Corp",
+          "industry": "Technology",
+          "employees": 500,
+          "plan": "enterprise"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "ip": "203.0.113.50"
+        },
+        "rudderId": "e5f6a7b8-c9d0-1234-efab-345678901234",
+        "messageId": "2026-02-25T12:04:00.000Z-user_123-rs-msg-005",
+        "channel": "web"
+      }
+    },
+    "alias": {
+      "topic": "rudder-events",
+      "key": "user_123",
+      "value": {
+        "type": "alias",
+        "userId": "user_123",
+        "previousId": "anon_456",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "originalTimestamp": "2026-02-25T12:05:00.000Z",
+        "sentAt": "2026-02-25T12:05:01.000Z",
+        "receivedAt": "2026-02-25T12:05:02.000Z",
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "ip": "203.0.113.50"
+        },
+        "rudderId": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+        "messageId": "2026-02-25T12:05:00.000Z-user_123-rs-msg-006",
+        "channel": "web"
+      }
+    }
+  },
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "field_mappings": {
+    "topic": {
+      "segment": "Derived from settings.topic configured in Segment UI; default varies by workspace",
+      "rudderstack": "Derived from destination config field 'Topic' (configuration.Topic in services/streammanager/kafka/kafkamanager.go); can be overridden per-message via the 'topic' field in the transformed event JSON",
+      "parity_status": "functionally_equivalent",
+      "notes": "Both platforms allow configurable topic names. Segment uses 'settings.topic'; RudderStack uses the destination config 'Topic' field decoded from backendconfig.DestinationT.Config. RudderStack additionally supports per-event topic override via the 'topic' field in the event payload (gjson path 'topic'), falling back to the configured default topic."
+    },
+    "key": {
+      "segment": "Derived from userId or anonymousId; partition key strategy is userId-first",
+      "rudderstack": "Derived from the 'userId' field in the event payload (gjson path 'userId'); used as Kafka message key for partition assignment",
+      "parity_status": "functionally_equivalent",
+      "notes": "Both derive the Kafka message key from the event userId. RudderStack uses gjson to extract parsedJSON.Get('userId').String() directly from the transformed event. If userId is absent, an empty key is used and a 'router.kafka.missing_user_id' metric is emitted. Segment may use anonymousId as fallback; RudderStack requires explicit userId for keying."
+    },
+    "value": {
+      "segment": "Contains the full event payload with type, event, userId, anonymousId, timestamp, properties/traits, context, messageId, and integrations",
+      "rudderstack": "Contains the full event payload with the same core fields plus additional RudderStack envelope fields: rudderId, originalTimestamp, sentAt, receivedAt, and channel",
+      "parity_status": "partial_parity",
+      "notes": "The core event body (type, event name, userId, anonymousId, properties/traits, context) is equivalent. RudderStack adds pipeline timestamp tracking fields (originalTimestamp, sentAt, receivedAt) and a unique rudderId per event. The 'channel' field indicates the SDK origin (web, mobile, server). These additional fields do not conflict with Segment's payload but extend it."
+    },
+    "context.library": {
+      "segment": "context.library.name is the Segment SDK name (e.g., 'analytics.js', 'analytics-ios', 'analytics-node')",
+      "rudderstack": "context.library.name is the RudderStack SDK name (e.g., 'rudder-sdk-js', 'rudder-sdk-ios', 'rudder-sdk-node')",
+      "parity_status": "expected_difference",
+      "notes": "The library name and version reflect the originating SDK and are inherently different between platforms. This is an expected and non-breaking difference. Both follow the same structure: context.library.name (string) and context.library.version (semver string)."
+    },
+    "envelope_fields": {
+      "segment": "No additional envelope fields; the event payload is the complete message value",
+      "rudderstack": "RudderStack adds rudderId (UUID v4 unique per event), originalTimestamp (client-side timestamp), sentAt (client dispatch timestamp), receivedAt (server ingestion timestamp), and channel (SDK channel: web/mobile/server)",
+      "parity_status": "rudderstack_superset",
+      "notes": "RudderStack's additional envelope fields provide richer pipeline observability (tracking event journey from client to server). These fields are injected by the Gateway during event ingestion and are present on all events flowing through the RudderStack pipeline. They appear in the Kafka message value alongside the standard Segment Spec fields."
+    },
+    "messageId": {
+      "segment": "Generated by the Segment SDK using a UUID v4 strategy; format is typically a standard UUID string",
+      "rudderstack": "Generated by the RudderStack SDK or Gateway; format may include timestamp and userId components for sortability and debuggability",
+      "parity_status": "functionally_equivalent",
+      "notes": "Both provide a unique message identifier per event. The UUID generation strategy differs (pure random v4 in Segment vs. potentially composite in RudderStack), but the field serves the same purpose: deduplication and event tracing. Downstream consumers should treat messageId as an opaque unique string."
+    },
+    "headers": {
+      "segment": "Kafka message headers are typically empty or contain minimal metadata",
+      "rudderstack": "Kafka message headers are empty by default; Avro-enabled destinations may include schema ID headers when EmbedAvroSchemaID is true",
+      "parity_status": "functionally_equivalent",
+      "notes": "Neither platform adds mandatory Kafka message headers for standard JSON payloads. RudderStack supports optional Avro serialization with Confluent Schema Registry wire format (magic byte + 4-byte schema ID prefix) when ConvertToAvro and EmbedAvroSchemaID are enabled in the destination config."
+    },
+    "timestamp": {
+      "segment": "Event timestamp from the client SDK or server-side library; ISO 8601 format",
+      "rudderstack": "Event timestamp from the client SDK; ISO 8601 format. Additionally provides originalTimestamp (client time), sentAt (dispatch time), and receivedAt (server ingestion time)",
+      "parity_status": "rudderstack_superset",
+      "notes": "The primary 'timestamp' field is equivalent. RudderStack provides additional temporal metadata (originalTimestamp, sentAt, receivedAt) for pipeline latency analysis. Kafka message-level timestamp is set to time.Now() at produce time in both implementations."
+    },
+    "serialization": {
+      "segment": "JSON serialization for standard payloads; Avro support varies by configuration",
+      "rudderstack": "JSON serialization by default via jsonrs.Marshal. Supports Avro serialization via goavro when ConvertToAvro is enabled in destination config. Avro schemas are configured per-destination with SchemaId and Schema fields. Confluent Schema Registry wire format supported via EmbedAvroSchemaID option.",
+      "parity_status": "rudderstack_superset",
+      "notes": "RudderStack's Kafka producer supports both JSON and Avro serialization natively. Avro serialization uses LinkedIn goavro library with optional Confluent Schema Registry wire format. The codec map is built at producer creation time from the destination config's AvroSchemas array. Serialization errors are tracked via 'router.kafka.avro_serialization_err' and 'router.kafka.json_serialization_msg_err' metrics."
+    },
+    "compression": {
+      "segment": "Compression settings vary by implementation",
+      "rudderstack": "Configurable via Router.KAFKA.compression config key. Supports None (0), Gzip (1), Snappy (2), LZ4 (3), and Zstd (4). Default is None.",
+      "parity_status": "rudderstack_superset",
+      "notes": "RudderStack exposes fine-grained compression control at the Kafka producer level through the configuration system. Compression is applied at the batch level by the underlying kafka-go writer."
+    },
+    "batching": {
+      "segment": "Batching behavior determined by Segment's internal pipeline",
+      "rudderstack": "Configurable via Router.KAFKA.batchTimeout (default 100ms), Router.KAFKA.batchSize (default 64 messages), and Router.KAFKA.batchBytes (default 1MB). The kafka-go writer accumulates messages and flushes when any threshold is reached.",
+      "parity_status": "rudderstack_superset",
+      "notes": "RudderStack provides explicit batching configuration for Kafka message production. These settings are configured via the reloadable config system and can be tuned per destination type."
+    },
+    "authentication": {
+      "segment": "Authentication configured through Segment UI destination settings",
+      "rudderstack": "Supports plaintext, SSL/TLS (custom CA certificate, client cert/key), SASL (SCRAM-SHA-256/SCRAM-SHA-512), and SSH tunneling. Configuration decoded from backendconfig.DestinationT.Config into the 'configuration' struct.",
+      "parity_status": "rudderstack_superset",
+      "notes": "RudderStack supports a broader range of Kafka authentication mechanisms including SSH tunneling for private network access. SASL type detection uses kafkaclient.ScramHashGeneratorFromString. TLS configuration supports both custom CA certificates and system certificate pool."
+    }
+  },
+  "notes": "Kafka is a shared stream destination present in both RudderStack and Segment catalogs. RudderStack implements Kafka via services/streammanager/kafka/ with the common.StreamProducer interface (Produce and Close methods). The same Kafka producer package also handles Azure Event Hub (AZURE_EVENT_HUB) and Confluent Cloud (CONFLUENT_CLOUD) destinations through separate constructor functions (NewProducerForAzureEventHubs, NewProducerForConfluentCloud). Segment equivalent: actions-kafka. Key parity gaps: (1) Topic naming convention — Segment uses settings.topic while RudderStack uses destination config topicName with per-event override support; (2) Partition key strategy — both derive from userId but RudderStack emits a missing_user_id metric when absent while Segment may fall back to anonymousId; (3) Message header fields — both empty for JSON payloads, RudderStack adds schema ID headers for Avro; (4) Additional RudderStack envelope fields — rudderId, originalTimestamp, sentAt, receivedAt, channel are added to every event by the Gateway and are present in the Kafka message value; (5) SDK library naming — context.library.name differs by platform (analytics.js vs rudder-sdk-js); (6) RudderStack supports advanced Kafka features not present in Segment: Avro serialization with Confluent Schema Registry wire format, SSH tunneling for private cluster access, configurable compression codecs, and fine-grained batching parameters. Producer lifecycle metrics are tracked via router.kafka.* Prometheus counters and timers (creation_time, publish_time, produce_time, prepare_batch_time, close_producer_time, missing_user_id, missing_message, json_serialization_msg_err, avro_serialization_err). The default publish timeout is 10 seconds, configurable per-destination via common.Opts."
+}

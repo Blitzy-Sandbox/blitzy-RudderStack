@@ -25,6 +25,7 @@ type workerHandle interface {
 	srcHydrationStage(partition string, in *srcHydrationMessage) (*preTransformationMessage, error)
 	pretransformStage(partition string, preTrans *preTransformationMessage) (*transformationMessage, error)
 	userTransformStage(partition string, in *transformationMessage) *userTransformData
+	insertFunctionsStage(partition string, in *userTransformData) *userTransformData // E-017: Insert Functions per-destination pre-transform hooks
 	destinationTransformStage(partition string, in *userTransformData) *storeMessage
 	storeStage(partition string, pipelineIndex int, in *storeMessage)
 }

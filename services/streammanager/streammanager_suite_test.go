@@ -291,3 +291,55 @@ func TestNewProducerWithGoogleCloudFunctionDestination(t *testing.T) {
 	assert.NotNil(t, producer)
 	assert.IsType(t, producer, &cloudfunctions.GoogleCloudFunctionProducer{})
 }
+
+func TestNewProducerWithAzureEventHubExtendedDestination(t *testing.T) {
+	initStreamManager()
+	_, err := streammanager.NewProducer(
+		&backendconfig.DestinationT{
+			DestinationDefinition: backendconfig.DestinationDefinitionT{Name: "AZURE_EVENT_HUB_EXTENDED"},
+			Config:                map[string]any{},
+		},
+		common.Opts{})
+	assert.Error(t, err)
+	// error contains "Azure Event Hub" means we called right producer
+	assert.ErrorContains(t, err, "Azure Event Hub")
+}
+
+func TestNewProducerWithApachePulsarDestination(t *testing.T) {
+	initStreamManager()
+	_, err := streammanager.NewProducer(
+		&backendconfig.DestinationT{
+			DestinationDefinition: backendconfig.DestinationDefinitionT{Name: "APACHE_PULSAR"},
+			Config:                map[string]any{},
+		},
+		common.Opts{})
+	assert.Error(t, err)
+	// error contains "Pulsar" means we called right producer
+	assert.ErrorContains(t, err, "Pulsar")
+}
+
+func TestNewProducerWithRedisStreamDestination(t *testing.T) {
+	initStreamManager()
+	_, err := streammanager.NewProducer(
+		&backendconfig.DestinationT{
+			DestinationDefinition: backendconfig.DestinationDefinitionT{Name: "REDIS_STREAM"},
+			Config:                map[string]any{},
+		},
+		common.Opts{})
+	assert.Error(t, err)
+	// error contains "Redis" means we called right producer
+	assert.ErrorContains(t, err, "Redis")
+}
+
+func TestNewProducerWithAmazonMSKDestination(t *testing.T) {
+	initStreamManager()
+	_, err := streammanager.NewProducer(
+		&backendconfig.DestinationT{
+			DestinationDefinition: backendconfig.DestinationDefinitionT{Name: "AMAZON_MSK"},
+			Config:                map[string]any{},
+		},
+		common.Opts{})
+	assert.Error(t, err)
+	// error contains "MSK" means we called right producer
+	assert.ErrorContains(t, err, "MSK")
+}

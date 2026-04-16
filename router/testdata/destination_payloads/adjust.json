@@ -1,0 +1,809 @@
+{
+  "destination_type": "ADJUST",
+  "destination_tier": "cloud",
+  "category": "Attribution",
+  "event_types": ["track"],
+  "segment_reference_payload": {
+    "track_standard_event": {
+      "description": "Standard track event mapped to an Adjust custom event token via settings. Adjust S2S API requires all events to be pre-mapped to 6-character event tokens in the destination settings; unmapped event names are silently dropped and never forwarded.",
+      "input_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "timestamp": "2024-03-15T10:30:00.000Z",
+        "context": {
+          "app": {
+            "name": "MyApp",
+            "version": "2.1.0",
+            "build": "210"
+          },
+          "device": {
+            "id": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+            "advertisingId": "8A3CB124-5A79-4334-8802-F75FEC099C58",
+            "type": "ios",
+            "manufacturer": "Apple",
+            "model": "iPhone 14 Pro",
+            "name": "My iPhone"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.3.1"
+          },
+          "ip": "203.0.113.42",
+          "locale": "en-US",
+          "timezone": "America/New_York"
+        },
+        "properties": {
+          "product_id": "SKU-789",
+          "name": "Running Shoes",
+          "category": "Footwear",
+          "price": 129.99,
+          "currency": "USD"
+        },
+        "integrations": {
+          "Adjust": true
+        }
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.adjust.com/event",
+        "query_parameters": {
+          "s2s": "1",
+          "app_token": "abc123token",
+          "event_token": "prdvw1",
+          "idfa": "8A3CB124-5A79-4334-8802-F75FEC099C58",
+          "idfv": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+          "ip_address": "203.0.113.42",
+          "created_at_unix": "1710498600",
+          "callback_params": "{\"product_id\":\"SKU-789\",\"name\":\"Running Shoes\",\"category\":\"Footwear\",\"price\":\"129.99\",\"currency\":\"USD\"}",
+          "environment": "production"
+        },
+        "notes": "Event name 'Product Viewed' is resolved to event token 'prdvw1' via the customEvents mapping in destination settings. The s2s=1 parameter is always hardcoded. Device identifiers idfa and idfv are extracted from context.device for iOS. All event properties are serialized as a JSON string in callback_params."
+      }
+    },
+    "track_revenue_event": {
+      "description": "Revenue-bearing track event with properties.revenue and properties.currency translated to Adjust native revenue fields. Adjust uses these fields for revenue attribution and campaign ROAS calculations.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user-789",
+        "anonymousId": "anon-012",
+        "timestamp": "2024-03-15T14:22:00.000Z",
+        "context": {
+          "app": {
+            "name": "MyApp",
+            "version": "2.1.0",
+            "build": "210"
+          },
+          "device": {
+            "id": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+            "advertisingId": "8A3CB124-5A79-4334-8802-F75FEC099C58",
+            "type": "ios",
+            "manufacturer": "Apple",
+            "model": "iPhone 14 Pro",
+            "name": "My iPhone"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.3.1"
+          },
+          "ip": "203.0.113.42",
+          "locale": "en-US",
+          "timezone": "America/New_York"
+        },
+        "properties": {
+          "order_id": "ORD-456",
+          "revenue": 259.98,
+          "currency": "USD",
+          "total": 278.48,
+          "tax": 18.50,
+          "products": [
+            {
+              "product_id": "SKU-789",
+              "name": "Running Shoes",
+              "price": 129.99,
+              "quantity": 2
+            }
+          ]
+        },
+        "integrations": {
+          "Adjust": true
+        }
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.adjust.com/event",
+        "query_parameters": {
+          "s2s": "1",
+          "app_token": "abc123token",
+          "event_token": "ordcmp",
+          "idfa": "8A3CB124-5A79-4334-8802-F75FEC099C58",
+          "idfv": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+          "ip_address": "203.0.113.42",
+          "created_at_unix": "1710512520",
+          "revenue": "259.98",
+          "currency": "USD",
+          "callback_params": "{\"order_id\":\"ORD-456\",\"total\":\"278.48\",\"tax\":\"18.50\"}",
+          "environment": "production"
+        },
+        "notes": "properties.revenue and properties.currency are extracted and promoted to top-level Adjust revenue and currency parameters for native revenue tracking. Revenue is not duplicated in callback_params. The event token 'ordcmp' maps from 'Order Completed' via customEvents. Nested properties like products array are excluded from callback_params since Adjust only accepts flat string key-value pairs."
+      }
+    },
+    "track_android_event": {
+      "description": "Track event from an Android device demonstrating the Android-specific device identifier mapping. Android devices use gps_adid (Google Advertising ID) and android_id instead of iOS idfa/idfv.",
+      "input_event": {
+        "type": "track",
+        "event": "Product Added",
+        "userId": "user-555",
+        "anonymousId": "anon-333",
+        "timestamp": "2024-03-15T18:45:00.000Z",
+        "context": {
+          "app": {
+            "name": "MyApp",
+            "version": "3.0.1",
+            "build": "301"
+          },
+          "device": {
+            "id": "a1b2c3d4e5f67890",
+            "advertisingId": "38400000-8cf0-11bd-b23e-10b96e40000d",
+            "type": "android",
+            "manufacturer": "Samsung",
+            "model": "Galaxy S24 Ultra",
+            "name": "Samsung Galaxy"
+          },
+          "os": {
+            "name": "Android",
+            "version": "14"
+          },
+          "ip": "198.51.100.77",
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles"
+        },
+        "properties": {
+          "product_id": "SKU-321",
+          "name": "Trail Jacket",
+          "category": "Outerwear",
+          "price": 189.00,
+          "quantity": 1,
+          "currency": "USD"
+        },
+        "integrations": {
+          "Adjust": true
+        }
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.adjust.com/event",
+        "query_parameters": {
+          "s2s": "1",
+          "app_token": "abc123token",
+          "event_token": "prdadd",
+          "gps_adid": "38400000-8cf0-11bd-b23e-10b96e40000d",
+          "android_id": "a1b2c3d4e5f67890",
+          "ip_address": "198.51.100.77",
+          "created_at_unix": "1710528300",
+          "callback_params": "{\"product_id\":\"SKU-321\",\"name\":\"Trail Jacket\",\"category\":\"Outerwear\",\"price\":\"189.00\",\"quantity\":\"1\",\"currency\":\"USD\"}",
+          "environment": "production"
+        },
+        "notes": "Android device: context.device.advertisingId maps to gps_adid (Google Play Services Advertising ID) and context.device.id maps to android_id. The device.type field determines which identifier pair is used. Event token 'prdadd' resolves from 'Product Added' in customEvents settings."
+      }
+    },
+    "track_event_with_partner_params": {
+      "description": "Track event demonstrating partner parameter forwarding alongside callback parameters. Partner parameters are shared with network partners for attribution and campaign optimization.",
+      "input_event": {
+        "type": "track",
+        "event": "Subscription Started",
+        "userId": "user-888",
+        "anonymousId": "anon-999",
+        "timestamp": "2024-03-15T20:00:00.000Z",
+        "context": {
+          "app": {
+            "name": "MyApp",
+            "version": "2.1.0",
+            "build": "210"
+          },
+          "device": {
+            "id": "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+            "advertisingId": "9B4DC235-6B8A-5445-9913-G86GFD100D69",
+            "type": "ios",
+            "manufacturer": "Apple",
+            "model": "iPhone 15",
+            "name": "My iPhone"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.4"
+          },
+          "ip": "192.0.2.50",
+          "locale": "en-GB",
+          "timezone": "Europe/London"
+        },
+        "properties": {
+          "plan": "premium_annual",
+          "price": 99.99,
+          "currency": "GBP",
+          "trial": false
+        },
+        "integrations": {
+          "Adjust": {
+            "partnerParams": {
+              "campaign_id": "camp_12345",
+              "network": "facebook"
+            }
+          }
+        }
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.adjust.com/event",
+        "query_parameters": {
+          "s2s": "1",
+          "app_token": "abc123token",
+          "event_token": "subsrt",
+          "idfa": "9B4DC235-6B8A-5445-9913-G86GFD100D69",
+          "idfv": "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+          "ip_address": "192.0.2.50",
+          "created_at_unix": "1710532800",
+          "revenue": "99.99",
+          "currency": "GBP",
+          "callback_params": "{\"plan\":\"premium_annual\",\"trial\":\"false\"}",
+          "partner_params": "{\"campaign_id\":\"camp_12345\",\"network\":\"facebook\"}",
+          "environment": "production"
+        },
+        "notes": "Partner parameters passed via integrations.Adjust.partnerParams are forwarded as a URL-encoded JSON string in partner_params. Revenue is extracted from properties.price when it matches Segment e-commerce spec. Callback params exclude revenue/currency since those are promoted to top-level fields."
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track_standard_event": {
+      "description": "RudderStack track event for Adjust with standard event token mapping. The RudderStack payload wraps the event in the standard envelope with additional SDK metadata fields (rudderId, originalTimestamp, sentAt, receivedAt).",
+      "input_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "channel": "mobile",
+        "originalTimestamp": "2024-03-15T10:30:00.000Z",
+        "sentAt": "2024-03-15T10:30:01.000Z",
+        "receivedAt": "2024-03-15T10:30:02.000Z",
+        "rudderId": "rudder-id-abc-123",
+        "messageId": "msg-id-001",
+        "context": {
+          "app": {
+            "name": "MyApp",
+            "version": "2.1.0",
+            "build": "210",
+            "namespace": "com.mycompany.myapp"
+          },
+          "device": {
+            "id": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+            "advertisingId": "8A3CB124-5A79-4334-8802-F75FEC099C58",
+            "adTrackingEnabled": true,
+            "type": "ios",
+            "manufacturer": "Apple",
+            "model": "iPhone 14 Pro",
+            "name": "My iPhone",
+            "token": "push-token-abc"
+          },
+          "library": {
+            "name": "rudder-ios-library",
+            "version": "1.25.0"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.3.1"
+          },
+          "network": {
+            "carrier": "Verizon",
+            "wifi": true,
+            "cellular": false
+          },
+          "screen": {
+            "width": 393,
+            "height": 852,
+            "density": 3
+          },
+          "locale": "en-US",
+          "timezone": "America/New_York",
+          "ip": "203.0.113.42",
+          "userAgent": "MyApp/2.1.0 (iPhone; iOS 17.3.1; Scale/3.0)"
+        },
+        "properties": {
+          "product_id": "SKU-789",
+          "name": "Running Shoes",
+          "category": "Footwear",
+          "price": 129.99,
+          "currency": "USD"
+        },
+        "integrations": {
+          "Adjust": true
+        }
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.adjust.com/event",
+        "query_parameters": {
+          "s2s": "1",
+          "app_token": "abc123token",
+          "event_token": "prdvw1",
+          "idfa": "8A3CB124-5A79-4334-8802-F75FEC099C58",
+          "idfv": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+          "ip_address": "203.0.113.42",
+          "created_at_unix": "1710498600",
+          "callback_params": "{\"product_id\":\"SKU-789\",\"name\":\"Running Shoes\",\"category\":\"Footwear\",\"price\":\"129.99\",\"currency\":\"USD\"}",
+          "environment": "production"
+        },
+        "notes": "RudderStack envelope adds rudderId, messageId, channel, sentAt, receivedAt, and expanded context (library, network, screen). The transformed API call is identical to the Segment reference — event name resolves to the same event token, device IDs are mapped identically, and callback_params carry the same flat property map."
+      }
+    },
+    "track_revenue_event": {
+      "description": "RudderStack revenue event for Adjust with properties.revenue and properties.currency promoted to native Adjust revenue fields. RudderStack follows the same Segment e-commerce spec for revenue extraction.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user-789",
+        "anonymousId": "anon-012",
+        "channel": "mobile",
+        "originalTimestamp": "2024-03-15T14:22:00.000Z",
+        "sentAt": "2024-03-15T14:22:01.000Z",
+        "receivedAt": "2024-03-15T14:22:02.000Z",
+        "rudderId": "rudder-id-def-456",
+        "messageId": "msg-id-002",
+        "context": {
+          "app": {
+            "name": "MyApp",
+            "version": "2.1.0",
+            "build": "210",
+            "namespace": "com.mycompany.myapp"
+          },
+          "device": {
+            "id": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+            "advertisingId": "8A3CB124-5A79-4334-8802-F75FEC099C58",
+            "adTrackingEnabled": true,
+            "type": "ios",
+            "manufacturer": "Apple",
+            "model": "iPhone 14 Pro",
+            "name": "My iPhone",
+            "token": "push-token-abc"
+          },
+          "library": {
+            "name": "rudder-ios-library",
+            "version": "1.25.0"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.3.1"
+          },
+          "network": {
+            "carrier": "Verizon",
+            "wifi": true,
+            "cellular": false
+          },
+          "screen": {
+            "width": 393,
+            "height": 852,
+            "density": 3
+          },
+          "locale": "en-US",
+          "timezone": "America/New_York",
+          "ip": "203.0.113.42",
+          "userAgent": "MyApp/2.1.0 (iPhone; iOS 17.3.1; Scale/3.0)"
+        },
+        "properties": {
+          "order_id": "ORD-456",
+          "revenue": 259.98,
+          "currency": "USD",
+          "total": 278.48,
+          "tax": 18.50,
+          "products": [
+            {
+              "product_id": "SKU-789",
+              "name": "Running Shoes",
+              "price": 129.99,
+              "quantity": 2
+            }
+          ]
+        },
+        "integrations": {
+          "Adjust": true
+        }
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.adjust.com/event",
+        "query_parameters": {
+          "s2s": "1",
+          "app_token": "abc123token",
+          "event_token": "ordcmp",
+          "idfa": "8A3CB124-5A79-4334-8802-F75FEC099C58",
+          "idfv": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+          "ip_address": "203.0.113.42",
+          "created_at_unix": "1710512520",
+          "revenue": "259.98",
+          "currency": "USD",
+          "callback_params": "{\"order_id\":\"ORD-456\",\"total\":\"278.48\",\"tax\":\"18.50\"}",
+          "environment": "production"
+        },
+        "notes": "Revenue extraction is identical between Segment and RudderStack — both follow the e-commerce spec where properties.revenue is promoted to the Adjust revenue parameter. Nested arrays (products) are excluded from callback_params as Adjust requires flat string key-value pairs only. The order_id, total, and tax are included as callback_params for downstream reporting."
+      }
+    },
+    "track_android_event": {
+      "description": "RudderStack Android track event demonstrating platform-specific device identifier resolution. Android uses gps_adid and android_id mapped from the standard context.device fields.",
+      "input_event": {
+        "type": "track",
+        "event": "Product Added",
+        "userId": "user-555",
+        "anonymousId": "anon-333",
+        "channel": "mobile",
+        "originalTimestamp": "2024-03-15T18:45:00.000Z",
+        "sentAt": "2024-03-15T18:45:01.000Z",
+        "receivedAt": "2024-03-15T18:45:02.000Z",
+        "rudderId": "rudder-id-ghi-789",
+        "messageId": "msg-id-003",
+        "context": {
+          "app": {
+            "name": "MyApp",
+            "version": "3.0.1",
+            "build": "301",
+            "namespace": "com.mycompany.myapp"
+          },
+          "device": {
+            "id": "a1b2c3d4e5f67890",
+            "advertisingId": "38400000-8cf0-11bd-b23e-10b96e40000d",
+            "adTrackingEnabled": true,
+            "type": "android",
+            "manufacturer": "Samsung",
+            "model": "Galaxy S24 Ultra",
+            "name": "Samsung Galaxy",
+            "token": "fcm-token-xyz"
+          },
+          "library": {
+            "name": "rudder-android-library",
+            "version": "1.20.0"
+          },
+          "os": {
+            "name": "Android",
+            "version": "14"
+          },
+          "network": {
+            "carrier": "T-Mobile",
+            "wifi": false,
+            "cellular": true
+          },
+          "screen": {
+            "width": 1440,
+            "height": 3088,
+            "density": 4
+          },
+          "locale": "en-US",
+          "timezone": "America/Los_Angeles",
+          "ip": "198.51.100.77",
+          "userAgent": "Dalvik/2.1.0 (Linux; U; Android 14; SM-S928B Build/UP1A.231005.007)"
+        },
+        "properties": {
+          "product_id": "SKU-321",
+          "name": "Trail Jacket",
+          "category": "Outerwear",
+          "price": 189.00,
+          "quantity": 1,
+          "currency": "USD"
+        },
+        "integrations": {
+          "Adjust": true
+        }
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.adjust.com/event",
+        "query_parameters": {
+          "s2s": "1",
+          "app_token": "abc123token",
+          "event_token": "prdadd",
+          "gps_adid": "38400000-8cf0-11bd-b23e-10b96e40000d",
+          "android_id": "a1b2c3d4e5f67890",
+          "ip_address": "198.51.100.77",
+          "created_at_unix": "1710528300",
+          "callback_params": "{\"product_id\":\"SKU-321\",\"name\":\"Trail Jacket\",\"category\":\"Outerwear\",\"price\":\"189.00\",\"quantity\":\"1\",\"currency\":\"USD\"}",
+          "environment": "production"
+        },
+        "notes": "Android device identifier mapping is platform-specific: context.device.advertisingId becomes gps_adid (Google Play Services Advertising ID) and context.device.id becomes android_id. This mapping is identical between Segment and RudderStack. The device.type field ('android') drives the identifier pair selection."
+      }
+    },
+    "track_event_with_partner_params": {
+      "description": "RudderStack track event with partner parameters forwarded via the integrations object. Partner parameters are shared with Adjust network partners for cross-network attribution.",
+      "input_event": {
+        "type": "track",
+        "event": "Subscription Started",
+        "userId": "user-888",
+        "anonymousId": "anon-999",
+        "channel": "mobile",
+        "originalTimestamp": "2024-03-15T20:00:00.000Z",
+        "sentAt": "2024-03-15T20:00:01.000Z",
+        "receivedAt": "2024-03-15T20:00:02.000Z",
+        "rudderId": "rudder-id-jkl-012",
+        "messageId": "msg-id-004",
+        "context": {
+          "app": {
+            "name": "MyApp",
+            "version": "2.1.0",
+            "build": "210",
+            "namespace": "com.mycompany.myapp"
+          },
+          "device": {
+            "id": "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+            "advertisingId": "9B4DC235-6B8A-5445-9913-G86GFD100D69",
+            "adTrackingEnabled": true,
+            "type": "ios",
+            "manufacturer": "Apple",
+            "model": "iPhone 15",
+            "name": "My iPhone",
+            "token": "push-token-def"
+          },
+          "library": {
+            "name": "rudder-ios-library",
+            "version": "1.25.0"
+          },
+          "os": {
+            "name": "iOS",
+            "version": "17.4"
+          },
+          "network": {
+            "carrier": "AT&T",
+            "wifi": true,
+            "cellular": false
+          },
+          "screen": {
+            "width": 393,
+            "height": 852,
+            "density": 3
+          },
+          "locale": "en-GB",
+          "timezone": "Europe/London",
+          "ip": "192.0.2.50",
+          "userAgent": "MyApp/2.1.0 (iPhone; iOS 17.4; Scale/3.0)"
+        },
+        "properties": {
+          "plan": "premium_annual",
+          "price": 99.99,
+          "currency": "GBP",
+          "trial": false
+        },
+        "integrations": {
+          "Adjust": {
+            "partnerParams": {
+              "campaign_id": "camp_12345",
+              "network": "facebook"
+            }
+          }
+        }
+      },
+      "expected_api_call": {
+        "method": "GET",
+        "endpoint": "https://s2s.adjust.com/event",
+        "query_parameters": {
+          "s2s": "1",
+          "app_token": "abc123token",
+          "event_token": "subsrt",
+          "idfa": "9B4DC235-6B8A-5445-9913-G86GFD100D69",
+          "idfv": "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+          "ip_address": "192.0.2.50",
+          "created_at_unix": "1710532800",
+          "revenue": "99.99",
+          "currency": "GBP",
+          "callback_params": "{\"plan\":\"premium_annual\",\"trial\":\"false\"}",
+          "partner_params": "{\"campaign_id\":\"camp_12345\",\"network\":\"facebook\"}",
+          "environment": "production"
+        },
+        "notes": "Partner parameters from integrations.Adjust.partnerParams are forwarded as a URL-encoded JSON string in the partner_params query parameter. This behavior is identical between Segment and RudderStack. Revenue is extracted from properties.price following the e-commerce spec."
+      }
+    }
+  },
+  "field_mappings": {
+    "event_mapping": [
+      {
+        "source_field": "event",
+        "adjust_parameter": "event_token",
+        "description": "Event name from the track call is resolved to a 6-character Adjust event token using the customEvents mapping in destination settings. Adjust API only accepts event tokens, not arbitrary event names. Events without a mapping are silently dropped.",
+        "parity_status": "full",
+        "known_gap": null
+      },
+      {
+        "source_field": "timestamp",
+        "adjust_parameter": "created_at_unix",
+        "description": "Event timestamp converted from ISO 8601 string to Unix epoch seconds for Adjust S2S API time attribution.",
+        "parity_status": "full",
+        "known_gap": null
+      },
+      {
+        "source_field": "context.ip",
+        "adjust_parameter": "ip_address",
+        "description": "Client IP address from event context or request origin, forwarded for geo-attribution and fraud detection.",
+        "parity_status": "full",
+        "known_gap": null
+      },
+      {
+        "source_field": "(hardcoded)",
+        "adjust_parameter": "s2s",
+        "description": "Always set to '1' to indicate server-to-server event submission. This is a required flag for all Adjust S2S API calls.",
+        "parity_status": "full",
+        "known_gap": null
+      },
+      {
+        "source_field": "(destination setting)",
+        "adjust_parameter": "app_token",
+        "description": "Adjust application token from destination configuration settings. Required for every S2S API call to identify the target app.",
+        "parity_status": "full",
+        "known_gap": null
+      },
+      {
+        "source_field": "(hardcoded)",
+        "adjust_parameter": "environment",
+        "description": "Set to 'production' for live events or 'sandbox' for testing. Determines which Adjust environment receives the event.",
+        "parity_status": "full",
+        "known_gap": null
+      }
+    ],
+    "revenue_reporting": [
+      {
+        "source_field": "properties.revenue",
+        "adjust_parameter": "revenue",
+        "description": "Revenue amount from the Segment/RudderStack e-commerce spec. Promoted to a top-level Adjust revenue parameter for native revenue attribution and ROAS calculations. Supports decimal precision.",
+        "parity_status": "full",
+        "known_gap": null
+      },
+      {
+        "source_field": "properties.currency",
+        "adjust_parameter": "currency",
+        "description": "ISO 4217 currency code (e.g., USD, EUR, GBP). Required alongside revenue for proper currency conversion in Adjust reporting. Defaults to USD if omitted in Segment.",
+        "parity_status": "full",
+        "known_gap": null
+      }
+    ],
+    "device_attribution": [
+      {
+        "source_field": "context.device.advertisingId",
+        "adjust_parameter": "idfa (iOS) / gps_adid (Android)",
+        "description": "Advertising identifier mapped to the platform-specific Adjust parameter. iOS devices use IDFA (Identifier for Advertisers) and Android devices use GPS Advertising ID. The context.device.type field determines which parameter name is used.",
+        "parity_status": "full",
+        "known_gap": null
+      },
+      {
+        "source_field": "context.device.id",
+        "adjust_parameter": "idfv (iOS) / android_id (Android)",
+        "description": "Device vendor/hardware identifier mapped to the platform-specific Adjust parameter. iOS devices map to IDFV (Identifier for Vendor) and Android devices map to android_id. Required for all server-side events.",
+        "parity_status": "full",
+        "known_gap": null
+      },
+      {
+        "source_field": "context.device.type",
+        "adjust_parameter": "(routing key)",
+        "description": "Device platform type ('ios' or 'android') determines which device identifier parameter names are used in the Adjust API call. Not sent as a separate parameter but drives the idfa/idfv vs gps_adid/android_id decision.",
+        "parity_status": "full",
+        "known_gap": null
+      }
+    ],
+    "custom_data": [
+      {
+        "source_field": "properties.*",
+        "adjust_parameter": "callback_params",
+        "description": "All track event properties (excluding revenue and currency when present) are serialized as a flat JSON string and passed in the callback_params parameter. Adjust requires flat string key-value pairs only; nested objects and arrays are excluded. Available in Adjust raw data exports.",
+        "parity_status": "partial",
+        "known_gap": "Nested object and array properties cannot be forwarded to Adjust callback_params since Adjust only accepts flat string key-value pairs. This is an Adjust API limitation, not a parity issue."
+      },
+      {
+        "source_field": "integrations.Adjust.partnerParams",
+        "adjust_parameter": "partner_params",
+        "description": "Optional partner parameters passed via the integrations object are forwarded as a URL-encoded JSON string. Shared with Adjust network partners for cross-network attribution and campaign optimization.",
+        "parity_status": "full",
+        "known_gap": null
+      }
+    ]
+  },
+  "parity_analysis": {
+    "overall_status": "high",
+    "event_type_parity": {
+      "track": {
+        "status": "full",
+        "notes": "Full parity for track events including event token mapping, revenue tracking, device ID resolution (iOS and Android), callback parameters, and partner parameters."
+      }
+    },
+    "unsupported_event_types": {
+      "identify": "Not supported by Adjust cloud-mode destination. Segment documentation confirms identify is only available in device-mode via addSessionPartnerParameter.",
+      "group": "Not supported by Adjust destination.",
+      "page": "Not supported by Adjust destination.",
+      "screen": "Not supported by Adjust destination.",
+      "alias": "Not supported by Adjust destination."
+    },
+    "destination_api_differences": [
+      {
+        "area": "Event token requirement",
+        "description": "Adjust API only accepts pre-configured event tokens, not arbitrary event names. Both Segment and RudderStack must map event names to tokens via destination settings. Unmapped events are silently dropped.",
+        "impact": "low",
+        "resolution": "Both platforms handle this identically via the customEvents settings mapping."
+      },
+      {
+        "area": "Device-mode attribution",
+        "description": "Adjust device-mode (SDK-embedded) provides install attribution, session tracking, and deep link handling that are not available in cloud/S2S mode. Cloud mode sends supplemental event data only.",
+        "impact": "medium",
+        "resolution": "This is an inherent limitation of cloud-mode/S2S integration, not a Segment vs RudderStack parity issue. Both platforms have identical limitations in cloud mode."
+      },
+      {
+        "area": "iOS 14+ ATT and SKAdNetwork",
+        "description": "Apple App Tracking Transparency (ATT) consent and SKAdNetwork conversion value handling are device-mode-only features. S2S events for iOS 14+ apps may receive conversion values in the API response that must be forwarded back to the app.",
+        "impact": "low",
+        "resolution": "ATT and SKAdNetwork are SDK-level concerns. Cloud-mode events from both platforms behave identically with regard to iOS privacy restrictions."
+      },
+      {
+        "area": "Callback parameter serialization",
+        "description": "Adjust requires callback_params as a URL-encoded JSON string containing only flat string key-value pairs. Nested objects or arrays in event properties must be excluded or flattened.",
+        "impact": "low",
+        "resolution": "Both Segment and RudderStack transformers handle the same serialization logic."
+      }
+    ]
+  },
+  "destination_config": {
+    "required_settings": [
+      {
+        "name": "appToken",
+        "type": "string",
+        "description": "Adjust application token found in the Adjust Dashboard under App Settings. Uniquely identifies the app for all S2S API calls. Each app in Adjust has a distinct app token.",
+        "example": "abc123token"
+      },
+      {
+        "name": "customEvents",
+        "type": "object",
+        "description": "Mapping of Segment/RudderStack track event names to Adjust custom event tokens. Each key is the event name (e.g., 'Product Viewed') and each value is the corresponding 6-character Adjust event token. Only mapped events are forwarded to Adjust; unmapped events are silently dropped.",
+        "example": {
+          "Product Viewed": "prdvw1",
+          "Order Completed": "ordcmp",
+          "Product Added": "prdadd",
+          "Subscription Started": "subsrt"
+        }
+      }
+    ],
+    "optional_settings": [
+      {
+        "name": "delayTime",
+        "type": "number",
+        "description": "Delay time in seconds for attribution reporting. Used to defer attribution to allow time for additional data collection. Defaults to 0 (no delay).",
+        "default": 0,
+        "example": 30
+      },
+      {
+        "name": "environment",
+        "type": "string",
+        "description": "Adjust environment for event submission. Set to 'production' for live data or 'sandbox' for testing in the Adjust Dashboard. Defaults to 'production'.",
+        "default": "production",
+        "example": "sandbox"
+      }
+    ]
+  },
+  "known_gaps": [
+    {
+      "gap_id": "ADJ-001",
+      "description": "Nested object and array properties in track event properties cannot be forwarded to Adjust callback_params. Adjust S2S API only accepts flat string key-value pairs in the callback_params JSON. This is an Adjust API limitation affecting both Segment and RudderStack equally.",
+      "severity": "low",
+      "impact": "Complex e-commerce properties like products arrays are excluded from Adjust callback data. Only flat scalar properties are forwarded."
+    },
+    {
+      "gap_id": "ADJ-002",
+      "description": "Install attribution events (install, reattribution, reinstall) are not available in cloud/S2S mode. These are device-mode-only capabilities that require the Adjust SDK to be embedded in the mobile application.",
+      "severity": "medium",
+      "impact": "Cloud-mode users cannot receive install attribution data. This is an inherent platform limitation, not a Segment vs RudderStack parity issue."
+    },
+    {
+      "gap_id": "ADJ-003",
+      "description": "Deep link resolution and deferred deep linking are device-mode-only features. The S2S API does not provide deep link attribution or forwarding capabilities.",
+      "severity": "low",
+      "impact": "Deep linking use cases require the Adjust SDK rather than server-side integration for both Segment and RudderStack."
+    },
+    {
+      "gap_id": "ADJ-004",
+      "description": "Revenue deduplication via transaction ID is only available through the Adjust SDK. The S2S API does not support automatic deduplication, requiring server-side deduplication before submission.",
+      "severity": "low",
+      "impact": "Duplicate revenue events must be deduplicated by the sending server. Both Segment and RudderStack leave deduplication responsibility to the event producer."
+    }
+  ],
+  "notes": "Adjust is a mobile attribution platform. The cloud-mode (S2S) integration sends supplemental track event data only — it does not handle install attribution, session tracking, or deep linking, which are device-mode SDK features. All track events must be pre-mapped to Adjust event tokens in the customEvents destination setting; unmapped events are silently dropped and never forwarded to the Adjust API. Device identifiers are required: context.device.id and context.device.type are mandatory for all server-side events. The platform type (iOS vs Android) determines the specific Adjust device identifier parameter names used (idfa/idfv for iOS, gps_adid/android_id for Android). Revenue tracking is fully supported — properties.revenue and properties.currency are automatically promoted to native Adjust revenue parameters. All other flat event properties are forwarded as callback_params for inclusion in Adjust raw data exports. Partner parameters can be passed via the integrations object for cross-network attribution sharing. The Adjust S2S API endpoint is https://s2s.adjust.com/event with s2s=1 always set. Payload parity between Segment and RudderStack is high for the supported track event type in cloud mode."
+}

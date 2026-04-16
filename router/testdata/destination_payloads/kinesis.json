@@ -1,0 +1,68 @@
+{
+  "destination_type": "KINESIS",
+  "destination_tier": "stream",
+  "segment_reference_payload": {
+    "stream_name": "segment-events-stream",
+    "partition_key": "user_123",
+    "data": {
+      "type": "track",
+      "event": "Product Viewed",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        }
+      },
+      "messageId": "msg-abc-123"
+    }
+  },
+  "rudderstack_expected_payload": {
+    "stream_name": "rudder-events-stream",
+    "partition_key": "user_123",
+    "data": {
+      "type": "track",
+      "event": "Product Viewed",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        }
+      },
+      "messageId": "msg-xyz-789",
+      "rudderId": "rudder-uuid",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z"
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "stream_name": "Segment uses settings.streamName; RudderStack uses destination config (Config.Stream field from kinesismanager_utils.go)",
+    "partition_key": "Both derive from userId; Segment fallback to anonymousId, RudderStack uses configurable partition key from destination config — when UseMessageID is true, message.messageId is used as partition key; otherwise falls back to userId (kinesismanager.go lines 86-94)",
+    "data_envelope": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to the event payload envelope",
+    "context_library": "Different SDK library identifiers — Segment uses analytics.js; RudderStack uses rudder-sdk-js",
+    "api_call": "Both use AWS Kinesis PutRecord API with StreamName, PartitionKey, and Data fields (kinesis.PutRecordInput)"
+  },
+  "notes": "Kinesis is a shared stream destination. RudderStack package: services/streammanager/kinesis/. Segment slug: amazon-kinesis. Parity gaps: partition key derivation logic (RudderStack supports UseMessageID toggle for messageId-based partitioning), payload envelope structure (RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt). RudderStack uses aws-sdk-go-v2 PutRecord API. Error handling maps ProvisionedThroughputExceededException to HTTP 429 for throttling."
+}

@@ -206,6 +206,7 @@ func generateIdempotentStagingPayload(t *testing.T, events []IdempotentEvent) st
 // row count in the tracks table for the given namespace. Uses require.Eventually
 // to allow for async warehouse processing with a configurable timeout and
 // 1-second polling interval.
+//
 //nolint:unused // shared helper called from connector-specific test files
 func verifyIdempotentState(
 	t *testing.T,
@@ -234,6 +235,7 @@ func verifyIdempotentState(
 // The checksum is computed using PostgreSQL's string_agg with ORDER BY
 // to produce a reproducible hash regardless of physical row ordering.
 // An empty or null checksum indicates an empty or corrupted table.
+//
 //nolint:unused // shared helper called from connector-specific test files
 func verifyChecksumConsistency(
 	t *testing.T,
@@ -256,6 +258,7 @@ func verifyChecksumConsistency(
 // a background context and the default idempotent timeout. This is a
 // convenience wrapper used by connector-specific tests that operate against
 // PostgreSQL databases.
+//
 //nolint:unused // shared helper called from connector-specific test files
 func verifyIdempotentSyncComplete(
 	t *testing.T,
@@ -279,6 +282,7 @@ func verifyIdempotentSyncComplete(
 // up when the test completes via t.Cleanup registered by the postgres.Setup
 // function. Returns both the raw *sql.DB handle and the full Resource struct
 // for access to connection parameters.
+//
 //nolint:unused // shared helper called from connector-specific test files
 func setupIdempotentPostgres(t *testing.T) (*sql.DB, *postgres.Resource) {
 	t.Helper()
@@ -296,6 +300,7 @@ func setupIdempotentPostgres(t *testing.T) (*sql.DB, *postgres.Resource) {
 // for staging file storage in idempotent sync integration tests. The
 // container is automatically cleaned up when the test completes via
 // t.Cleanup registered by the minio.Setup function.
+//
 //nolint:unused // shared helper called from connector-specific test files
 func setupIdempotentMinio(t *testing.T) *minio.Resource {
 	t.Helper()
@@ -327,6 +332,7 @@ func uniqueIdempotentNamespace() string {
 // config to prevent cross-test state pollution. The returned config uses
 // rudder-go-kit's Config which supports hot-reloadable configuration keys
 // matching the Warehouse.* namespace used in production.
+//
 //nolint:unused // shared helper called from connector-specific test files
 func newIdempotentConfig(t *testing.T) *config.Config {
 	t.Helper()
@@ -346,6 +352,7 @@ func newIdempotentConfig(t *testing.T) *config.Config {
 //
 // Returns an IdempotentStagingResult containing staging file paths, expected
 // checksums, unique event count, and total event count.
+//
 //nolint:unused // shared helper called from connector-specific test files
 func renderIdempotentStagingForConnector(
 	t *testing.T,

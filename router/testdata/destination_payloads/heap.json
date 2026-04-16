@@ -1,0 +1,388 @@
+{
+  "destination_type": "HEAP",
+  "destination_tier": "cloud",
+  "segment_slug": "actions-heap",
+  "category": "Analytics",
+  "event_types": [
+    "track",
+    "identify"
+  ],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment track call mapped to Heap Server-Side Track API. Sends the event name, identity, timestamp, and all custom properties to Heap's /api/track endpoint with app_id authentication in the request body.",
+      "endpoint": "https://heapanalytics.com/api/track",
+      "method": "POST",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "track",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "event": "Product Viewed",
+        "properties": {
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "price": 49.99,
+          "currency": "USD",
+          "url": "https://example.com/products/premium-widget"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "title": "Premium Widget - Example Store",
+            "referrer": "https://example.com/products"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "ip": "203.0.113.50"
+        },
+        "timestamp": "2024-01-15T10:30:00.000Z",
+        "messageId": "seg-msg-track-001",
+        "sentAt": "2024-01-15T10:30:01.000Z"
+      },
+      "mapped_output": {
+        "app_id": "4111348877",
+        "identity": "user-123",
+        "event": "Product Viewed",
+        "properties": {
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "price": 49.99,
+          "currency": "USD",
+          "url": "https://example.com/products/premium-widget",
+          "segment_library": "analytics.js"
+        },
+        "timestamp": "2024-01-15T10:30:00.000Z",
+        "idempotency_key": "seg-msg-track-001"
+      }
+    },
+    "identify": {
+      "description": "Segment identify call mapped to Heap Server-Side Add User Properties API. Sends the user identity and all traits as user properties to Heap's /api/add_user_properties endpoint. Heap identify establishes the identity and attaches trait data as persistent user-level properties.",
+      "endpoint": "https://heapanalytics.com/api/add_user_properties",
+      "method": "POST",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "identify",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "first_name": "Jane",
+          "last_name": "Doe",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "created_at": "2023-06-15T08:00:00.000Z",
+          "logins_count": 42
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://example.com/settings",
+            "title": "Account Settings - Example Store",
+            "referrer": "https://example.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "ip": "203.0.113.50"
+        },
+        "timestamp": "2024-01-15T10:35:00.000Z",
+        "messageId": "seg-msg-identify-001",
+        "sentAt": "2024-01-15T10:35:01.000Z"
+      },
+      "mapped_output": {
+        "app_id": "4111348877",
+        "identity": "user-123",
+        "properties": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "first_name": "Jane",
+          "last_name": "Doe",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "created_at": "2023-06-15T08:00:00.000Z",
+          "logins_count": 42
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack track call mapped to Heap Server-Side Track API. Uses the same /api/track endpoint with identity resolved from userId, event properties mapped directly, and app_id injected from destination configuration. The RudderStack SDK adds envelope fields (rudderId, originalTimestamp, receivedAt) that are stripped before delivery.",
+      "endpoint": "https://heapanalytics.com/api/track",
+      "method": "POST",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "track",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "rudderId": "rudder-id-abc-123",
+        "event": "Product Viewed",
+        "properties": {
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "price": 49.99,
+          "currency": "USD",
+          "url": "https://example.com/products/premium-widget"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.0.0"
+          },
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "title": "Premium Widget - Example Store",
+            "referrer": "https://example.com/products"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "ip": "203.0.113.50"
+        },
+        "originalTimestamp": "2024-01-15T10:30:00.000Z",
+        "sentAt": "2024-01-15T10:30:01.000Z",
+        "receivedAt": "2024-01-15T10:30:02.000Z",
+        "timestamp": "2024-01-15T10:30:00.000Z",
+        "messageId": "rs-msg-track-001"
+      },
+      "mapped_output": {
+        "app_id": "4111348877",
+        "identity": "user-123",
+        "event": "Product Viewed",
+        "properties": {
+          "product_id": "SKU-9876",
+          "product_name": "Premium Widget",
+          "category": "Widgets",
+          "price": 49.99,
+          "currency": "USD",
+          "url": "https://example.com/products/premium-widget",
+          "rudderstack_library": "rudder-sdk-js"
+        },
+        "timestamp": "2024-01-15T10:30:00.000Z",
+        "idempotency_key": "rs-msg-track-001"
+      }
+    },
+    "identify": {
+      "description": "RudderStack identify call mapped to Heap Server-Side Add User Properties API. Traits from the identify call are sent as user properties to /api/add_user_properties. The identity is resolved from userId. RudderStack envelope fields are stripped and only the Heap-compatible payload is delivered.",
+      "endpoint": "https://heapanalytics.com/api/add_user_properties",
+      "method": "POST",
+      "delivery_mode": "cloud",
+      "example": {
+        "type": "identify",
+        "userId": "user-123",
+        "anonymousId": "anon-456",
+        "rudderId": "rudder-id-abc-123",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "first_name": "Jane",
+          "last_name": "Doe",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "created_at": "2023-06-15T08:00:00.000Z",
+          "logins_count": 42
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "3.0.0"
+          },
+          "page": {
+            "url": "https://example.com/settings",
+            "title": "Account Settings - Example Store",
+            "referrer": "https://example.com/dashboard"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "ip": "203.0.113.50"
+        },
+        "originalTimestamp": "2024-01-15T10:35:00.000Z",
+        "sentAt": "2024-01-15T10:35:01.000Z",
+        "receivedAt": "2024-01-15T10:35:02.000Z",
+        "timestamp": "2024-01-15T10:35:00.000Z",
+        "messageId": "rs-msg-identify-001"
+      },
+      "mapped_output": {
+        "app_id": "4111348877",
+        "identity": "user-123",
+        "properties": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "first_name": "Jane",
+          "last_name": "Doe",
+          "plan": "premium",
+          "company": "Acme Corp",
+          "created_at": "2023-06-15T08:00:00.000Z",
+          "logins_count": 42
+        }
+      }
+    }
+  },
+  "field_mappings": {
+    "identity_mapping": {
+      "description": "Maps the user identifier from Segment/RudderStack events to Heap's identity field. Heap requires a single string identity per user, resolved from userId. If userId is absent, anonymousId is used as fallback. The identity value is case-sensitive and limited to 255 characters.",
+      "mappings": [
+        {
+          "source_field": "userId",
+          "destination_field": "identity",
+          "transform": "direct",
+          "notes": "Primary identity resolution. Heap identity is a case-sensitive string, max 255 characters. If userId is present, it is used directly as the Heap identity."
+        },
+        {
+          "source_field": "anonymousId",
+          "destination_field": "identity",
+          "transform": "fallback",
+          "notes": "Fallback identity when userId is not available. Used for anonymous visitor tracking before identification."
+        }
+      ]
+    },
+    "event_property_mapping": {
+      "description": "Maps event properties from Segment/RudderStack track calls to Heap event properties. All custom properties are passed through directly. Heap property keys must be under 512 characters; values must be scalar types (string, number, boolean) or arrays, with string values under 1024 characters.",
+      "mappings": [
+        {
+          "source_field": "event",
+          "destination_field": "event",
+          "transform": "direct",
+          "notes": "Event name mapped directly. Heap event names are case-sensitive strings."
+        },
+        {
+          "source_field": "properties.*",
+          "destination_field": "properties.*",
+          "transform": "direct",
+          "notes": "All custom event properties are passed through as-is. Property keys must be < 512 chars, string values < 1024 chars. Supported types: string, number, boolean, array."
+        },
+        {
+          "source_field": "context.library.name",
+          "destination_field": "properties.segment_library / properties.rudderstack_library",
+          "transform": "rename",
+          "notes": "Library name from context is optionally appended to properties for attribution. Segment uses 'segment_library', RudderStack uses 'rudderstack_library'."
+        },
+        {
+          "source_field": "timestamp",
+          "destination_field": "timestamp",
+          "transform": "direct",
+          "notes": "ISO 8601 timestamp of the event. Heap uses this to order events chronologically. Must be within the last 12 months."
+        },
+        {
+          "source_field": "messageId",
+          "destination_field": "idempotency_key",
+          "transform": "rename",
+          "notes": "Message ID mapped to Heap's idempotency_key for deduplication. Ensures the same event is not processed twice."
+        }
+      ]
+    },
+    "user_property_mapping": {
+      "description": "Maps user traits from Segment/RudderStack identify calls to Heap user properties via the /api/add_user_properties endpoint. All traits are sent as persistent user-level properties.",
+      "mappings": [
+        {
+          "source_field": "traits.*",
+          "destination_field": "properties.*",
+          "transform": "direct",
+          "notes": "All user traits from identify calls are mapped directly to Heap user properties. Properties persist on the user profile and can be used for filtering and segmentation in Heap."
+        },
+        {
+          "source_field": "traits.email",
+          "destination_field": "properties.email",
+          "transform": "direct",
+          "notes": "Email trait mapped to Heap user property. Commonly used for user identification in Heap's UI."
+        },
+        {
+          "source_field": "traits.name",
+          "destination_field": "properties.name",
+          "transform": "direct",
+          "notes": "Display name trait mapped to Heap user property."
+        },
+        {
+          "source_field": "traits.created_at",
+          "destination_field": "properties.created_at",
+          "transform": "direct",
+          "notes": "Account creation date trait mapped to Heap user property for cohort analysis."
+        }
+      ]
+    },
+    "app_id_config": {
+      "description": "Heap uses the app_id field in every API request body for authentication and project identification. The app_id is a numeric string obtained from the Heap project settings and must be configured as a destination setting in RudderStack/Segment. Unlike most destinations, Heap does not use an Authorization header; authentication is exclusively through the app_id in the JSON body.",
+      "mappings": [
+        {
+          "source_field": "destination_config.appId",
+          "destination_field": "app_id",
+          "transform": "inject",
+          "notes": "The Heap app_id is injected from the destination configuration into every API request body. This is the sole authentication mechanism for the Heap Server-Side API. The value is a numeric string (e.g., '4111348877') found in Heap Project Settings > Environment."
+        }
+      ]
+    }
+  },
+  "destination_config": {
+    "required_settings": [
+      {
+        "name": "appId",
+        "type": "string",
+        "description": "Heap Environment App ID. A numeric string found in Heap project settings under Account > Manage > Environment. This is the primary authentication credential for the Heap Server-Side API and is included in every API request body.",
+        "example": "4111348877"
+      }
+    ],
+    "optional_settings": [
+      {
+        "name": "useAnonymousIdAsIdentity",
+        "type": "boolean",
+        "description": "When enabled, uses anonymousId as the Heap identity when userId is not present. When disabled, events without userId are dropped.",
+        "default": true
+      },
+      {
+        "name": "appendLibraryToProperties",
+        "type": "boolean",
+        "description": "When enabled, appends the SDK library name (e.g., 'rudder-sdk-js') as a property on track events for attribution tracking.",
+        "default": false
+      }
+    ]
+  },
+  "parity_assessment": {
+    "overall_status": "high_parity",
+    "event_parity": {
+      "track": {
+        "status": "full_parity",
+        "notes": "Track events map one-to-one between Segment and RudderStack to Heap's /api/track endpoint. Event name, properties, timestamp, and identity are mapped identically. The only difference is the SDK library name appended to properties (analytics.js vs rudder-sdk-js) and envelope metadata fields."
+      },
+      "identify": {
+        "status": "full_parity",
+        "notes": "Identify events map one-to-one between Segment and RudderStack to Heap's /api/add_user_properties endpoint. All user traits are sent as Heap user properties. Identity resolution uses the same userId-first, anonymousId-fallback strategy."
+      }
+    },
+    "known_gaps": [
+      {
+        "gap": "Heap account-level properties not supported",
+        "severity": "low",
+        "impact": "Heap supports account-level properties via /api/add_account_properties, which requires a Segment group call. Neither Segment nor RudderStack currently map group calls to Heap's account properties API in the cloud-mode Heap integration.",
+        "workaround": "Use Heap's Account Tracking feature with client-side SDK or custom server-side integration."
+      },
+      {
+        "gap": "Batch API endpoint not utilized",
+        "severity": "low",
+        "impact": "Heap provides a /api/batch_track endpoint supporting up to 1000 events per request for higher throughput. Neither Segment nor RudderStack cloud-mode integrations utilize the batch endpoint; events are sent individually.",
+        "workaround": "Individual event delivery is reliable and within Heap's rate limits (30 req/30s per identity). Batch support can be added as a future optimization."
+      },
+      {
+        "gap": "Rate limit handling differences",
+        "severity": "low",
+        "impact": "Heap enforces 30 requests per 30 seconds per identity per app_id. RudderStack's Router-level retry and throttling behavior may differ slightly from Segment's retry strategy when rate limits are hit.",
+        "workaround": "RudderStack Router has built-in retry with exponential backoff that handles 429 responses gracefully."
+      }
+    ],
+    "recommended_validation": [
+      "Verify app_id is correctly injected from destination config into every API request body",
+      "Confirm identity resolution: userId used when present, anonymousId as fallback",
+      "Validate event properties pass-through with correct types (string, number, boolean, array)",
+      "Test identify call maps all traits to user properties via /api/add_user_properties",
+      "Verify timestamp format is ISO 8601 and within Heap's 12-month window",
+      "Confirm idempotency_key is populated from messageId for deduplication",
+      "Test rate limit handling: 429 responses trigger retry with backoff",
+      "Validate property key length < 512 chars and string value length < 1024 chars"
+    ]
+  },
+  "notes": "Heap shared cloud destination. Category: Analytics. Heap is a digital insights platform for product analytics. The Heap Server-Side API uses /api/track for event tracking and /api/add_user_properties for user trait persistence. Authentication is via app_id in the request body (no Authorization header). Rate limited to 30 requests per 30 seconds per identity per app_id. Segment slug: actions-heap. Priority: P2 in destination gap analysis. Supports track and identify event types for cloud-mode delivery."
+}

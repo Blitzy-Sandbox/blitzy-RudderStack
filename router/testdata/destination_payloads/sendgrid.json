@@ -1,0 +1,293 @@
+{
+  "destination_type": "SENDGRID",
+  "destination_tier": "cloud",
+  "segment_slug": "actions-sendgrid",
+  "category": "Email Marketing",
+  "api_endpoint": "PUT https://api.sendgrid.com/v3/marketing/contacts",
+  "event_types": ["identify"],
+  "segment_reference_payload": {
+    "identify": {
+      "description": "Segment maps identify calls to the SendGrid Marketing Campaigns 'Contact Upsert' action, creating or updating a contact via the Marketing Contacts API.",
+      "api_endpoint": "PUT https://api.sendgrid.com/v3/marketing/contacts",
+      "headers": {
+        "Authorization": "Bearer <SENDGRID_API_KEY>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "list_ids": ["037ae8d4-25b4-496e-adff-2fded15fd0c5"],
+        "contacts": [
+          {
+            "email": "alex@example.com",
+            "first_name": "Alex",
+            "last_name": "Keener",
+            "phone_number_id": "+14155551234",
+            "external_id": "user_123",
+            "anonymous_id": "anon_456",
+            "address_line_1": "123 Main St",
+            "address_line_2": "Suite 100",
+            "city": "San Francisco",
+            "state_province_region": "CA",
+            "postal_code": "94105",
+            "country": "US",
+            "alternate_emails": ["alex.k@example.com"],
+            "custom_fields": {
+              "w1": "enterprise",
+              "w2": "2026-01-15"
+            }
+          }
+        ]
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "traits": {
+          "email": "alex@example.com",
+          "firstName": "Alex",
+          "lastName": "Keener",
+          "phone": "+14155551234",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US"
+          },
+          "plan": "enterprise",
+          "signedUpAt": "2026-01-15"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          }
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "messageId": "seg-msg-abc-123"
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "identify": {
+      "description": "RudderStack maps identify calls to SendGrid Marketing Contacts API (PUT /v3/marketing/contacts), creating or updating contacts. Contacts are batched with a batch limit of 30,000.",
+      "api_endpoint": "PUT https://api.sendgrid.com/v3/marketing/contacts",
+      "headers": {
+        "Authorization": "Bearer <SENDGRID_API_KEY>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "list_ids": ["037ae8d4-25b4-496e-adff-2fded15fd0c5"],
+        "contacts": [
+          {
+            "email": "alex@example.com",
+            "first_name": "Alex",
+            "last_name": "Keener",
+            "phone_number_id": "+14155551234",
+            "external_id": "user_123",
+            "anonymous_id": "anon_456",
+            "address_line_1": "123 Main St",
+            "address_line_2": "",
+            "city": "San Francisco",
+            "state_province_region": "CA",
+            "postal_code": "94105",
+            "country": "US",
+            "alternate_emails": [],
+            "custom_fields": {
+              "w1": "enterprise",
+              "w2": "2026-01-15"
+            }
+          }
+        ]
+      },
+      "source_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "traits": {
+          "email": "alex@example.com",
+          "firstName": "Alex",
+          "lastName": "Keener",
+          "phone": "+14155551234",
+          "address": {
+            "street": "123 Main St",
+            "city": "San Francisco",
+            "state": "CA",
+            "postalCode": "94105",
+            "country": "US"
+          },
+          "plan": "enterprise",
+          "signedUpAt": "2026-01-15"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "externalId": [
+            {
+              "type": "listIds",
+              "id": ["037ae8d4-25b4-496e-adff-2fded15fd0c5"]
+            }
+          ]
+        },
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z",
+        "messageId": "rs-msg-xyz-789",
+        "rudderId": "rudder-uuid-001"
+      }
+    }
+  },
+  "field_mappings": {
+    "contact_fields": {
+      "traits.email": {
+        "sendgrid_field": "contacts[].email",
+        "segment_mapping": "Segment maps traits.email to contacts[].email as the primary contact identifier.",
+        "rudderstack_mapping": "RudderStack maps traits.email to contacts[].email as the primary contact identifier.",
+        "parity": "match",
+        "notes": "Both platforms use email as the primary contact identifier. SendGrid lowercases the email automatically."
+      },
+      "traits.firstName": {
+        "sendgrid_field": "contacts[].first_name",
+        "segment_mapping": "Segment maps traits.firstName or traits.first_name to contacts[].first_name.",
+        "rudderstack_mapping": "RudderStack maps traits.firstName or traits.first_name to contacts[].first_name.",
+        "parity": "match"
+      },
+      "traits.lastName": {
+        "sendgrid_field": "contacts[].last_name",
+        "segment_mapping": "Segment maps traits.lastName or traits.last_name to contacts[].last_name.",
+        "rudderstack_mapping": "RudderStack maps traits.lastName or traits.last_name to contacts[].last_name.",
+        "parity": "match"
+      },
+      "traits.phone": {
+        "sendgrid_field": "contacts[].phone_number_id",
+        "segment_mapping": "Segment maps traits.phone to contacts[].phone_number_id. Must be a valid phone number.",
+        "rudderstack_mapping": "RudderStack maps traits.phone to contacts[].phone_number_id. Must be a valid phone number.",
+        "parity": "match"
+      },
+      "userId": {
+        "sendgrid_field": "contacts[].external_id",
+        "segment_mapping": "Segment does NOT automatically map userId to any Marketing Campaigns property. Users must explicitly pass userId as a trait to record it.",
+        "rudderstack_mapping": "RudderStack maps userId to contacts[].external_id by default.",
+        "parity": "divergence",
+        "notes": "Key parity gap: Segment requires explicit trait mapping for userId, while RudderStack maps userId to external_id automatically."
+      },
+      "anonymousId": {
+        "sendgrid_field": "contacts[].anonymous_id",
+        "segment_mapping": "Segment maps anonymousId to contacts[].anonymous_id.",
+        "rudderstack_mapping": "RudderStack maps anonymousId to contacts[].anonymous_id.",
+        "parity": "match"
+      },
+      "traits.address.street": {
+        "sendgrid_field": "contacts[].address_line_1",
+        "segment_mapping": "Segment maps traits.address.street or traits.address_line_1 to contacts[].address_line_1.",
+        "rudderstack_mapping": "RudderStack maps traits.address.street or traits.address_line_1 to contacts[].address_line_1.",
+        "parity": "match"
+      },
+      "traits.address.city": {
+        "sendgrid_field": "contacts[].city",
+        "segment_mapping": "Segment maps traits.address.city or traits.city to contacts[].city.",
+        "rudderstack_mapping": "RudderStack maps traits.address.city or traits.city to contacts[].city.",
+        "parity": "match"
+      },
+      "traits.address.state": {
+        "sendgrid_field": "contacts[].state_province_region",
+        "segment_mapping": "Segment maps traits.address.state to contacts[].state_province_region.",
+        "rudderstack_mapping": "RudderStack maps traits.address.state to contacts[].state_province_region.",
+        "parity": "match"
+      },
+      "traits.address.postalCode": {
+        "sendgrid_field": "contacts[].postal_code",
+        "segment_mapping": "Segment maps traits.address.postalCode to contacts[].postal_code.",
+        "rudderstack_mapping": "RudderStack maps traits.address.postalCode to contacts[].postal_code.",
+        "parity": "match"
+      },
+      "traits.address.country": {
+        "sendgrid_field": "contacts[].country",
+        "segment_mapping": "Segment maps traits.address.country to contacts[].country. Can be full name or abbreviation.",
+        "rudderstack_mapping": "RudderStack maps traits.address.country to contacts[].country. Can be full name or abbreviation.",
+        "parity": "match"
+      }
+    },
+    "list_association": {
+      "sendgrid_field": "list_ids",
+      "segment_mapping": "Segment allows list association via destination settings configuration in the SendGrid Marketing Campaigns Actions destination.",
+      "rudderstack_mapping": "RudderStack supports list association via three methods in order of precedence: (1) context.externalId array with type 'listIds', (2) SendGrid Contact List Id dashboard setting, (3) destination config.",
+      "parity": "divergence",
+      "notes": "RudderStack provides more flexible list association through externalId array in the event payload, allowing per-event list targeting. Segment handles list association primarily through destination configuration."
+    },
+    "custom_fields": {
+      "sendgrid_field": "contacts[].custom_fields",
+      "segment_mapping": "Segment maps custom traits to contacts[].custom_fields. Custom fields must be pre-created in SendGrid Marketing Campaigns UI. The field keys are SendGrid custom field IDs (e.g., 'w1', 'w2'), and values are mapped from traits that match those field names.",
+      "rudderstack_mapping": "RudderStack maps custom traits to contacts[].custom_fields via the 'Map your traits to SendGrid custom fields' dashboard setting. Custom fields must be pre-created in SendGrid and mapped explicitly in the RudderStack dashboard.",
+      "parity": "match",
+      "notes": "Both platforms require custom fields to be pre-defined in SendGrid. Both map Segment spec traits to SendGrid custom field IDs. The mapping mechanism differs (Segment uses Actions mapping UI, RudderStack uses dashboard trait mapping)."
+    },
+    "batching": {
+      "segment_behavior": "Segment sends contacts individually per identify call via the Actions destination.",
+      "rudderstack_behavior": "RudderStack batches identify events with a batch limit of 30,000 contacts per API call to SendGrid.",
+      "parity": "divergence",
+      "notes": "RudderStack's batching approach is more efficient for high-volume contact syncs. SendGrid's PUT /v3/marketing/contacts API supports up to 30,000 contacts per request."
+    },
+    "alternate_emails": {
+      "sendgrid_field": "contacts[].alternate_emails",
+      "segment_mapping": "Segment maps traits.alternate_emails array to contacts[].alternate_emails.",
+      "rudderstack_mapping": "RudderStack maps traits.alternateEmails or traits.alternate_emails to contacts[].alternate_emails.",
+      "parity": "match"
+    }
+  },
+  "authentication": {
+    "method": "Bearer Token",
+    "header": "Authorization: Bearer <SENDGRID_API_KEY>",
+    "segment_config": "API key configured in SendGrid Marketing Campaigns Actions destination settings. Requires Custom Access with Full Access to Marketing permissions.",
+    "rudderstack_config": "API key configured in SendGrid destination settings in the RudderStack dashboard.",
+    "parity": "match"
+  },
+  "parity_status": "partial",
+  "known_gaps": [
+    {
+      "gap_id": "SG-001",
+      "field": "userId → external_id mapping",
+      "description": "Segment does not automatically map the Segment userId to any SendGrid Marketing Campaigns property. Users must explicitly pass userId as a trait. RudderStack maps userId to contacts[].external_id by default.",
+      "severity": "medium",
+      "remediation": "Verify RudderStack's automatic userId→external_id mapping matches the expected behavior for migrating Segment users."
+    },
+    {
+      "gap_id": "SG-002",
+      "field": "List association mechanism",
+      "description": "Segment handles list association via Actions destination configuration. RudderStack supports per-event list targeting via context.externalId with type 'listIds', dashboard settings, or destination config.",
+      "severity": "low",
+      "remediation": "Document the externalId-based list association as a RudderStack-specific enhancement. Ensure backward compatibility when list IDs are provided via dashboard settings."
+    },
+    {
+      "gap_id": "SG-003",
+      "field": "Batching behavior",
+      "description": "RudderStack batches up to 30,000 contacts per API call. Segment's Actions destination sends contacts individually per event. This affects throughput and rate limiting behavior.",
+      "severity": "low",
+      "remediation": "RudderStack's batching is an advantage for bulk operations. No remediation needed — document as a feature difference."
+    },
+    {
+      "gap_id": "SG-004",
+      "field": "RudderStack envelope fields",
+      "description": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to the source event envelope. These additional fields do not impact the SendGrid API payload but differ from Segment's event structure.",
+      "severity": "informational",
+      "remediation": "No impact on destination payload. These fields are stripped during transformation before the API call."
+    },
+    {
+      "gap_id": "SG-005",
+      "field": "context.library",
+      "description": "Segment uses analytics.js as the library name; RudderStack uses rudder-sdk-js. This difference is present in the source event but does not propagate to the SendGrid API payload.",
+      "severity": "informational",
+      "remediation": "No impact on destination payload — library metadata is not sent to SendGrid."
+    },
+    {
+      "gap_id": "SG-006",
+      "field": "Send Email with Dynamic Template",
+      "description": "Segment's SendGrid Marketing Campaigns Actions destination supports a 'Send Email with Dynamic Template' action for track events, allowing transactional email sending via SendGrid templates. RudderStack supports track events for SendGrid email sending with personalizations, templateId, and dynamic template data.",
+      "severity": "medium",
+      "remediation": "Verify track-to-email mapping parity. RudderStack's track call handling covers personalizations, subject, from, replyTo, content, attachments, categories, and customArgs. Conduct field-level comparison of transactional email payloads."
+    }
+  ],
+  "notes": "SendGrid is a shared cloud destination in the Email Marketing category. Segment's integration is the 'SendGrid Marketing Campaigns (Actions)' destination (slug: actions-sendgrid). RudderStack's integration supports both identify calls (for contact management via Marketing Contacts API) and track calls (for transactional email sending via Mail Send API). This fixture focuses on the identify→contact upsert flow as the primary parity comparison surface. The SendGrid Marketing Contacts API (PUT /v3/marketing/contacts) accepts up to 30,000 contacts per request. Each contact requires at least one unique identifier: email, phone_number_id, external_id, or anonymous_id. Custom fields must be pre-created in SendGrid before they can be populated via API. Contact identifiers supported: email (primary), phone_number_id, external_id, anonymous_id. Reserved contact fields: first_name, last_name, address_line_1, address_line_2, city, state_province_region, postal_code, country, alternate_emails. The API returns HTTP 202 when contacts are queued for processing."
+}

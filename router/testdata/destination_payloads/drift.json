@@ -1,0 +1,401 @@
+{
+  "destination_type": "DRIFT",
+  "destination_tier": "cloud",
+  "segment_slug": "drift",
+  "category": "Livechat",
+  "event_types": ["track", "identify"],
+  "api_endpoint": "https://driftapi.com",
+  "authentication": {
+    "type": "bearer_token",
+    "description": "OAuth2 Bearer token or private API token passed via Authorization header",
+    "header": "Authorization: Bearer <access_token>"
+  },
+  "rate_limits": {
+    "default": "600 requests/minute",
+    "notes": "Rate limits and usage caps are returned in response headers"
+  },
+  "segment_reference_payload": {
+    "identify": {
+      "description": "Segment maps identify calls to Drift contact create/update via the Contacts API. userId maps to externalId, traits map to contact attributes.",
+      "input_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "phone": "+1-555-867-5309",
+          "company": "Acme Corp",
+          "plan": "enterprise",
+          "logins": 42,
+          "createdAt": "2025-01-15T08:30:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://www.example.com/pricing",
+            "title": "Pricing - Example"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "seg-msg-identify-001"
+      },
+      "expected_api_call": {
+        "method": "PATCH",
+        "endpoint": "https://driftapi.com/contacts/{contactId}",
+        "alternative_method_for_new_contacts": {
+          "method": "POST",
+          "endpoint": "https://driftapi.com/contacts"
+        },
+        "headers": {
+          "Authorization": "Bearer <access_token>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "attributes": {
+            "email": "jane.doe@example.com",
+            "externalId": "user_123",
+            "name": "Jane Doe",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "phone": "+1-555-867-5309",
+            "company": "Acme Corp",
+            "plan": "enterprise",
+            "logins": 42,
+            "createdAt": "2025-01-15T08:30:00.000Z"
+          }
+        }
+      }
+    },
+    "track": {
+      "description": "Segment maps track calls to Drift events. The event name and properties are forwarded to Drift's event tracking system, associated with the contact identified by userId or anonymousId.",
+      "input_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://www.example.com/products/premium-widget",
+            "title": "Premium Widget - Example"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "seg-msg-track-001"
+      },
+      "expected_api_call": {
+        "description": "Track events are sent to Drift via the client-side drift.track() method or server-side event ingestion. Events are associated with the Drift contact matching the userId (externalId) or anonymousId (drift_aid).",
+        "method": "drift.track",
+        "parameters": {
+          "event_name": "Product Viewed",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "currency": "USD",
+            "category": "Widgets"
+          }
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "identify": {
+      "description": "RudderStack maps identify calls to Drift contact create/update via the Contacts API, following the same pattern as Segment. userId maps to externalId, traits map to contact attributes. RudderStack adds envelope fields to the source event.",
+      "input_event": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "traits": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "phone": "+1-555-867-5309",
+          "company": "Acme Corp",
+          "plan": "enterprise",
+          "logins": 42,
+          "createdAt": "2025-01-15T08:30:00.000Z"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://www.example.com/pricing",
+            "title": "Pricing - Example"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "rs-msg-identify-001",
+        "rudderId": "rudder-uuid-identify-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "PATCH",
+        "endpoint": "https://driftapi.com/contacts/{contactId}",
+        "alternative_method_for_new_contacts": {
+          "method": "POST",
+          "endpoint": "https://driftapi.com/contacts"
+        },
+        "headers": {
+          "Authorization": "Bearer <access_token>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "attributes": {
+            "email": "jane.doe@example.com",
+            "externalId": "user_123",
+            "name": "Jane Doe",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "phone": "+1-555-867-5309",
+            "company": "Acme Corp",
+            "plan": "enterprise",
+            "logins": 42,
+            "createdAt": "2025-01-15T08:30:00.000Z"
+          }
+        }
+      }
+    },
+    "track": {
+      "description": "RudderStack maps track calls to Drift events, following the same pattern as Segment. The event name and properties are forwarded to Drift's event tracking system. RudderStack adds envelope fields to the source event.",
+      "input_event": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:05:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "currency": "USD",
+          "category": "Widgets"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://www.example.com/products/premium-widget",
+            "title": "Premium Widget - Example"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        },
+        "messageId": "rs-msg-track-001",
+        "rudderId": "rudder-uuid-track-001",
+        "originalTimestamp": "2026-02-25T12:05:00.000Z",
+        "sentAt": "2026-02-25T12:05:01.000Z",
+        "receivedAt": "2026-02-25T12:05:02.000Z"
+      },
+      "expected_api_call": {
+        "description": "Track events are sent to Drift via the client-side drift.track() method or server-side event ingestion. Events are associated with the Drift contact matching the userId (externalId) or anonymousId (drift_aid).",
+        "method": "drift.track",
+        "parameters": {
+          "event_name": "Product Viewed",
+          "properties": {
+            "product_id": "SKU-001",
+            "name": "Premium Widget",
+            "price": 49.99,
+            "currency": "USD",
+            "category": "Widgets"
+          }
+        }
+      }
+    }
+  },
+  "field_mappings": {
+    "identify": {
+      "userId_to_externalId": {
+        "segment_field": "userId",
+        "drift_field": "attributes.externalId",
+        "description": "Segment userId maps to Drift externalId for contact deduplication. Drift uses externalId to uniquely identify contacts and prevent duplicates.",
+        "parity_status": "equivalent"
+      },
+      "email": {
+        "segment_field": "traits.email",
+        "drift_field": "attributes.email",
+        "description": "Email is the only required attribute when creating a Drift contact. Both platforms map traits.email to attributes.email.",
+        "parity_status": "equivalent"
+      },
+      "name": {
+        "segment_field": "traits.name",
+        "drift_field": "attributes.name",
+        "description": "Full name mapping. Drift also supports first_name and last_name as separate attributes.",
+        "parity_status": "equivalent"
+      },
+      "first_name": {
+        "segment_field": "traits.firstName",
+        "drift_field": "attributes.first_name",
+        "description": "First name mapping. Note case convention difference: Segment uses camelCase (firstName), Drift uses snake_case (first_name).",
+        "parity_status": "needs_verification",
+        "known_gap": "Case convention transformation: camelCase to snake_case for Drift standard attributes"
+      },
+      "last_name": {
+        "segment_field": "traits.lastName",
+        "drift_field": "attributes.last_name",
+        "description": "Last name mapping. Same case convention difference as first_name.",
+        "parity_status": "needs_verification",
+        "known_gap": "Case convention transformation: camelCase to snake_case for Drift standard attributes"
+      },
+      "phone": {
+        "segment_field": "traits.phone",
+        "drift_field": "attributes.phone",
+        "description": "Phone number mapping. Direct mapping between both platforms.",
+        "parity_status": "equivalent"
+      },
+      "company": {
+        "segment_field": "traits.company",
+        "drift_field": "attributes.company",
+        "description": "Company name mapping. Drift also has an Accounts API for more detailed company/ABM data.",
+        "parity_status": "equivalent"
+      },
+      "custom_traits": {
+        "segment_field": "traits.*",
+        "drift_field": "attributes.*",
+        "description": "Custom traits are mapped to custom Drift contact attributes. Drift auto-creates attributes on first use and infers data types. Attributes are case-sensitive and immutable once typed.",
+        "parity_status": "needs_verification",
+        "known_gap": "Drift attribute type inference may differ from Segment trait types. Drift attributes are immutable once typed."
+      },
+      "anonymousId_to_drift_aid": {
+        "segment_field": "anonymousId",
+        "drift_field": "drift_aid (cookie-based)",
+        "description": "Segment anonymousId does not directly map to a Drift API field. Drift uses drift_aid cookie for anonymous visitor tracking. Server-side identify calls use externalId instead.",
+        "parity_status": "divergent",
+        "known_gap": "No direct server-side equivalent for anonymousId in Drift. Drift assigns its own contactId for anonymous visitors."
+      }
+    },
+    "track": {
+      "event_name": {
+        "segment_field": "event",
+        "drift_field": "event_name (drift.track first argument)",
+        "description": "Event name is passed as the first argument to drift.track(). Both platforms use the event name string directly.",
+        "parity_status": "equivalent"
+      },
+      "properties": {
+        "segment_field": "properties",
+        "drift_field": "event_properties (drift.track second argument)",
+        "description": "Event properties are passed as the second argument object to drift.track(). Properties map directly as key-value pairs.",
+        "parity_status": "equivalent"
+      },
+      "userId_association": {
+        "segment_field": "userId",
+        "drift_field": "contact association via externalId",
+        "description": "Track events are associated with the Drift contact matching the userId (externalId). The contact must be identified before events can be attributed.",
+        "parity_status": "equivalent"
+      },
+      "timestamp": {
+        "segment_field": "timestamp",
+        "drift_field": "implicit (event receipt time)",
+        "description": "Drift events use the time of receipt rather than a client-provided timestamp. Segment provides a timestamp field that Drift may not honor for server-side events.",
+        "parity_status": "needs_verification",
+        "known_gap": "Drift may use server receipt time instead of the event timestamp provided by Segment/RudderStack"
+      }
+    },
+    "conversation_context": {
+      "description": "Drift conversations provide additional context that enriches event data. When events occur within a conversation context, Drift associates conversationId, inboxId, and participant data.",
+      "fields": {
+        "conversationId": "Drift-assigned conversation identifier (long integer)",
+        "inboxId": "The inbox ID for the conversation",
+        "endUserId": "The Drift Contact ID of the end user",
+        "endUserEmail": "Email of the end user if known",
+        "interactionId": "Interaction identifier within the conversation",
+        "relatedPlaybookId": "Playbook that triggered the conversation"
+      },
+      "parity_status": "drift_specific",
+      "notes": "Conversation context fields are Drift-specific and not present in standard Segment/RudderStack event payloads. These are generated by Drift's Source integration, not the Destination integration."
+    }
+  },
+  "parity_analysis": {
+    "overall_status": "needs_verification",
+    "identify_parity": {
+      "status": "high_confidence",
+      "description": "Identify calls map cleanly to Drift Contacts API. Core field mappings (email, name, phone, company, externalId) are equivalent. Custom traits map to custom attributes with potential type inference differences.",
+      "known_gaps": [
+        "Case convention: Segment camelCase traits vs Drift snake_case standard attributes",
+        "Attribute type immutability: Drift attributes cannot change type once set",
+        "anonymousId: No direct Drift server-side equivalent"
+      ]
+    },
+    "track_parity": {
+      "status": "medium_confidence",
+      "description": "Track calls map to Drift's event tracking system. Event name and properties are forwarded. Timestamp handling and contact association method may differ.",
+      "known_gaps": [
+        "Timestamp handling: Drift may use receipt time instead of event timestamp",
+        "Server-side track events require contact to be pre-identified via externalId",
+        "Drift event properties are used for segmentation, not stored as raw event history"
+      ]
+    },
+    "destination_api_differences": [
+      {
+        "area": "Contact Identification",
+        "segment_approach": "Maps userId to externalId via Contacts API (POST/PATCH)",
+        "rudderstack_approach": "Same mapping via Transformer service to Contacts API (POST/PATCH)",
+        "gap": "Verify identical field transformation and error handling"
+      },
+      {
+        "area": "Event Tracking",
+        "segment_approach": "Forwards track events to Drift's event system via client-side or server-side API",
+        "rudderstack_approach": "Same forwarding via Transformer service",
+        "gap": "Verify identical event property serialization"
+      },
+      {
+        "area": "Attribute Handling",
+        "segment_approach": "Custom traits auto-mapped to Drift custom attributes",
+        "rudderstack_approach": "Custom traits auto-mapped to Drift custom attributes via Transformer",
+        "gap": "Verify case convention handling and type coercion are identical"
+      },
+      {
+        "area": "Authentication",
+        "segment_approach": "OAuth2 Bearer token from Drift app configuration",
+        "rudderstack_approach": "API token from destination configuration",
+        "gap": "Verify token format and header are equivalent"
+      }
+    ]
+  },
+  "destination_config": {
+    "required_settings": {
+      "accessToken": {
+        "type": "string",
+        "description": "Drift API access token (OAuth2 Bearer token or private API token)",
+        "sensitive": true
+      }
+    },
+    "optional_settings": {
+      "identifyByEmail": {
+        "type": "boolean",
+        "description": "When true, use email as the primary identifier for contact lookup instead of externalId",
+        "default": false
+      }
+    }
+  },
+  "notes": "Drift is a shared cloud destination in the Livechat category. Both Segment and RudderStack support identify and track calls to Drift. Drift's Contacts API (https://driftapi.com/contacts) handles contact creation and updates, while drift.track() handles event ingestion. Key parity areas to validate: (1) Contact attribute mapping from Segment/RudderStack traits to Drift attributes, (2) Event property serialization, (3) Case convention transformations for standard Drift attributes (camelCase to snake_case), (4) Handling of anonymous visitors without externalId. Drift also has a Source integration that sends events FROM Drift TO Segment, which is the reverse direction and not covered by this fixture. Rate limit: 600 requests/minute. Drift was acquired by Salesloft in 2024."
+}

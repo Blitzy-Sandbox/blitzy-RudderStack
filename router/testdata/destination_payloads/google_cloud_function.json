@@ -1,0 +1,449 @@
+{
+  "destination_type": "GOOGLE_CLOUD_FUNCTION",
+  "destination_tier": "stream",
+  "segment_reference_payload": {
+    "destination_slug": "google-cloud-function",
+    "destination_name": "Google Cloud Function",
+    "description": "Segment's Google Cloud Function destination delivers event data by invoking a Google Cloud Function via an HTTP POST trigger. The function URL is configured in the Segment destination settings, and the full event JSON is sent as the HTTP request body. Authentication is handled through the destination settings when required.",
+    "supported_call_types": ["track", "identify", "page", "screen", "group", "alias"],
+    "integration_method": "HTTP POST to Cloud Function URL (HTTP trigger)",
+    "authentication": {
+      "method": "Optional — Google Cloud IAM / OAuth2 identity token",
+      "config_fields": {
+        "functionUrl": "The HTTPS URL of the deployed Google Cloud Function",
+        "credentials": "Google Cloud service account credentials JSON for authenticated invocations",
+        "requireAuthentication": "Boolean flag indicating whether authenticated invocations are required"
+      }
+    },
+    "http_trigger": {
+      "method": "POST",
+      "content_type": "application/json",
+      "payload_format": "Raw event JSON — full Segment event object serialized as JSON body",
+      "url_source": "Configured in Segment destination settings as the function URL"
+    },
+    "sample_track_event": {
+      "type": "track",
+      "event": "Product Viewed",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "category": "Widgets",
+        "currency": "USD"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+      },
+      "messageId": "msg-seg-gcf-001"
+    },
+    "sample_identify_event": {
+      "type": "identify",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:01:00.000Z",
+      "traits": {
+        "email": "user@example.com",
+        "name": "Jane Doe",
+        "plan": "premium",
+        "company": "Acme Corp"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-gcf-002"
+    },
+    "sample_page_event": {
+      "type": "page",
+      "name": "Home",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:02:00.000Z",
+      "properties": {
+        "title": "Home | Acme Corp",
+        "url": "https://www.example.com/",
+        "path": "/",
+        "referrer": "https://www.google.com/"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-gcf-003"
+    },
+    "sample_screen_event": {
+      "type": "screen",
+      "name": "Dashboard",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:03:00.000Z",
+      "properties": {
+        "section": "main",
+        "feed_type": "personalized"
+      },
+      "context": {
+        "library": {
+          "name": "analytics-ios",
+          "version": "4.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-gcf-004"
+    },
+    "sample_group_event": {
+      "type": "group",
+      "groupId": "grp-789",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:04:00.000Z",
+      "traits": {
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "plan": "enterprise",
+        "employees": 500
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-gcf-005"
+    },
+    "sample_alias_event": {
+      "type": "alias",
+      "previousId": "anon-456",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T12:05:00.000Z",
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-gcf-006"
+    }
+  },
+  "rudderstack_expected_payload": {
+    "producer_package": "services/streammanager/googlecloudfunction",
+    "producer_constructor": "NewProducer(destination *backendconfig.DestinationT, opts common.Opts) (*GoogleCloudFunctionProducer, error)",
+    "producer_interface": "common.StreamProducer (Produce, Close)",
+    "description": "RudderStack's Google Cloud Function destination invokes the configured function URL via an HTTP POST request. The JSON event payload is sent as the raw request body with Content-Type application/json. Optional OAuth2 ID token authentication is supported via Google service account credentials with configurable token caching (default 55-minute timeout). Timeouts are treated as accepted deliveries (HTTP 202).",
+    "connection": {
+      "method": "HTTP POST",
+      "content_type": "application/json",
+      "function_url_source": "destination.Config['googleCloudFunctionUrl']",
+      "http_client_timeout": "1 second (default)",
+      "timeout_behavior": "Timeouts are treated as accepted deliveries — returns HTTP 202 / Success"
+    },
+    "destination_config": {
+      "googleCloudFunctionUrl": "https://us-central1-project-name.cloudfunctions.net/function-x",
+      "credentials": "Google Cloud service account credentials JSON (used only when requireAuthentication is true)",
+      "requireAuthentication": false,
+      "tokenTimeout": "55 minutes (configurable via config.GetDurationVar — key: google.cloudfunction.token.timeout)"
+    },
+    "authentication": {
+      "method": "OAuth2 ID token via google.golang.org/api/idtoken.NewTokenSource",
+      "token_caching": "Tokens are cached on the Config struct; regenerated when TokenTimeout (default 55 minutes) expires",
+      "header_format": "Authorization: Bearer <id_token_access_token>",
+      "credential_source": "option.WithCredentialsJSON from Config.Credentials field",
+      "token_check_flow": "Config.shouldGenerateToken() checks RequireAuthentication flag and TokenTimeout expiration before each Produce call"
+    },
+    "input_data_format": "json.RawMessage — raw JSON event bytes passed directly as HTTP request body",
+    "track": {
+      "type": "track",
+      "event": "Product Viewed",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "originalTimestamp": "2026-02-25T12:00:00.000Z",
+      "sentAt": "2026-02-25T12:00:01.000Z",
+      "receivedAt": "2026-02-25T12:00:02.000Z",
+      "properties": {
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "category": "Widgets",
+        "currency": "USD"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        },
+        "ip": "203.0.113.42",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+      },
+      "messageId": "msg-rs-gcf-001",
+      "rudderId": "rudder-uuid-gcf-001"
+    },
+    "identify": {
+      "type": "identify",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:01:00.000Z",
+      "originalTimestamp": "2026-02-25T12:01:00.000Z",
+      "sentAt": "2026-02-25T12:01:01.000Z",
+      "receivedAt": "2026-02-25T12:01:02.000Z",
+      "traits": {
+        "email": "user@example.com",
+        "name": "Jane Doe",
+        "plan": "premium",
+        "company": "Acme Corp"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-rs-gcf-002",
+      "rudderId": "rudder-uuid-gcf-002"
+    },
+    "page": {
+      "type": "page",
+      "name": "Home",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:02:00.000Z",
+      "originalTimestamp": "2026-02-25T12:02:00.000Z",
+      "sentAt": "2026-02-25T12:02:01.000Z",
+      "receivedAt": "2026-02-25T12:02:02.000Z",
+      "properties": {
+        "title": "Home | Acme Corp",
+        "url": "https://www.example.com/",
+        "path": "/",
+        "referrer": "https://www.google.com/"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-rs-gcf-003",
+      "rudderId": "rudder-uuid-gcf-003"
+    },
+    "screen": {
+      "type": "screen",
+      "name": "Dashboard",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:03:00.000Z",
+      "originalTimestamp": "2026-02-25T12:03:00.000Z",
+      "sentAt": "2026-02-25T12:03:01.000Z",
+      "receivedAt": "2026-02-25T12:03:02.000Z",
+      "properties": {
+        "section": "main",
+        "feed_type": "personalized"
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-android",
+          "version": "1.x.x"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-rs-gcf-004",
+      "rudderId": "rudder-uuid-gcf-004"
+    },
+    "group": {
+      "type": "group",
+      "groupId": "grp-789",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:04:00.000Z",
+      "originalTimestamp": "2026-02-25T12:04:00.000Z",
+      "sentAt": "2026-02-25T12:04:01.000Z",
+      "receivedAt": "2026-02-25T12:04:02.000Z",
+      "traits": {
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "plan": "enterprise",
+        "employees": 500
+      },
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-rs-gcf-005",
+      "rudderId": "rudder-uuid-gcf-005"
+    },
+    "alias": {
+      "type": "alias",
+      "previousId": "anon-456",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T12:05:00.000Z",
+      "originalTimestamp": "2026-02-25T12:05:00.000Z",
+      "sentAt": "2026-02-25T12:05:01.000Z",
+      "receivedAt": "2026-02-25T12:05:02.000Z",
+      "context": {
+        "library": {
+          "name": "rudder-sdk-js",
+          "version": "2.x.x"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-rs-gcf-006",
+      "rudderId": "rudder-uuid-gcf-006"
+    },
+    "error_responses": {
+      "unreachable_function": {
+        "status_code": 400,
+        "status": "Failure",
+        "message": "[GOOGLE_CLOUD_FUNCTION] error :: Function call was not executed <network_error>"
+      },
+      "function_error": {
+        "status_code": "varies (non-200 from function)",
+        "status": "Failure",
+        "message": "[GOOGLE_CLOUD_FUNCTION] error :: Function call failed <response_body>"
+      },
+      "auth_failure": {
+        "status_code": 401,
+        "status": "Failure",
+        "message": "[GoogleCloudFunction] Failed to receive token: <error>"
+      },
+      "timeout": {
+        "status_code": 202,
+        "status": "Success",
+        "message": "[GoogleCloudFunction] :: Function is called"
+      },
+      "success": {
+        "status_code": 200,
+        "status": "Success",
+        "message": "[GoogleCloudFunction] :: Function call is executed"
+      }
+    }
+  },
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "field_mappings": {
+    "function_url": {
+      "segment": "Configured in Segment destination settings as the Cloud Function URL",
+      "rudderstack": "Configured in destination config as 'googleCloudFunctionUrl' — mapped to Config.FunctionUrl via JSON tag",
+      "parity": "Functionally equivalent — both configure the target HTTP endpoint URL"
+    },
+    "payload_envelope": {
+      "segment": "Raw event JSON — the Segment event object is sent directly as the HTTP POST body",
+      "rudderstack": "Raw event JSON (json.RawMessage) — the RudderStack event object is sent directly as the HTTP POST body",
+      "parity": "Both send the event as a JSON HTTP POST body; RudderStack events include additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt)"
+    },
+    "event_envelope_fields": {
+      "segment_only": ["messageId (Segment format)"],
+      "rudderstack_additional": ["rudderId", "originalTimestamp", "sentAt", "receivedAt", "messageId (RudderStack format)"],
+      "parity": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to the event envelope. The Cloud Function receives these extra fields in the JSON body."
+    },
+    "content_type": {
+      "segment": "application/json",
+      "rudderstack": "application/json (set via req.Header.Set in Produce method)",
+      "parity": "Identical — both use Content-Type: application/json"
+    },
+    "authentication": {
+      "segment": "Configurable authentication via destination settings — supports Google Cloud IAM identity tokens",
+      "rudderstack": "Optional OAuth2 ID token authentication via Config.RequireAuthentication flag. When enabled, uses idtoken.NewTokenSource with service account credentials to generate Bearer tokens. Tokens are cached with a configurable timeout (default 55 minutes via google.cloudfunction.token.timeout config key).",
+      "parity": "Both platforms support authenticated invocations using Google Cloud credentials. RudderStack implements token caching with a 55-minute default TTL. Token refresh is checked on every Produce call via Config.shouldGenerateToken()."
+    },
+    "http_method": {
+      "segment": "POST",
+      "rudderstack": "POST (http.MethodPost in Produce method)",
+      "parity": "Identical — both use HTTP POST"
+    },
+    "timeout_handling": {
+      "segment": "Standard HTTP timeout behavior — timeouts are delivery failures",
+      "rudderstack": "Timeouts are treated as accepted deliveries (HTTP 202 / Success) — rationale: the Cloud Function may still execute after the HTTP client timeout (1 second default). os.IsTimeout check in Produce method.",
+      "parity": "Difference — RudderStack treats timeouts as successful delivery (HTTP 202), while Segment treats timeouts as failures. Cloud Function consumers should handle potential duplicate invocations."
+    },
+    "context_library": {
+      "segment": "context.library.name = 'analytics.js' (or platform-specific SDK name)",
+      "rudderstack": "context.library.name = 'rudder-sdk-js' (or platform-specific SDK name)",
+      "parity": "Different SDK library identifiers — does not affect Cloud Function processing"
+    },
+    "error_handling": {
+      "segment": "Standard delivery retry semantics",
+      "rudderstack": "Network errors return HTTP 400/Failure; non-200 responses from function return function's status code/Failure with response body logged; authentication failures return HTTP 401/Failure; timeouts return HTTP 202/Success",
+      "parity": "Difference — RudderStack has explicit error categorization with detailed diagnostic messages. The timeout-as-success behavior is unique to RudderStack."
+    }
+  },
+  "producer_details": {
+    "constructor": "NewProducer(destination *backendconfig.DestinationT, opts common.Opts) (*GoogleCloudFunctionProducer, error)",
+    "package": "services/streammanager/googlecloudfunction",
+    "interface": "common.StreamProducer",
+    "config_struct": {
+      "name": "Config",
+      "fields": {
+        "Credentials": "string — Google Cloud service account credentials JSON",
+        "RequireAuthentication": "bool — whether authenticated invocations are required",
+        "FunctionUrl": "string — the HTTPS URL of the Cloud Function (JSON tag: googleCloudFunctionUrl)",
+        "Token": "*oauth2.Token — cached OAuth2 token for authenticated requests",
+        "TokenCreatedAt": "time.Time — timestamp when the cached token was generated",
+        "TokenTimeout": "time.Duration — configurable token expiration duration (default 55 minutes)"
+      }
+    },
+    "http_client_config": {
+      "timeout": "1 second",
+      "connection_reuse": "Shared http.Client across Produce calls; CloseIdleConnections called on Close()"
+    },
+    "token_management": {
+      "interface": "GoogleCloudFunctionClient",
+      "method": "GetToken(ctx context.Context, functionUrl string, opts ...option.ClientOption) (*oauth2.Token, error)",
+      "implementation": "GoogleCloudFunctionClientImpl — uses idtoken.NewTokenSource with option.WithCredentialsJSON",
+      "caching_strategy": "Token and TokenCreatedAt stored on Config struct; shouldGenerateToken() checks RequireAuthentication and TokenTimeout expiration",
+      "default_timeout": "55 minutes (config key: google.cloudfunction.token.timeout)"
+    },
+    "produce_flow": {
+      "step_1": "Create HTTP POST request to Config.FunctionUrl with jsonData as body",
+      "step_2": "Set Content-Type: application/json header",
+      "step_3": "Check Config.shouldGenerateToken() — if true, call Config.generateToken() to refresh OAuth2 ID token",
+      "step_4": "If RequireAuthentication and Token is not nil, set Authorization: Bearer <access_token> header",
+      "step_5": "Execute HTTP request via shared httpClient",
+      "step_6": "Read response body and close response (defer httputil.CloseResponse)",
+      "step_7": "Handle errors: os.IsTimeout returns 202/Success; other errors return 400/Failure",
+      "step_8": "Handle valid responses: 200 returns Success; non-200 returns Failure with body logged"
+    },
+    "success_response_format": {
+      "status_code": 200,
+      "status": "Success",
+      "message": "[GoogleCloudFunction] :: Function call is executed"
+    },
+    "timeout_response_format": {
+      "status_code": 202,
+      "status": "Success",
+      "message": "[GoogleCloudFunction] :: Function is called"
+    }
+  },
+  "parity_summary": {
+    "overall_parity_status": "Needs Verification — functionally equivalent for basic event delivery; key differences in authentication details, timeout handling, and envelope fields",
+    "critical_gaps": [
+      "Timeout handling semantics differ: RudderStack treats HTTP client timeouts as accepted delivery (202/Success) while Segment treats them as delivery failures requiring retry. Cloud Functions receiving events from both platforms should implement idempotent processing.",
+      "RudderStack default HTTP client timeout is 1 second — this is aggressive for Cloud Functions that perform non-trivial processing. Segment may use a longer timeout."
+    ],
+    "non_critical_differences": [
+      "RudderStack events include additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) in the JSON body. Cloud Functions should tolerate unknown fields.",
+      "Context library name differs (analytics.js vs rudder-sdk-js) — this is expected and does not affect Cloud Function processing.",
+      "Message ID format differs between platforms — different UUID generation strategies.",
+      "RudderStack destination config uses JSON tag 'googleCloudFunctionUrl' while Segment uses settings-based configuration."
+    ],
+    "functional_equivalence": "Both platforms deliver events to Google Cloud Functions via HTTP POST with JSON body and optional OAuth2 authentication. The core payload structure (event type, user identifiers, properties/traits, context) is equivalent. Cloud Functions processing events from both platforms should use the 'type' field for dispatch and tolerate additional envelope fields from RudderStack."
+  },
+  "notes": "Google Cloud Function shared stream destination. Segment slug: google-cloud-function. RudderStack package: services/streammanager/googlecloudfunction/. Both platforms invoke Cloud Functions via HTTP POST with JSON event payloads. Key parity differences: (1) RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt envelope fields; (2) RudderStack treats HTTP timeouts as accepted delivery (202) while Segment treats them as failures; (3) RudderStack uses OAuth2 ID token authentication with 55-minute token caching via idtoken.NewTokenSource; (4) RudderStack default HTTP client timeout is 1 second. Cloud Functions should implement idempotent processing and tolerate additional envelope fields for cross-platform compatibility."
+}

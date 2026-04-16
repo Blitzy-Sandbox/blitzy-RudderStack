@@ -1,0 +1,548 @@
+{
+  "destination_type": "DATADOG",
+  "destination_tier": "cloud",
+  "segment_slug": "datadog",
+  "category": "Performance Monitoring",
+  "event_types": ["track"],
+  "api_endpoints": {
+    "logs": {
+      "url": "https://http-intake.logs.datadoghq.com/v1/input",
+      "method": "POST",
+      "description": "Send log entries to Datadog Logs. Accepts JSON arrays of log objects. Maximum 5MB uncompressed per payload. Each log truncated at 1MB."
+    },
+    "events": {
+      "url": "https://api.datadoghq.com/api/v1/events",
+      "method": "POST",
+      "description": "Post events to the Datadog Event Explorer. Used for deployment markers, alerts, and significant occurrences."
+    },
+    "metrics": {
+      "url": "https://api.datadoghq.com/api/v1/series",
+      "method": "POST",
+      "description": "Submit custom time-series metrics to Datadog. Each point is a [timestamp, value] pair."
+    }
+  },
+  "authentication": {
+    "type": "api_key_header",
+    "header_name": "DD-API-KEY",
+    "description": "Datadog API key passed via the DD-API-KEY HTTP header. Required for all API requests. Some endpoints also require DD-APPLICATION-KEY for read operations.",
+    "config_fields": {
+      "apiKey": "Datadog API key for authentication",
+      "site": "Datadog site domain (e.g., datadoghq.com, datadoghq.eu, us3.datadoghq.com, us5.datadoghq.com, ap1.datadoghq.com, ddog-gov.com)"
+    }
+  },
+  "rate_limits": {
+    "logs": "Maximum 5MB uncompressed per payload; individual logs truncated at 1MB",
+    "events": "Standard Datadog API rate limits apply",
+    "metrics": "Standard Datadog API rate limits apply; custom metrics count toward billing",
+    "notes": "Rate limits vary by Datadog plan and endpoint. Compression (gzip/deflate/zstd) is recommended for log payloads."
+  },
+  "segment_reference_payload": {
+    "track_to_logs": {
+      "description": "Segment maps track events to Datadog Logs API entries. The event name becomes the log message, event properties are mapped to log attributes, and user/context information is added as tags. The ddsource is set to 'segment' and the service is derived from destination settings.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "order_id": "ORD-98765",
+          "revenue": 149.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 3
+            }
+          ],
+          "coupon": "SAVE10",
+          "shipping": 5.99
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://www.example.com/checkout/confirmation",
+            "title": "Order Confirmation - Example Store",
+            "referrer": "https://www.example.com/checkout/payment"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US"
+        },
+        "messageId": "seg-msg-track-dd-001"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://http-intake.logs.datadoghq.com/v1/input",
+        "headers": {
+          "DD-API-KEY": "<api_key>",
+          "Content-Type": "application/json"
+        },
+        "body": [
+          {
+            "message": "Order Completed",
+            "ddsource": "segment",
+            "service": "example-service",
+            "hostname": "www.example.com",
+            "ddtags": "env:production,userId:user_123,event:Order Completed",
+            "order_id": "ORD-98765",
+            "revenue": 149.99,
+            "currency": "USD",
+            "products": [
+              {
+                "product_id": "SKU-001",
+                "name": "Premium Widget",
+                "price": 49.99,
+                "quantity": 3
+              }
+            ],
+            "coupon": "SAVE10",
+            "shipping": 5.99,
+            "userId": "user_123",
+            "anonymousId": "anon_abc_456",
+            "context": {
+              "page": {
+                "url": "https://www.example.com/checkout/confirmation",
+                "title": "Order Confirmation - Example Store"
+              },
+              "ip": "203.0.113.50",
+              "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "locale": "en-US"
+            }
+          }
+        ]
+      }
+    },
+    "track_to_events": {
+      "description": "Segment can also map track events to the Datadog Events API for deployment markers or significant business events. The event name maps to the title, event properties to the text body, and tags are derived from user and context data.",
+      "input_event": {
+        "type": "track",
+        "event": "Deployment Completed",
+        "userId": "deploy_bot",
+        "timestamp": "2026-02-25T14:30:00.000Z",
+        "properties": {
+          "environment": "production",
+          "version": "v2.5.1",
+          "commit_sha": "abc123def456",
+          "service": "checkout-service",
+          "duration_seconds": 120
+        },
+        "context": {
+          "library": {
+            "name": "analytics-node",
+            "version": "6.2.0"
+          },
+          "ip": "10.0.1.50"
+        },
+        "messageId": "seg-msg-track-dd-002"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api.datadoghq.com/api/v1/events",
+        "headers": {
+          "DD-API-KEY": "<api_key>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "title": "Deployment Completed",
+          "text": "Deployment to production: v2.5.1 (commit abc123def456) for checkout-service completed in 120 seconds.",
+          "date_happened": 1740490200,
+          "priority": "normal",
+          "host": "checkout-service",
+          "tags": [
+            "environment:production",
+            "version:v2.5.1",
+            "service:checkout-service",
+            "userId:deploy_bot"
+          ],
+          "alert_type": "info",
+          "source_type_name": "segment",
+          "aggregation_key": "deployment-checkout-service"
+        }
+      }
+    },
+    "track_to_metrics": {
+      "description": "Segment can map numeric track event properties to Datadog custom metrics via the Metrics API. Revenue, duration, and count-type properties are mapped as gauge or count metric types with event-derived tags.",
+      "input_event": {
+        "type": "track",
+        "event": "API Request",
+        "userId": "service_account_1",
+        "timestamp": "2026-02-25T15:00:00.000Z",
+        "properties": {
+          "endpoint": "/api/v1/users",
+          "method": "GET",
+          "response_time_ms": 145,
+          "status_code": 200,
+          "region": "us-east-1"
+        },
+        "context": {
+          "library": {
+            "name": "analytics-node",
+            "version": "6.2.0"
+          }
+        },
+        "messageId": "seg-msg-track-dd-003"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api.datadoghq.com/api/v1/series",
+        "headers": {
+          "DD-API-KEY": "<api_key>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "series": [
+            {
+              "metric": "segment.api_request.response_time_ms",
+              "points": [[1740492000, 145]],
+              "type": "gauge",
+              "tags": [
+                "endpoint:/api/v1/users",
+                "method:GET",
+                "status_code:200",
+                "region:us-east-1",
+                "source:segment"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track_to_logs": {
+      "description": "RudderStack maps track events to Datadog Logs API entries via the Transformer service. The event name becomes the log message, properties are flattened into log attributes, and user identity plus context data are added as tags. The ddsource is set to 'rudderstack' and additional RudderStack envelope fields are included.",
+      "input_event": {
+        "type": "track",
+        "event": "Order Completed",
+        "userId": "user_123",
+        "anonymousId": "anon_abc_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "order_id": "ORD-98765",
+          "revenue": 149.99,
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "SKU-001",
+              "name": "Premium Widget",
+              "price": 49.99,
+              "quantity": 3
+            }
+          ],
+          "coupon": "SAVE10",
+          "shipping": 5.99
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.48.0"
+          },
+          "page": {
+            "url": "https://www.example.com/checkout/confirmation",
+            "title": "Order Confirmation - Example Store",
+            "referrer": "https://www.example.com/checkout/payment"
+          },
+          "ip": "203.0.113.50",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "locale": "en-US"
+        },
+        "messageId": "rs-msg-track-dd-001",
+        "rudderId": "rudder-uuid-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://http-intake.logs.datadoghq.com/v1/input",
+        "headers": {
+          "DD-API-KEY": "<api_key>",
+          "Content-Type": "application/json"
+        },
+        "body": [
+          {
+            "message": "Order Completed",
+            "ddsource": "rudderstack",
+            "service": "example-service",
+            "hostname": "www.example.com",
+            "ddtags": "env:production,userId:user_123,event:Order Completed",
+            "order_id": "ORD-98765",
+            "revenue": 149.99,
+            "currency": "USD",
+            "products": [
+              {
+                "product_id": "SKU-001",
+                "name": "Premium Widget",
+                "price": 49.99,
+                "quantity": 3
+              }
+            ],
+            "coupon": "SAVE10",
+            "shipping": 5.99,
+            "userId": "user_123",
+            "anonymousId": "anon_abc_456",
+            "rudderId": "rudder-uuid-001",
+            "originalTimestamp": "2026-02-25T12:00:00.000Z",
+            "sentAt": "2026-02-25T12:00:01.000Z",
+            "receivedAt": "2026-02-25T12:00:02.000Z",
+            "context": {
+              "page": {
+                "url": "https://www.example.com/checkout/confirmation",
+                "title": "Order Confirmation - Example Store"
+              },
+              "ip": "203.0.113.50",
+              "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "locale": "en-US"
+            }
+          }
+        ]
+      }
+    },
+    "track_to_events": {
+      "description": "RudderStack maps track events to the Datadog Events API for deployment markers or significant business events. The event name maps to the title, properties form the text body, and tags are derived from user context. RudderStack envelope fields (rudderId, sentAt, receivedAt) may also be included as additional attributes.",
+      "input_event": {
+        "type": "track",
+        "event": "Deployment Completed",
+        "userId": "deploy_bot",
+        "timestamp": "2026-02-25T14:30:00.000Z",
+        "properties": {
+          "environment": "production",
+          "version": "v2.5.1",
+          "commit_sha": "abc123def456",
+          "service": "checkout-service",
+          "duration_seconds": 120
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-node",
+            "version": "2.0.9"
+          },
+          "ip": "10.0.1.50"
+        },
+        "messageId": "rs-msg-track-dd-002",
+        "rudderId": "rudder-uuid-002",
+        "originalTimestamp": "2026-02-25T14:30:00.000Z",
+        "sentAt": "2026-02-25T14:30:01.000Z",
+        "receivedAt": "2026-02-25T14:30:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api.datadoghq.com/api/v1/events",
+        "headers": {
+          "DD-API-KEY": "<api_key>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "title": "Deployment Completed",
+          "text": "Deployment to production: v2.5.1 (commit abc123def456) for checkout-service completed in 120 seconds.",
+          "date_happened": 1740490200,
+          "priority": "normal",
+          "host": "checkout-service",
+          "tags": [
+            "environment:production",
+            "version:v2.5.1",
+            "service:checkout-service",
+            "userId:deploy_bot",
+            "source:rudderstack"
+          ],
+          "alert_type": "info",
+          "source_type_name": "rudderstack",
+          "aggregation_key": "deployment-checkout-service"
+        }
+      }
+    },
+    "track_to_metrics": {
+      "description": "RudderStack maps numeric properties from track events to Datadog custom metrics. The metric name is derived from event name (lowercased, dotted), numeric properties become gauge values, and string properties become tags. Timestamps are converted to Unix epoch seconds.",
+      "input_event": {
+        "type": "track",
+        "event": "API Request",
+        "userId": "service_account_1",
+        "timestamp": "2026-02-25T15:00:00.000Z",
+        "properties": {
+          "endpoint": "/api/v1/users",
+          "method": "GET",
+          "response_time_ms": 145,
+          "status_code": 200,
+          "region": "us-east-1"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-node",
+            "version": "2.0.9"
+          }
+        },
+        "messageId": "rs-msg-track-dd-003",
+        "rudderId": "rudder-uuid-003",
+        "originalTimestamp": "2026-02-25T15:00:00.000Z",
+        "sentAt": "2026-02-25T15:00:01.000Z",
+        "receivedAt": "2026-02-25T15:00:02.000Z"
+      },
+      "expected_api_call": {
+        "method": "POST",
+        "endpoint": "https://api.datadoghq.com/api/v1/series",
+        "headers": {
+          "DD-API-KEY": "<api_key>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "series": [
+            {
+              "metric": "rudderstack.api_request.response_time_ms",
+              "points": [[1740492000, 145]],
+              "type": "gauge",
+              "tags": [
+                "endpoint:/api/v1/users",
+                "method:GET",
+                "status_code:200",
+                "region:us-east-1",
+                "source:rudderstack"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "field_mappings": {
+    "logs_mapping": {
+      "event_name_to_message": "Segment/RudderStack track event 'event' field maps to Datadog log 'message' reserved attribute",
+      "properties_to_attributes": "Event properties are flattened into top-level log attributes for indexing and faceted search",
+      "ddsource": "Segment sets ddsource='segment'; RudderStack sets ddsource='rudderstack'",
+      "service": "Derived from destination configuration; maps to the Datadog 'service' reserved attribute for APM correlation",
+      "hostname": "Derived from context.page.url hostname or destination config; maps to Datadog 'hostname' reserved attribute",
+      "ddtags": "Comma-separated key:value pairs derived from userId, event name, environment, and destination config. Datadog supports up to 100 tags per log, each up to 256 characters",
+      "timestamp": "ISO 8601 timestamp from event; Datadog auto-parses if present, otherwise uses ingestion time",
+      "userId_to_tag": "userId mapped as a tag (userId:<value>) for user-level log filtering",
+      "context_to_attributes": "Nested context fields (page, ip, userAgent, locale) included as structured log attributes"
+    },
+    "events_mapping": {
+      "event_name_to_title": "Track event 'event' field maps to Datadog event 'title' (max 100 characters)",
+      "properties_to_text": "Event properties are serialized into the 'text' field as a human-readable description (max 4000 characters, supports Markdown)",
+      "timestamp_to_date_happened": "ISO 8601 timestamp converted to Unix epoch seconds for 'date_happened' field",
+      "priority": "Defaults to 'normal'; can be configured as 'low' via destination settings",
+      "host": "Derived from properties.service, context.hostname, or destination config",
+      "tags": "String properties mapped as key:value tags; userId and source included as tags",
+      "alert_type": "Defaults to 'info'; maps to one of: error, warning, info, success, user_update, recommendation, snapshot",
+      "source_type_name": "Set to 'segment' or 'rudderstack' to identify the event source in Datadog",
+      "aggregation_key": "Optional grouping key derived from event properties for event deduplication in Datadog Event Explorer"
+    },
+    "metrics_mapping": {
+      "event_name_to_metric_name": "Track event name lowercased, spaces replaced with underscores, prefixed with source namespace (e.g., 'rudderstack.order_completed.revenue')",
+      "numeric_properties_to_points": "Numeric event properties mapped as metric data points; each is a [unix_timestamp, value] pair",
+      "metric_type": "Defaults to 'gauge'; revenue/count properties may use 'count' type",
+      "string_properties_to_tags": "Non-numeric string properties mapped as key:value metric tags for dimensional filtering",
+      "timestamp_to_points": "ISO 8601 timestamp converted to Unix epoch seconds as the first element of the points array"
+    },
+    "tag_handling": {
+      "description": "Both platforms construct Datadog tags from event metadata. Tags follow key:value format and are used for filtering, aggregation, and alerting in Datadog.",
+      "tag_sources": [
+        "userId → userId:<value>",
+        "properties with string values → <property_key>:<property_value>",
+        "context.environment or destination config → env:<value>",
+        "event name → event:<event_name>",
+        "source platform → source:segment or source:rudderstack"
+      ],
+      "tag_limits": "Maximum 100 tags per event/log; each tag up to 256 characters; 10 million unique tags per day"
+    },
+    "api_key_config": {
+      "description": "Datadog requires an API key for all write operations. The key is configured in the destination settings and passed via the DD-API-KEY HTTP header.",
+      "segment_config": "API key configured in Segment destination settings under 'API Key' field",
+      "rudderstack_config": "API key configured in RudderStack destination settings; stored in backend-config DestinationT.Config",
+      "site_selection": "Both platforms support configuring the Datadog site domain to route requests to the correct regional endpoint (US1, US3, US5, EU1, AP1, US1-FED)"
+    }
+  },
+  "parity_status": "needs_verification",
+  "known_gaps": [
+    {
+      "gap_id": "DD-001",
+      "description": "Source identifier difference: Segment uses ddsource='segment', RudderStack uses ddsource='rudderstack'. This affects log pipeline processing rules in Datadog.",
+      "severity": "low",
+      "impact": "Datadog log pipeline rules that filter on ddsource will need to be updated when migrating between platforms."
+    },
+    {
+      "gap_id": "DD-002",
+      "description": "RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are included as additional log attributes not present in Segment payloads.",
+      "severity": "low",
+      "impact": "Additional attributes may appear in Datadog log facets. No functional impact, but log schema differs slightly."
+    },
+    {
+      "gap_id": "DD-003",
+      "description": "Context library name/version differs: Segment uses 'analytics.js'/'analytics-node', RudderStack uses 'rudder-sdk-js'/'rudder-sdk-node'.",
+      "severity": "low",
+      "impact": "Library identification in context attributes differs; affects log filtering by SDK library."
+    },
+    {
+      "gap_id": "DD-004",
+      "description": "Tag construction strategy may differ between platforms. The exact set of tags derived from event properties and context may not be identical.",
+      "severity": "medium",
+      "impact": "Datadog dashboards, monitors, and alerts that rely on specific tag combinations may need adjustment during migration."
+    },
+    {
+      "gap_id": "DD-005",
+      "description": "Metric namespace prefix differs: Segment prefixes custom metrics with 'segment.*', RudderStack prefixes with 'rudderstack.*'.",
+      "severity": "medium",
+      "impact": "Datadog metric queries, dashboard widgets, and monitor definitions referencing the metric namespace must be updated."
+    },
+    {
+      "gap_id": "DD-006",
+      "description": "Endpoint routing by event type (logs vs events vs metrics) mapping strategy may differ between platforms. Both platforms must decide which Datadog API to target for each track event.",
+      "severity": "medium",
+      "impact": "Events may appear in different Datadog products (Logs vs Event Explorer vs Metrics Explorer) depending on platform configuration."
+    },
+    {
+      "gap_id": "DD-007",
+      "description": "Payload compression: Segment may use gzip compression for log payloads by default. RudderStack compression behavior needs verification.",
+      "severity": "low",
+      "impact": "Performance and bandwidth differences; no data accuracy impact."
+    }
+  ],
+  "destination_config_schema": {
+    "required_fields": {
+      "apiKey": {
+        "type": "string",
+        "description": "Datadog API key for authenticating write requests"
+      }
+    },
+    "optional_fields": {
+      "site": {
+        "type": "string",
+        "default": "datadoghq.com",
+        "description": "Datadog site domain. Options: datadoghq.com (US1), us3.datadoghq.com (US3), us5.datadoghq.com (US5), datadoghq.eu (EU1), ap1.datadoghq.com (AP1), ap2.datadoghq.com (AP2), ddog-gov.com (US1-FED)"
+      },
+      "service": {
+        "type": "string",
+        "description": "Service name for the Datadog 'service' reserved attribute. Used for APM correlation."
+      },
+      "env": {
+        "type": "string",
+        "description": "Environment tag value (e.g., production, staging, development)"
+      },
+      "defaultTags": {
+        "type": "array",
+        "description": "Default tags to include with every log/event/metric submission"
+      },
+      "logEndpoint": {
+        "type": "boolean",
+        "default": true,
+        "description": "When true, track events are sent to the Datadog Logs API"
+      },
+      "eventsEndpoint": {
+        "type": "boolean",
+        "default": false,
+        "description": "When true, track events are sent to the Datadog Events API"
+      },
+      "metricsEndpoint": {
+        "type": "boolean",
+        "default": false,
+        "description": "When true, numeric properties from track events are sent to the Datadog Metrics API"
+      }
+    }
+  },
+  "notes": "Datadog is a shared cloud destination in the Performance Monitoring category. Both Segment and RudderStack support sending track events to Datadog via the Router's HTTP delivery pipeline. Datadog provides three distinct ingestion APIs (Logs, Events, Metrics), each serving different observability use cases. The primary mapping sends track events to the Logs API as structured JSON log entries. Event-to-API routing is configurable via destination settings. Key parity gaps center on source identification (ddsource), metric namespace prefixes, tag construction strategies, and RudderStack-specific envelope fields. Segment has no Actions-based variant for Datadog; both platforms use classic server-side forwarding. Refer to gap report §Performance Monitoring (~8% category coverage with ~3 RudderStack connectors in this category)."
+}

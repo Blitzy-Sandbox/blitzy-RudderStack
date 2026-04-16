@@ -1,0 +1,399 @@
+{
+  "destination_type": "HOTJAR",
+  "destination_tier": "cloud",
+  "segment_slug": "hotjar",
+  "category": "Heatmaps & Recordings",
+  "event_types": ["track", "identify"],
+  "segment_reference_payload": {
+    "track": {
+      "description": "Segment sends track events to Hotjar via the classic web device-mode destination. The Hotjar Events API is invoked client-side as window.hj('event', eventName) to record custom events for session filtering, heatmap filtering, and survey triggering. IMPORTANT: Hotjar Events API does NOT support event properties — only the event name is ingested; all properties in the track call are discarded by Hotjar.",
+      "endpoint": "window.hj('event', eventName)",
+      "delivery_mode": "web_device_mode",
+      "example": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "category": "Widgets",
+          "currency": "USD"
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "title": "Premium Widget - Example Store",
+            "referrer": "https://example.com/products"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "msg-seg-track-001"
+      },
+      "mapped_output": {
+        "method": "window.hj",
+        "args": {
+          "action": "event",
+          "event_name": "Product Viewed"
+        },
+        "discarded_fields": {
+          "properties": "Hotjar Events API does not accept event properties. All key-value pairs in the properties object are discarded. Only the event name string is passed to Hotjar.",
+          "context": "Page and user context is captured independently by the Hotjar Tracking Code running in the browser session.",
+          "timestamp": "Hotjar records event timing internally based on when the API call is received during the active session."
+        }
+      }
+    },
+    "identify": {
+      "description": "Segment sends identify events to Hotjar via the classic web device-mode destination. The Hotjar Identify API is invoked client-side as window.hj('identify', userId, userAttributes) to associate user attributes with the current recording session. User attributes become available for filtering Recordings, targeting Surveys, and performing user lookup. IMPORTANT: Hotjar Identify API does NOT support nested objects or arrays — only flat key-value pairs with string, number, boolean, or date values are accepted.",
+      "endpoint": "window.hj('identify', userId, userAttributes)",
+      "delivery_mode": "web_device_mode",
+      "example": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "traits": {
+          "email": "jane@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "company": "Example Corp",
+          "created_at": "2025-01-15T08:30:00.000Z",
+          "role": "admin",
+          "monthly_spend": 299.99,
+          "is_paying": true
+        },
+        "context": {
+          "library": {
+            "name": "analytics.js",
+            "version": "2.1.0"
+          },
+          "page": {
+            "url": "https://example.com/dashboard",
+            "title": "Dashboard - Example Store"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "msg-seg-identify-001"
+      },
+      "mapped_output": {
+        "method": "window.hj",
+        "args": {
+          "action": "identify",
+          "user_id": "user_123",
+          "user_attributes": {
+            "email": "jane@example.com",
+            "name": "Jane Doe",
+            "plan": "enterprise",
+            "company": "Example Corp",
+            "created_at": "2025-01-15T08:30:00.000Z",
+            "role": "admin",
+            "monthly_spend": 299.99,
+            "is_paying": true
+          }
+        },
+        "discarded_fields": {
+          "nested_traits": "Any trait values that are objects or arrays are silently rejected by Hotjar. Only flat string, number, boolean, and date (ISO 8601 string) values are accepted.",
+          "anonymousId": "Not passed to Hotjar. Hotjar generates its own anonymous session identifiers for unidentified users."
+        }
+      }
+    }
+  },
+  "rudderstack_expected_payload": {
+    "track": {
+      "description": "RudderStack sends track events to Hotjar via the cloud destination Router. The Transformer service maps RudderStack event fields to Hotjar's Events API format. Since Hotjar only accepts the event name (no properties), the Transformer extracts only the event name from the RudderStack track call and invokes the Hotjar Events API accordingly.",
+      "endpoint": "window.hj('event', eventName)",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "track",
+        "event": "Product Viewed",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "properties": {
+          "product_id": "SKU-001",
+          "name": "Premium Widget",
+          "price": 49.99,
+          "category": "Widgets",
+          "currency": "USD"
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://example.com/products/premium-widget",
+            "title": "Premium Widget - Example Store",
+            "referrer": "https://example.com/products"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "msg-rs-track-001",
+        "rudderId": "rudder-uuid-001",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "mapped_output": {
+        "method": "window.hj",
+        "args": {
+          "action": "event",
+          "event_name": "Product Viewed"
+        },
+        "discarded_fields": {
+          "properties": "Hotjar Events API does not accept event properties. All key-value pairs in the properties object are discarded during Transformer mapping. Only the event name string is delivered to Hotjar.",
+          "context": "Page and user context is handled independently by the Hotjar Tracking Code.",
+          "envelope_fields": "RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are stripped during Transformer mapping and not sent to Hotjar."
+        }
+      }
+    },
+    "identify": {
+      "description": "RudderStack sends identify events to Hotjar via the cloud destination Router. The Transformer service maps RudderStack traits to Hotjar's Identify API format, flattening any nested trait objects and filtering out unsupported value types (arrays, nested objects). The resulting flat key-value pairs are passed as user attributes alongside the userId.",
+      "endpoint": "window.hj('identify', userId, userAttributes)",
+      "delivery_mode": "cloud_rest_api",
+      "example": {
+        "type": "identify",
+        "userId": "user_123",
+        "anonymousId": "anon_456",
+        "timestamp": "2026-02-25T12:00:00.000Z",
+        "traits": {
+          "email": "jane@example.com",
+          "name": "Jane Doe",
+          "plan": "enterprise",
+          "company": "Example Corp",
+          "created_at": "2025-01-15T08:30:00.000Z",
+          "role": "admin",
+          "monthly_spend": 299.99,
+          "is_paying": true
+        },
+        "context": {
+          "library": {
+            "name": "rudder-sdk-js",
+            "version": "2.x.x"
+          },
+          "page": {
+            "url": "https://example.com/dashboard",
+            "title": "Dashboard - Example Store"
+          },
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "ip": "203.0.113.42"
+        },
+        "messageId": "msg-rs-identify-001",
+        "rudderId": "rudder-uuid-002",
+        "originalTimestamp": "2026-02-25T12:00:00.000Z",
+        "sentAt": "2026-02-25T12:00:01.000Z",
+        "receivedAt": "2026-02-25T12:00:02.000Z"
+      },
+      "mapped_output": {
+        "method": "window.hj",
+        "args": {
+          "action": "identify",
+          "user_id": "user_123",
+          "user_attributes": {
+            "email": "jane@example.com",
+            "name": "Jane Doe",
+            "plan": "enterprise",
+            "company": "Example Corp",
+            "created_at": "2025-01-15T08:30:00.000Z",
+            "role": "admin",
+            "monthly_spend": 299.99,
+            "is_paying": true
+          }
+        },
+        "discarded_fields": {
+          "nested_traits": "Any trait values that are objects or arrays are silently filtered out during Transformer mapping. Only flat string, number, boolean, and date (ISO 8601 string) values are passed to Hotjar.",
+          "anonymousId": "Not passed to Hotjar. Hotjar generates its own anonymous session identifiers.",
+          "envelope_fields": "RudderStack envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) are stripped during Transformer mapping and not sent to Hotjar."
+        }
+      }
+    }
+  },
+  "field_mappings": {
+    "user_identification": {
+      "userId": {
+        "segment_mapping": "userId from identify call maps directly to first argument of window.hj('identify', userId, attributes). This becomes the User ID in Hotjar, enabling user lookup and data deletion requests.",
+        "rudderstack_mapping": "userId from identify call maps directly to first argument of window.hj('identify', userId, attributes). Same User ID association in Hotjar.",
+        "parity": "equivalent"
+      },
+      "traits": {
+        "segment_mapping": "Flat traits object is passed as the third argument to window.hj('identify', userId, traits). All flat key-value pairs become User Attributes in Hotjar, searchable for filtering Recordings and targeting Surveys. Nested objects and arrays are silently rejected.",
+        "rudderstack_mapping": "Flat traits object is passed as the third argument to window.hj('identify', userId, traits). Transformer filters out any nested objects or arrays before delivery. Same User Attributes result in Hotjar.",
+        "parity": "equivalent"
+      },
+      "anonymousId": {
+        "segment_mapping": "Not passed to Hotjar. Hotjar generates its own anonymous session identifiers for unidentified users independent of the CDP's anonymousId.",
+        "rudderstack_mapping": "Not passed to Hotjar. Hotjar generates its own anonymous session identifiers independent of RudderStack's anonymousId.",
+        "parity": "equivalent"
+      },
+      "email": {
+        "segment_mapping": "Passed as traits.email User Attribute. Hotjar requires that PII like email is only sent when associated with a User ID. Becomes searchable User Attribute in Hotjar dashboard.",
+        "rudderstack_mapping": "Passed as traits.email User Attribute. Same PII requirement — must be associated with a User ID. Becomes searchable User Attribute in Hotjar dashboard.",
+        "parity": "equivalent"
+      },
+      "name": {
+        "segment_mapping": "Passed as traits.name User Attribute. Displayed in Hotjar session recordings user details and available for filtering.",
+        "rudderstack_mapping": "Passed as traits.name User Attribute. Same display and filtering behavior in Hotjar.",
+        "parity": "equivalent"
+      }
+    },
+    "event_tagging": {
+      "event_name": {
+        "segment_mapping": "track call event field maps directly to window.hj('event', eventName). The event name becomes available for filtering Recordings and Heatmaps, triggering session capture, and targeting Surveys in Hotjar.",
+        "rudderstack_mapping": "track call event field maps directly to window.hj('event', eventName). Same event name used for filtering, triggering, and targeting in Hotjar.",
+        "parity": "equivalent"
+      },
+      "event_properties": {
+        "segment_mapping": "Hotjar Events API does NOT support event properties. All properties in the track call are discarded. Only the event name string is ingested by Hotjar.",
+        "rudderstack_mapping": "Hotjar Events API does NOT support event properties. Transformer strips all properties during mapping. Only the event name string is delivered to Hotjar.",
+        "parity": "equivalent"
+      },
+      "pii_restriction": {
+        "segment_mapping": "Hotjar Events API prohibits PII in event names. Events cannot contain email addresses, IP addresses, or numbers with 9 or more digits. Segment does not enforce this restriction at the SDK level.",
+        "rudderstack_mapping": "Same Hotjar PII restriction applies. RudderStack Transformer does not enforce this restriction at the mapping level; compliance is the responsibility of the event producer.",
+        "parity": "equivalent"
+      }
+    },
+    "session_recording": {
+      "session_capture_trigger": {
+        "segment_mapping": "Hotjar can be configured to start capturing sessions only when specific events occur. Segment track calls triggering window.hj('event', name) can initiate recording capture if configured in Hotjar settings.",
+        "rudderstack_mapping": "Same session capture trigger mechanism. RudderStack track events mapped to Hotjar events can trigger recording capture based on Hotjar-side configuration.",
+        "parity": "equivalent"
+      },
+      "recording_config": {
+        "segment_mapping": "Hotjar Site ID (hjid) configured in Segment destination settings. The Hotjar Tracking Code is loaded client-side with the configured Site ID. Additional options include disabling placeholder polyfill for IE9.",
+        "rudderstack_mapping": "Hotjar Site ID configured in RudderStack destination settings. Same Tracking Code initialization with the configured Site ID.",
+        "parity": "equivalent"
+      },
+      "user_attribute_filtering": {
+        "segment_mapping": "After identify call, User Attributes become available for filtering Recordings in Hotjar dashboard. Users can filter session recordings by any attribute value (e.g., plan=enterprise, role=admin).",
+        "rudderstack_mapping": "Same User Attribute filtering capability. After identify call delivers attributes to Hotjar, they are available for filtering Recordings in the Hotjar dashboard.",
+        "parity": "equivalent"
+      }
+    },
+    "context_fields": {
+      "library": {
+        "segment_mapping": "context.library.name = 'analytics.js'",
+        "rudderstack_mapping": "context.library.name = 'rudder-sdk-js'",
+        "parity": "different_sdk_identifier"
+      },
+      "page_context": {
+        "segment_mapping": "context.page includes url, title, referrer. Hotjar captures page context independently via its own Tracking Code; Segment page context is supplementary and not passed to Hotjar's API.",
+        "rudderstack_mapping": "context.page includes url, title, referrer. Same supplementary pattern — not passed to Hotjar's API. Hotjar captures page context independently.",
+        "parity": "equivalent"
+      },
+      "envelope_fields": {
+        "segment_mapping": "Standard Segment envelope: type, messageId, timestamp. These fields are not passed to Hotjar's JavaScript APIs.",
+        "rudderstack_mapping": "RudderStack adds additional envelope fields: rudderId, originalTimestamp, sentAt, receivedAt. None of these envelope fields are passed to Hotjar's APIs.",
+        "parity": "rudderstack_superset"
+      }
+    },
+    "data_type_constraints": {
+      "supported_attribute_types": {
+        "segment_mapping": "Hotjar Identify API accepts: string, number (integer or float), boolean, date (ISO 8601 string). Maximum 100 unique User Attributes per site.",
+        "rudderstack_mapping": "Same type constraints enforced during Transformer mapping. Unsupported types (objects, arrays) are filtered out before delivery.",
+        "parity": "equivalent"
+      },
+      "nested_object_handling": {
+        "segment_mapping": "Nested objects and arrays in identify traits are silently rejected by Hotjar. The Segment documentation explicitly warns that Hotjar does not support ingesting values passed as nested objects or lists.",
+        "rudderstack_mapping": "Transformer flattens or filters nested trait values before delivery to Hotjar. Same end result — only flat key-value pairs reach Hotjar.",
+        "parity": "equivalent"
+      },
+      "attribute_limit": {
+        "segment_mapping": "Hotjar supports up to 100 User Attributes per site. Additional attributes beyond this limit are not ingested.",
+        "rudderstack_mapping": "Same 100 User Attribute limit applies. Transformer does not enforce this limit; Hotjar's API enforces it server-side.",
+        "parity": "equivalent"
+      }
+    }
+  },
+  "destination_config": {
+    "required_settings": {
+      "hjid": {
+        "description": "Hotjar Site ID from your Hotjar account settings. This is a numeric identifier (e.g., 123456) used to initialize the Hotjar Tracking Code on your site.",
+        "type": "number",
+        "required": true,
+        "example": 123456
+      }
+    },
+    "optional_settings": {
+      "suppress_placeholder_polyfill": {
+        "description": "Hotjar loads a polyfill for placeholder tags on input fields for IE9. Disable this if you already use a placeholder plugin to avoid conflicts.",
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "hotjar_side_requirements": {
+      "user_attributes_enabled": {
+        "description": "User Attributes must be explicitly enabled in Hotjar settings (Settings > User Attributes) for each site before identify calls will be accepted. Without enabling this, identify calls are silently ignored.",
+        "type": "boolean",
+        "required_for": "identify"
+      },
+      "session_capture_enabled": {
+        "description": "Session capture must be enabled in Hotjar settings for events to be associated with recordings. Without active session capture, track events are still recorded but cannot be used for recording filtering.",
+        "type": "boolean",
+        "required_for": "track"
+      }
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "needs_verification",
+    "track_parity": "high",
+    "identify_parity": "high",
+    "known_gaps": [
+      {
+        "gap_id": "HJ-001",
+        "description": "Segment's Hotjar destination is a classic web device-mode integration that loads the Hotjar Tracking Code and invokes JavaScript APIs (window.hj) directly in the browser context. RudderStack delivers Hotjar events via cloud-mode REST API through the Router. This architectural difference means Segment's integration runs within the same browser session as Hotjar's session recording, while RudderStack sends events server-side.",
+        "severity": "medium",
+        "impact": "Server-side delivery via RudderStack may not correlate events with active Hotjar recording sessions as seamlessly as client-side device-mode delivery. Hotjar's Events API and Identify API are designed for client-side invocation within the context of an active recording session. Server-side calls may require additional Hotjar configuration or may not be associated with the correct session."
+      },
+      {
+        "gap_id": "HJ-002",
+        "description": "Hotjar Events API does not support event properties. Both Segment and RudderStack track calls include a properties object, but Hotjar discards all properties and only ingests the event name string. This is a Hotjar limitation, not a parity gap between platforms.",
+        "severity": "info",
+        "impact": "No parity impact — both platforms experience the same limitation. Users should be aware that event properties are not available in Hotjar's dashboard regardless of which CDP they use."
+      },
+      {
+        "gap_id": "HJ-003",
+        "description": "Hotjar Identify API rejects nested objects and arrays in user traits. Both Segment and RudderStack identify calls may include nested trait values (e.g., address object with street, city, zip). These nested values are silently dropped by Hotjar.",
+        "severity": "low",
+        "impact": "No parity impact — both platforms experience the same Hotjar limitation. Verification needed to ensure both platforms apply consistent flattening or filtering strategies for nested traits before delivery."
+      },
+      {
+        "gap_id": "HJ-004",
+        "description": "RudderStack event payloads include additional envelope fields (rudderId, originalTimestamp, sentAt, receivedAt) not present in Segment payloads. These fields exist in the event pipeline but are stripped during Transformer mapping before delivery to Hotjar.",
+        "severity": "info",
+        "impact": "No impact on Hotjar functionality. Additional envelope fields are internal to RudderStack's pipeline and do not reach Hotjar's APIs."
+      },
+      {
+        "gap_id": "HJ-005",
+        "description": "Hotjar requires the Identify API call to be executed before Event API calls when combining User Attribute-based targeting with Events for Surveys. The ordering of identify before track calls may differ between Segment (client-side synchronous) and RudderStack (server-side asynchronous) delivery modes.",
+        "severity": "low",
+        "impact": "In server-side delivery mode, the order of identify and track call processing may not be guaranteed, potentially affecting Survey targeting rules that depend on both User Attributes and Events."
+      },
+      {
+        "gap_id": "HJ-006",
+        "description": "Hotjar Events API prohibits PII in event names — events cannot contain email addresses, IP addresses, or numbers with 9 or more digits. Neither Segment nor RudderStack enforces this restriction at the SDK/Transformer level; compliance depends on the event producer.",
+        "severity": "info",
+        "impact": "No parity impact — both platforms have the same PII compliance responsibility. If PII is included in event names, Hotjar will reject or block the event regardless of which CDP is used."
+      }
+    ],
+    "recommended_validation": [
+      "Send identical track events through both Segment and RudderStack to the same Hotjar site and compare event entries in the Hotjar Recordings filter panel",
+      "Send identical identify events and verify User Attributes appear consistently in Hotjar user profiles for both platforms",
+      "Verify that nested objects in identify traits are handled equivalently — both platforms should produce the same flat User Attributes in Hotjar",
+      "Test event-triggered session capture by configuring Hotjar to start recording on a specific event and verifying both platforms trigger capture correctly",
+      "Verify Survey targeting works correctly when combining User Attribute filters with Event triggers from both platforms",
+      "Confirm that the 100 User Attribute limit per site is handled gracefully by both platforms when approaching or exceeding the limit",
+      "Test PII restriction enforcement by sending event names containing email-like patterns and verify Hotjar's rejection behavior is consistent across both platforms"
+    ]
+  },
+  "notes": "Hotjar is a shared cloud destination in the Heatmaps & Recordings category. Segment slug: hotjar (classic web device-mode destination). RudderStack delivers via cloud-mode REST API through the Router with Transformer-based event mapping. Hotjar provides two primary JavaScript APIs mapped from the Segment event spec: the Identify API (window.hj('identify', userId, attributes)) for associating User Attributes with recording sessions, and the Events API (window.hj('event', eventName)) for tagging sessions with custom event names. Key Hotjar limitation: the Events API accepts ONLY the event name — no event properties are supported. The Identify API accepts only flat key-value pairs (string, number, boolean, date) — nested objects and arrays are silently rejected. Maximum 100 User Attributes per site. Configuration requires the Hotjar Site ID (hjid), a numeric identifier from the Hotjar account settings. User Attributes must be explicitly enabled in Hotjar settings before identify calls are accepted. The primary architectural difference between Segment and RudderStack is client-side device-mode delivery versus server-side cloud-mode delivery, which may affect session correlation for Recordings and Heatmaps."
+}

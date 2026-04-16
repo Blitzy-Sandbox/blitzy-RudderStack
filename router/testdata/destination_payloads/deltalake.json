@@ -1,0 +1,505 @@
+{
+  "destination_type": "DELTALAKE",
+  "destination_tier": "warehouse",
+  "segment_reference_payload": {
+    "loading_method": "delta_table_merge",
+    "connection": {
+      "server_hostname": "dbc-example.cloud.databricks.com",
+      "http_path": "/sql/1.0/warehouses/abc123",
+      "port": 443,
+      "catalog": "main",
+      "schema": "segment_events",
+      "authentication": "personal_access_token"
+    },
+    "table_schema": {
+      "tracks": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "event": "STRING",
+        "event_text": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "context_user_agent": "STRING",
+        "context_locale": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "identifies": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "email": "STRING",
+        "name": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "pages": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "name": "STRING",
+        "path": "STRING",
+        "url": "STRING",
+        "title": "STRING",
+        "referrer": "STRING",
+        "search": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "screens": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "name": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "groups": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "group_id": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "aliases": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "previous_id": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP"
+      },
+      "users": {
+        "id": "STRING",
+        "email": "STRING",
+        "name": "STRING",
+        "context_ip": "STRING",
+        "received_at": "TIMESTAMP"
+      }
+    },
+    "merge_strategy": {
+      "method": "MERGE INTO",
+      "merge_key": "id",
+      "deduplication": "ROW_NUMBER() OVER (PARTITION BY id ORDER BY received_at DESC)",
+      "on_match": "UPDATE SET all_columns",
+      "on_no_match": "INSERT all_columns"
+    },
+    "sample_track_event": {
+      "id": "msg-seg-001",
+      "user_id": "user_123",
+      "anonymous_id": "anon_456",
+      "event": "Product Viewed",
+      "event_text": "Product Viewed",
+      "context_ip": "192.168.1.1",
+      "context_library_name": "analytics.js",
+      "context_library_version": "2.1.0",
+      "context_user_agent": "Mozilla/5.0",
+      "context_locale": "en-US",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "sent_at": "2026-02-25T12:00:01.000Z",
+      "received_at": "2026-02-25T12:00:02.000Z",
+      "original_timestamp": "2026-02-25T12:00:00.000Z",
+      "uuid_ts": "2026-02-25T12:00:02.000Z",
+      "product_id": "SKU-001",
+      "product_name": "Premium Widget",
+      "price": 49.99
+    }
+  },
+  "rudderstack_expected_payload": {
+    "loading_method": "sql_merge_with_partition_pruning",
+    "connection": {
+      "host": "dbc-example.cloud.databricks.com",
+      "port": 443,
+      "path": "/sql/1.0/warehouses/abc123",
+      "catalog": "main",
+      "schema": "rudder_events",
+      "authentication": {
+        "personal_access_token": true,
+        "oauth": {
+          "supported": true,
+          "useOAuth": true,
+          "oauthClientID": "client_id_example",
+          "oauthClientSecret": "client_secret_example"
+        }
+      },
+      "session_params": {
+        "ansi_mode": "false"
+      },
+      "retry_config": {
+        "max_retries": 10,
+        "retry_min_wait": "1s",
+        "retry_max_wait": "300s"
+      }
+    },
+    "data_type_mappings": {
+      "rudder_to_delta": {
+        "boolean": "BOOLEAN",
+        "int": "BIGINT",
+        "float": "DOUBLE",
+        "string": "STRING",
+        "datetime": "TIMESTAMP",
+        "date": "DATE"
+      },
+      "delta_to_rudder": {
+        "TINYINT": "int",
+        "SMALLINT": "int",
+        "INT": "int",
+        "BIGINT": "int",
+        "DECIMAL": "float",
+        "FLOAT": "float",
+        "DOUBLE": "float",
+        "BOOLEAN": "boolean",
+        "STRING": "string",
+        "DATE": "date",
+        "TIMESTAMP": "datetime"
+      },
+      "semi_structured_types": ["array", "map", "struct"]
+    },
+    "table_schema": {
+      "tracks": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "event": "STRING",
+        "event_text": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "context_user_agent": "STRING",
+        "context_locale": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP",
+        "event_date": "DATE GENERATED ALWAYS AS (CAST(received_at AS DATE))"
+      },
+      "identifies": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "email": "STRING",
+        "name": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP",
+        "event_date": "DATE GENERATED ALWAYS AS (CAST(received_at AS DATE))"
+      },
+      "pages": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "name": "STRING",
+        "path": "STRING",
+        "url": "STRING",
+        "title": "STRING",
+        "referrer": "STRING",
+        "search": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP",
+        "event_date": "DATE GENERATED ALWAYS AS (CAST(received_at AS DATE))"
+      },
+      "screens": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "name": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP",
+        "event_date": "DATE GENERATED ALWAYS AS (CAST(received_at AS DATE))"
+      },
+      "groups": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "group_id": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP",
+        "event_date": "DATE GENERATED ALWAYS AS (CAST(received_at AS DATE))"
+      },
+      "aliases": {
+        "id": "STRING",
+        "user_id": "STRING",
+        "anonymous_id": "STRING",
+        "previous_id": "STRING",
+        "context_ip": "STRING",
+        "context_library_name": "STRING",
+        "context_library_version": "STRING",
+        "timestamp": "TIMESTAMP",
+        "sent_at": "TIMESTAMP",
+        "received_at": "TIMESTAMP",
+        "original_timestamp": "TIMESTAMP",
+        "uuid_ts": "TIMESTAMP",
+        "event_date": "DATE GENERATED ALWAYS AS (CAST(received_at AS DATE))"
+      },
+      "users": {
+        "id": "STRING",
+        "email": "STRING",
+        "name": "STRING",
+        "context_ip": "STRING",
+        "received_at": "TIMESTAMP"
+      }
+    },
+    "primary_keys": {
+      "users": "id",
+      "identifies": "id",
+      "discards": "row_id",
+      "default": "id"
+    },
+    "partition_config": {
+      "enabled": true,
+      "partition_column": "event_date",
+      "partition_expression": "DATE GENERATED ALWAYS AS (CAST(received_at AS DATE))",
+      "partition_clause": "PARTITIONED BY(event_date)",
+      "partition_pruning_enabled": true,
+      "config_key": "Warehouse.deltalake.enablePartitionPruning",
+      "excluded_from_queries": true,
+      "notes": "event_date is auto-generated and excluded from query generation via excludeColumnsMap"
+    },
+    "merge_strategy": {
+      "method": "MERGE INTO",
+      "merge_key": "id",
+      "deduplication": "ROW_NUMBER() OVER (PARTITION BY id ORDER BY RECEIVED_AT DESC)",
+      "staging_table_prefix": "rudder_staging_",
+      "staging_table_regex": "^rudder_staging_.*$",
+      "table_name_limit": 127,
+      "on_match": "UPDATE SET MAIN.col = STAGING.col for each column",
+      "on_no_match": "INSERT (columns) VALUES (STAGING.col for each column)",
+      "should_merge_logic": "!Uploader.CanAppend() || (config.allowMerge && !Warehouse.GetPreferAppendSetting())",
+      "allow_merge_config_key": "Warehouse.deltalake.allowMerge",
+      "allow_merge_default": true,
+      "fallback_to_insert": "When ShouldMerge() returns false, uses INSERT INTO with dedup via ROW_NUMBER window function"
+    },
+    "load_file_formats": {
+      "csv": {
+        "pattern": "*.gz",
+        "format_options": {
+          "compression": "gzip",
+          "quote": "\"",
+          "escape": "\"",
+          "multiLine": "true"
+        },
+        "column_expression": "CAST(_cN AS TYPE) AS column_name"
+      },
+      "parquet": {
+        "pattern": "*.parquet",
+        "column_expression": "column_name::TYPE"
+      }
+    },
+    "staging_flow": {
+      "step_1": "CREATE TABLE IF NOT EXISTS namespace.rudder_staging_<table> USING DELTA",
+      "step_2": "COPY INTO namespace.rudder_staging_<table> FROM (SELECT columns FROM 'load_folder') FILEFORMAT = CSV|PARQUET",
+      "step_3_merge": "MERGE INTO namespace.<table> AS MAIN USING (SELECT * FROM dedup_subquery) AS STAGING ON MAIN.id = STAGING.id WHEN MATCHED THEN UPDATE SET ... WHEN NOT MATCHED THEN INSERT ...",
+      "step_3_insert": "INSERT INTO namespace.<table> (columns) SELECT columns FROM (dedup_subquery)",
+      "step_4": "DROP TABLE namespace.rudder_staging_<table>"
+    },
+    "external_location": {
+      "supported": true,
+      "config_keys": {
+        "enableExternalLocation": "boolean",
+        "externalLocation": "string"
+      },
+      "location_format": "externalLocation/namespace/tableName",
+      "create_table_clause": "CREATE OR REPLACE TABLE (when external location enabled)"
+    },
+    "object_storage": {
+      "s3": {
+        "uses_s3a_protocol": true,
+        "rewrites": "s3:// to s3a:// when AWS credentials present",
+        "temporary_credentials": {
+          "supported": true,
+          "method": "STS",
+          "credential_fields": ["awsKeyId", "awsSecretKey", "awsSessionToken"],
+          "config_key": "useSTSTokens"
+        }
+      },
+      "gcs": {
+        "supported": true
+      },
+      "azure_blob": {
+        "supported": true
+      },
+      "rudder_storage": {
+        "supported": true,
+        "config_key": "useRudderStorage"
+      }
+    },
+    "users_table_handling": {
+      "deduplication_method": "FIRST_VALUE(col, TRUE) OVER (PARTITION BY id ORDER BY received_at DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)",
+      "identifies_union": "UNION of existing users and new identifies rows by user_id",
+      "ignored_columns_in_dedup": ["id", "user_id", "uuid"]
+    },
+    "sample_track_event": {
+      "id": "msg-rs-001",
+      "user_id": "user_123",
+      "anonymous_id": "anon_456",
+      "event": "Product Viewed",
+      "event_text": "Product Viewed",
+      "context_ip": "192.168.1.1",
+      "context_library_name": "rudder-sdk-js",
+      "context_library_version": "2.48.0",
+      "context_user_agent": "Mozilla/5.0",
+      "context_locale": "en-US",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "sent_at": "2026-02-25T12:00:01.000Z",
+      "received_at": "2026-02-25T12:00:02.000Z",
+      "original_timestamp": "2026-02-25T12:00:00.000Z",
+      "uuid_ts": "2026-02-25T12:00:02.000Z",
+      "product_id": "SKU-001",
+      "product_name": "Premium Widget",
+      "price": 49.99,
+      "event_date": "2026-02-25"
+    }
+  },
+  "event_types": ["track", "identify", "page", "screen", "group", "alias"],
+  "field_mappings": {
+    "merge_key_strategy": {
+      "description": "Both Segment and RudderStack use 'id' as the primary merge key for MERGE INTO operations. RudderStack additionally supports 'row_id' for discards table.",
+      "segment": "id-based MERGE with deduplication via ROW_NUMBER window function",
+      "rudderstack": "id-based MERGE with ROW_NUMBER deduplication; configurable via allowMerge setting and uploader append preference; falls back to INSERT with dedup when merge disabled",
+      "primary_keys": {
+        "users": "id",
+        "identifies": "id",
+        "discards": "row_id",
+        "all_other_tables": "id"
+      }
+    },
+    "partition_column_selection": {
+      "description": "RudderStack auto-generates an event_date partition column from received_at for all tables with a received_at column. Segment uses standard Delta table MERGE without explicit partition pruning.",
+      "segment": "No explicit partition column; relies on Delta table default behavior",
+      "rudderstack": "Auto-generated event_date column via DATE GENERATED ALWAYS AS (CAST(received_at AS DATE)); PARTITIONED BY(event_date); partition pruning enabled by default (Warehouse.deltalake.enablePartitionPruning=true); event_date excluded from query generation"
+    },
+    "oauth_support": {
+      "description": "Both platforms support OAuth for Databricks authentication. RudderStack additionally supports personal access token and STS temporary credentials for S3 staging.",
+      "segment": "Personal access token authentication",
+      "rudderstack": "Personal access token OR OAuth (useOAuth, oauthClientID, oauthClientSecret); STS temporary credentials for S3 object storage access (awsKeyId, awsSecretKey, awsSessionToken)"
+    },
+    "column_naming": {
+      "description": "Both platforms flatten nested event properties into snake_case column names. RudderStack uses the rudder-transformer service for column name transformation.",
+      "segment": "Flattened snake_case columns (e.g., context_library_name)",
+      "rudderstack": "Flattened snake_case columns (e.g., context_library_name); column naming handled by rudder-transformer"
+    },
+    "data_type_handling": {
+      "description": "RudderStack explicitly maps between Rudder types and Delta Lake SQL types. Semi-structured types (array, map, struct) are tracked but not directly mapped.",
+      "segment": "Standard Delta Lake type inference",
+      "rudderstack": "Explicit type mapping: boolean→BOOLEAN, int→BIGINT, float→DOUBLE, string→STRING, datetime→TIMESTAMP, date→DATE; reverse mapping for schema discovery; unmapped semi-structured types (array, map, struct) counted via WHCounterStat"
+    },
+    "staging_and_load_flow": {
+      "description": "RudderStack uses a staging table approach: COPY INTO staging → MERGE or INSERT INTO final → DROP staging. Supports CSV (gzipped) and Parquet load file formats.",
+      "segment": "Direct Delta table MERGE operations",
+      "rudderstack": "Staging table lifecycle: CREATE staging → COPY INTO from S3/GCS/Azure (CSV gzip or Parquet) → MERGE INTO or INSERT INTO final → DROP staging; staging tables named rudder_staging_*; max table name length 127 chars"
+    },
+    "external_location": {
+      "description": "RudderStack supports external Delta table locations, allowing tables to be stored at customer-specified paths outside the default catalog location.",
+      "segment": "Managed Delta tables within catalog",
+      "rudderstack": "Optional external location via enableExternalLocation and externalLocation config; uses CREATE OR REPLACE TABLE with LOCATION clause; format: externalLocation/namespace/tableName"
+    },
+    "context_library": {
+      "description": "Different SDK library identifiers in the context field.",
+      "segment": "context_library_name: analytics.js",
+      "rudderstack": "context_library_name: rudder-sdk-js"
+    },
+    "envelope_fields": {
+      "description": "RudderStack includes additional envelope metadata fields not present in Segment output.",
+      "segment": "Standard fields: id, timestamp, sent_at, received_at, original_timestamp, uuid_ts",
+      "rudderstack": "Same standard fields plus auto-generated event_date partition column on tables with received_at"
+    },
+    "error_classification": {
+      "description": "RudderStack classifies Databricks errors into permission and resource-not-found categories for structured error handling.",
+      "rudderstack_error_types": [
+        "PermissionError: PERMISSION_DENIED on External Location",
+        "PermissionError: User does not have permission CREATE on CATALOG",
+        "ResourceNotFoundError: ENDPOINT_NOT_FOUND",
+        "ResourceNotFoundError: RESOURCE_DOES_NOT_EXIST"
+      ]
+    }
+  },
+  "parity_assessment": {
+    "overall_status": "needs_verification",
+    "schema_compatibility": "high",
+    "merge_behavior_parity": "medium",
+    "known_gaps": [
+      "RudderStack uses auto-generated event_date partition column; Segment does not",
+      "RudderStack supports partition pruning optimization; Segment relies on default Delta behavior",
+      "RudderStack has configurable merge vs append modes (allowMerge, preferAppend); Segment always merges",
+      "RudderStack supports external table locations; behavior may differ from Segment managed tables",
+      "RudderStack uses staging table approach (COPY INTO staging then MERGE); Segment may use direct MERGE",
+      "RudderStack supports both CSV (gzip) and Parquet load files; Segment approach may differ",
+      "RudderStack rewrites s3:// to s3a:// for Databricks S3A client compatibility",
+      "RudderStack OAuth support includes client_id/client_secret; Segment OAuth flow may differ",
+      "RudderStack users table dedup uses FIRST_VALUE window function with UNION of identifies; Segment approach may differ",
+      "Different SDK library name in context fields (rudder-sdk-js vs analytics.js)"
+    ],
+    "rudderstack_unique_features": [
+      "Partition pruning for improved query performance on large datasets",
+      "Configurable merge vs append behavior per destination",
+      "External table location support",
+      "STS temporary credentials for S3 access",
+      "Slow query threshold monitoring (default 5 minutes)",
+      "Configurable retry with exponential backoff (1s to 300s, max 10 retries)",
+      "Error length trimming (max 64KB) for structured logging",
+      "Dangling staging table cleanup on connection close",
+      "SQL middleware with secrets redaction for sensitive credential logging"
+    ]
+  },
+  "notes": "Databricks Delta Lake shared warehouse destination. RudderStack internal name: DELTALAKE. Package: warehouse/integrations/deltalake/. Both platforms write to Delta tables using SQL MERGE for deduplication. Key architectural difference: RudderStack introduces an auto-generated event_date partition column and supports configurable partition pruning for query optimization on large datasets. RudderStack's staging-table-based loading flow (COPY INTO staging → MERGE/INSERT → DROP staging) provides schema evolution handling and load isolation. OAuth authentication is fully supported alongside personal access tokens. Integration testing requires DATABRICKS_INTEGRATION_TEST_CREDENTIALS and the SLOW=1 flag. Driver: databricks-sql-go via sqlconnect."
+}

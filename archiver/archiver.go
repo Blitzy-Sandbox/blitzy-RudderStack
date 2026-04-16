@@ -13,6 +13,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/rudderlabs/rudder-go-kit/bytesize"
 	"github.com/rudderlabs/rudder-go-kit/config"
 	"github.com/rudderlabs/rudder-go-kit/filemanager"
@@ -396,6 +398,27 @@ func (a *archiver) ListArchivedStagingFiles(
 	return stagingFiles, nil
 }
 
+// ListArchivedFiles queries archived file metadata filtered by source ID and date range
+// for advanced replay (E-038). This is a convenience method used by the advanced replay
+// handler (gateway/handle_http_replay_advanced.go) which filters by source and date range
+// but not by destination — destination filtering happens downstream in the replay pipeline.
+//
+// Parameters:
+//   - ctx: Context for cancellation support
+//   - sourceID: The source identifier to filter archived files
+//   - startDate: The inclusive start of the date range
+//   - endDate: The inclusive end of the date range
+func (a *archiver) ListArchivedFiles(
+	ctx context.Context,
+	sourceID string,
+	startDate, endDate time.Time,
+) ([]ArchivedStagingFile, error) {
+	// Delegate to ListArchivedStagingFiles with empty destID.
+	// Destination-level filtering is applied later in the replay pipeline
+	// when the events are processed by the Processor/Router.
+	return a.ListArchivedStagingFiles(ctx, sourceID, "" /* destID */, startDate, endDate)
+}
+
 // listArchivedFilesForPrefix queries object storage for archived files matching the
 // given prefix, returning actual file metadata from the storage backend.
 //
@@ -556,6 +579,136 @@ func (a *archiver) QueryArchivedEvents(
 		logger.NewIntField("fileCount", int64(len(readers))),
 	)
 	return iterator, nil
+}
+
+// ReplayFilterOption configures optional filtering for advanced replay queries (E-038).
+// Options are applied via the functional options pattern, consistent with the archiver's
+// existing Option type in options.go.
+type ReplayFilterOption func(*replayFilterConfig)
+
+// replayFilterConfig holds the resolved configuration for advanced replay filtering.
+// It is populated by applying ReplayFilterOption values in QueryArchivedEventsFiltered.
+type replayFilterConfig struct {
+	destinationID string
+	dryRun        bool
+}
+
+// WithDestinationFilter restricts replay events to those targeting the specified
+// destination. When set, the returned iterator wraps the base event stream with a
+// destinationFilterIterator that checks each event's context.destinationId field.
+// Events without destination metadata are passed through for downstream filtering.
+func WithDestinationFilter(destinationID string) ReplayFilterOption {
+	return func(c *replayFilterConfig) {
+		c.destinationID = destinationID
+	}
+}
+
+// WithDryRun marks the query as a dry-run, which can be used by callers to
+// inspect events without executing the replay. The archiver logs the dry-run
+// intent but returns events normally — enforcement is the caller's responsibility.
+func WithDryRun(dryRun bool) ReplayFilterOption {
+	return func(c *replayFilterConfig) {
+		c.dryRun = dryRun
+	}
+}
+
+// QueryArchivedEventsFiltered returns an iterator over archived events with optional
+// advanced filtering for the replay pipeline (E-038). It extends QueryArchivedEvents
+// with destination-level filtering and dry-run mode support.
+//
+// The base source-level and date-range filtering is handled by QueryArchivedEvents.
+// Additional filtering (destination ID) is applied as a wrapper over the base iterator.
+// Dry-run mode is tracked in the returned config but actual enforcement is the caller's
+// responsibility — the archiver returns events regardless, and the caller skips execution.
+//
+// Parameters:
+//   - ctx: Context for cancellation support during file downloads
+//   - sourceID: The source identifier to filter archived events
+//   - startTime: The inclusive start of the time range
+//   - endTime: The inclusive end of the time range
+//   - opts: Optional ReplayFilterOption values for destination filtering and dry-run
+func (a *archiver) QueryArchivedEventsFiltered(
+	ctx context.Context,
+	sourceID string,
+	startTime, endTime time.Time,
+	opts ...ReplayFilterOption,
+) (ArchivedEventIterator, error) {
+	cfg := &replayFilterConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	if cfg.dryRun {
+		a.log.Infon("dry-run replay query — events will be returned but not replayed",
+			logger.NewStringField("sourceID", sourceID),
+			logger.NewStringField("startTime", startTime.Format(time.RFC3339)),
+			logger.NewStringField("endTime", endTime.Format(time.RFC3339)),
+		)
+	}
+
+	// Delegate to base QueryArchivedEvents for source + time range filtering
+	iterator, err := a.QueryArchivedEvents(ctx, sourceID, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	// If destination filtering is requested, wrap the iterator to filter events by destination
+	if cfg.destinationID != "" {
+		a.log.Infon("applying destination filter to replay query",
+			logger.NewStringField("destinationID", cfg.destinationID),
+		)
+		return &destinationFilterIterator{
+			inner:         iterator,
+			destinationID: cfg.destinationID,
+		}, nil
+	}
+
+	return iterator, nil
+}
+
+// destinationFilterIterator wraps an ArchivedEventIterator to filter events
+// by destination ID. Events that don't match the target destination are skipped.
+// This is used for destination-level replay filtering in E-038.
+//
+// Note: The archived events are raw gateway payloads that may not contain
+// explicit destination routing. When destination metadata is not present in
+// the event payload, the event is passed through (not filtered out) because
+// destination routing happens at the Processor/Router level, not at ingestion.
+type destinationFilterIterator struct {
+	inner         ArchivedEventIterator
+	destinationID string
+}
+
+// Next returns the next event that matches the destination filter. Events
+// targeting a different destination are skipped. Events without destination
+// metadata (context.destinationId absent or empty) are passed through for
+// downstream filtering by the Processor/Router.
+func (it *destinationFilterIterator) Next() ([]byte, error) {
+	for {
+		event, err := it.inner.Next()
+		if err != nil {
+			return nil, err // includes io.EOF
+		}
+
+		// Check if the event has destination metadata.
+		// Archived gateway events may or may not contain destination routing info.
+		// If no destination info is present, pass the event through — destination
+		// filtering will be enforced downstream by the Processor/Router.
+		destID := gjson.GetBytes(event, "context.destinationId").String()
+		if destID == "" {
+			// No destination metadata — pass through for downstream filtering
+			return event, nil
+		}
+		if destID == it.destinationID {
+			return event, nil
+		}
+		// Skip events targeting a different destination
+	}
+}
+
+// Close releases all resources held by the inner iterator.
+func (it *destinationFilterIterator) Close() error {
+	return it.inner.Close()
 }
 
 // downloadArchivedFile downloads archived files from object storage for a given

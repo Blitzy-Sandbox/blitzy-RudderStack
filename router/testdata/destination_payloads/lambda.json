@@ -1,0 +1,427 @@
+{
+  "destination_type": "LAMBDA",
+  "destination_tier": "stream",
+  "segment_reference_payload": {
+    "destination_slug": "amazon-lambda",
+    "destination_name": "Amazon Lambda",
+    "description": "Segment's Amazon Lambda destination invokes a specified AWS Lambda function with the full event JSON as the payload. The function name and invocation type are configured in the Segment destination settings. Segment typically uses synchronous invocation (RequestResponse) so that delivery errors are surfaced immediately.",
+    "supported_call_types": ["track", "identify", "page", "screen", "group", "alias"],
+    "integration_method": "AWS Lambda Invoke API via AWS SDK",
+    "authentication": {
+      "method": "AWS IAM",
+      "config_fields": {
+        "region": "AWS region where the Lambda function is deployed",
+        "roleAddress": "IAM Role ARN for cross-account invocation",
+        "externalId": "External ID for STS AssumeRole (confused deputy protection)"
+      }
+    },
+    "lambda_invocation": {
+      "function_name": "Configured in Segment destination settings (function name or ARN)",
+      "invocation_type": "RequestResponse (synchronous)",
+      "payload_format": "Raw event JSON — full Segment event object serialized as JSON bytes"
+    },
+    "sample_track_event": {
+      "type": "track",
+      "event": "Product Viewed",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:00:00.000Z",
+      "properties": {
+        "product_id": "SKU-001",
+        "name": "Premium Widget",
+        "price": 49.99,
+        "category": "Widgets",
+        "currency": "USD"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+      },
+      "messageId": "msg-seg-lambda-001"
+    },
+    "sample_identify_event": {
+      "type": "identify",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:01:00.000Z",
+      "traits": {
+        "email": "user@example.com",
+        "name": "Jane Doe",
+        "plan": "premium",
+        "company": "Acme Corp"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-lambda-002"
+    },
+    "sample_page_event": {
+      "type": "page",
+      "name": "Home",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:02:00.000Z",
+      "properties": {
+        "title": "Home | Acme Corp",
+        "url": "https://www.example.com/",
+        "path": "/",
+        "referrer": "https://www.google.com/"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-lambda-003"
+    },
+    "sample_screen_event": {
+      "type": "screen",
+      "name": "Dashboard",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:03:00.000Z",
+      "properties": {
+        "section": "main",
+        "feed_type": "personalized"
+      },
+      "context": {
+        "library": {
+          "name": "analytics-ios",
+          "version": "4.1.0"
+        },
+        "ip": "203.0.113.42"
+      },
+      "messageId": "msg-seg-lambda-004"
+    },
+    "sample_group_event": {
+      "type": "group",
+      "groupId": "group-abc-123",
+      "userId": "user_123",
+      "anonymousId": "anon-456",
+      "timestamp": "2026-02-25T12:04:00.000Z",
+      "traits": {
+        "name": "Acme Corp",
+        "industry": "Technology",
+        "employees": 500,
+        "plan": "enterprise"
+      },
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        }
+      },
+      "messageId": "msg-seg-lambda-005"
+    },
+    "sample_alias_event": {
+      "type": "alias",
+      "previousId": "anon-456",
+      "userId": "user_123",
+      "timestamp": "2026-02-25T12:05:00.000Z",
+      "context": {
+        "library": {
+          "name": "analytics.js",
+          "version": "2.1.0"
+        }
+      },
+      "messageId": "msg-seg-lambda-006"
+    },
+    "lambda_invoke_input_format": {
+      "FunctionName": "segment-event-processor",
+      "InvocationType": "RequestResponse",
+      "Payload": "<full event JSON bytes>"
+    }
+  },
+  "rudderstack_expected_payload": {
+    "producer_package": "services/streammanager/lambda",
+    "producer_constructor": "NewProducer",
+    "producer_interface": "common.StreamProducer (via common.Producer)",
+    "description": "RudderStack's Lambda producer wraps the event payload in an inputData struct with a 'payload' string field before passing it to the Produce method. The Produce method extracts the payload string, decodes the destination config (function name, invocation type, optional client context) from the destConfig map, and creates a lambda.InvokeInput for the AWS SDK v2 Lambda Invoke API. The default invocation type is 'Event' (asynchronous/fire-and-forget) rather than Segment's 'RequestResponse' (synchronous).",
+    "connection": {
+      "method": "lambda.NewFromConfig(awsConfig)",
+      "protocol": "AWS SDK v2 HTTP client to Lambda Invoke API",
+      "authentication": {
+        "method": "AWS IAM (role-based or direct credentials)",
+        "config_fields": {
+          "Region": "AWS region (e.g., us-east-1) — required",
+          "IAMRoleARN": "IAM role ARN for cross-account invocation via STS AssumeRole",
+          "ExternalID": "External ID for STS AssumeRole (confused deputy protection)"
+        }
+      },
+      "session_config": {
+        "MaxIdleConnsPerHost": "Configurable via Router.LAMBDA.httpMaxIdleConnsPerHost or Router.LAMBDA.noOfWorkers or Router.noOfWorkers (default: 64)"
+      }
+    },
+    "destination_config": {
+      "lambda": "my-rudder-event-processor",
+      "invocationType": "Event",
+      "clientContext": ""
+    },
+    "input_data_format": {
+      "description": "Events are wrapped in an inputData struct with a single 'payload' field containing the JSON-serialized event as a string. The Produce method unmarshals the incoming json.RawMessage into this struct before extracting the payload.",
+      "struct": {
+        "payload": "<JSON string of the full event>"
+      }
+    },
+    "track": {
+      "input_data": {
+        "payload": "{\"type\":\"track\",\"event\":\"Product Viewed\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:00:00.000Z\",\"properties\":{\"product_id\":\"SKU-001\",\"name\":\"Premium Widget\",\"price\":49.99,\"category\":\"Widgets\",\"currency\":\"USD\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\",\"userAgent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)\"},\"messageId\":\"msg-rs-lambda-001\",\"rudderId\":\"rudder-uuid-001\",\"originalTimestamp\":\"2026-02-25T12:00:00.000Z\",\"sentAt\":\"2026-02-25T12:00:01.000Z\",\"receivedAt\":\"2026-02-25T12:00:02.000Z\"}"
+      },
+      "lambda_invoke_input": {
+        "FunctionName": "my-rudder-event-processor",
+        "InvocationType": "Event",
+        "Payload": "{\"type\":\"track\",\"event\":\"Product Viewed\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:00:00.000Z\",\"properties\":{\"product_id\":\"SKU-001\",\"name\":\"Premium Widget\",\"price\":49.99,\"category\":\"Widgets\",\"currency\":\"USD\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\",\"userAgent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)\"},\"messageId\":\"msg-rs-lambda-001\",\"rudderId\":\"rudder-uuid-001\",\"originalTimestamp\":\"2026-02-25T12:00:00.000Z\",\"sentAt\":\"2026-02-25T12:00:01.000Z\",\"receivedAt\":\"2026-02-25T12:00:02.000Z\"}"
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message": "Event delivered to Lambda :: my-rudder-event-processor"
+      }
+    },
+    "identify": {
+      "input_data": {
+        "payload": "{\"type\":\"identify\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:01:00.000Z\",\"traits\":{\"email\":\"user@example.com\",\"name\":\"Jane Doe\",\"plan\":\"premium\",\"company\":\"Acme Corp\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-lambda-002\",\"rudderId\":\"rudder-uuid-002\",\"originalTimestamp\":\"2026-02-25T12:01:00.000Z\",\"sentAt\":\"2026-02-25T12:01:01.000Z\",\"receivedAt\":\"2026-02-25T12:01:02.000Z\"}"
+      },
+      "lambda_invoke_input": {
+        "FunctionName": "my-rudder-event-processor",
+        "InvocationType": "Event",
+        "Payload": "{\"type\":\"identify\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:01:00.000Z\",\"traits\":{\"email\":\"user@example.com\",\"name\":\"Jane Doe\",\"plan\":\"premium\",\"company\":\"Acme Corp\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-lambda-002\",\"rudderId\":\"rudder-uuid-002\",\"originalTimestamp\":\"2026-02-25T12:01:00.000Z\",\"sentAt\":\"2026-02-25T12:01:01.000Z\",\"receivedAt\":\"2026-02-25T12:01:02.000Z\"}"
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message": "Event delivered to Lambda :: my-rudder-event-processor"
+      }
+    },
+    "page": {
+      "input_data": {
+        "payload": "{\"type\":\"page\",\"name\":\"Home\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:02:00.000Z\",\"properties\":{\"title\":\"Home | Acme Corp\",\"url\":\"https://www.example.com/\",\"path\":\"/\",\"referrer\":\"https://www.google.com/\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-lambda-003\",\"rudderId\":\"rudder-uuid-003\",\"originalTimestamp\":\"2026-02-25T12:02:00.000Z\",\"sentAt\":\"2026-02-25T12:02:01.000Z\",\"receivedAt\":\"2026-02-25T12:02:02.000Z\"}"
+      },
+      "lambda_invoke_input": {
+        "FunctionName": "my-rudder-event-processor",
+        "InvocationType": "Event",
+        "Payload": "{\"type\":\"page\",\"name\":\"Home\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:02:00.000Z\",\"properties\":{\"title\":\"Home | Acme Corp\",\"url\":\"https://www.example.com/\",\"path\":\"/\",\"referrer\":\"https://www.google.com/\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-lambda-003\",\"rudderId\":\"rudder-uuid-003\",\"originalTimestamp\":\"2026-02-25T12:02:00.000Z\",\"sentAt\":\"2026-02-25T12:02:01.000Z\",\"receivedAt\":\"2026-02-25T12:02:02.000Z\"}"
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message": "Event delivered to Lambda :: my-rudder-event-processor"
+      }
+    },
+    "screen": {
+      "input_data": {
+        "payload": "{\"type\":\"screen\",\"name\":\"Dashboard\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:03:00.000Z\",\"properties\":{\"section\":\"main\",\"feed_type\":\"personalized\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-node\",\"version\":\"2.0.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-lambda-004\",\"rudderId\":\"rudder-uuid-004\",\"originalTimestamp\":\"2026-02-25T12:03:00.000Z\",\"sentAt\":\"2026-02-25T12:03:01.000Z\",\"receivedAt\":\"2026-02-25T12:03:02.000Z\"}"
+      },
+      "lambda_invoke_input": {
+        "FunctionName": "my-rudder-event-processor",
+        "InvocationType": "Event",
+        "Payload": "{\"type\":\"screen\",\"name\":\"Dashboard\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:03:00.000Z\",\"properties\":{\"section\":\"main\",\"feed_type\":\"personalized\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-node\",\"version\":\"2.0.0\"},\"ip\":\"203.0.113.42\"},\"messageId\":\"msg-rs-lambda-004\",\"rudderId\":\"rudder-uuid-004\",\"originalTimestamp\":\"2026-02-25T12:03:00.000Z\",\"sentAt\":\"2026-02-25T12:03:01.000Z\",\"receivedAt\":\"2026-02-25T12:03:02.000Z\"}"
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message": "Event delivered to Lambda :: my-rudder-event-processor"
+      }
+    },
+    "group": {
+      "input_data": {
+        "payload": "{\"type\":\"group\",\"groupId\":\"group-abc-123\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:04:00.000Z\",\"traits\":{\"name\":\"Acme Corp\",\"industry\":\"Technology\",\"employees\":500,\"plan\":\"enterprise\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"}},\"messageId\":\"msg-rs-lambda-005\",\"rudderId\":\"rudder-uuid-005\",\"originalTimestamp\":\"2026-02-25T12:04:00.000Z\",\"sentAt\":\"2026-02-25T12:04:01.000Z\",\"receivedAt\":\"2026-02-25T12:04:02.000Z\"}"
+      },
+      "lambda_invoke_input": {
+        "FunctionName": "my-rudder-event-processor",
+        "InvocationType": "Event",
+        "Payload": "{\"type\":\"group\",\"groupId\":\"group-abc-123\",\"userId\":\"user_123\",\"anonymousId\":\"anon-456\",\"timestamp\":\"2026-02-25T12:04:00.000Z\",\"traits\":{\"name\":\"Acme Corp\",\"industry\":\"Technology\",\"employees\":500,\"plan\":\"enterprise\"},\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"}},\"messageId\":\"msg-rs-lambda-005\",\"rudderId\":\"rudder-uuid-005\",\"originalTimestamp\":\"2026-02-25T12:04:00.000Z\",\"sentAt\":\"2026-02-25T12:04:01.000Z\",\"receivedAt\":\"2026-02-25T12:04:02.000Z\"}"
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message": "Event delivered to Lambda :: my-rudder-event-processor"
+      }
+    },
+    "alias": {
+      "input_data": {
+        "payload": "{\"type\":\"alias\",\"previousId\":\"anon-456\",\"userId\":\"user_123\",\"timestamp\":\"2026-02-25T12:05:00.000Z\",\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"}},\"messageId\":\"msg-rs-lambda-006\",\"rudderId\":\"rudder-uuid-006\",\"originalTimestamp\":\"2026-02-25T12:05:00.000Z\",\"sentAt\":\"2026-02-25T12:05:01.000Z\",\"receivedAt\":\"2026-02-25T12:05:02.000Z\"}"
+      },
+      "lambda_invoke_input": {
+        "FunctionName": "my-rudder-event-processor",
+        "InvocationType": "Event",
+        "Payload": "{\"type\":\"alias\",\"previousId\":\"anon-456\",\"userId\":\"user_123\",\"timestamp\":\"2026-02-25T12:05:00.000Z\",\"context\":{\"library\":{\"name\":\"rudder-sdk-js\",\"version\":\"2.48.0\"}},\"messageId\":\"msg-rs-lambda-006\",\"rudderId\":\"rudder-uuid-006\",\"originalTimestamp\":\"2026-02-25T12:05:00.000Z\",\"sentAt\":\"2026-02-25T12:05:01.000Z\",\"receivedAt\":\"2026-02-25T12:05:02.000Z\"}"
+      },
+      "expected_response": {
+        "statusCode": 200,
+        "status": "Success",
+        "message": "Event delivered to Lambda :: my-rudder-event-processor"
+      }
+    },
+    "error_responses": {
+      "invalid_json": {
+        "statusCode": 400,
+        "status": "Failure",
+        "message_pattern": "[Lambda] error while unmarshalling jsonData :: <unmarshal error>"
+      },
+      "empty_payload": {
+        "statusCode": 400,
+        "status": "Failure",
+        "message": "[Lambda] error :: Invalid payload"
+      },
+      "invalid_dest_config": {
+        "statusCode": 400,
+        "status": "Failure",
+        "message_pattern": "[Lambda] error while unmarshalling destConfig :: <decode error>"
+      },
+      "null_client": {
+        "statusCode": 400,
+        "status": "Failure",
+        "message": "[Lambda] error :: Could not create client"
+      },
+      "aws_api_error": {
+        "description": "Parsed via common.ParseAWSError into HTTP status code, status string, and message; logged with structured fields (statusCode, respStatus, responseMessage)",
+        "client_fault": {
+          "statusCode": 400,
+          "status": "<error code>",
+          "message": "<error message>"
+        },
+        "server_fault": {
+          "statusCode": 500,
+          "status": "Failure",
+          "message": "<error message>"
+        },
+        "generic_error": {
+          "statusCode": 500,
+          "status": "Failure",
+          "message": "<error message>"
+        }
+      }
+    }
+  },
+  "event_types": [
+    "track",
+    "identify",
+    "page",
+    "screen",
+    "group",
+    "alias"
+  ],
+  "field_mappings": {
+    "invocation_type": {
+      "segment": "RequestResponse (synchronous — delivery errors are returned immediately)",
+      "rudderstack": "Event (asynchronous/fire-and-forget by default — configurable via destination config 'invocationType' field)",
+      "parity_gap": "Default invocation type differs: Segment defaults to synchronous (RequestResponse), RudderStack defaults to asynchronous (Event). This affects error visibility — synchronous invocations surface Lambda execution errors, while asynchronous invocations return 202 immediately and errors are handled by Lambda's built-in retry/DLQ."
+    },
+    "function_name": {
+      "segment": "Configured in destination settings; passed as FunctionName to Lambda Invoke API",
+      "rudderstack": "Configured in destination config map under 'lambda' key; decoded via mapstructure.Decode into destinationConfig.Lambda; passed as FunctionName to lambda.InvokeInput",
+      "parity_gap": "No functional difference — both pass the function name/ARN to the same AWS Lambda Invoke API field"
+    },
+    "payload_envelope": {
+      "segment": "Raw event JSON is sent directly as the Lambda payload (Invoke.Payload bytes)",
+      "rudderstack": "Event JSON is wrapped in an inputData struct with a 'payload' string field for the Produce method. However, the actual Lambda invocation uses inputData.Payload directly as Invoke.Payload bytes, so the Lambda function receives the same raw event JSON.",
+      "parity_gap": "No difference at the Lambda invocation level — the Lambda function receives identical raw event JSON in both cases. The inputData wrapper is an internal transport detail of the RudderStack stream manager Produce method and does not affect the final payload."
+    },
+    "client_context": {
+      "segment": "Not typically configured",
+      "rudderstack": "Optional 'clientContext' field in destination config; passed as InvokeInput.ClientContext (Base64-encoded JSON with client-specific data for the Lambda function)",
+      "parity_gap": "RudderStack supports an additional ClientContext parameter not commonly used by Segment"
+    },
+    "event_envelope_fields": {
+      "segment": "Standard Segment event fields: type, event, userId, anonymousId, timestamp, properties/traits, context (with library.name=analytics.js), messageId",
+      "rudderstack": "Standard RudderStack event fields: type, event, userId, anonymousId, timestamp, properties/traits, context (with library.name=rudder-sdk-js), messageId, plus additional fields: rudderId, originalTimestamp, sentAt, receivedAt",
+      "parity_gap": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to every event payload. The context.library.name identifies the SDK (rudder-sdk-js vs analytics.js). Lambda functions processing events from both platforms must account for these additional fields."
+    },
+    "authentication": {
+      "segment": "AWS IAM credentials configured in destination settings (region, role ARN, external ID)",
+      "rudderstack": "AWS IAM credentials configured in destination config (Region, IAMRoleARN, ExternalID); uses awsutils.NewSessionConfigForDestination and awsutil.CreateAWSConfig to create AWS SDK v2 config",
+      "parity_gap": "No functional difference — both use IAM-based authentication for Lambda invocation. RudderStack additionally configures MaxIdleConnsPerHost for connection pooling."
+    },
+    "error_handling": {
+      "segment": "Synchronous invocation surfaces execution errors immediately; retries based on Segment's retry policy",
+      "rudderstack": "AWS API errors parsed via common.ParseAWSError into HTTP status code and message; client faults return 400, server faults return 500; errors logged with structured fields via rudder-go-kit/logger",
+      "parity_gap": "Different error surfacing due to default invocation type difference. Segment's synchronous invocations catch Lambda execution errors; RudderStack's asynchronous invocations rely on AWS Lambda's built-in retry and DLQ mechanisms for execution errors."
+    }
+  },
+  "producer_details": {
+    "constructor": "NewProducer",
+    "package": "services/streammanager/lambda",
+    "interface": "common.StreamProducer (via common.Producer)",
+    "config_structs": {
+      "destinationConfig": {
+        "description": "Decoded from destConfig map via mapstructure.Decode",
+        "fields": {
+          "invocationType": "AWS Lambda invocation type (Event, RequestResponse, DryRun); defaults to 'Event' if empty",
+          "clientContext": "Optional Base64-encoded JSON client context for the Lambda function; omitted from InvokeInput if empty",
+          "lambda": "Name or ARN of the target AWS Lambda function to invoke"
+        }
+      },
+      "inputData": {
+        "description": "Unmarshalled from incoming json.RawMessage in the Produce method",
+        "fields": {
+          "payload": "JSON string of the full event; passed as Invoke.Payload bytes"
+        }
+      }
+    },
+    "aws_session_config": {
+      "Region": "From destination config 'Region' field",
+      "IAMRoleARN": "From destination config 'IAMRoleARN' field",
+      "ExternalID": "From destination config 'ExternalID' field",
+      "MaxIdleConnsPerHost": "Configurable via Router.LAMBDA.httpMaxIdleConnsPerHost or Router.LAMBDA.noOfWorkers or Router.noOfWorkers (default: 64)"
+    },
+    "lambda_client": "aws-sdk-go-v2/service/lambda (created via lambda.NewFromConfig)",
+    "invoke_input_mapping": {
+      "FunctionName": "destinationConfig.Lambda",
+      "Payload": "[]byte(inputData.Payload)",
+      "InvocationType": "types.InvocationType(destinationConfig.InvocationType)",
+      "ClientContext": "destinationConfig.ClientContext (only set if non-empty)"
+    },
+    "success_response_format": {
+      "statusCode": 200,
+      "status": "Success",
+      "message": "Event delivered to Lambda :: <function_name>"
+    }
+  },
+  "parity_summary": {
+    "overall_parity_status": "High",
+    "critical_gaps": [
+      {
+        "gap": "Default invocation type",
+        "segment_behavior": "RequestResponse (synchronous)",
+        "rudderstack_behavior": "Event (asynchronous)",
+        "impact": "Different error handling semantics — synchronous invocations surface execution errors, asynchronous invocations fire-and-forget",
+        "mitigation": "Configure invocationType to 'RequestResponse' in RudderStack destination config for parity"
+      }
+    ],
+    "non_critical_differences": [
+      {
+        "difference": "Additional envelope fields",
+        "description": "RudderStack adds rudderId, originalTimestamp, sentAt, receivedAt to event payloads",
+        "impact": "Lambda functions must tolerate additional fields when processing events from RudderStack"
+      },
+      {
+        "difference": "SDK library identifier",
+        "description": "context.library.name is 'rudder-sdk-js' vs 'analytics.js'",
+        "impact": "Lambda functions that branch on library name must handle both identifiers"
+      },
+      {
+        "difference": "ClientContext support",
+        "description": "RudderStack supports optional ClientContext parameter for Lambda invocations",
+        "impact": "Additional capability — no negative parity impact"
+      },
+      {
+        "difference": "Connection pooling configuration",
+        "description": "RudderStack configures MaxIdleConnsPerHost for the Lambda HTTP client via Router config",
+        "impact": "Performance tuning — no payload parity impact"
+      }
+    ],
+    "functional_equivalence": "Both platforms invoke the same AWS Lambda Invoke API with the same function name and event JSON payload. The Lambda function receives identical event data (modulo envelope field differences). Authentication uses the same IAM-based mechanism."
+  },
+  "notes": "AWS Lambda shared stream destination. Segment slug: amazon-lambda. RudderStack package: services/streammanager/lambda/. Both platforms use the AWS Lambda Invoke API to deliver events. The primary parity difference is the default invocation type: Segment uses RequestResponse (synchronous) while RudderStack defaults to Event (asynchronous). The actual event payload delivered to the Lambda function is functionally equivalent, with RudderStack adding rudderId, originalTimestamp, sentAt, and receivedAt envelope fields. Lambda functions should be designed to tolerate these additional fields for cross-platform compatibility."
+}

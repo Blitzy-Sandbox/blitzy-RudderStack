@@ -51,6 +51,12 @@ type srcHydrationMessage struct {
 }
 
 func (proc *Handle) srcHydrationStage(partition string, message *srcHydrationMessage) (*preTransformationMessage, error) {
+	stageStart := time.Now()
+	defer func() {
+		if proc.pipelineProfiler != nil {
+			proc.pipelineProfiler.RecordStageLatency("srcHydration", time.Since(stageStart))
+		}
+	}()
 	spanTags := stats.Tags{"partition": partition}
 	ctx, processJobsSpan := proc.tracer.Trace(message.subJobs.ctx, "srcHydrationStage", tracing.WithTraceTags(spanTags))
 	defer processJobsSpan.End()

@@ -76,6 +76,14 @@ func (gw *Handle) withWarehouseReplayTag(delegate http.HandlerFunc) http.Handler
 			}
 		}
 
+		// Note: Advanced replay filters (source-level, date-range, destination-level, dry-run)
+		// are handled exclusively by withAdvancedReplayFilters (handle_http_replay_advanced.go).
+		// For the advanced handler chain (withAdvancedReplayFilters → withWarehouseReplayTag),
+		// filter injection occurs once in withAdvancedReplayFilters before this middleware runs,
+		// avoiding duplicate injection. For the basic replay chain (withWarehouseReplayTag only),
+		// advanced filter headers are not processed — users should use the /v1/replay/advanced
+		// endpoint for filter support.
+
 		// Replace the request body with the modified payload
 		r.Body = io.NopCloser(bytes.NewReader(body))
 		r.ContentLength = int64(len(body))

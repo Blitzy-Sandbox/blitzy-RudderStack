@@ -25,14 +25,16 @@ func newPipelineWorker(index int, partition string, h workerHandle, t *tracing.T
 		partition: partition,
 	}
 
-	// Initialize lifecycle context
-	w.lifecycle.ctx, w.lifecycle.cancel = context.WithCancel(context.Background())
+	// Initialize lifecycle context — cancel is stored in w.lifecycle.cancel and
+	// called during shutdown at w.lifecycle.cancel() in the Stop method.
+	w.lifecycle.ctx, w.lifecycle.cancel = context.WithCancel(context.Background()) //nolint:gosec // G118: cancel stored in struct and called in Stop()
 
 	bufSize := h.config().pipelineBufferedItems
 	w.channel.preprocess = make(chan subJob, bufSize)
 	w.channel.srcHydration = make(chan *srcHydrationMessage, bufSize)
 	w.channel.preTransform = make(chan *preTransformationMessage, bufSize)
 	w.channel.usertransform = make(chan *transformationMessage, bufSize)
+	w.channel.insertfunctions = make(chan *userTransformData, bufSize)
 	w.channel.destinationtransform = make(chan *userTransformData, bufSize)
 
 	// Store channel needs a larger buffer to accommodate all processed events
@@ -47,9 +49,12 @@ func newPipelineWorker(index int, partition string, h workerHandle, t *tracing.T
 
 // pipelineWorker performs all processing steps of a partition's pipeline:
 //  1. preprocess
-//  2. preTransform
-//  3. transform
-//  4. store
+//  2. srcHydration
+//  3. preTransform
+//  4. userTransform
+//  5. insertFunctions (E-017: per-destination pre-transform hooks, no-op when unconfigured)
+//  6. destinationTransform
+//  7. store
 type pipelineWorker struct {
 	index     int
 	partition string
@@ -67,6 +72,7 @@ type pipelineWorker struct {
 		srcHydration         chan *srcHydrationMessage      // srcHydration channel is used to send jobs to hydrate events via transformer
 		preTransform         chan *preTransformationMessage // preTransform is used to send jobs to store to arc, event schema and tracking plan validation
 		usertransform        chan *transformationMessage    // userTransform channel is used to send jobs to transform asynchronously when pipelining is enabled
+		insertfunctions      chan *userTransformData        // insertFunctions channel is used to send jobs to Insert Functions for per-destination pre-transform hooks (E-017)
 		destinationtransform chan *userTransformData        // destinationTransform channel is used to send jobs to transform asynchronously when pipelining is enabled
 		store                chan *storeMessage             // store channel is used to send jobs to store asynchronously when pipelining is enabled
 	}
@@ -157,15 +163,34 @@ func (w *pipelineWorker) start() {
 		}
 	})
 
-	// User transformation  goroutine
+	// User transformation goroutine
 	w.lifecycle.wg.Add(1)
 	rruntime.Go(func() {
 		defer w.lifecycle.wg.Done()
-		defer close(w.channel.destinationtransform)
+		defer close(w.channel.insertfunctions)
 		defer w.logger.Debugn("usertransform routine stopped")
 
 		for msg := range w.channel.usertransform {
 			data := w.handle.userTransformStage(w.partition, msg)
+			waitStart := time.Now()
+			w.channel.insertfunctions <- data
+			w.tracer.RecordSpan(msg.ctx, "start.insertFunctionsCh.wait", waitStart, tracing.WithRecordSpanTags(spanTags))
+		}
+	})
+
+	// Insert Functions goroutine (E-017)
+	// When Insert Functions are configured, executes per-destination transformation hooks.
+	// When no Insert Functions are configured, acts as a pass-through (no-op) for backward compatibility.
+	w.lifecycle.wg.Add(1)
+	rruntime.Go(func() {
+		defer w.lifecycle.wg.Done()
+		defer close(w.channel.destinationtransform)
+		defer w.logger.Debugn("insertfunctions routine stopped")
+
+		for msg := range w.channel.insertfunctions {
+			// Insert Functions stage: when configured, applies per-destination transformation hooks
+			// before destination transformation. When no Insert Functions are bound, this is a no-op pass-through.
+			data := w.handle.insertFunctionsStage(w.partition, msg)
 			waitStart := time.Now()
 			w.channel.destinationtransform <- data
 			w.tracer.RecordSpan(msg.ctx, "start.destinationTransformCh.wait", waitStart, tracing.WithRecordSpanTags(spanTags))
