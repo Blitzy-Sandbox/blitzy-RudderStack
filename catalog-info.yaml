@@ -2,11 +2,13 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: blitzy-RudderStack
-  description: "RudderStack data pipeline enhancement — Source SDK compatibility, warehouse sync, idempotent operations across 4 merged sprints"
+  description: RudderStack data pipeline enhancement — Source SDK compatibility, warehouse
+    sync, idempotent operations across 4 merged sprints
   tags:
-    - go
-    - infrastructure
-    - refactor
+  - go
+  - infrastructure
+  - new-feature
+  - refactor
   labels:
     blitzy.com/language: go
   annotations:
@@ -14,17 +16,17 @@ metadata:
     github.com/project-slug: Blitzy-Sandbox/blitzy-RudderStack
     backstage.io/source-location: url:https://github.com/Blitzy-Sandbox/blitzy-RudderStack/tree/main/
   links:
-    - url: https://github.com/Blitzy-Sandbox/blitzy-RudderStack
-      title: GitHub Repository
-    - url: https://github.com/Blitzy-Sandbox/blitzy-RudderStack/pull/18
-      title: "PR #18: Sprint 2-3 — Source SDK Compatibility"
-      icon: github
-    - url: https://github.com/Blitzy-Sandbox/blitzy-RudderStack/pull/20
-      title: "PR #20: Sprint 7-9 — Warehouse Enhancement"
-      icon: github
-    - url: https://github.com/Blitzy-Sandbox/blitzy-RudderStack/tree/main/blitzy/documentation
-      title: Blitzy Documentation
-      icon: docs
+  - url: https://github.com/Blitzy-Sandbox/blitzy-RudderStack
+    title: GitHub Repository
+  - url: https://github.com/Blitzy-Sandbox/blitzy-RudderStack/pull/18
+    title: 'PR #18: Sprint 2-3 — Source SDK Compatibility'
+    icon: github
+  - url: https://github.com/Blitzy-Sandbox/blitzy-RudderStack/pull/20
+    title: 'PR #20: Sprint 7-9 — Warehouse Enhancement'
+    icon: github
+  - url: https://github.com/Blitzy-Sandbox/blitzy-RudderStack/tree/main/blitzy/documentation
+    title: Blitzy Documentation
+    icon: docs
 spec:
   type: service
   lifecycle: production
