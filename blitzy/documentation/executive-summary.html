@@ -143,12 +143,23 @@
     .reveal section.slide-closing p { color: var(--blitzy-text-invert); }
     .reveal section.slide-closing .accent-bar { margin-top: 1.5em; }
 
-    /* Component: KPI grid + cards */
+    /* Component: KPI grid + cards
+       max-width caps grid width to keep the 4-column layout fully on-screen
+       even at reveal.js logical 1920px (without the cap, the grid naturally
+       fills the section content area and overflows the viewport right edge
+       by ~19px after the 0.96 transform-scale, cutting off the 4th card).
+       1800px logical = 1728px visible, leaving 96px total horizontal margin
+       (48px each side) within the 1920px viewport. min-width:0 on grid items
+       allows .kpi-value content to honor container width.
+       kpi-value font-size reduced from 2.4em to 2em so the longest legitimate
+       value ("Removed" on Slide 15, used for the SonarQube container state)
+       fits within the narrower card content area without visual overflow. */
     .reveal .kpi-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 24px;
-      margin: 1em 0;
+      margin: 1em auto;
+      max-width: 1800px;
     }
     .reveal .kpi-card {
       background: var(--blitzy-surface-1);
@@ -156,6 +167,7 @@
       border-radius: 12px;
       padding: 24px;
       text-align: left;
+      min-width: 0;
     }
     .reveal .kpi-icon { margin-bottom: 12px; }
     .reveal .kpi-icon i,
@@ -168,11 +180,12 @@
     }
     .reveal .kpi-value {
       font-family: var(--ff-display);
-      font-size: 2.4em;
+      font-size: 2em;
       font-weight: 700;
       color: var(--blitzy-primary);
       line-height: 1;
       margin: 4px 0;
+      min-width: 0;
     }
     .reveal .kpi-label {
       font-family: var(--ff-mono);
@@ -307,6 +320,44 @@
       display: block;
       margin: 0 auto;
     }
+    /* Force Mermaid SVG text to use a font that is guaranteed to be present
+       AND identical between measurement and rendering. Mermaid measures
+       text width using its configured font (overridden to Inter via the
+       themeVariables.fontFamily setting in the script block below) but
+       the internal width measurement in Mermaid 11.4.0 has been observed
+       to be ~5-10px narrower than the actual browser layout-engine
+       rendering width for the same font and size, producing right-edge
+       clipping on every node label. 'Inter' is already loaded via Google
+       Fonts for the rest of the deck and has consistent metrics across
+       platforms; 'Verdana' is the cross-platform fallback when Inter is
+       unavailable. */
+    .reveal pre.mermaid svg,
+    .reveal pre.mermaid svg foreignObject,
+    .reveal pre.mermaid svg foreignObject p,
+    .reveal pre.mermaid svg foreignObject span,
+    .reveal pre.mermaid svg .label,
+    .reveal pre.mermaid svg .nodeLabel,
+    .reveal pre.mermaid svg .edgeLabel,
+    .reveal pre.mermaid svg text {
+      font-family: 'Inter', 'Verdana', sans-serif !important;
+      font-size: 14px !important;
+    }
+    /* Allow foreignObject text content to render into the surrounding rect
+       padding when Mermaid's internal text measurement under-sizes the
+       foreignObject relative to the actual rendered width. The parent
+       `g.node` rect is consistently 60px wider than the foreignObject
+       (30px padding on each side); allowing overflow lets the rendered
+       text use that pre-allocated horizontal padding rather than being
+       clipped at the foreignObject right edge. The `<div>` inside the
+       foreignObject uses `text-align: center` and `display: table-cell`
+       so any overflow is symmetric around the foreignObject center,
+       keeping text visually centered in its parent rect. */
+    .reveal pre.mermaid svg foreignObject {
+      overflow: visible !important;
+    }
+    .reveal pre.mermaid svg foreignObject > div {
+      overflow: visible !important;
+    }
 
     /* Misc utility: list bullets with gradient accent square */
     .reveal section ul { list-style: none; padding-left: 0; }
@@ -375,12 +426,12 @@
           </div>
           <div class="kpi-card">
             <div class="kpi-icon"><i data-lucide="timer" aria-hidden="true"></i></div>
-            <div class="kpi-value">Runtime</div>
+            <div class="kpi-value">&mdash;</div>
             <div class="kpi-label">Scan Duration</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon"><i data-lucide="zap" aria-hidden="true"></i></div>
-            <div class="kpi-value">Runtime</div>
+            <div class="kpi-value">&mdash;</div>
             <div class="kpi-label">Cold-Start Time</div>
           </div>
         </div>
@@ -489,10 +540,27 @@ graph LR
         <h2>Additive, Self-Contained</h2>
         <pre class="mermaid">
 graph LR
-    A[findings-config-i.json] -- describes --> B[decision-log.md]
-    B -- summarized by --> C[executive-summary.html]
-    A -- visualized in --> C
+    A[findings-config-i.json] --> B[decision-log.md] --> C[executive-summary.html]
         </pre>
+        <table>
+          <thead>
+            <tr><th>Edge</th><th>Relationship</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>findings-config-i.json</code> &rarr; <code>decision-log.md</code></td>
+              <td>Described by</td>
+            </tr>
+            <tr>
+              <td><code>decision-log.md</code> &rarr; <code>executive-summary.html</code></td>
+              <td>Summarized by</td>
+            </tr>
+            <tr>
+              <td><code>findings-config-i.json</code> &rarr; <code>executive-summary.html</code></td>
+              <td>Visualized in (direct)</td>
+            </tr>
+          </tbody>
+        </table>
         <p class="slide-caption">Zero application source modifications. Existing tooling configs unchanged.</p>
       </section>
 
@@ -644,11 +712,36 @@ graph LR
         primaryTextColor: '#333333',
         primaryBorderColor: '#5B39F3',
         lineColor: '#999999',
-        secondaryColor: '#F4EFF6'
+        secondaryColor: '#F4EFF6',
+        fontFamily: '"Inter", "Verdana", sans-serif'
       }
     });
-    Reveal.on('ready', () => { lucide.createIcons(); mermaid.run(); });
-    Reveal.on('slidechanged', () => { lucide.createIcons(); mermaid.run(); });
+    // Cache each Mermaid diagram's source BEFORE any rendering destroys it.
+    // Mermaid renders diagrams on hidden slides (display:none) with width=0
+    // containers, producing broken SVG viewBox (-8 -8 16 16 placeholder). We
+    // therefore re-render lazily: each time a Mermaid-containing slide becomes
+    // active, reset its <pre> to the original source and call mermaid.run on
+    // the now-visible (and correctly-sized) node.
+    const mermaidSources = new Map();
+    document.querySelectorAll('pre.mermaid').forEach((pre, i) => {
+      pre.setAttribute('data-mermaid-id', String(i));
+      mermaidSources.set(String(i), pre.textContent);
+    });
+    async function refreshCurrentSlideMermaid() {
+      const current = Reveal.getCurrentSlide();
+      if (!current) return;
+      const pres = current.querySelectorAll('pre.mermaid');
+      for (const pre of pres) {
+        const src = mermaidSources.get(pre.getAttribute('data-mermaid-id'));
+        if (src) {
+          pre.removeAttribute('data-processed');
+          pre.innerHTML = src;
+        }
+      }
+      if (pres.length) await mermaid.run({ nodes: Array.from(pres) });
+    }
+    Reveal.on('ready', async () => { lucide.createIcons(); await refreshCurrentSlideMermaid(); });
+    Reveal.on('slidechanged', async () => { lucide.createIcons(); await refreshCurrentSlideMermaid(); });
   </script>
 </body>
 </html>
