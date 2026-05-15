@@ -842,12 +842,19 @@ pie title Plan-Time Severity Mix
     </div><!-- /.slides -->
   </div><!-- /.reveal -->
 
-  <!-- Runtime libraries: reveal.js 5.1.0, Lucide 0.460.0 (UMD), Mermaid 11.4.0 (ESM) -->
+  <!--
+    Runtime libraries: reveal.js 5.1.0, Lucide 0.460.0 (UMD), Mermaid 11.10.0 (ESM).
+    Mermaid is pinned to 11.10.0 — the patched release for CVE-2025-54880
+    (affected: >=11.1.0, <=11.9.0; patched: 11.10.0; severity: Critical).
+    This is a security-driven deviation from AAP §0.8.1 Rule 2 (Executive
+    Presentation), which originally enumerated Mermaid 11.4.0; the upgrade is
+    recorded in DECISIONS.md Decision #15.
+  -->
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 
   <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.esm.min.mjs';
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.10.0/dist/mermaid.esm.min.mjs';
 
     // Mermaid initialization
     mermaid.initialize({

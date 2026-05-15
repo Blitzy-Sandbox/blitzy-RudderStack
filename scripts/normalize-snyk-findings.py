@@ -1,33 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Normalize Snyk SAST + dependency scan outputs into a single-line minified JSON array.
+"""Normalize Snyk SAST + dependency outputs into a single-line minified JSON array.
 
-Inputs:
-  * results-snyk-code.sarif  - Snyk Code SAST output (SARIF 2.1.0)
-  * results-snyk-deps.json   - Snyk Open Source dependency scan output (--json)
-
-Output:
-  * findings-config-h.json   - UTF-8, single minified line + one trailing newline
-                               (so `cat findings-config-h.json | wc -l` returns 1)
-
-Exit codes:
-  * 0 - success
-  * 2 - missing or malformed input
+Inputs: results-snyk-code.sarif (SARIF 2.1.0), results-snyk-deps.json (Snyk --json).
+Output: findings-config-h.json (UTF-8, single line + one trailing newline).
+Exit codes: 0 success, 2 missing/malformed input. See DECISIONS.md for rationale.
 
 Example invocation:
-  python3 scripts/normalize-snyk-findings.py --sarif results-snyk-code.sarif \
-      --deps results-snyk-deps.json --out findings-config-h.json --repo-root .
-
-See DECISIONS.md at the repository root for rationale on every non-trivial
-decision (severity mapping for `none`, CWE/CVE fallback, prefix-inclusive
-200-char truncation, path-relativity, exit-code semantics).
+  python3 scripts/normalize-snyk-findings.py --sarif results-snyk-code.sarif --deps results-snyk-deps.json --out findings-config-h.json --repo-root .
 """
 import argparse
 import json
 import os
 import re
 import sys
-from pathlib import Path  # noqa: F401  # Imported per agent_prompt Phase 2 import contract.
 
 # ── Module-level constants ───────────────────────────────────────────────────
 
@@ -59,21 +45,38 @@ REQUIRED_FIELDS = ('file', 'line', 'severity', 'cwe', 'description')
 PREFIX_SAST = '[snyk-code] '
 PREFIX_DEPS = '[snyk-deps] '
 
+# Dependency-severity allowlist per AAP §0.2.3 (verbatim user-supplied schema
+# constrains the unified `severity` to one of these four values).
+# See DECISIONS.md (Decision #17) for the deterministic fallback to 'low' on
+# unrecognized severity strings.
+DEPS_SEVERITY_ALLOWLIST = frozenset({'critical', 'high', 'medium', 'low'})
+
+# Deterministic fallback severity for unrecognized dependency-severity values.
+DEPS_SEVERITY_FALLBACK = 'low'
+
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def truncate_utf8(text, max_chars=MAX_DESCRIPTION_CHARS):
     """Normalize whitespace runs to single spaces, strip, and character-truncate.
 
-    See DECISIONS.md (Decision #3) for the prefix-inclusive truncation contract.
+    See DECISIONS.md (Decision #3) for the prefix-inclusive truncation contract
+    and Decision #17 for the non-string coercion contract.
 
     Treats None and empty string identically: returns ''.
+    Non-string inputs (ints, lists, dicts, etc.) are coerced via str(...) so
+    this function NEVER raises TypeError on schema-malformed-but-valid JSON
+    inputs (Decision #17).
     Collapses any run of whitespace (spaces, tabs, newlines, etc.) to a single
     space character, then strips leading/trailing whitespace, then truncates
     to at most max_chars characters.
     """
-    if not text:
+    if text is None or text == '':
         return ''
+    # Coerce any non-string scalar/object to its str() representation so the
+    # downstream re.sub never fails on int/list/dict inputs. See Decision #17.
+    if not isinstance(text, str):
+        text = str(text)
     normalized = re.sub(r'\s+', ' ', text).strip()
     if len(normalized) <= max_chars:
         return normalized
@@ -84,42 +87,64 @@ def to_relative_path(uri, repo_root):
     """Convert an absolute or root-anchored SARIF/Snyk URI to a repo-relative path.
 
     See DECISIONS.md (Decision #9) for the relpath strategy and fallback
-    behavior on cross-filesystem boundaries.
+    behavior on cross-filesystem boundaries, and Decision #17 for the
+    non-string coercion contract.
 
     Strips a leading "file://" scheme if present, then either relativizes
     against the resolved repo_root (when the URI is absolute) or normalizes
     the path (when it is already relative). On any path-resolution error,
-    returns the (post-scheme-strip) URI unchanged. NEVER raises.
+    returns the (post-scheme-strip) URI unchanged.
+
+    NEVER raises: non-string inputs are coerced via str(...) before any
+    string/path operation, falsy inputs short-circuit to '', and a broad
+    Exception catch on the path-resolution branch falls back to the
+    (post-scheme-strip) string form (Decision #17).
     """
     if not uri:
         return ''
+    # Coerce any non-string input (int, Path, None-like, etc.) to its string
+    # form so .startswith, os.path.isabs, and os.path.relpath always receive a
+    # str. See Decision #17.
+    if not isinstance(uri, str):
+        uri = str(uri)
     if uri.startswith('file://'):
         uri = uri[len('file://'):]
     try:
-        abs_root = os.path.abspath(repo_root)
+        repo_root_str = repo_root if isinstance(repo_root, str) else str(repo_root or '.')
+        abs_root = os.path.abspath(repo_root_str)
         if os.path.isabs(uri):
             return os.path.relpath(uri, abs_root)
         return os.path.normpath(uri)
-    except (ValueError, OSError):
+    except (ValueError, OSError, TypeError):
         return uri
 
 
 def extract_cwe_from_rule(rule):
     """Extract a CWE-<n> identifier from a SARIF rule dict.
 
-    See DECISIONS.md (Decision #8) for the SAST CWE extraction priority order.
+    See DECISIONS.md (Decision #8) for the SAST CWE extraction priority order
+    and Decision #17 for the defensive non-dict input contract.
 
     Priority:
       1. rule.properties.cwe[0]  - canonical typed field
       2. rule.properties.tags    - scan for CWE-<n> pattern
       3. UNKNOWN_CWE fallback
+
+    Non-dict or falsy inputs (rule is None, rule is a string, etc.) return
+    UNKNOWN_CWE deterministically rather than raising AttributeError.
     """
-    props = (rule or {}).get('properties', {}) or {}
-    cwe_list = props.get('cwe') or []
+    if not isinstance(rule, dict):
+        return UNKNOWN_CWE
+    props = rule.get('properties') if isinstance(rule.get('properties'), dict) else {}
+    cwe_list = props.get('cwe') if isinstance(props.get('cwe'), list) else []
     if cwe_list:
         cwe_id = cwe_list[0]
-        return cwe_id if str(cwe_id).startswith('CWE-') else f'CWE-{cwe_id}'
-    for tag in props.get('tags', []) or []:
+        cwe_str = str(cwe_id) if cwe_id is not None else ''
+        if not cwe_str:
+            return UNKNOWN_CWE
+        return cwe_str if cwe_str.startswith('CWE-') else f'CWE-{cwe_str}'
+    tags = props.get('tags') if isinstance(props.get('tags'), list) else []
+    for tag in tags:
         m = CWE_TAG_PATTERN.search(str(tag))
         if m:
             return m.group(0)
@@ -129,20 +154,28 @@ def extract_cwe_from_rule(rule):
 def extract_cwe_or_cve(identifiers):
     """Return the first CWE/CVE identifier from a Snyk vulnerability's identifiers map.
 
-    See DECISIONS.md (Decision #2) for the CWE-first, CVE-fallback rationale.
+    See DECISIONS.md (Decision #2) for the CWE-first, CVE-fallback rationale
+    and Decision #17 for the defensive non-dict input contract.
 
     Priority:
       1. identifiers.CWE[0]
       2. identifiers.CVE[0]
       3. UNKNOWN_CWE
+
+    Non-dict inputs and absent/empty arrays degrade gracefully to UNKNOWN_CWE.
     """
-    ids = identifiers or {}
-    cwe_list = ids.get('CWE') or []
+    if not isinstance(identifiers, dict):
+        return UNKNOWN_CWE
+    cwe_list = identifiers.get('CWE') if isinstance(identifiers.get('CWE'), list) else []
     if cwe_list:
-        return str(cwe_list[0])
-    cve_list = ids.get('CVE') or []
+        value = cwe_list[0]
+        if value is not None and str(value):
+            return str(value)
+    cve_list = identifiers.get('CVE') if isinstance(identifiers.get('CVE'), list) else []
     if cve_list:
-        return str(cve_list[0])
+        value = cve_list[0]
+        if value is not None and str(value):
+            return str(value)
     return UNKNOWN_CWE
 
 
@@ -158,33 +191,68 @@ def normalize_sarif(sarif_data, repo_root):
       cwe         := extract_cwe_from_rule(rules_by_id[ruleId])
       description := truncate_utf8(PREFIX_SAST + message.text)
 
-    Defensive `or {}` / `or []` patterns absorb missing fields in real-world
-    SARIF inputs. Field-emission order is fixed: file, line, severity, cwe,
-    description (Python 3.7+ preserves dict insertion order).
+    Defensive guards (per DECISIONS.md Decision #17):
+      * `runs`, `results`, `tool.driver.rules` arrays are coerced to [] when
+        missing or non-list.
+      * Each `run`, `result`, and `rule` is `isinstance(..., dict)`-checked;
+        non-dict entries are skipped with `continue` (deterministic fallback —
+        no record is emitted for a malformed input rather than raising).
+      * `uri` and `msg` are coerced to strings before concatenation/path
+        operations (the prefix-string + non-string concatenation crash
+        documented in Checkpoint 2 review finding #1 is fully eliminated).
+
+    Field-emission order is fixed: file, line, severity, cwe, description
+    (Python 3.7+ preserves dict insertion order).
     """
     out = []
-    runs = (sarif_data or {}).get('runs', []) or []
+    if not isinstance(sarif_data, dict):
+        return out
+    runs = sarif_data.get('runs')
+    if not isinstance(runs, list):
+        return out
     for run in runs:
+        # Decision #17: skip non-dict run entries deterministically.
+        if not isinstance(run, dict):
+            continue
         # Build ruleId → rule lookup scoped to this run.
-        rules = (((run or {}).get('tool') or {}).get('driver') or {}).get('rules', []) or []
-        rules_by_id = {r.get('id', ''): r for r in rules if isinstance(r, dict)}
-        for res in (run or {}).get('results', []) or []:
-            level = (res or {}).get('level', 'note')
+        tool = run.get('tool') if isinstance(run.get('tool'), dict) else {}
+        driver = tool.get('driver') if isinstance(tool.get('driver'), dict) else {}
+        rules = driver.get('rules') if isinstance(driver.get('rules'), list) else []
+        rules_by_id = {
+            r.get('id', ''): r
+            for r in rules
+            if isinstance(r, dict)
+        }
+        results = run.get('results') if isinstance(run.get('results'), list) else []
+        for res in results:
+            # Decision #17: skip non-dict result entries deterministically.
+            if not isinstance(res, dict):
+                continue
+            level = res.get('level', 'note')
+            # Coerce non-string level to its str() form before dict lookup so
+            # SARIF_LEVEL_TO_SEVERITY.get never receives an unhashable type.
+            if not isinstance(level, str):
+                level = str(level) if level is not None else 'note'
             severity = SARIF_LEVEL_TO_SEVERITY.get(level, 'low')
-            rule = rules_by_id.get((res or {}).get('ruleId', ''), {}) or {}
+            rule = rules_by_id.get(res.get('ruleId', ''), {})
             cwe = extract_cwe_from_rule(rule)
-            locations = (res or {}).get('locations') or [{}]
-            loc0 = locations[0] if locations else {}
-            phys = ((loc0 or {}).get('physicalLocation') or {})
-            artifact = (phys.get('artifactLocation') or {})
+            locations = res.get('locations') if isinstance(res.get('locations'), list) else []
+            loc0 = locations[0] if locations and isinstance(locations[0], dict) else {}
+            phys = loc0.get('physicalLocation') if isinstance(loc0.get('physicalLocation'), dict) else {}
+            artifact = phys.get('artifactLocation') if isinstance(phys.get('artifactLocation'), dict) else {}
             uri = artifact.get('uri', '') or ''
-            region = (phys.get('region') or {})
+            region = phys.get('region') if isinstance(phys.get('region'), dict) else {}
             start_line_raw = region.get('startLine', 0)
             try:
                 line = int(start_line_raw)
             except (TypeError, ValueError):
                 line = 0
-            msg = ((res or {}).get('message') or {}).get('text', '') or ''
+            message_obj = res.get('message') if isinstance(res.get('message'), dict) else {}
+            msg = message_obj.get('text', '') or ''
+            # Coerce msg to string before concatenation so the [snyk-code]
+            # prefix can never trigger TypeError on non-string message.text.
+            if not isinstance(msg, str):
+                msg = str(msg)
             description = truncate_utf8(PREFIX_SAST + msg)
             out.append({
                 'file': to_relative_path(uri, repo_root),
@@ -202,17 +270,48 @@ def normalize_deps(deps_data, repo_root):
     For each vulnerabilities[*]:
       file        := displayTargetFile (typically 'go.mod'); to_relative_path applied
       line        := 0  (always — per the user-supplied field-mapping table)
-      severity    := vulnerability.severity (pass through; critical|high|medium|low)
+      severity    := vulnerability.severity, validated against DEPS_SEVERITY_ALLOWLIST
+                     (Decision #17: unrecognized values fall back to DEPS_SEVERITY_FALLBACK)
       cwe         := extract_cwe_or_cve(identifiers)  (Decision #2: CWE first, CVE fallback)
       description := truncate_utf8(PREFIX_DEPS + title)
+
+    Defensive guards (per DECISIONS.md Decision #17):
+      * `deps_data` non-dict → returns [].
+      * `vulnerabilities` non-list → treated as empty.
+      * Each `v` is `isinstance(..., dict)`-checked; non-dict entries are
+        skipped with `continue`.
+      * `severity` coerced and lower-cased; values outside the allowlist
+        {critical, high, medium, low} fall back to 'low' so output severity
+        is always one of the four canonical values.
+      * `title` coerced to string before [snyk-deps] concatenation.
     """
     out = []
-    target_raw = (deps_data or {}).get('displayTargetFile', 'go.mod') or 'go.mod'
+    if not isinstance(deps_data, dict):
+        return out
+    target_raw = deps_data.get('displayTargetFile', 'go.mod') or 'go.mod'
     target = to_relative_path(target_raw, repo_root)
-    for v in (deps_data or {}).get('vulnerabilities', []) or []:
-        severity = (v or {}).get('severity', 'low') or 'low'
-        cwe = extract_cwe_or_cve((v or {}).get('identifiers') or {})
-        title = (v or {}).get('title', '') or ''
+    vulnerabilities = deps_data.get('vulnerabilities')
+    if not isinstance(vulnerabilities, list):
+        return out
+    for v in vulnerabilities:
+        # Decision #17: skip non-dict vulnerability entries deterministically.
+        if not isinstance(v, dict):
+            continue
+        # Severity: coerce to string, lower-case, and constrain to the
+        # four-value allowlist. Unknown values degrade to DEPS_SEVERITY_FALLBACK
+        # rather than passing arbitrary strings through to the output.
+        raw_severity = v.get('severity', DEPS_SEVERITY_FALLBACK)
+        if not isinstance(raw_severity, str):
+            raw_severity = str(raw_severity) if raw_severity is not None else DEPS_SEVERITY_FALLBACK
+        severity_norm = raw_severity.strip().lower() or DEPS_SEVERITY_FALLBACK
+        severity = severity_norm if severity_norm in DEPS_SEVERITY_ALLOWLIST else DEPS_SEVERITY_FALLBACK
+        identifiers = v.get('identifiers') if isinstance(v.get('identifiers'), dict) else {}
+        cwe = extract_cwe_or_cve(identifiers)
+        title = v.get('title', '') or ''
+        # Coerce title to string before concatenation so the [snyk-deps]
+        # prefix never triggers TypeError on non-string title fields.
+        if not isinstance(title, str):
+            title = str(title)
         description = truncate_utf8(PREFIX_DEPS + title)
         out.append({
             'file': target,

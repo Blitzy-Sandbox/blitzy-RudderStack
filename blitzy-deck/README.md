@@ -17,18 +17,20 @@ browser is the entire workflow — there is no install command, no bundler, and 
 ## Requirements
 
 - A modern browser: Chromium 100 or later, Firefox 100 or later, or Safari 15 or later
-- Internet access on first load — the browser fetches reveal.js 5.1.0, Mermaid 11.4.0,
+- Internet access on first load — the browser fetches reveal.js 5.1.0, Mermaid 11.10.0,
   Lucide 0.460.0, and Google Fonts (Inter, Space Grotesk, Fira Code) from CDN
 - No local Node.js, Python, or other tooling is required to view the deck
 - Subsequent loads can use the browser cache; an offline second viewing is supported once the
   CDN assets are cached
 
-The Mermaid 11.4.0 pin is mandated by AAP §0.8.1 Rule 2 (Executive Presentation) and is retained
-under a formal security exception recorded in `DECISIONS.md` (Decision 15). All Mermaid diagram
-sources in this deck are hardcoded by the deck author — no user-controlled diagram source ever
-reaches Mermaid at runtime — so the deck's threat model does not exercise the public-CDN
-Mermaid vulnerability surface for this release. See `DECISIONS.md` for the full risk analysis
-and mitigations.
+The Mermaid runtime is pinned to **11.10.0** — the patched release for CVE-2025-54880
+(affected versions `>=11.1.0, <=11.9.0`; Critical severity). This is a security-driven
+deviation from the verbatim AAP §0.8.1 Rule 2 (Executive Presentation) value of 11.4.0,
+recorded as Decision #15 in `DECISIONS.md` at the repository root. The rule's spirit — pinned,
+version-controlled CDN dependencies with no build step — is preserved by the upgrade. All
+Mermaid diagram sources in this deck remain hardcoded by the deck author — no user-controlled
+diagram source ever reaches Mermaid at runtime — so the deck's defense-in-depth posture
+combines the patched runtime with a closed-input threat model.
 
 ## Viewing Dimensions
 
@@ -108,8 +110,9 @@ The deck is structured as 16 sequential slides. The list below mirrors the rende
   (target 16) per AAP §0.8.1 Rule 2; update the `## Contents` list in this file in lockstep
 - All styling lives in the inline `<style>` block at the top of `blitzy-deck/index.html`;
   there is no external CSS file
-- Mermaid diagrams are embedded as `<div class="mermaid">...</div>` blocks; the Mermaid 11.4.0
-  runtime renders them on page load and on every `slidechanged` event
+- Mermaid diagrams are embedded as `<div class="mermaid">...</div>` blocks; the Mermaid 11.10.0
+  runtime renders them on page load and on every `slidechanged` event (the 11.10.0 pin is the
+  patched release for CVE-2025-54880; see Decision #15 in `DECISIONS.md`)
 - Lucide icons are `<i data-lucide="icon-name"></i>` elements; the Lucide 0.460.0 runtime
   replaces them with inline SVG on page load and on every `slidechanged` event
 
