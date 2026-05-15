@@ -163,6 +163,6 @@ The transformation matrix below mirrors AAP §0.5.1 and §0.5.4. Every file touc
 - [CWE list (MITRE)](https://cwe.mitre.org/data/)
 - [CVE list (NIST NVD)](https://nvd.nist.gov/vuln/search)
 - [reveal.js 5.1.0 documentation](https://revealjs.com/)
-- [Mermaid 11.10.0 documentation](https://mermaid.js.org/) (security-driven upgrade from 11.4.0 per Decision #15; see [CVE-2025-54880](https://github.com/advisories/GHSA-7gjp-26pp-8w8w))
+- [Mermaid 11.10.0 documentation](https://mermaid.js.org/) (security-driven upgrade from 11.4.0 per Decision #15; see [CVE-2025-54880](https://github.com/advisories/GHSA-8gwm-58g9-j8pw))
 - [Lucide 0.460.0 icon library](https://lucide.dev/icons/)
 
