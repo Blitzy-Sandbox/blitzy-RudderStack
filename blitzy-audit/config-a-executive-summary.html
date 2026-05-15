@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Audit · Config A Baseline · Blitzy</title>
+
+  <!-- Google Fonts: Inter (body), Space Grotesk (display), Fira Code (mono) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fira+Code:wght@400;500&display=swap">
+
+  <!-- reveal.js core stylesheet ONLY (no theme — Blitzy theme is embedded inline below) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+
+  <style>
+    /* =========================================================
+       Blitzy Brand Tokens — defined exactly per the deliverable
+       contract. All other style rules must reference these tokens.
+       ========================================================= */
+    :root {
+      --blitzy-primary: #5B39F3;
+      --blitzy-primary-dark: #2D1C77;
+      --blitzy-primary-navy: #1A105F;
+      --blitzy-primary-light: #7A6DEC;
+      --blitzy-primary-deep: #4101DB;
+      --blitzy-accent-teal: #94FAD5;
+      --blitzy-surface-0: #FFFFFF;
+      --blitzy-surface-1: #F5F5F5;
+      --blitzy-surface-2: #F4EFF6;
+      --blitzy-surface-3: #F2F0FE;
+      --blitzy-border: #D9D9D9;
+      --blitzy-border-soft: #F4EFF6;
+      --blitzy-text: #333333;
+      --blitzy-text-muted: #999999;
+      --blitzy-text-invert: #FFFFFF;
+      --ff-body: 'Inter', system-ui, sans-serif;
+      --ff-display: 'Space Grotesk', 'Inter', sans-serif;
+      --ff-mono: 'Fira Code', 'SF Mono', monospace;
+      --gradient-hero: linear-gradient(68deg, #7A6DEC 15.56%, #5B39F3 62.74%, #4101DB 84.44%);
+      --gradient-divider: linear-gradient(135deg, #2D1C77 0%, #5B39F3 100%);
+      --gradient-accent-bar: linear-gradient(90deg, #5B39F3 0%, #94FAD5 100%);
+    }
+
+    /* =========================================================
+       Global Resets and Typography
+       ========================================================= */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--blitzy-surface-0);
+      color: var(--blitzy-text);
+      font-family: var(--ff-body);
+    }
+
+    .reveal {
+      font-family: var(--ff-body);
+      color: var(--blitzy-text);
+      font-size: 24px;
+      font-weight: 400;
+    }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      font-family: var(--ff-display);
+      color: var(--blitzy-text);
+      text-transform: none;
+      letter-spacing: -0.02em;
+      margin: 0;
+      padding: 0;
+      font-weight: 700;
+    }
+
+    .reveal p {
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+    }
+
+    .reveal section {
+      text-align: left;
+      padding: 80px 96px;
+      box-sizing: border-box;
+      height: 100%;
+    }
+
+    /* =========================================================
+       Slide-Type Classes
+       ========================================================= */
+    .reveal .slide-title {
+      background: var(--gradient-hero);
+      color: var(--blitzy-text-invert);
+      text-align: center;
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 96px;
+    }
+
+    .reveal .slide-title h1,
+    .reveal .slide-title h2,
+    .reveal .slide-title h3 {
+      color: var(--blitzy-text-invert);
+    }
+
+    .reveal .slide-title .hero-icon {
+      width: 96px;
+      height: 96px;
+      color: var(--blitzy-text-invert);
+      stroke-width: 1.5;
+      margin-bottom: 32px;
+    }
+
+    .reveal .slide-title .eyebrow {
+      color: var(--blitzy-accent-teal);
+      margin-bottom: 24px;
+    }
+
+    .reveal .slide-title .title-headline {
+      font-family: var(--ff-display);
+      font-weight: 700;
+      font-size: 120px;
+      line-height: 1.0;
+      margin-bottom: 32px;
+      color: var(--blitzy-text-invert);
+    }
+
+    .reveal .slide-title .title-subtitle {
+      font-family: var(--ff-body);
+      font-weight: 500;
+      font-size: 32px;
+      line-height: 1.4;
+      color: var(--blitzy-text-invert);
+      opacity: 0.9;
+      max-width: 1400px;
+      margin: 0 auto 48px auto;
+    }
+
+    .reveal .slide-title .title-footer {
+      font-family: var(--ff-body);
+      font-weight: 400;
+      font-size: 18px;
+      color: var(--blitzy-text-invert);
+      opacity: 0.6;
+      letter-spacing: 0.04em;
+    }
+
+    .reveal .slide-divider {
+      background: var(--gradient-divider);
+      color: var(--blitzy-text-invert);
+      text-align: center;
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 96px;
+    }
+
+    .reveal .slide-divider h1,
+    .reveal .slide-divider h2,
+    .reveal .slide-divider h3 {
+      color: var(--blitzy-text-invert);
+    }
+
+    .reveal .slide-divider .hero-icon {
+      width: 160px;
+      height: 160px;
+      color: var(--blitzy-text-invert);
+      stroke-width: 1.5;
+      margin-bottom: 48px;
+    }
+
+    .reveal .slide-divider .divider-heading {
+      font-family: var(--ff-display);
+      font-weight: 700;
+      font-size: 80px;
+      line-height: 1.1;
+      color: var(--blitzy-text-invert);
+      margin-bottom: 24px;
+    }
+
+    .reveal .slide-divider .divider-subheading {
+      font-family: var(--ff-body);
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.4;
+      color: var(--blitzy-text-invert);
+      opacity: 0.8;
+      max-width: 1200px;
+    }
+
+    .reveal .slide-closing {
+      background: var(--blitzy-primary-navy);
+      color: var(--blitzy-text-invert);
+      text-align: center;
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 96px;
+      position: relative;
+    }
+
+    .reveal .slide-closing h1,
+    .reveal .slide-closing h2,
+    .reveal .slide-closing h3 {
+      color: var(--blitzy-text-invert);
+    }
+
+    .reveal .slide-closing .closing-accent-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 8px;
+      background: var(--gradient-accent-bar);
+    }
+
+    .reveal .slide-closing .brand-lockup-closing {
+      font-family: var(--ff-display);
+      font-weight: 600;
+      font-size: 20px;
+      letter-spacing: 0.16em;
+      color: var(--blitzy-text-invert);
+      opacity: 0.7;
+      margin-bottom: 96px;
+    }
+
+    .reveal .slide-closing .closing-headline {
+      font-family: var(--ff-display);
+      font-weight: 700;
+      font-size: 120px;
+      line-height: 1.0;
+      color: var(--blitzy-text-invert);
+      margin-bottom: 48px;
+    }
+
+    .reveal .slide-closing .closing-subtitle {
+      font-family: var(--ff-body);
+      font-weight: 400;
+      font-size: 28px;
+      line-height: 1.5;
+      color: var(--blitzy-text-invert);
+      opacity: 0.7;
+      max-width: 1400px;
+      margin-bottom: 96px;
+    }
+
+    .reveal .slide-closing .closing-icon-row {
+      display: flex;
+      flex-direction: row;
+      gap: 48px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .reveal .slide-closing .closing-icon-row [data-lucide] {
+      width: 32px;
+      height: 32px;
+      color: var(--blitzy-accent-teal);
+      stroke-width: 1.75;
+    }
+
+    /* =========================================================
+       Default Content Slide Layout
+       ========================================================= */
+    .reveal .content-slide {
+      background: var(--blitzy-surface-0);
+      color: var(--blitzy-text);
+      display: flex !important;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 80px 96px;
+    }
+
+    .reveal .content-slide .top-accent-bar {
+      width: 96px;
+      height: 4px;
+      background: var(--gradient-accent-bar);
+      margin-bottom: 28px;
+      border-radius: 2px;
+    }
+
+    .reveal .content-slide .slide-title-heading {
+      font-family: var(--ff-display);
+      font-weight: 700;
+      font-size: 64px;
+      line-height: 1.1;
+      color: var(--blitzy-text);
+      margin-bottom: 40px;
+      letter-spacing: -0.02em;
+    }
+
+    .reveal .content-slide .slide-caption {
+      font-family: var(--ff-body);
+      font-weight: 400;
+      font-size: 20px;
+      line-height: 1.5;
+      color: var(--blitzy-text-muted);
+      margin-top: 32px;
+      max-width: 1500px;
+    }
+
+    .reveal .content-slide .slide-caption-large {
+      font-family: var(--ff-body);
+      font-weight: 400;
+      font-size: 24px;
+      line-height: 1.5;
+      color: var(--blitzy-text-muted);
+      margin-top: 32px;
+      max-width: 1500px;
+    }
+
+    .reveal .content-slide .slide-caption-small {
+      font-family: var(--ff-body);
+      font-weight: 400;
+      font-size: 18px;
+      line-height: 1.5;
+      color: var(--blitzy-text-muted);
+      margin-top: 24px;
+      max-width: 1600px;
+    }
+
+    /* =========================================================
+       Eyebrow — Fira Code label above the slide title
+       ========================================================= */
+    .eyebrow {
+      font-family: var(--ff-mono);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 18px;
+      color: var(--blitzy-primary);
+      margin-bottom: 18px;
+      display: inline-block;
+    }
+
+    .reveal .slide-title .eyebrow,
+    .reveal .slide-divider .eyebrow {
+      color: var(--blitzy-accent-teal);
+    }
+
+    /* =========================================================
+       Accent Bar (decorative)
+       ========================================================= */
+    .accent-bar {
+      height: 4px;
+      background: var(--gradient-accent-bar);
+      border-radius: 2px;
+    }
+
+    /* =========================================================
+       Hero Icon (used on title and divider slides)
+       ========================================================= */
+    .hero-icon {
+      stroke-width: 1.5;
+    }
+
+    /* =========================================================
+       KPI Grid and Cards
+       ========================================================= */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 24px;
+      margin-top: 16px;
+    }
+
+    .kpi-card {
+      background: var(--blitzy-surface-3);
+      border: 1px solid var(--blitzy-border);
+      border-radius: 16px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-between;
+      min-height: 240px;
+    }
+
+    .kpi-card.kpi-card-soft {
+      background: var(--blitzy-surface-2);
+    }
+
+    .kpi-icon {
+      width: 40px;
+      height: 40px;
+      color: var(--blitzy-primary);
+      stroke-width: 1.75;
+      margin-bottom: 16px;
+    }
+
+    .kpi-value {
+      font-family: var(--ff-display);
+      font-weight: 700;
+      font-size: 72px;
+      line-height: 1.0;
+      color: var(--blitzy-primary);
+      margin-bottom: 12px;
+    }
+
+    .kpi-label {
+      font-family: var(--ff-body);
+      font-weight: 500;
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--blitzy-text-muted);
+    }
+
+    /* =========================================================
+       Brand Lockup
+       ========================================================= */
+    .brand-lockup {
+      font-family: var(--ff-body);
+      font-weight: 600;
+      font-size: 16px;
+      color: var(--blitzy-text-invert);
+      letter-spacing: 0.16em;
+    }
+
+    /* =========================================================
+       Icon Row (used for icon+text bullet lists)
+       ========================================================= */
+    .icon-row {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      align-items: flex-start;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--blitzy-border-soft);
+    }
+
+    .icon-row:last-child {
+      border-bottom: none;
+    }
+
+    .icon-row .icon-row-icon {
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      color: var(--blitzy-primary);
+      stroke-width: 1.75;
+      margin-top: 4px;
+    }
+
+    .icon-row .icon-row-content {
+      flex: 1 1 auto;
+      font-family: var(--ff-body);
+      font-size: 22px;
+      line-height: 1.45;
+      color: var(--blitzy-text);
+    }
+
+    .icon-row .icon-row-content .severity-tag {
+      display: inline-block;
+      font-family: var(--ff-mono);
+      font-weight: 500;
+      font-size: 13px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-right: 12px;
+      vertical-align: middle;
+    }
+
+    .severity-tag.severity-critical {
+      background: var(--blitzy-primary-deep);
+      color: var(--blitzy-text-invert);
+    }
+
+    .severity-tag.severity-high {
+      background: var(--blitzy-primary);
+      color: var(--blitzy-text-invert);
+    }
+
+    .severity-tag.severity-medium {
+      background: var(--blitzy-primary-light);
+      color: var(--blitzy-text-invert);
+    }
+
+    .severity-tag.severity-low {
+      background: var(--blitzy-surface-2);
+      color: var(--blitzy-primary);
+      border: 1px solid var(--blitzy-primary);
+    }
+
+    .icon-row .icon-row-content code {
+      font-family: var(--ff-mono);
+      font-size: 18px;
+      background: var(--blitzy-surface-2);
+      color: var(--blitzy-primary-dark);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .icon-row .step-number {
+      flex: 0 0 auto;
+      font-family: var(--ff-mono);
+      font-weight: 500;
+      font-size: 22px;
+      color: var(--blitzy-primary);
+      width: 44px;
+      letter-spacing: 0.05em;
+    }
+
+    /* =========================================================
+       Audit Table — generic styled table used on slides 5 and 13
+       ========================================================= */
+    .audit-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-family: var(--ff-body);
+      font-size: 18px;
+      color: var(--blitzy-text);
+      border: 1px solid var(--blitzy-border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .audit-table thead th {
+      background: var(--blitzy-primary);
+      color: var(--blitzy-text-invert);
+      font-family: var(--ff-body);
+      font-weight: 600;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      text-align: left;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--blitzy-primary-dark);
+    }
+
+    .audit-table tbody td {
+      padding: 14px 20px;
+      vertical-align: top;
+      border-bottom: 1px solid var(--blitzy-border-soft);
+      line-height: 1.5;
+    }
+
+    .audit-table tbody tr:nth-child(even) td {
+      background: var(--blitzy-surface-2);
+    }
+
+    .audit-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .audit-table tbody td code {
+      font-family: var(--ff-mono);
+      font-size: 15px;
+      color: var(--blitzy-primary-dark);
+      background: var(--blitzy-surface-3);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    .audit-table.audit-table-cwe tbody td {
+      font-size: 18px;
+    }
+
+    .audit-table.audit-table-cwe td.cwe-id {
+      font-family: var(--ff-mono);
+      font-weight: 500;
+      color: var(--blitzy-primary-dark);
+      white-space: nowrap;
+      width: 130px;
+    }
+
+    .audit-table.audit-table-cwe td.cwe-count {
+      font-family: var(--ff-display);
+      font-weight: 700;
+      color: var(--blitzy-primary);
+      text-align: center;
+      width: 100px;
+      font-size: 22px;
+    }
+
+    .audit-table.audit-table-cwe td.cwe-bar-cell {
+      width: 280px;
+    }
+
+    .cwe-bar {
+      height: 14px;
+      background: var(--gradient-accent-bar);
+      border-radius: 7px;
+      display: block;
+      box-shadow: inset 0 0 0 1px var(--blitzy-border-soft);
+    }
+
+    .cwe-bar.cwe-bar-3 { width: 100%; }
+    .cwe-bar.cwe-bar-2 { width: 66%; }
+    .cwe-bar.cwe-bar-1 { width: 33%; }
+
+    .audit-table.audit-table-risks thead th {
+      font-size: 15px;
+    }
+
+    .audit-table.audit-table-risks tbody td {
+      font-size: 19px;
+    }
+
+    .audit-table.audit-table-risks tbody td:first-child {
+      font-weight: 500;
+      color: var(--blitzy-text);
+      width: 45%;
+    }
+
+    .audit-table.audit-table-risks tbody td:last-child {
+      color: var(--blitzy-text-muted);
+    }
+
+    /* =========================================================
+       Mermaid Container Sizing
+       ========================================================= */
+    .reveal pre.mermaid {
+      background: transparent;
+      box-shadow: none;
+      border: none;
+      padding: 0;
+      margin: 24px auto;
+      width: 100%;
+      max-width: 100%;
+      text-align: center;
+      display: block;
+      overflow: visible;
+      font-family: var(--ff-body);
+      font-size: 16px;
+    }
+
+    /* Mermaid SVGs default to max-width: 512px via inline style; override
+       so they fill the slide canvas. Also cap the height so vertical
+       flowcharts and large pie charts don't extend past the slide
+       canvas (1920x1080 with 80px top/bottom padding and a ~140px title). */
+    .reveal pre.mermaid svg,
+    .reveal pre.mermaid > svg,
+    .reveal .mermaid-wrap svg {
+      max-width: 100% !important;
+      width: auto !important;
+      max-height: 720px !important;
+      height: auto !important;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Vertical flowcharts (TB orientation) and pie charts need explicit
+       width caps as well so they don't stretch to full slide width. */
+    .reveal .mermaid-wrap.mermaid-tall svg {
+      max-height: 720px !important;
+      max-width: 1200px !important;
+    }
+
+    .reveal .mermaid-wrap.mermaid-pie svg {
+      max-width: 1100px !important;
+      max-height: 700px !important;
+    }
+
+    .reveal .mermaid-wrap.mermaid-wide svg {
+      max-width: 1700px !important;
+      max-height: 600px !important;
+    }
+
+    .mermaid-wrap {
+      width: 100%;
+      max-width: 1700px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* =========================================================
+       References Footer (slide 15)
+       ========================================================= */
+    .references-footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid var(--blitzy-border-soft);
+      font-family: var(--ff-body);
+      font-size: 16px;
+      color: var(--blitzy-text-muted);
+      line-height: 1.7;
+    }
+
+    .references-footer .references-heading {
+      font-family: var(--ff-mono);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 14px;
+      color: var(--blitzy-primary);
+      margin-bottom: 12px;
+    }
+
+    .references-footer code {
+      font-family: var(--ff-mono);
+      font-size: 15px;
+      color: var(--blitzy-primary-dark);
+      background: var(--blitzy-surface-2);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    /* =========================================================
+       Reveal controls/progress styling (subtle Blitzy color)
+       ========================================================= */
+    .reveal .controls {
+      color: var(--blitzy-primary);
+    }
+
+    .reveal .progress {
+      color: var(--blitzy-primary);
+      background: rgba(212, 212, 212, 0.4);
+    }
+
+    .reveal .progress span {
+      background: var(--gradient-accent-bar);
+    }
+
+    /* =========================================================
+       Layout helpers
+       ========================================================= */
+    .slide-body {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .center-block {
+      margin-left: auto;
+      margin-right: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- =========================================================
+           Slide 1 — Title (slide-title)
+           Hero gradient · shield-check · CONFIG A · BARE BLITZY BASELINE
+           ========================================================= -->
+      <section class="slide-title">
+        <i data-lucide="shield-check" class="hero-icon"></i>
+        <div class="eyebrow">CONFIG A &middot; BARE BLITZY BASELINE</div>
+        <h1 class="title-headline">Security Audit</h1>
+        <p class="title-subtitle">rudder-server &middot; read-only static, dataflow, dependency analysis</p>
+        <p class="title-footer">Blitzy &middot; Native Agent Baseline &middot; Findings: 20</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 2 — Headline Findings (default content slide)
+           5 KPI cards: 20 total, 1 critical, 6 high, 8 medium, 5 low
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">01 &middot; HEADLINE FINDINGS</div>
+        <h2 class="slide-title-heading">Twenty findings. One critical. Six high.</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <i data-lucide="bar-chart-3" class="kpi-icon"></i>
+            <div class="kpi-value">20</div>
+            <div class="kpi-label">Total Findings</div>
+          </div>
+          <div class="kpi-card kpi-card-soft">
+            <i data-lucide="flame" class="kpi-icon"></i>
+            <div class="kpi-value">1</div>
+            <div class="kpi-label">Critical</div>
+          </div>
+          <div class="kpi-card">
+            <i data-lucide="alert-triangle" class="kpi-icon"></i>
+            <div class="kpi-value">6</div>
+            <div class="kpi-label">High</div>
+          </div>
+          <div class="kpi-card kpi-card-soft">
+            <i data-lucide="alert-circle" class="kpi-icon"></i>
+            <div class="kpi-value">8</div>
+            <div class="kpi-label">Medium</div>
+          </div>
+          <div class="kpi-card">
+            <i data-lucide="info" class="kpi-icon"></i>
+            <div class="kpi-value">5</div>
+            <div class="kpi-label">Low</div>
+          </div>
+        </div>
+        <p class="slide-caption-large">Severity rubric anchored on exploitability and blast radius; full definitions in the decision log.</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 3 — RudderStack Architecture (default content slide)
+           Mermaid graph LR: SDKs -> Gateway -> JobsDB -> Processor -> Router -> Destinations, with Warehouse branch
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">02 &middot; WHAT IS RUDDER-SERVER</div>
+        <h2 class="slide-title-heading">A Customer Data Platform pipeline</h2>
+        <div class="mermaid-wrap mermaid-wide">
+<pre class="mermaid">
+graph LR
+  A[Client SDKs] --> B[Gateway<br/>:8080]
+  B --> C[(JobsDB<br/>PostgreSQL)]
+  C --> D[Processor<br/>6-stage pipeline]
+  D --> E[Router<br/>egress workers]
+  E --> F[Destinations<br/>~200 connectors]
+  D --> G[Warehouse Loaders]
+  G --> H[(Data Warehouses<br/>BQ &middot; Snowflake &middot; Redshift)]
+</pre>
+        </div>
+        <p class="slide-caption">Three deployment modes &mdash; Embedded, Gateway, Processor &mdash; share the same monorepo.</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 4 — Audit Scope (slide-divider)
+           target icon, "What we audited"
+           ========================================================= -->
+      <section class="slide-divider">
+        <i data-lucide="target" class="hero-icon"></i>
+        <div class="eyebrow">SCOPE</div>
+        <h2 class="divider-heading">What we audited</h2>
+        <p class="divider-subheading">Eleven security-relevant domains across the monorepo</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 5 — What We Audited (default content slide)
+           Styled table: 11 domains x representative paths x rationale
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">03 &middot; COVERAGE</div>
+        <h2 class="slide-title-heading">Every security-relevant surface</h2>
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th style="width: 22%;">Domain</th>
+              <th style="width: 36%;">Representative Paths</th>
+              <th style="width: 42%;">Why it matters</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>HTTP ingress</td>
+              <td><code>gateway/handle_http*.go</code></td>
+              <td>Internet-facing event ingestion &middot; port 8080</td>
+            </tr>
+            <tr>
+              <td>Outbound delivery</td>
+              <td><code>router/network.go</code>, <code>router/worker.go</code></td>
+              <td>Tenant-configured destination egress &middot; SSRF surface</td>
+            </tr>
+            <tr>
+              <td>Persistent storage</td>
+              <td><code>jobsdb/*.go</code> &middot; <code>sql/migrations/**</code></td>
+              <td>PostgreSQL JobsDB &middot; 100 migrations</td>
+            </tr>
+            <tr>
+              <td>Configuration</td>
+              <td><code>config/</code>, <code>build/docker.env</code></td>
+              <td>Default credentials and TLS posture</td>
+            </tr>
+            <tr>
+              <td>Auth &amp; control-plane</td>
+              <td><code>services/oauth/</code>, <code>backend-config/</code></td>
+              <td>OAuth flows &middot; workspace token handling</td>
+            </tr>
+            <tr>
+              <td>Admin / RPC</td>
+              <td><code>admin/admin.go</code></td>
+              <td>UNIX-socket RPC at <code>/tmp/rudder-server.sock</code></td>
+            </tr>
+            <tr>
+              <td>Internal subsystems</td>
+              <td><code>internal/drain-config/</code>, <code>internal/enricher/</code></td>
+              <td>Drain config HTTP &middot; MaxMind DB download</td>
+            </tr>
+            <tr>
+              <td>Enterprise features</td>
+              <td><code>enterprise/config-env/</code>, <code>enterprise/reporting/</code></td>
+              <td>Elastic License 2.0 modules</td>
+            </tr>
+            <tr>
+              <td>Warehouse</td>
+              <td><code>warehouse/**</code></td>
+              <td>Multi-tenant warehouse loaders &middot; 20 subpackages</td>
+            </tr>
+            <tr>
+              <td>Build &amp; deployment</td>
+              <td><code>Dockerfile</code>, <code>docker-compose.yml</code>, <code>build/nginx.*.conf</code></td>
+              <td>Container hardening &middot; NGINX reverse proxy</td>
+            </tr>
+            <tr>
+              <td>CI / supply chain</td>
+              <td><code>.github/workflows/*</code> &middot; <code>.github/dependabot.yml</code></td>
+              <td>Token permissions &middot; action pinning</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="slide-caption-small">766 non-test Go source files &middot; 184 YAML configs &middot; 100 SQL migrations &middot; 13 CI workflows &middot; 372 go.mod requires.</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 6 — Methodology (default content slide)
+           Mermaid flowchart TB: Inventory -> Lens x Domain -> Evidence? -> CWE -> JSON
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">04 &middot; METHODOLOGY</div>
+        <h2 class="slide-title-heading">Inventory &rarr; Lens &times; Domain matrix &rarr; CWE &rarr; JSON</h2>
+        <div class="mermaid-wrap mermaid-tall">
+<pre class="mermaid">
+flowchart TB
+  A[Repository Inventory<br/>766 Go src &middot; 184 YAML &middot; 100 SQL] --> B[10 Analysis Lenses &times; 11 Domains]
+  B --> C{Evidence sufficient?}
+  C -- No --> D[Decision log<br/>Considered but not flagged]
+  C -- Yes --> E[Assign leaf CWE]
+  E --> F[Severity rating<br/>critical &middot; high &middot; medium &middot; low]
+  F --> G[&le;200-char description]
+  G --> H[findings-config-a.json<br/>minified JSON array]
+</pre>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           Slide 7 — Severity Distribution (default content slide)
+           Mermaid pie of severities: 1/6/8/5
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">05 &middot; DISTRIBUTION</div>
+        <h2 class="slide-title-heading">Severity profile</h2>
+        <div class="mermaid-wrap mermaid-pie">
+<pre class="mermaid">
+pie showData
+  title Findings by severity
+  "critical" : 1
+  "high" : 6
+  "medium" : 8
+  "low" : 5
+</pre>
+        </div>
+        <p class="slide-caption-large">One critical OS-command-injection issue in the GDPR deletion path drives Config A&apos;s headline risk.</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 8 — Top CWE Classes (default content slide)
+           Styled bar table: 15 CWEs summing to 20 findings
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">06 &middot; CWE PROFILE</div>
+        <h2 class="slide-title-heading">Top weakness classes observed</h2>
+        <table class="audit-table audit-table-cwe">
+          <thead>
+            <tr>
+              <th>CWE</th>
+              <th style="text-align: center;">Count</th>
+              <th>Distribution</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="cwe-id">CWE-1392</td>
+              <td class="cwe-count">3</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-3"></span></td>
+              <td>Use of default credential</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-319</td>
+              <td class="cwe-count">2</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-2"></span></td>
+              <td>Cleartext transmission of sensitive info</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-306</td>
+              <td class="cwe-count">2</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-2"></span></td>
+              <td>Missing authentication for critical function</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-532</td>
+              <td class="cwe-count">2</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-2"></span></td>
+              <td>Insertion of sensitive info into log file</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-78</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>OS command injection</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-770</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>Allocation of resources without limits</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-409</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>Improper handling of highly compressed data</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-918</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>Server-side request forgery</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-295</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>Improper certificate validation</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-89</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>SQL injection</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-400</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>Uncontrolled resource consumption</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-209</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>Information exposure through error message</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-732</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>Incorrect permission assignment</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-88</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>Argument injection</td>
+            </tr>
+            <tr>
+              <td class="cwe-id">CWE-693</td>
+              <td class="cwe-count">1</td>
+              <td class="cwe-bar-cell"><span class="cwe-bar cwe-bar-1"></span></td>
+              <td>Protection mechanism failure</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- =========================================================
+           Slide 9 — Risk Landscape (slide-divider)
+           alert-triangle icon, "Risk landscape"
+           ========================================================= -->
+      <section class="slide-divider">
+        <i data-lucide="alert-triangle" class="hero-icon"></i>
+        <div class="eyebrow">ELEVATED TIER</div>
+        <h2 class="divider-heading">Risk landscape</h2>
+        <p class="divider-subheading">Four headline issues drive the elevated tier</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 10 — Critical Findings Spotlight (default content slide)
+           4 icon-row bullets: anonymized headlines, no exploitable detail
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">07 &middot; SPOTLIGHT</div>
+        <h2 class="slide-title-heading">Top issues to address first</h2>
+        <div class="icon-row">
+          <i data-lucide="terminal" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            <span class="severity-tag severity-critical">Critical</span>
+            OS command injection in GDPR delete pipeline (regulation-worker GZIP filter)
+          </div>
+        </div>
+        <div class="icon-row">
+          <i data-lucide="globe" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            <span class="severity-tag severity-high">High</span>
+            SSRF private-IP guard defaults to OFF in router egress
+          </div>
+        </div>
+        <div class="icon-row">
+          <i data-lucide="package" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            <span class="severity-tag severity-high">High</span>
+            Unbounded gzip decompression in gateway middleware (gzip-bomb amplification)
+          </div>
+        </div>
+        <div class="icon-row">
+          <i data-lucide="lock-keyhole-open" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            <span class="severity-tag severity-high">High</span>
+            Hardcoded TLS-disable (<code>InsecureSkipVerify:true</code>) in Google Sheets destination test path
+          </div>
+        </div>
+        <p class="slide-caption-small">Full details and remediation pointers in the findings JSON and decision log.</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 11 — What This Audit Did NOT Find (default content slide)
+           4 eye-off bullets: blind spots of Config A
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">08 &middot; LIMITATIONS</div>
+        <h2 class="slide-title-heading">Where this baseline is blind</h2>
+        <div class="icon-row">
+          <i data-lucide="eye-off" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            Memory-safety class (CWE-119 / 787 / 125) &mdash; Go runtime is bounds-checked; would need <code>unsafe</code> / <code>cgo</code> review
+          </div>
+        </div>
+        <div class="icon-row">
+          <i data-lucide="eye-off" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            Runtime DAST &mdash; no live execution, no port binding, no traffic injection
+          </div>
+        </div>
+        <div class="icon-row">
+          <i data-lucide="eye-off" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            Supply-chain CVE feed &mdash; no govulncheck, no Snyk, no OWASP Dependency-Check
+          </div>
+        </div>
+        <div class="icon-row">
+          <i data-lucide="eye-off" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            Exploit verification &mdash; no proof-of-concept payload constructed
+          </div>
+        </div>
+        <p class="slide-caption-small">These gaps are the experimental design of Config A &mdash; measured against scanner-assisted configs.</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 12 — Comparison Context (default content slide)
+           Mermaid graph LR: Config A -> Config B -> Config C, all into Delta -> Report
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">09 &middot; STUDY CONTEXT</div>
+        <h2 class="slide-title-heading">Config A is one arm of a comparative study</h2>
+        <div class="mermaid-wrap mermaid-wide">
+<pre class="mermaid">
+graph LR
+  A[Config A<br/>Bare Blitzy Baseline<br/>native agent only] --> B[Config B<br/>+ scanner-assisted<br/>Snyk &middot; Semgrep]
+  B --> C[Config C<br/>+ full scanner suite<br/>CodeQL &middot; govulncheck]
+  A --> D[Delta analysis]
+  B --> D
+  C --> D
+  D --> E[Recall, precision,<br/>methodology cost report]
+</pre>
+        </div>
+        <p class="slide-caption-small">Each configuration uses the same methodology contract; the variable is the toolchain.</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 13 — Risks & Mitigations (default content slide)
+           Two-column styled table
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">10 &middot; RISKS &amp; MITIGATIONS</div>
+        <h2 class="slide-title-heading">How we manage measurement risk</h2>
+        <table class="audit-table audit-table-risks">
+          <thead>
+            <tr>
+              <th style="width: 45%;">Risk</th>
+              <th style="width: 55%;">Mitigation path</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Config A under-counts dependency CVEs</td>
+              <td>Subsequent configs add govulncheck / Snyk and report the delta</td>
+            </tr>
+            <tr>
+              <td>Native agent may miss multi-hop taint flows</td>
+              <td>Subsequent configs add CodeQL / Semgrep for dataflow analysis</td>
+            </tr>
+            <tr>
+              <td>Severity boundary disagreements between graders</td>
+              <td>Rubric defined in decision log; reproducible across runs</td>
+            </tr>
+            <tr>
+              <td>Line-anchor for config-file findings reads as exact locus</td>
+              <td>Description wording clarifies anchor vs. exact line</td>
+            </tr>
+            <tr>
+              <td>Memory-safety blind spot if <code>unsafe</code> / <code>cgo</code> is later introduced</td>
+              <td>Add targeted memory-safety lens for future configs</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- =========================================================
+           Slide 14 — Onboarding & Continuation (slide-divider)
+           route icon, "Continuation"
+           ========================================================= -->
+      <section class="slide-divider">
+        <i data-lucide="route" class="hero-icon"></i>
+        <div class="eyebrow">NEXT</div>
+        <h2 class="divider-heading">Continuation</h2>
+        <p class="divider-subheading">How the next configurations build on this baseline</p>
+      </section>
+
+      <!-- =========================================================
+           Slide 15 — How to Continue This Work (default content slide)
+           4 numbered icon-row bullets + references footer
+           ========================================================= -->
+      <section class="content-slide">
+        <div class="top-accent-bar"></div>
+        <div class="eyebrow">11 &middot; NEXT STEPS</div>
+        <h2 class="slide-title-heading">Four steps to a full comparison report</h2>
+        <div class="icon-row">
+          <span class="step-number">01</span>
+          <i data-lucide="play" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            Run Config B with Snyk + Semgrep on the same <code>rudder-server</code> tag
+          </div>
+        </div>
+        <div class="icon-row">
+          <span class="step-number">02</span>
+          <i data-lucide="layers" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            Run Config C with full scanner suite (CodeQL, govulncheck, Trivy)
+          </div>
+        </div>
+        <div class="icon-row">
+          <span class="step-number">03</span>
+          <i data-lucide="git-compare" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            Compute findings delta vs. Config A; classify true positives, false negatives, scanner-only catches
+          </div>
+        </div>
+        <div class="icon-row">
+          <span class="step-number">04</span>
+          <i data-lucide="book-open" class="icon-row-icon"></i>
+          <div class="icon-row-content">
+            Append each config&apos;s deviation table to its own decision log for reproducibility
+          </div>
+        </div>
+        <div class="references-footer">
+          <div class="references-heading">References</div>
+          <div><code>findings-config-a.json</code> &mdash; the machine-readable findings (repository root)</div>
+          <div><code>blitzy-audit/config-a-decision-log.md</code> &mdash; the methodology and decision rationale</div>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           Slide 16 — Closing — Key Takeaway (slide-closing)
+           Navy bg + top accent bar + brand lockup + headline + subtitle + icon row
+           ========================================================= -->
+      <section class="slide-closing">
+        <div class="closing-accent-bar"></div>
+        <div class="brand-lockup-closing">BLITZY &nbsp;&middot;&nbsp; SECURITY AUDIT &nbsp;&middot;&nbsp; CONFIG A</div>
+        <h1 class="closing-headline">Baseline Established. Comparison Begins.</h1>
+        <p class="closing-subtitle">One critical &middot; six high &middot; eight medium &middot; five low &mdash; twenty findings on the record.</p>
+        <div class="closing-icon-row">
+          <i data-lucide="shield-check"></i>
+          <i data-lucide="file-text"></i>
+          <i data-lucide="presentation"></i>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- =========================================================
+       External dependencies — CDN pinned versions
+       reveal.js 5.1.0 · Mermaid 11.4.0 · Lucide 0.460.0
+       ========================================================= -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <script>
+    // Mermaid theme — Blitzy-aligned base theme.
+    // startOnLoad is false because Reveal manages the rendering lifecycle.
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#F2F0FE',
+        primaryTextColor: '#333333',
+        primaryBorderColor: '#5B39F3',
+        lineColor: '#999999',
+        secondaryColor: '#F4EFF6'
+      }
+    });
+
+    // Reveal.js core configuration — fixed 1920x1080 canvas with slide transitions.
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      controlsTutorial: false,
+      width: 1920,
+      height: 1080
+    });
+
+    // Extract the raw Mermaid source from a <pre class="mermaid"> element,
+    // walking its child nodes so that <br> elements (which the browser
+    // converts from the literal <br/> source) are restored as the literal
+    // "<br/>" string Mermaid expects in node labels. This avoids the
+    // textContent-based loss of line breaks and the "Could not find a
+    // suitable point for the given distance" layout error that follows when
+    // labels collapse onto a single line.
+    function extractMermaidSource(pre) {
+      var src = '';
+      var nodes = pre.childNodes;
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        if (n.nodeType === Node.TEXT_NODE) {
+          src += n.nodeValue;
+        } else if (n.nodeType === Node.ELEMENT_NODE && n.nodeName === 'BR') {
+          src += '<br/>';
+        } else if (n.nodeType === Node.ELEMENT_NODE) {
+          // Preserve any other inline elements as their text content.
+          src += n.textContent;
+        }
+      }
+      return src.trim();
+    }
+
+    // Render each Mermaid diagram individually so that a layout failure in
+    // one diagram does not abort the entire batch. Diagrams are cached in
+    // a closure-scoped array on first render so that re-runs (triggered by
+    // slidechanged) reuse the rendered SVG without re-parsing the source.
+    var mermaidRenderedCache = {};
+    var mermaidSourceCache = {};
+    var mermaidUidCounter = 0;
+
+    async function renderMermaidDiagrams() {
+      if (typeof mermaid === 'undefined' || !mermaid.render) return;
+      var pres = document.querySelectorAll('.reveal pre.mermaid');
+      for (var i = 0; i < pres.length; i++) {
+        var pre = pres[i];
+        var uid = pre.getAttribute('data-mm-uid');
+        if (!uid) {
+          uid = 'mm-uid-' + (++mermaidUidCounter);
+          pre.setAttribute('data-mm-uid', uid);
+          mermaidSourceCache[uid] = extractMermaidSource(pre);
+        }
+        if (mermaidRenderedCache[uid]) {
+          // Ensure the rendered SVG is in place even after DOM changes.
+          if (pre.innerHTML !== mermaidRenderedCache[uid]) {
+            pre.innerHTML = mermaidRenderedCache[uid];
+          }
+          continue;
+        }
+        var src = mermaidSourceCache[uid];
+        if (!src) continue;
+        try {
+          var renderId = uid + '-render-' + Math.floor(Math.random() * 1e9).toString(36);
+          var result = await mermaid.render(renderId, src);
+          pre.innerHTML = result.svg;
+          mermaidRenderedCache[uid] = result.svg;
+          // Mermaid sometimes appends a helper bind callback; call it if present.
+          if (typeof result.bindFunctions === 'function') {
+            try { result.bindFunctions(pre); } catch (e) { /* non-fatal */ }
+          }
+        } catch (e) {
+          // A single diagram failure must not stop the rest from rendering.
+          if (typeof console !== 'undefined' && console.warn) {
+            console.warn('Mermaid render error for', uid, ':', e && (e.message || e.str || e));
+          }
+        }
+      }
+    }
+
+    // Render helper — re-rasterizes Lucide icons and (lazily) Mermaid diagrams.
+    // Called once on ready and on every slidechanged event so that icons and
+    // diagrams remain consistent when navigating backwards.
+    async function renderVisuals() {
+      try {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+          lucide.createIcons();
+        }
+      } catch (e) {
+        // Lucide rendering errors should not block slide navigation.
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('Lucide render error:', e);
+        }
+      }
+      try {
+        await renderMermaidDiagrams();
+      } catch (e) {
+        // Mermaid rendering errors should not block slide navigation.
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('Mermaid render batch error:', e);
+        }
+      }
+    }
+
+    // Bind to lifecycle events. The 'ready' event covers initial paint;
+    // 'slidechanged' covers all subsequent navigation including back-navigation.
+    Reveal.on('ready', renderVisuals);
+    Reveal.on('slidechanged', renderVisuals);
+  </script>
+</body>
+</html>
+
