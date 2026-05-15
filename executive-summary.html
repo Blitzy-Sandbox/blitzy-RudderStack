@@ -1092,7 +1092,7 @@ flowchart LR
       <i data-lucide="terminal-square" class="step-icon"></i>
       <span class="step-body">
         <span class="step-title">Re-run the scan</span>
-        <span class="step-detail"><code>semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off .</code></span>
+        <span class="step-detail"><code>semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off --exclude=local-rules --exclude=findings-config-b.json .</code></span>
       </span>
     </li>
     <li>
