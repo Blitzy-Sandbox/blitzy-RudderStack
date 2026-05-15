@@ -2,789 +2,520 @@
 
 # 0. Agent Action Plan
 
-## 0.1 Intent Clarification
-
-### 0.1.1 Core Feature Objective
-
-Based on the prompt, the Blitzy platform understands that the new feature requirement is to **implement five remaining sprint groups across the RudderStack `rudder-server` Go monorepo**, closing critical feature parity gaps against Segment across five dimensions: destination connectors, functions/transformations, protocols enforcement, identity resolution, and operational tooling.
-
-The sprints to implement, in strict sequential order, are:
-
-- **Sprint 3–5: Destination Connector Expansion (E-010 to E-014)** — Prioritize, implement, and validate 40+ cloud destination connectors and additional stream destinations, achieving payload-level parity with Segment's output for all shared connectors. Current parity: ~28%, target: ~50%.
-- **Sprint 4–6: Transformation and Functions Framework (E-015 to E-019)** — Build a Segment-compatible Functions runtime supporting Source Functions (custom webhook ingestion via `onRequest`), Destination Functions (per-event typed handlers like `onTrack`, `onIdentify`), Insert Functions (pre-destination transformation hooks), a full CRUD management API, and per-function secrets/environment variable management. Current parity: ~40%, target: ~80%.
-- **Sprint 5–7: Protocols and Tracking Plan Enforcement (E-020 to E-025)** — Upgrade tracking plan validation to full JSON Schema draft-07 support, implement anomaly detection for unexpected events/properties, add configurable enforcement modes (Block/Omit/Allow per source per call type), build forward-blocked-events capability, expose a tracking plan management API with versioning, and integrate consent management with Protocols enforcement. Current parity: ~30%, target: ~75%.
-- **Sprint 6–8: Identity Resolution and Profiles (E-026 to E-030)** — Design and build a real-time identity graph that resolves identity as events flow through the pipeline (not batch-only during warehouse uploads), implement a Profiles REST API with sub-200ms response times, extend the identity model to support 12+ external identifier types, build profile sync to downstream destinations, and add configurable identity resolution settings (blocked values, limits, priority). Current parity: ~20%, target: ~60%.
-- **Sprint 8–10: Operational Tooling and Monitoring (E-036 to E-039)** — Implement per-destination event delivery monitoring with Prometheus metrics and HTTP API, configurable alerting for pipeline health conditions, advanced replay controls (source-level, date-range, destination-level, dry-run), and pipeline performance profiling with capacity planning reports targeting 50,000 events/sec throughput.
-
-Implicit requirements detected:
-
-- The external **Transformer service** (`rudder-transformer` on port 9090) must be extended for Functions runtime capabilities (E-015 through E-017) and enhanced Protocols validation (E-020, E-021), as the `rudder-server` delegates transformation and validation to this service
-- **Backend-config schema changes** are required for enforcement modes (E-022), tracking plan management (E-024), and selective sync configuration — all configuration flows through `backend-config/types.go`
-- **Database migrations** are needed for the identity graph (E-026), functions management (E-018), and tracking plan storage (E-024) — PostgreSQL is the primary persistence layer
-- **Docker infrastructure** must be started before testing, as integration tests depend on PostgreSQL, transformer, and MinIO containers defined in `docker-compose.yml`
-- Each sprint must be **fully completed and tested** before proceeding to the next, with all CI failures resolved except those caused by missing repository secrets (AWS ECR credentials)
-
-### 0.1.2 Special Instructions and Constraints
-
-- **Sequential sprint execution**: Complete each sprint fully before starting the next — sprints overlap in their numbering (e.g., Sprint 4–6 overlaps with Sprint 3–5) but must be implemented in the listed order
-- **Exhaustive scope coverage**: For every epic, implement ALL items listed in scope — do not skip any variant, endpoint, or sub-case mentioned in the epic description
-- **Design-only epics**: For epics marked "Design and prototype," deliver a design document and a minimal proof-of-concept only — do not implement production-grade service code
-- **Docker dependency**: If any step requires Docker, start it first — the project's `docker-compose.yml` defines PostgreSQL (port 6432→5432), Transformer (port 9090), MinIO (ports 9000/9001), and etcd (port 2379)
-- **Post-implementation testing**: Run all tests after implementation of each sprint using `make test` or `gotestsum` with appropriate flags
-- **CI failure resolution**: Fix all CI failures resolvable through code changes; skip failures caused by missing repository secrets (AWS ECR credentials)
-- **Backward compatibility**: All changes must maintain backward compatibility with existing pipeline behavior — the Processor's 6-stage pipeline, Router delivery, and warehouse upload state machine must continue functioning for existing destinations
-- **Follow existing patterns**: New connector implementations must follow the existing `common.StreamProducer` interface pattern in `services/streammanager/`, and new Router destinations must integrate through the existing `customdestinationmanager` factory
-
-### 0.1.3 Technical Interpretation
-
-These feature requirements translate to the following technical implementation strategy:
-
-- To **expand destination connectors** (E-010 to E-014), we will create new producer packages under `services/streammanager/` following the `common.StreamProducer` interface, register them in `services/streammanager/streammanager.go`'s `NewProducer` switch statement, add their names to `router/customdestinationmanager/customdestinationmanager.go`'s `ObjectStreamDestinations` array, implement payload mapping and authentication per destination API, and create comprehensive payload parity test fixtures comparing RudderStack output against Segment reference payloads
-- To **implement the Functions framework** (E-015 to E-019), we will create a new `functions/` top-level package containing the runtime engine with per-event typed handler dispatch, build a Source Functions HTTP endpoint in the Gateway (`gateway/handle_http_functions.go`), implement Insert Functions as a new pipeline stage between user transforms and destination transforms in `processor/pipeline_worker.go`, expose a Functions management REST API via `functions/api/`, and implement per-function encrypted secrets storage
-- To **enforce Protocols and tracking plans** (E-020 to E-025), we will extend `processor/trackingplan.go` with full JSON Schema draft-07 validation, replace the binary `propagateValidationErrors` toggle with three-mode enforcement (Block/Omit/Allow), implement anomaly detection in a new `processor/anomalydetection/` package, add a forward-blocked-events mechanism that reroutes blocked events to an alternative source, build a tracking plan management REST API, and integrate consent management (`processor/consent.go`) with Protocols enforcement decisions
-- To **build identity resolution** (E-026 to E-030), we will create a new `identity/` top-level service package that implements a real-time identity graph (extending beyond `warehouse/identity/identity.go`'s batch-only model), build a Profiles REST API with Redis-backed caching for sub-200ms responses, extend the identity model to support multiple external identifier types via `context.externalIds` event processing, implement profile sync using change-data-capture on the identity graph, and add configurable resolution settings (blocked values, identifier limits, priority ranking)
-- To **deliver operational tooling** (E-036 to E-039), we will extend the existing Prometheus metrics infrastructure with per-destination delivery dashboards, implement configurable alerting rules in a new `services/alerting/` package leveraging existing `services/alert/` and `services/alerta/` patterns, enhance `gateway/handle_http_replay.go` with source-level, date-range, and destination-level filtering plus dry-run mode, and build pipeline performance profiling tools measuring per-stage latencies across Gateway, Processor, Router, and warehouse upload paths
-
-## 0.2 Repository Scope Discovery
-
-### 0.2.1 Comprehensive File Analysis
-
-The RudderStack `rudder-server` repository is a production-grade Go monorepo (`go 1.26.0`, module `github.com/rudderlabs/rudder-server`) with approximately 40 top-level directories. The following analysis maps all files and folders requiring creation or modification across the five sprint groups.
-
-**Existing Modules Requiring Modification:**
-
-| File/Pattern | Current Purpose | Sprint | Modification Required |
-|---|---|---|---|
-| `services/streammanager/streammanager.go` | Stream producer factory — `NewProducer` switch dispatching to 13 stream destinations | 3–5 | Add `case` branches for new stream destination types |
-| `router/customdestinationmanager/customdestinationmanager.go` | Custom destination registry — `ObjectStreamDestinations` array (13 entries), `KVStoreDestinations` (1 entry) | 3–5 | Append new stream destination names to `ObjectStreamDestinations` |
-| `services/streammanager/common/*.go` | Shared `StreamProducer` interface and `Opts` type | 3–5 | No changes — interface is sufficient; new connectors implement it |
-| `processor/pipeline_worker.go` | 6-stage pipeline: preprocess → srcHydration → preTransform → userTransform → destTransform → store | 4–6 | Insert new Insert Functions stage between userTransform and destTransform channels |
-| `processor/processor.go` | Main Processor `Handle` — orchestrates pipeline, backend-config subscription, routing/storage | 4–6, 5–7 | Add Functions runtime integration, enhanced tracking plan enforcement with Block/Omit/Allow modes |
-| `processor/trackingplan.go` | Tracking plan validation — `validateEvents()`, `reportViolations()`, `TrackingPlanStatT` metrics | 5–7 | Upgrade to JSON Schema draft-07, add anomaly detection hooks, implement three enforcement modes, forward-blocked-events |
-| `processor/consent.go` | Consent-based destination filtering — OneTrust, Ketch, Generic CMP with OR/AND resolution | 5–7 | Integrate consent decisions with Protocols enforcement rules (E-025) |
-| `warehouse/identity/identity.go` | Batch identity resolution — `Identity` struct, `applyRule()`, `Resolve()` for warehouse uploads | 6–8 | Refactor as foundation for real-time graph; extend merge-rule model beyond two-property pairs |
-| `gateway/handle_http.go` | HTTP endpoint mount and middleware — public endpoints and shared middleware | 4–6, 8–10 | Add Source Functions webhook endpoint, advanced replay filter endpoints |
-| `gateway/handle_http_replay.go` | Replay handler — `webReplayHandler()` with `withWarehouseReplayTag` middleware | 8–10 | Add source-level, date-range, destination-level filtering and dry-run mode |
-| `gateway/handle_http_auth.go` | Auth middleware — write-key, webhook, source-ID, replay, destination auth | 4–6 | Add Source Functions auth handler |
-| `gateway/openapi.yaml` | OpenAPI specification for Gateway HTTP API | 4–6, 5–7, 6–8, 8–10 | Add new endpoint schemas for Functions, Protocols API, Profiles API, and advanced replay |
-| `backend-config/types.go` | Configuration schema — `SourceT`, `DestinationT`, `ConfigT`, tracking plan config, settings | 5–7, 6–8 | Add enforcement mode config fields, identity resolution settings schema, functions config |
-| `backend-config/backend-config.go` | Runtime configuration provider — workspace config fetching, pubsub publication | 5–7, 6–8 | Extend subscription topics for new config types |
-| `docker-compose.yml` | Local multi-service compose — PostgreSQL, Transformer, MinIO, etcd | All | May require additional services (e.g., Redis for identity graph caching) |
-| `Makefile` | Build, test, lint targets | All | Potentially add new test targets for Functions, Protocols, Identity suites |
-| `main.go` | Server entrypoint — config, logging, signals, memory monitoring, runner lifecycle | 4–6, 6–8 | Wire new services (Functions runtime, Identity service) into startup |
-| `runner/runner.go` | App type resolution, warehouse mode, feature flags | 4–6, 6–8 | Register new service components |
-| `services/alert/alertmanager.go` | Alert provider selection — PagerDuty, VictorOps | 8–10 | Extend with Slack and email notification channels |
-| `services/alerta/alerta.go` | Alerta client with retry/backoff | 8–10 | Reference pattern for new alerting rules engine |
-| `archiver/archiver.go` | Event archival with 10-day retention in gzipped JSONL | 8–10 | Integration point for advanced replay (source/date-range filtering) |
-| `config/config.yaml` | 200+ tunable pipeline parameters | All | Add new configuration keys for Functions, Protocols enforcement, Identity, alerting thresholds |
-| `router/handle.go` | Router Handle — job pickup, batching, throttling, delivery, retry/backoff | 8–10 | Add per-destination delivery metrics collection for monitoring dashboard |
-| `router/handle_observability.go` | Metrics aggregation, diagnostics emission | 8–10 | Extend with delivery dashboard metrics (success/failure rates, latency percentiles) |
-| `router/throttler/factory.go` | Throttler factory — Redis/in-memory GCRA algorithms | 8–10 | Reference for capacity planning metrics |
-
-**Integration Point Discovery:**
-
-| Integration Point | Location | Sprints Affected | Purpose |
-|---|---|---|---|
-| Stream destination factory | `services/streammanager/streammanager.go:24-58` | 3–5 | Register new stream producers via `NewProducer` switch |
-| Custom destination registry | `router/customdestinationmanager/customdestinationmanager.go:79-81` | 3–5 | Add destination names to `ObjectStreamDestinations`/`KVStoreDestinations` arrays |
-| Processor pipeline channels | `processor/pipeline_worker.go:32-37` | 4–6 | Insert Functions channel between stages 4 and 5 |
-| Transformer client interfaces | `processor/transformer/clients.go:20-42` | 4–6, 5–7 | Extend with Functions client interface |
-| User transformer | `processor/internal/transformer/user_transformer/user_transformer.go:54-67` | 4–6 | Reference for Functions runtime batch/event dispatch |
-| Destination transformer | `processor/internal/transformer/destination_transformer/destination_transformer.go:73-82` | 4–6 | Reference for Destination Functions integration |
-| Tracking plan validation | `processor/trackingplan.go:69-142` | 5–7 | Replace with enhanced JSON Schema validation + enforcement modes |
-| Consent filtering | `processor/consent.go:44-95` | 5–7 | Hook into Protocols enforcement decisions |
-| Identity resolution | `warehouse/identity/identity.go:78-206` | 6–8 | Extend `applyRule()` for real-time resolution |
-| Gateway replay | `gateway/handle_http_replay.go:19-89` | 8–10 | Extend with filter parameters |
-| Backend config types | `backend-config/types.go` | 5–7, 6–8 | Add new config types |
-| Services alert system | `services/alert/alertmanager.go` | 8–10 | Extend alerting channels |
-| Proto definitions | `proto/warehouse/`, `proto/common/` | 6–8 | Add Profiles API gRPC definitions |
-
-### 0.2.2 New File Requirements
-
-**Sprint 3–5: Destination Connector Expansion**
-
-New source files to create:
-- `services/streammanager/azureeventhub/` — Azure Event Hub extended producer (if not covered by existing Kafka variant)
-- `services/streammanager/*/` — Additional stream destination packages as identified in E-014
-- `router/testdata/destination_payloads/` — Payload parity test fixtures for field-by-field comparison
-- `docs/gap-report/payload-parity-results.md` — Payload parity validation results
-
-New test files:
-- `services/streammanager/*_test.go` — Unit tests for each new stream producer
-- `integration_test/destination_parity/` — Integration test suite for payload comparison across shared connectors
-
-**Sprint 4–6: Functions Framework**
-
-New source files to create:
-- `functions/runtime/engine.go` — Functions runtime engine with per-event typed handler dispatch
-- `functions/runtime/source_functions.go` — Source Functions `onRequest` handler execution
-- `functions/runtime/destination_functions.go` — Destination Functions typed handler execution (`onTrack`, `onIdentify`, etc.)
-- `functions/runtime/insert_functions.go` — Insert Functions pre-destination hooks
-- `functions/runtime/errors.go` — Typed error classes (`EventNotSupported`, `InvalidEventPayload`, `ValidationError`, `RetryError`, `DropEvent`)
-- `functions/api/handler.go` — Functions management REST API (CRUD, versioning, test invocation)
-- `functions/api/routes.go` — HTTP route registration for Functions API
-- `functions/storage/repository.go` — Functions persistence layer (PostgreSQL-backed)
-- `functions/secrets/manager.go` — Per-function encrypted secrets and environment variable storage
-- `gateway/handle_http_functions.go` — Source Functions webhook endpoint in Gateway
-- `sql/migrations/functions/` — Database migrations for functions tables
-
-New test files:
-- `functions/runtime/*_test.go` — Unit tests for each function type
-- `functions/api/*_test.go` — API endpoint tests
-- `functions/secrets/*_test.go` — Secrets management tests
-- `integration_test/functions/` — End-to-end functions integration tests
-
-**Sprint 5–7: Protocols and Tracking Plan Enforcement**
-
-New source files to create:
-- `processor/anomalydetection/detector.go` — Anomaly detection engine for unexpected events/properties
-- `processor/anomalydetection/tracker.go` — Event/property tracking over configurable time windows
-- `processor/enforcement/modes.go` — Three enforcement modes: Block, Omit, Allow
-- `processor/enforcement/forwarder.go` — Forward-blocked-events to alternative source
-- `protocols/api/handler.go` — Tracking plan management REST API (CRUD, versioning, CSV import/export)
-- `protocols/api/routes.go` — HTTP route registration for Protocols API
-- `protocols/storage/repository.go` — Tracking plan persistence with version history
-- `protocols/schema/validator.go` — JSON Schema draft-07 validation engine
-- `sql/migrations/protocols/` — Database migrations for tracking plan tables
-
-New test files:
-- `processor/anomalydetection/*_test.go` — Anomaly detection tests
-- `processor/enforcement/*_test.go` — Enforcement mode tests
-- `protocols/api/*_test.go` — Protocols API tests
-- `protocols/schema/*_test.go` — JSON Schema validation tests
-
-**Sprint 6–8: Identity Resolution and Profiles**
-
-New source files to create:
-- `identity/graph/graph.go` — Real-time identity graph service
-- `identity/graph/resolver.go` — Identity resolution engine (new/single/multi-match strategies)
-- `identity/graph/externalids.go` — External ID management (12+ identifier types)
-- `identity/profiles/api.go` — Profiles REST API (traits, events, external IDs, metadata)
-- `identity/profiles/cache.go` — Redis-backed profile cache for sub-200ms responses
-- `identity/sync/syncer.go` — Profile sync to downstream destinations via change-data-capture
-- `identity/settings/settings.go` — Configurable resolution rules (blocked values, limits, priority)
-- `identity/storage/repository.go` — Identity graph PostgreSQL persistence
-- `sql/migrations/identity/` — Database migrations for identity graph tables
-- `proto/identity/` — gRPC service definitions for Profiles API
-
-New test files:
-- `identity/graph/*_test.go` — Identity graph unit tests
-- `identity/profiles/*_test.go` — Profiles API tests
-- `identity/sync/*_test.go` — Profile sync tests
-- `integration_test/identity/` — End-to-end identity resolution integration tests
-
-**Sprint 8–10: Operational Tooling and Monitoring**
-
-New source files to create:
-- `services/monitoring/dashboard.go` — Per-destination delivery metrics aggregation
-- `services/monitoring/metrics.go` — Prometheus metric definitions for delivery monitoring
-- `services/alerting/engine.go` — Configurable alerting rules engine
-- `services/alerting/channels.go` — Notification channels: webhook, email, Slack
-- `services/alerting/rules.go` — Alert rule definitions (throughput, error rate, latency, queue depth)
-- `services/profiling/profiler.go` — Per-stage pipeline performance profiling
-- `services/profiling/capacity.go` — Capacity planning report generator (targeting 50K events/sec)
-- `gateway/handle_http_replay_advanced.go` — Advanced replay filter logic (source, date-range, destination, dry-run)
-
-New test files:
-- `services/monitoring/*_test.go` — Monitoring dashboard tests
-- `services/alerting/*_test.go` — Alerting engine tests
-- `services/profiling/*_test.go` — Profiling and capacity planning tests
-
-### 0.2.3 Web Search Research Conducted
-
-The following areas were researched based on existing gap analysis documentation in the repository:
-
-- **Destination connector patterns**: The `services/streammanager/` package already establishes a clear producer pattern (implement `common.StreamProducer` interface with `Produce`, `Close` methods). New connectors follow the same factory registration in `streammanager.go`
-- **Functions runtime architecture**: Segment uses AWS Lambda; the RudderStack implementation should extend the existing external Transformer service (port 9090) with per-event handler dispatch, as documented in `docs/gap-report/functions-parity.md`
-- **JSON Schema draft-07 validation**: Required for Protocols enhancement (E-020), supporting `required`, regex patterns, nested objects, enum values, and full type enforcement
-- **Real-time identity graph**: The gap report (`docs/gap-report/identity-parity.md`) recommends starting with an in-memory graph with PostgreSQL persistence, then optimizing for scale — this is the largest architectural change
-- **GCRA-based throttling**: Already implemented in `router/throttler/` — serves as a reference pattern for per-destination monitoring metrics
-
-## 0.3 Dependency Inventory
-
-### 0.3.1 Private and Public Packages
-
-The following table lists all key packages relevant to the five sprint implementations, sourced from `go.mod` and the repository's existing dependency manifests.
-
-| Registry | Package | Version | Purpose |
-|---|---|---|---|
-| Go Module | `go` | `1.26.0` | Language runtime — explicitly declared in `go.mod` |
-| Docker Hub | `postgres:15-alpine` | `15` | Primary database (JobsDB, identity, functions, protocols storage) |
-| Docker Hub | `rudderstack/rudder-transformer:latest` | `latest` | External transformation and validation service (port 9090) |
-| Docker Hub | `minio/minio` | `latest` | Object storage for archival/replay |
-| Docker Hub | `bitnami/etcd:3` | `3` | Cluster coordination (multi-tenant mode) |
-| Go Module | `github.com/go-chi/chi/v5` | `v5.2.5` | HTTP router framework for all REST APIs |
-| Go Module | `google.golang.org/grpc` | `v1.78.0` | gRPC framework for Profiles API and inter-service communication |
-| Go Module | `google.golang.org/protobuf` | `v1.36.11` | Protocol Buffers for gRPC service definitions |
-| Go Module | `github.com/segmentio/kafka-go` | `v0.4.50` | Kafka client for Kafka/Azure Event Hub/Confluent Cloud stream destinations |
-| Go Module | `github.com/confluentinc/confluent-kafka-go/v2` | `v2.13.0` | Confluent Kafka client for Confluent Cloud integration |
-| Go Module | `github.com/apache/pulsar-client-go` | `v0.18.0` | Apache Pulsar client for potential stream destination expansion |
-| Go Module | `github.com/redis/go-redis/v9` | `v9.12.1` | Redis client for identity graph caching and profile lookups |
-| Go Module | `cloud.google.com/go/bigquery` | `v1.72.0` | BigQuery SDK for BQ Stream destination and warehouse |
-| Go Module | `cloud.google.com/go/pubsub/v2` | `v2.3.0` | Google Pub/Sub SDK for stream destination |
-| Go Module | `cloud.google.com/go/storage` | `v1.60.0` | GCS for staging file storage |
-| Go Module | `github.com/aws/aws-sdk-go-v2` | `v1.41.1` | AWS SDK for Kinesis, Firehose, EventBridge, Lambda, Personalize, S3 |
-| Go Module | `github.com/sony/gobreaker` | `v1.0.0` | Circuit breaker for destination delivery protection |
-| Go Module | `github.com/tidwall/gjson` | `v1.18.0` | JSON path reading used throughout pipeline processing |
-| Go Module | `github.com/tidwall/sjson` | `v1.2.5` | JSON path mutation (used in replay handler for context injection) |
-| Go Module | `github.com/onsi/ginkgo/v2` | `v2.24.0` | BDD test framework used across all integration tests |
-| Go Module | `github.com/onsi/gomega` | `v1.38.0` | Matcher library for Ginkgo tests |
-| Go Module | `github.com/rudderlabs/rudder-go-kit` | `v0.72.3` | Internal kit: config, logger, stats, httputil, and more |
-| Go Module | `github.com/rudderlabs/rudder-observability-kit` | `v0.0.6` | Observability labels and helpers |
-| Go Module | `github.com/rudderlabs/rudder-schemas` | `v0.9.1` | Schema definitions and validation |
-| Go Module | `github.com/rudderlabs/rudder-transformer/go` | `v1.122.0` | Go client for Transformer service integration |
-| Go Module | `github.com/rudderlabs/sqlconnect-go` | `v1.20.3` | SQL connectivity for warehouse integrations |
-| Go Module | `github.com/rudderlabs/sql-tunnels` | `v0.1.7` | SSH tunneling for warehouse connections |
-| Go Module | `github.com/DATA-DOG/go-sqlmock` | `v1.5.2` | SQL mock for database unit tests |
-| Go Module | `github.com/rudderlabs/compose-test` | `v0.1.3` | Docker compose test helpers |
-
-### 0.3.2 Dependency Updates
-
-**New Dependencies Potentially Required:**
-
-| Package | Purpose | Sprint | Notes |
-|---|---|---|---|
-| JSON Schema validation library (e.g., `github.com/santhosh-tekuri/jsonschema/v5`) | Full JSON Schema draft-07 validation for Protocols E-020 | 5–7 | Required for `required`, regex patterns, nested objects, enum values, type enforcement |
-| V8 isolate or Deno runtime (e.g., `rogchap.com/v8go`) | JavaScript sandbox for Functions runtime (E-015, E-016, E-017) | 4–6 | Evaluate vs. extending existing Transformer service HTTP protocol |
-| Redis cluster configuration extensions | Identity graph caching for sub-200ms Profiles API (E-027) | 6–8 | Existing `redis/go-redis/v9` may suffice; configuration extensions needed |
-
-**Import Updates:**
-
-Files requiring import updates follow these patterns:
-- `services/streammanager/**/*.go` — New destination producer packages must import `common` and `backendconfig`
-- `functions/**/*.go` — New package imports for Functions runtime, API, storage, secrets
-- `protocols/**/*.go` — New package imports for Protocols API, schema validation, storage
-- `identity/**/*.go` — New package imports for Identity graph, Profiles API, sync, settings
-- `services/monitoring/**/*.go` — New package imports for metrics, alerting, profiling
-- `processor/*.go` — Updated imports for new enforcement modes, anomaly detection, Functions integration
-
-**External Reference Updates:**
-
-| File Pattern | Update Required |
-|---|---|
-| `go.mod` | Add new dependencies for JSON Schema validation, potentially V8 runtime |
-| `go.sum` | Auto-updated by `go mod tidy` after dependency additions |
-| `docker-compose.yml` | Potentially add Redis service for identity graph caching |
-| `config/config.yaml` | Add configuration keys for Functions, Protocols, Identity, Monitoring |
-| `gateway/openapi.yaml` | Add endpoint definitions for Functions API, Protocols API, Profiles API, advanced replay |
-| `Makefile` | Add test targets for new packages |
-| `.github/workflows/tests.yaml` | Update CI test matrix to include new integration test suites |
-| `Dockerfile` | Ensure new packages are included in multi-stage build |
-
-## 0.4 Integration Analysis
-
-### 0.4.1 Existing Code Touchpoints
-
-**Direct Modifications Required:**
-
-- **`services/streammanager/streammanager.go`** (lines 24–58): Add new `case` branches to the `NewProducer` switch statement for each new stream destination type identified in E-014. Currently handles 13 destination types; each new stream destination requires a new case that routes to its producer constructor.
-- **`router/customdestinationmanager/customdestinationmanager.go`** (line 79): Append new stream destination names to `ObjectStreamDestinations` array. This array drives the `CustomManagerT` routing logic that delegates to `streammanager.NewProducer` for stream-type destinations.
-- **`processor/pipeline_worker.go`** (lines 32–37): Add a new `insertfunctions` channel between the `usertransform` and `destinationtransform` channels. The current pipeline flows: preprocess → srcHydration → preTransform → userTransform → destTransform → store. Insert Functions (E-017) require inserting a per-destination transformation stage.
-- **`processor/processor.go`** (lines 78–79): Add new constants for `InsertFunctionTransformation` alongside existing `UserTransformation` and `DestTransformation`. Extend the pipeline processing logic to support Functions runtime integration and enhanced enforcement modes.
-- **`processor/trackingplan.go`** (lines 26–49, 69–142): Major refactor of `validateEvents()` to support full JSON Schema draft-07 validation, three enforcement modes replacing the binary `propagateValidationErrors` toggle, and forward-blocked-events routing. The `reportViolations()` function must be extended to handle Block/Omit/Allow decisions.
-- **`processor/consent.go`** (lines 44–95): Extend `getConsentFilteredDestinations()` to integrate consent decisions with Protocols enforcement. When consent management is enabled alongside a tracking plan, consent-denied events should follow the tracking plan's enforcement mode rather than being silently filtered.
-- **`gateway/handle_http.go`**: Mount new endpoints for Source Functions webhook ingestion (`/v1/functions/source`), tracking plan management API, Profiles API, and advanced replay controls.
-- **`gateway/handle_http_replay.go`** (lines 19–89): Extend `webReplayHandler()` and `withWarehouseReplayTag()` to accept source-level, date-range, and destination-level filter parameters via query string or request headers. Add dry-run mode support.
-- **`backend-config/types.go`**: Add new fields to `DestinationT` and `SourceT` for enforcement mode configuration, identity resolution settings, and Functions binding configuration. Extend `ConfigT` with tracking plan management data and identity resolution settings.
-- **`warehouse/identity/identity.go`** (lines 36–60, 78–206): Extend the `Identity` struct to support real-time resolution. Refactor `applyRule()` to work outside the warehouse upload cycle. Extend the merge-rule model beyond the two-property (`merge_property_1/2`) limitation.
-- **`main.go`**: Wire new top-level services (Functions runtime, Identity service, Monitoring service) into the server startup lifecycle alongside existing Gateway, Processor, Router, and Warehouse services.
-- **`router/handle.go`** (lines 49–100): Add per-destination delivery metrics instrumentation points for the monitoring dashboard. Capture success/failure rates, latency percentiles, throughput, retry counts, and circuit breaker state changes.
-- **`router/handle_observability.go`**: Extend observability helpers with new metric names for the delivery monitoring dashboard.
-
-**Dependency Injections:**
-
-- **`runner/runner.go`**: Register new service components (Functions runtime, Identity service, Monitoring/Alerting service) in the runner's component startup sequence. These must be wired before the Processor starts to ensure pipeline hooks are available.
-- **`app/app.go` or `app/apphandlers/`**: Inject new service dependencies into the app handler for embedded mode. The Functions runtime and Identity service need access to the same PostgreSQL connection, backend-config subscriptions, and stats infrastructure.
-- **`processor/transformer/clients.go`** (lines 36–42): Extend the `Clients` struct to include a `FunctionsClient` interface for communicating with the Functions runtime, alongside existing `UserClient`, `DestinationClient`, `TrackingPlanClient`, and `SrcHydrationClient`.
-
-**Database/Schema Updates:**
-
-- **`sql/migrations/`**: New migration files for:
-  - Functions tables: `functions` (id, workspace_id, name, type, code, version, settings, created_at, updated_at), `function_secrets` (id, function_id, key, encrypted_value)
-  - Tracking plans tables: `tracking_plans` (id, workspace_id, name, schema, version, enforcement_config, created_at, updated_at), `tracking_plan_versions` (id, tracking_plan_id, version, schema, changelog)
-  - Identity graph tables: `identity_graph` (id, workspace_id, segment_id, created_at), `identity_external_ids` (id, graph_id, external_id_type, external_id_value, created_source, created_at, merged_at, merged_from), `identity_traits` (id, graph_id, key, value, updated_at)
-  - Alerting tables: `alert_rules` (id, workspace_id, condition, threshold, channels, enabled, created_at)
-
-### 0.4.2 Cross-Sprint Integration Dependencies
-
-The following diagram illustrates the inter-sprint dependency flow:
-
-```mermaid
-flowchart TD
-    subgraph S35["Sprint 3-5: Destinations"]
-        E010["E-010: Prioritize Top-50"]
-        E011["E-011: Cloud Batch 1"]
-        E012["E-012: Cloud Batch 2"]
-        E013["E-013: Payload Parity"]
-        E014["E-014: Stream Dests"]
-    end
-
-    subgraph S46["Sprint 4-6: Functions"]
-        E015["E-015: Source Functions"]
-        E016["E-016: Dest Functions"]
-        E017["E-017: Insert Functions"]
-        E018["E-018: Management API"]
-        E019["E-019: Secrets Mgmt"]
-    end
-
-    subgraph S57["Sprint 5-7: Protocols"]
-        E020["E-020: JSON Schema"]
-        E021["E-021: Anomaly Detection"]
-        E022["E-022: Enforcement Modes"]
-        E023["E-023: Forward Blocked"]
-        E024["E-024: TP Management API"]
-        E025["E-025: Consent Integration"]
-    end
-
-    subgraph S68["Sprint 6-8: Identity"]
-        E026["E-026: RT Identity Graph"]
-        E027["E-027: Profiles API"]
-        E028["E-028: External IDs"]
-        E029["E-029: Profile Sync"]
-        E030["E-030: Resolution Settings"]
-    end
-
-    subgraph S810["Sprint 8-10: Operations"]
-        E036["E-036: Delivery Dashboard"]
-        E037["E-037: Alerting"]
-        E038["E-038: Adv Replay"]
-        E039["E-039: Capacity Planning"]
-    end
-
-    E010 --> E011
-    E011 --> E012
-    E011 --> E015
-    E015 --> E016
-    E016 --> E017
-    E017 --> E018
-    E018 --> E019
-    E020 --> E021
-    E021 --> E022
-    E022 --> E023
-    E024 --> E025
-    E026 --> E027
-    E027 --> E028
-    E028 --> E029
-    E029 --> E030
-    E036 --> E039
-
-    style S35 fill:#ffcc99,stroke:#e65100,color:#000
-    style S46 fill:#ffcc99,stroke:#e65100,color:#000
-    style S57 fill:#fff9c4,stroke:#f9a825,color:#000
-    style S68 fill:#fff9c4,stroke:#f9a825,color:#000
-    style S810 fill:#c8e6c9,stroke:#2e7d32,color:#000
+## 0.1 Executive Summary and Intent Clarification
+
+Based on the provided requirements, the Blitzy platform understands that the objective is to perform a read-only, native-agent security audit of the `blitzy-RudderStack` codebase (the upstream `rudder-server` Go monorepo) and emit a single machine-readable findings file. This work is the **Config A — Bare Blitzy Baseline** control arm of a multi-config security tool comparison; it deliberately suppresses external scanner usage so that the resulting findings represent only what an unaided agent can identify through static reasoning over source, configuration, dependency manifests, and build/deployment artifacts.
+
+### 0.1.1 Core Objective
+
+The audit MUST:
+
+- Trace data flows, follow call chains, examine configuration, and inspect dependency declarations across the entire repository.
+- Report every identified vulnerability with a CWE classification using the most specific CWE the agent is confident about.
+- Compile findings into `findings-config-a.json` at the repository root: a UTF-8, single-line, minified JSON array of objects with exactly five fields per object — `file`, `line`, `severity`, `cwe`, `description` — where `description` is bounded to 200 characters.
+- Write the empty array `[]` if zero findings are identified.
+
+Implicit requirements surfaced from the directives and from the project's two implementation rules:
+
+- **Severity rubric**: the input specifies the four-level scale `critical | high | medium | low` but does not define the boundaries. A rubric MUST be defined and applied uniformly. <cite index="6-3,6-4,6-5">CVSS (Common Vulnerability Scoring System) is a standardized scoring system used to assess and compare the severity of security vulnerabilities, providing an objective, quantitative measure of the potential impact by assigning numerical scores based on different metrics, which helps security professionals prioritize their vulnerability remediation efforts.</cite> The rubric defined for this audit (recorded in the decision log) maps each level to an exploitability + blast-radius + production-reachability profile influenced by CVSS thinking but compressed to four discrete buckets.
+- **CWE specificity policy**: "most specific CWE you are confident about" requires a leaf-CWE preference over umbrella categories. <cite index="2-22,2-23,2-24,2-25">Static analysis tools or code scanning platforms often flag issues using CWE identifiers, pointing to specific weaknesses like CWE-89 for SQL injection or CWE-79 for cross-site scripting; on their own these codes might look cryptic but looking them up gives clear explanations, example scenarios, and practical ways to fix or prevent the issue.</cite> The audit must emit IDs at the granularity at which evidence supports the call (e.g., CWE-918 for SSRF rather than CWE-20 for "improper input validation").
+- **Integer `line` field**: JSON schema requires an integer, not a string or range. Findings derived from configuration declarations or `go.mod` entries must be anchored to a representative integer line number from the inspected file.
+- **Description ≤200 characters**: each `description` value must be verifiable to satisfy `len(s) <= 200`.
+- **Locating discovery in a multi-language repository**: the codebase contains 766 non-test Go source files plus configuration in YAML, environment files, Dockerfiles, NGINX configuration, GitHub Actions workflows, 100 SQL migration files, and shell scripts. The audit must address all of these layers, not just `*.go`.
+- **Reproducibility**: as a baseline measurement in a comparative study, methodology must be auditable so other configurations can be compared against it on a like-for-like basis.
+
+### 0.1.2 Task Categorization
+
+| Dimension                | Classification                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| Primary task type        | Security audit / vulnerability discovery (read-only static + dataflow + dependency analysis)                              |
+| Secondary aspects        | Documentation (Explainability decision log) and Executive Reporting (Blitzy reveal.js presentation)                       |
+| Tertiary aspect          | Baseline measurement for a multi-config comparison — methodology rigor matters as much as findings                        |
+| Scope classification     | Isolated change — only three NEW artifacts are produced; zero existing files are modified                                 |
+| Output character         | One machine-readable artifact (`findings-config-a.json`) and two human-readable artifacts (Markdown log + reveal.js HTML) |
+
+### 0.1.3 Special Instructions and Constraints
+
+The user's directives, project rules, and inputs together create the following non-negotiable constraints:
+
+- **CRITICAL — Native agent analysis only.** Directive 1 states: "no external scanning tools." The agent must perform the audit through repository inspection and reasoning alone. The repository already runs `gosec` inside `golangci-lint` <cite index="3-25,3-26">gosec searches for security flaws in Go source code, scanning the Go abstract syntax tree (AST) to inspect source code for security problems.</cite> but the audit must not invoke `gosec` (or any other scanner) directly. The `.golangci.yml` linter configuration is inspected as evidence of existing controls, not used as a finding generator.
+- **DISALLOWED tools (explicit out-of-scope):** Snyk, Semgrep, CodeQL, Trivy, gitleaks, govulncheck, npm-audit, retire.js, OWASP Dependency-Check, Bandit, direct `gosec` invocation outside the existing `golangci-lint` run, exploit frameworks, fuzzers, and any DAST tooling. The presence of `replace` directives in `go.mod` targeting Snyk-identified CVEs in indirect dependencies (`cyphar/filepath-securejoin`, `gin-gonic/gin`, `go-jose`, etc., per `[go.mod:replace block]`) confirms that Snyk is the codebase's habitual scanner; baseline Config A measures what the agent finds *without* it.
+- **CRITICAL — Minified single-line JSON output.** Pass/fail gate: `cat findings-config-a.json | wc -l` must return `1`; content must parse as valid JSON; every record must populate all five fields; no `description` may exceed 200 characters. Empty array `[]` is the correct output for zero findings.
+- **Explainability rule** mandates a decision log Markdown table covering what was decided, what alternatives existed, why this choice was made, and what risks it carries. Per the rule, rationale must NOT be embedded in code comments — the decision log is the single source of truth for "why" decisions.
+- **Executive Presentation rule** mandates a single self-contained `reveal.js` HTML executive summary that is ALWAYS included independent of any other documentation. This is the audience-facing readout for non-technical leadership; it must communicate business value, risk, and operational readiness without requiring code literacy.
+- **Decision log + presentation are MANDATORY** even though the user's input mentions "1 new file." The rules expand the deliverable set; the rules are authoritative and binding.
+- **No methodology shortcuts.** The agent must inspect every domain folder, every configuration file, every dependency manifest, every SQL migration, every Docker artifact, and every CI workflow. Selective sampling is not acceptable for a baseline measurement.
+
+User Examples (preserved verbatim from the input):
+
+> User Example — JSON record shape:
+> `[{"file":"<relative path>","line":<integer>,"severity":"<critical|high|medium|low>","cwe":"<CWE-ID>","description":"<max 200 chars>"},...]`
+
+> User Example — Pass/fail probe:
+> `cat findings-config-a.json | wc -l` returns `1`. The content parses as valid JSON. Every finding has all 5 fields populated. No description exceeds 200 characters.
+
+### 0.1.4 Technical Interpretation
+
+These requirements translate to the following technical implementation strategy:
+
+- **To produce a defensible vulnerability inventory**, the agent will apply ten security analysis lenses (injection, authentication/authorization, cryptography, SSRF/egress, path traversal/SSTI, resource exhaustion, secrets exposure, dependency CVEs, misconfiguration, error handling/info leak) across every repository domain identified during scope discovery, then collapse the findings to a leaf-CWE classification per record.
+- **To satisfy the JSON contract**, the agent will produce each record as a five-field object, validate field types and length constraints in-process, serialize with `json.dumps(..., separators=(",",":"))` semantics (single line, no whitespace), and verify with the user's stated pass/fail probe `wc -l` returning `1`.
+- **To satisfy the Explainability rule**, the agent will create `blitzy-audit/config-a-decision-log.md` containing the severity rubric definition, the CWE selection policy, the analysis lens catalog, per-domain coverage notes, the bidirectional traceability matrix mapping each finding ID to source location and CWE, and a deviation log capturing every place where literal interpretation of requirements was modified (e.g., scope expansion from 1 file to 3 files, severity rubric definition, line-number anchoring for non-line-bound findings).
+- **To satisfy the Executive Presentation rule**, the agent will create `blitzy-audit/config-a-executive-summary.html` as a single self-contained reveal.js deck with 12–18 `<section>` slides on the Blitzy brand identity (primary `#5B39F3`, dark `#2D1C77`, navy `#1A105F`, teal accent `#94FAD5`, Inter/Space Grotesk/Fira Code typography), each slide carrying at least one non-text visual element (Mermaid diagram, KPI card, styled table, or Lucide SVG icon), with reveal.js 5.1.0, Mermaid 11.4.0, and Lucide 0.460.0 pinned via CDN.
+- **To preserve the baseline character of Config A**, the agent will NOT invoke external scanners and will NOT modify any source file. The audit is purely a discovery-and-report exercise; remediation is out of scope for this configuration.
+
+## 0.2 Technical Scope and Repository Discovery
+
+This sub-section describes the security-relevant surface area discovered through exhaustive repository inspection and frames the analytic lenses through which findings will be derived.
+
+### 0.2.1 Repository Profile and Baseline Metrics
+
+The repository is the upstream `rudder-server` Go monorepo packaged under module path `github.com/rudderlabs/rudder-server` at Go toolchain version `1.26.1` `[go.mod:L1-L4]`. It is a production-grade modular monolith implementing a Warehouse-first Customer Data Platform, with deployment modes EMBEDDED, GATEWAY, and PROCESSOR. The audit baseline footprint:
+
+| Metric                              | Value      | Source                                                          |
+| ----------------------------------- | ---------- | --------------------------------------------------------------- |
+| Non-test Go source files            | 766        | `find . -name "*.go" -not -name "*_test.go"` baseline           |
+| Test Go source files                | 497        | `find . -name "*_test.go"` baseline                             |
+| LOC non-test Go                     | 166,197    | `cloc`-equivalent baseline                                      |
+| LOC test Go                         | 239,921    | `cloc`-equivalent baseline                                      |
+| YAML configuration files            | 184        | `find . -name "*.yaml" -o -name "*.yml"` baseline               |
+| SQL migration files                 | 100        | `sql/migrations/**`                                             |
+| Shell scripts                       | 6          | `find . -name "*.sh"` baseline                                  |
+| `go.mod` require entries            | 372        | `[go.mod:require blocks]`                                       |
+| Distinct module entries in `go.sum` | 666        | `[go.sum:entries]`                                              |
+| GitHub Actions workflows            | 13         | `[.github/workflows/]`                                          |
+
+### 0.2.2 Security-Relevant Surface Area
+
+The analysis targets the following domains, each inspected as REFERENCE material for the audit:
+
+| Domain                  | Paths                                                                                                                     | Why It Matters                                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP ingress            | `gateway/handle_http*.go`, `gateway/handle_webhook.go`, `gateway/handle_http_auth.go`                                     | Internet-facing event ingestion on port 8080; write-key/source-ID authentication; webhook payloads from untrusted third parties                          |
+| Outbound delivery       | `router/network.go`, `router/worker.go`, `router/handle.go`, `router/batchrouter/`, `router/customdestinationmanager/`    | Egress to arbitrary destination URLs configured by tenants; private-IP/SSRF guards live here                                                            |
+| Persistent storage      | `jobsdb/*.go`, `sql/migrations/*.sql`, `sql/migrations/embed.go`                                                          | PostgreSQL-backed JobsDB; 100 migration files exercising DDL/DML; surface for SQL injection if dynamic SQL is constructed                                |
+| Configuration           | `config/config.yaml`, `config/sample.env`, `build/docker.env`                                                             | Contains credential placeholders (JOBS_DB password, CONFIG_BACKEND_TOKEN, WORKSPACE_TOKEN, S3 keys, Kafka TLS)                                          |
+| Auth & control-plane    | `services/oauth/`, `services/controlplane/`, `services/validators/`, `backend-config/`                                    | OAuth flows for destinations; gRPC client to RudderStack Control Plane; workspace token handling                                                        |
+| Admin / RPC             | `admin/admin.go`                                                                                                          | UNIX-socket RPC server at `/tmp/rudder-server.sock`; exposes `SetLogLevel`, `GetLoggingConfig`; `ReadHeaderTimeout=3s`                                  |
+| Internal subsystems     | `internal/drain-config/`, `internal/enricher/` (MaxMind DB S3 download), `internal/pulsar/`, `internal/transformer-client/` | HTTP `PUT /job/{job_run_id}` for drain config; remote file download; Pulsar messaging; HTTP client to transformer                                       |
+| Enterprise features     | `enterprise/config-env/`, `enterprise/reporting/`, `enterprise/suppress-user/`, `enterprise/trackedusers/`                | Elastic License 2.0 components gated on `EnterpriseToken`; env-var substitution; error normalization                                                    |
+| Warehouse subsystem     | `warehouse/` (admin, api, archive, backfill, bcm, client, constraints, encoding, healthmonitor, integrations, internal, multitenant, replay, router, safeguard, schema, selectivesync, slave, source, validations, identity) | Largest subsystem; multi-tenant warehouse loaders; destination credentials handling                                                                      |
+| Build & deployment      | `Dockerfile`, `docker-compose.yml`, `build/docker-entrypoint.sh`, `build/docker-go-version.sh`, `build/nginx.backend.conf`, `build/nginx.transformer.conf`, `scripts/start_server.sh` | Container hardening posture; entrypoint privilege; NGINX reverse-proxy headers                                                                          |
+| CI / supply chain       | `.github/workflows/*.{yml,yaml}` (13 workflows), `.github/dependabot.yml`, `.golangci.yml`                                | Supply-chain trust boundary; permissions of workflow tokens; lint coverage; Dependabot scope                                                            |
+
+### 0.2.3 Analysis Lens Catalog
+
+Each domain above will be analyzed through the following ten lenses. Findings produced by any lens map to a single most-specific CWE:
+
+| Lens                       | Representative CWEs                                                                            | What the Agent Looks For                                                                                                                                  |
+| -------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Injection                  | CWE-79, CWE-89, CWE-78, CWE-94, CWE-77, CWE-91, CWE-917                                        | Unsafe string concatenation into SQL, shell exec with untrusted input, template rendering of user data, header injection                                  |
+| AuthN / AuthZ              | CWE-287, CWE-862, CWE-863, CWE-284, CWE-306, CWE-798                                           | Missing auth checks on admin/RPC endpoints, predictable tokens, hardcoded credentials, role bypass on enterprise paths                                    |
+| Cryptography               | CWE-327, CWE-326, CWE-330, CWE-338, CWE-295, CWE-319, CWE-916                                  | Weak ciphers/hashes (MD5/SHA1 for auth), `crypto/rand` vs `math/rand`, `InsecureSkipVerify`, plaintext transport                                          |
+| SSRF / egress              | CWE-918                                                                                        | Outbound HTTP whose target URL derives from untrusted input; bypass of private-IP filters in `router/network.go`                                          |
+| Path traversal / SSTI      | CWE-22, CWE-23, CWE-35, CWE-73                                                                 | File operations whose path component derives from untrusted input; template execution of attacker-controlled text                                         |
+| Resource exhaustion        | CWE-400, CWE-770, CWE-834, CWE-674                                                             | Unbounded `io.ReadAll`, missing body-size caps, missing timeouts, unbounded goroutine spawning, recursion without depth limit                              |
+| Secrets exposure           | CWE-798, CWE-256, CWE-532, CWE-312                                                             | Hardcoded credentials, secrets logged at debug level, plaintext on disk, credentials in error responses                                                   |
+| Dependency vulnerabilities | CWE-1104, CWE-1395, CWE-937                                                                    | Outdated packages with known CVEs evident in version pins; missing `replace` for known-bad versions; deprecated runtimes                                  |
+| Misconfiguration           | CWE-732, CWE-16, CWE-250, CWE-276, CWE-1004                                                    | Overly permissive container settings, running as root, missing security headers, weak NGINX directives, secret commit                                     |
+| Error handling / info leak | CWE-209, CWE-200, CWE-703, CWE-754                                                             | Stack traces returned to clients, unhandled errors in security-relevant paths, verbose 5xx bodies                                                          |
+
+### 0.2.4 Existing Security Controls (Baseline Context)
+
+The codebase already carries several defensive controls; these are **not findings** but they shape the audit's expected hit rate:
+
+- **Static analysis gate.** The `.golangci.yml` configuration enables `gosec`, `bodyclose`, `decorder`, `depguard`, `forbidigo`, `makezero`, `misspell`, `nilerr`, `nilnil`, `rowserrcheck`, `unconvert`, `unparam`, and `wastedassign` `[.golangci.yml:linters.enable]`. The `gosec` integration means classic AST-detectable Go security bugs are already filtered out in CI. <cite index="3-25,3-26">gosec searches for security flaws in Go source code by scanning the Go abstract syntax tree (AST) to inspect source code for security problems.</cite> The audit must therefore concentrate on dataflow-, configuration-, and design-level issues that AST linting does not catch.
+- **Library substitution policy.** `depguard` denies `github.com/gofrs/uuid`, `golang.org/x/exp/slices`, `github.com/json-iterator/go`, `github.com/rudderlabs/sonnet`, and `github.com/aws/aws-sdk-go` v1, forcing migration to vetted alternatives `[.golangci.yml:depguard.rules]`.
+- **Forbidden API patterns.** `forbidigo` blocks direct use of `json.Marshal/Unmarshal/NewDecoder/NewEncoder` (callers must use the `rudder-go-kit/jsonrs` wrapper), the sugared `Logger.Debug/Info/Warn/Error/Fatal` legacy methods, and `cenkalti/backoff` v1–v4 `[.golangci.yml:forbidigo.forbid]`.
+- **Indirect-dependency hardening.** `go.mod` contains a `replace` block overriding versions of `cyphar/filepath-securejoin v0.2.5`, `gin-gonic/gin v1.10.0`, `go-jose/go-jose/v3 v3.0.3`, and other indirect dependencies that Snyk has previously flagged `[go.mod:replace block]`. This confirms Snyk is the project's habitual scanner — and the very reason Config A measures what an agent finds *without* it.
+- **Dependabot automation.** `.github/dependabot.yml` configures daily update PRs for `gomod`, `github-actions`, and `docker` ecosystems `[.github/dependabot.yml]`, providing passive SCA coverage.
+- **Container hardening.** The `Dockerfile` pins `GO_VERSION=1.26.1`, uses `golang:1.26.1-alpine3.23@sha256:2389ebfa...` and `alpine 3.23 @sha256:51183f2c...` SHA-digest-pinned base images, runs `apk --no-cache upgrade && apk --no-cache add tzdata ca-certificates postgresql-client curl bash`, creates an unprivileged `rudder` user via `addgroup -S rudder && adduser -S rudder -G rudder`, and switches to that user before runtime `[Dockerfile:multi-stage build]`.
+- **Responsible disclosure.** `SECURITY.md` defines the disclosure channel (`security@rudderstack.com`) and supported-version policy `[SECURITY.md:full file]`.
+
+### 0.2.5 Web Search Research
+
+The agent consulted authoritative sources to anchor the audit methodology:
+
+- **CWE taxonomy and Top 25.** <cite index="14-1,14-2">CISA, in collaboration with HSSEDI operated by MITRE, has released the 2024 CWE Top 25 Most Dangerous Software Weaknesses, identifying the most critical software weaknesses that adversaries frequently exploit to compromise systems, steal sensitive data, or disrupt essential services.</cite> <cite index="17-13,17-17">The Top 25 List of CWEs is an analysis of the CVE dataset over a period of time in which each CWE is scored by frequency (the number of times a CWE is the root cause of a vulnerability) and severity (the average of the Common Vulnerability Scoring System (CVSS) ranking of all the CVE records included within a single CWE).</cite> The audit weights the lens catalog toward Top 25 weakness classes most relevant to a Go web/data-platform monorepo: access control, injection, SSRF, secrets exposure, and resource exhaustion.
+- **Memory-safety class is de-emphasized for Go.** <cite index="15-18,15-19">Nation-state attackers and advanced groups frequently exploit memory-corruption CWEs (CWE-119, CWE-787, CWE-125, etc.) and CISA KEV references highlight these as actively exploited.</cite> Because Go is memory-safe (bounds-checked slices, garbage-collected heap), CWE-119/787/125-class findings are not expected in `rudder-server` Go code; they would only arise in `unsafe`/`cgo` usage and will be reported only when evidence supports them.
+- **Access-control class dominates modern Top 25.** <cite index="15-1,15-2">The largest chunk of the 2024 list covers access control issues: Improper Authentication (CWE-287), Missing Authorization (CWE-862), and Incorrect Authorization (CWE-863), and these weaknesses top certain bug bounty lists.</cite> The audit allocates proportional attention to `gateway/handle_http_auth.go`, `admin/admin.go`, `services/oauth/`, and `internal/drain-config/`.
+- **CWE specificity practice.** <cite index="2-22,2-23">One of the most direct ways CWEs show up in a developer's workflow is through static analysis tools or code scanning platforms, which often flag issues using CWE identifiers pointing to specific weaknesses like CWE-89 for SQL injection or CWE-79 for cross-site scripting.</cite> The audit emits leaf-level IDs whenever the evidence supports the call.
+- **Manual audits complement static tools.** <cite index="3-14,3-15,3-16">A static analysis tool is not a replacement for manual code audits; however, when a codebase is large with many people contributing, such a tool often helps find low-hanging fruit in a repeatable way, and it is also useful for helping new developers identify and avoid writing code that introduces these security flaws.</cite> Config A is exactly the inverse experiment: a manual audit *without* the static tool, measuring the gap.
+
+### 0.2.6 Repository Search Coverage Statement
+
+The agent performed comprehensive folder-level inspection of: `gateway/`, `processor/`, `router/`, `services/`, `warehouse/`, `jobsdb/`, `backend-config/`, `internal/`, `enterprise/`, `admin/`, `utils/`, `runner/`, `config/`, `build/`, `sql/`, `scripts/`, `.github/`, `integration_test/`, plus root-level files (`main.go`, `go.mod`, `go.sum`, `Dockerfile`, `docker-compose.yml`, `SECURITY.md`, `.golangci.yml`, `README.md`). The exhaustive list of inspected paths appears in the References sub-section (0.5).
+
+## 0.3 Implementation Design and File Transformation Mapping
+
+This sub-section maps every requirement to a concrete implementation action. The audit produces three NEW artifacts and modifies zero existing files.
+
+### 0.3.1 Technical Approach
+
+The Blitzy platform will execute the audit as a single read-only analysis pipeline that begins with repository inventory, proceeds through the ten-lens analysis catalog from sub-section 0.2.3 against each security-relevant domain from sub-section 0.2.2, collapses each candidate observation to a leaf-CWE classification with a severity rating, and emits all findings into the contract-compliant JSON artifact. In parallel, every non-trivial methodology decision is captured in the decision log and the audit's headline outcomes are projected into the executive presentation.
+
+Logical implementation flow (NOT a timeline):
+
+- **First, establish the methodology contract** by writing the severity rubric, CWE selection policy, JSON schema validation rules, and exclusion list (no external scanners) into `blitzy-audit/config-a-decision-log.md` so the analysis runs against a fixed standard.
+- **Next, perform the audit** by walking every domain through every lens. Each candidate observation is evaluated for evidence sufficiency, dataflow reachability, exploitability, and blast radius. Observations that survive evaluation become findings; observations that don't are recorded in the decision log under "Considered but not flagged" with rationale.
+- **Then, serialize findings** into `findings-config-a.json` as a minified single-line UTF-8 JSON array. The serializer enforces field types and the 200-character description cap before write.
+- **Finally, produce the leadership readout** by generating `blitzy-audit/config-a-executive-summary.html` as a self-contained reveal.js deck that summarizes the headline counts, severity distribution, top affected domains, illustrative findings, residual risks, and onboarding guidance — in the Blitzy brand identity with Mermaid + Lucide visuals on every slide.
+
+### 0.3.2 Severity Rubric
+
+The severity values are anchored on a four-bucket scale derived from CVSS thinking but compressed to the literal values mandated by Directive 2 (`critical | high | medium | low`):
+
+| Severity | Definition                                                                                                                                                                | Examples in Scope                                                                                                                          |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| critical | Pre-authentication RCE; production secret committed to repository; broken auth on internet-exposed endpoint; full data exfiltration path with no compensating control    | Hardcoded production credential in `config/sample.env`; auth bypass in `gateway/handle_http_auth.go`                                       |
+| high     | Auth bypass on enterprise/protected path; SQL injection in dynamic statement; SSRF to internal services; missing TLS verification; insecure deserialization               | Unparameterized SQL in JobsDB read path; `InsecureSkipVerify: true` in destination HTTPS client; SSRF in router egress                     |
+| medium   | Information leak through error responses; missing rate limit on auth endpoint; weak randomness for non-security purpose; dependency CVE with available workaround         | Stack trace in 5xx response; `math/rand` for retry jitter where `crypto/rand` is required by spec                                          |
+| low      | Hardening recommendation; missing security header; deprecated cipher allowance; defense-in-depth gap; verbose logging of non-sensitive metadata                            | Missing `Strict-Transport-Security` on NGINX response; TLS 1.0/1.1 not explicitly disabled                                                  |
+
+### 0.3.3 CWE Selection Policy
+
+The agent applies the policy below when choosing a CWE:
+
+- **Leaf-CWE preference.** Choose the most specific CWE the evidence supports. Prefer CWE-89 over CWE-707, CWE-918 over CWE-20, CWE-862 over CWE-284.
+- **Evidence-bound assignment.** Assign a CWE only when source code, configuration, or manifest evidence supports the call. Do not assign on speculation.
+- **One CWE per record.** Where multiple CWEs could apply (e.g., a finding is both CWE-732 and CWE-276), choose the one most aligned with the proximal cause; mention the alternative in the decision log.
+- **Format validation.** Every `cwe` value matches `^CWE-\d+$`. The integer following `CWE-` is a real MITRE-assigned identifier; the audit does not invent IDs.
+- **Confidence threshold.** A finding may exist without a CWE only in the decision log under "Considered but not flagged." Once promoted to `findings-config-a.json`, a CWE is mandatory.
+
+### 0.3.4 JSON Output Contract
+
+The findings file conforms to the user-provided template literally. Every record is a JSON object with exactly five keys, in any order, with the following types and validation rules:
+
+| Field         | Type    | Constraint                                                                                                          |
+| ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `file`        | string  | Repository-relative path with forward slashes; non-empty                                                            |
+| `line`        | integer | Positive integer pointing at a real line in `file`; for non-line-bound findings (e.g., dependency), anchor to the representative declaration line |
+| `severity`    | string  | Exactly one of `"critical"`, `"high"`, `"medium"`, `"low"`                                                          |
+| `cwe`         | string  | Matches regex `^CWE-\d+$`                                                                                            |
+| `description` | string  | UTF-8; length ≤ 200 characters; one-line summary of the weakness and locus                                          |
+
+Serializer requirements: `ensure_ascii=False` (UTF-8 preserved), `separators=(",", ":")` (no whitespace), and a trailing-newline policy of **no trailing newline** so that `wc -l findings-config-a.json` returns `1`. Empty result writes literal `[]` (two bytes).
+
+Example record shape (illustrative — not a real finding):
+
+```
+{"file":"gateway/handle_http_auth.go","line":142,"severity":"high","cwe":"CWE-287","description":"Write-key comparison uses byte-equality permitting timing oracle"}
 ```
 
-### 0.4.3 Pipeline Integration Architecture
+### 0.3.5 Decision Log Structure
 
-The following diagram shows how all five sprints integrate into the existing RudderStack pipeline:
+`blitzy-audit/config-a-decision-log.md` is the single source of truth for "why" decisions per the Explainability rule. Its sections:
+
+| Section                                  | Content                                                                                                                                                                                |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Audit Methodology                     | Scope statement, exclusion list (external scanners), domain inventory, lens catalog                                                                                                    |
+| 2. Severity Rubric                       | The four-level table from sub-section 0.3.2 with the explicit definitions and examples                                                                                                  |
+| 3. CWE Selection Policy                  | Leaf preference, evidence rules, multi-CWE collapse rule, format validation, confidence threshold                                                                                       |
+| 4. Decision Log (table)                  | Per-decision rows with columns: Decision ID, What Was Decided, Alternatives Considered, Why This Choice, Risks                                                                          |
+| 5. Bidirectional Traceability Matrix     | For each finding in `findings-config-a.json`, a row mapping Finding-ID → source file/line → CWE → severity → lens that produced it, ensuring 100% coverage with no gaps                |
+| 6. Considered-but-Not-Flagged Log        | Observations evaluated but rejected from the findings file, with reason (insufficient evidence, false positive, defense-in-depth covers it, etc.)                                       |
+| 7. Deviations from Literal Interpretation| Explicit entries for every place where literal reading of the input was modified: scope expansion (1 → 3 files), severity rubric definition, line-anchor policy for non-line findings  |
+| 8. Limitations of Native Agent Analysis | Honest accounting of what this configuration cannot detect (no taint-graph engine, no symbolic execution, no cross-binary CVE feed, no runtime DAST)                                    |
+| 9. Pass/Fail Verification Record         | The literal verification commands and their expected results, mirroring user Directive 2's pass/fail clause                                                                              |
+
+Required decision-log rows that must be present regardless of finding outcome (these document the audit decisions, not findings):
+
+| Decision ID | What Was Decided                                                                       | Alternatives Considered                                                                   | Why This Choice                                                                                                       | Risks                                                                                              |
+| ----------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| D-001       | Define severity rubric with 4 explicit buckets keyed on exploitability + blast radius  | Use CVSS v3.1 numeric scores; use exploitability-only scale; defer to scanner defaults    | User input mandates the four literal values but does not define them; an explicit rubric is required for consistency  | Different graders may still disagree on boundary cases; the rubric narrows but does not eliminate it|
+| D-002       | Prefer leaf CWE over umbrella                                                          | Always assign Top 25 IDs; always assign closest CWE Top 25 parent                          | "Most specific CWE you are confident about" maps directly to leaf preference                                          | Some leaves are obscure; downstream consumers may need a parent CWE for aggregation                |
+| D-003       | Expand deliverable set from 1 file to 3 files                                          | Produce only `findings-config-a.json`                                                      | The Explainability and Executive Presentation rules each MANDATE an additional artifact                                | Reviewer may not expect the extra files; mitigated by explicit AAP documentation                   |
+| D-004       | Place audit artifacts under `blitzy-audit/`                                            | Place at repo root; place under `docs/`; place under `blitzy/`                            | A dedicated folder isolates audit artifacts from product source and avoids collision with existing `blitzy/` content   | New folder must be created; mitigated by mkdir semantics in artifact write                          |
+| D-005       | Disallow Snyk / Semgrep / CodeQL / gosec direct invocation                             | Run scanners and treat their output as evidence                                            | Directive 1 mandates native agent analysis only; this is the baseline arm of a comparative study                       | Lower recall than scanner-assisted configs; that's the point of Config A                            |
+| D-006       | Embed Blitzy reveal.js theme CSS inline in the HTML artifact                            | Link to `blitzy-deck/references/blitzy-reveal-theme.css`                                   | That reference file does not exist in this repository; inline CSS keeps the deliverable self-contained per the rule    | Inline CSS is longer and not DRY; mitigated by single-file delivery requirement                    |
+| D-007       | Anchor non-line findings (dependency, config-file-level) to the representative declaration line | Use `line: 0` or `line: null`                                                            | JSON contract requires `line` as integer; declaration line is the closest legitimate anchor                            | Reviewer may interpret line as exact locus rather than anchor; mitigated by description wording    |
+
+### 0.3.6 Executive Presentation Structure
+
+`blitzy-audit/config-a-executive-summary.html` is a single self-contained reveal.js HTML file. Total slide count target: **16** (within the 12–18 range mandated by the rule). Every slide carries at least one non-text visual element. The slide ordering convention from the Executive Presentation rule is followed strictly:
+
+| #  | Slide                                          | Type             | Non-Text Visual                                                                                                              |
+| -- | ---------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 1  | Title — Security Audit: Config A Baseline      | `slide-title`    | Hero gradient background, Lucide `shield-check` hero icon, eyebrow in Fira Code teal                                          |
+| 2  | Headline Findings — count + severity breakdown | content          | KPI grid (total findings, critical, high, medium, low) — `kpi-card` components                                                |
+| 3  | RudderStack Architecture                       | content          | Mermaid `graph LR` of Gateway → Processor → Router → Destinations with JobsDB and Warehouse branches                          |
+| 4  | Audit Scope                                    | `slide-divider`  | Large Lucide `target` icon on gradient                                                                                        |
+| 5  | What We Audited                                | content          | Styled table of domains × LOC × file counts                                                                                   |
+| 6  | Methodology                                    | content          | Mermaid `flowchart TB` of analysis pipeline (inventory → lens × domain matrix → CWE classification → JSON emit)               |
+| 7  | Severity Distribution                          | content          | Mermaid `pie` chart of findings by severity                                                                                   |
+| 8  | Top CWE Classes                                | content          | Styled bar table of top CWEs observed                                                                                          |
+| 9  | Risk Landscape                                 | `slide-divider`  | Large Lucide `alert-triangle` icon on gradient                                                                                 |
+| 10 | Critical Findings Spotlight                    | content          | Lucide-iconed bullets (max 4) summarizing critical/high findings without exposing exploitable detail                          |
+| 11 | What This Audit Did NOT Find                   | content          | Lucide `eye-off` icon row covering memory-safety, runtime DAST, supply-chain CVE feed                                          |
+| 12 | Comparison Context                             | content          | Mermaid `graph LR` showing Config A → other configs in the comparative study                                                  |
+| 13 | Risks & Mitigations                            | content          | Two-column styled table (Risk | Mitigation Path)                                                                              |
+| 14 | Onboarding & Continuation                      | `slide-divider`  | Large Lucide `route` icon on gradient                                                                                          |
+| 15 | How to Continue This Work                      | content          | Numbered Lucide-iconed bullets for next configurations                                                                         |
+| 16 | Closing — Key Takeaway                         | `slide-closing`  | Navy background, gradient accent bar, brand lockup, single 3–6 word takeaway heading                                          |
+
+Mandatory technical-delivery details captured from the rule:
+
+- Single self-contained HTML file. No build steps. No local file dependencies.
+- CDN versions pinned: reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0.
+- reveal.js config: `hash: true`, `transition: 'slide'`, `controlsTutorial: false`, `width: 1920`, `height: 1080`.
+- Lucide: call `lucide.createIcons()` after `ready` and on every `slidechanged` event.
+- Mermaid: `<pre class="mermaid">` with raw syntax; `startOnLoad: false`; call `mermaid.run()` after `ready` and on every `slidechanged` event; theme variables `primaryColor: '#F2F0FE'`, `primaryTextColor: '#333333'`, `primaryBorderColor: '#5B39F3'`, `lineColor: '#999999'`, `secondaryColor: '#F4EFF6'`.
+- Color palette: `#5B39F3`, `#2D1C77`, `#94FAD5`, `#1A105F`, `#7A6DEC`, `#4101DB`, plus the neutrals `#333333`, `#999999`, `#D9D9D9`, `#F4EFF6`, `#F5F5F5`, `#FFFFFF`.
+- Typography: Inter (body, 400/500/600/700), Space Grotesk (display headings, 500/600/700), Fira Code (mono/eyebrows, 400/500) loaded via Google Fonts `<link>`.
+- Title slide hero gradient: `linear-gradient(68deg, #7A6DEC 15.56%, #5B39F3 62.74%, #4101DB 84.44%)`.
+- Inline CSS embeds the full Blitzy theme. The complete set of CSS custom properties (`--blitzy-primary`, `--blitzy-primary-dark`, `--blitzy-primary-navy`, `--blitzy-primary-light`, `--blitzy-primary-deep`, `--blitzy-accent-teal`, `--blitzy-surface-0` through `--blitzy-surface-3`, `--blitzy-border`, `--blitzy-border-soft`, `--blitzy-text`, `--blitzy-text-muted`, `--blitzy-text-invert`, `--ff-body`, `--ff-display`, `--ff-mono`, `--gradient-hero`, `--gradient-divider`, `--gradient-accent-bar`) is defined in a single `:root {}` block at the top of the embedded `<style>` element.
+- All slide-type classes (`slide-title`, `slide-divider`, `slide-closing`) and component classes (`kpi-card`, `kpi-grid`, `kpi-value`, `kpi-label`, `kpi-icon`, `eyebrow`, `accent-bar`, `brand-lockup`, `hero-icon`, `icon-row`, `mermaid`) are defined inline.
+- Zero emoji. Lucide SVG icons only, via `<i data-lucide="icon-name"></i>`.
+- No fenced code blocks inside slides; inline Fira Code for short expressions only.
+
+### 0.3.7 File Transformation Mapping
+
+All transformations are CREATE operations. The repository discovery confirmed that no existing source file requires UPDATE or DELETE for this audit to succeed; every Go source, configuration, manifest, and CI file is REFERENCE only.
+
+| Target File                                       | Transformation | Source File/Reference                                                              | Purpose/Changes                                                                                                                                                              |
+| ------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `findings-config-a.json`                          | CREATE         | New file; no template                                                              | Minified single-line UTF-8 JSON array of finding objects (5 fields each); empty array `[]` if no findings; satisfies user Directive 2                                        |
+| `blitzy-audit/config-a-decision-log.md`           | CREATE         | New file; sections defined in 0.3.5                                                | Decision log mandated by Explainability rule; severity rubric, CWE policy, bidirectional traceability, deviations, limitations                                               |
+| `blitzy-audit/config-a-executive-summary.html`    | CREATE         | New file; structure defined in 0.3.6                                               | Self-contained reveal.js deck mandated by Executive Presentation rule; Blitzy-branded; 16 slides; inline CSS; Mermaid + Lucide visuals                                       |
+| `main.go`                                         | REFERENCE      | `main.go`                                                                          | Entrypoint inspection only — used to map deployment-mode dispatch surface                                                                                                     |
+| `runner/runner.go`                                | REFERENCE      | `runner/runner.go`                                                                 | Bootstrap, configuration loading, error-path inspection                                                                                                                       |
+| `gateway/handle_http*.go`                         | REFERENCE      | `gateway/handle_http*.go`                                                          | HTTP ingress; injection lens, AuthN lens, resource-exhaustion lens                                                                                                            |
+| `gateway/handle_webhook.go`                       | REFERENCE      | `gateway/handle_webhook.go`                                                        | Webhook ingress from untrusted third parties; injection + body-size limit inspection                                                                                          |
+| `gateway/handle_http_auth.go`                     | REFERENCE      | `gateway/handle_http_auth.go`                                                      | Write-key / source-ID authentication path; timing-safe comparison check                                                                                                       |
+| `processor/*.go`                                  | REFERENCE      | `processor/processor.go`, `manager.go`, `consent.go`, `trackingplan.go`, `partition_worker.go`, `pipeline_worker.go` | 6-stage pipeline; injection lens for transformer payload handling                                                                          |
+| `router/network.go`                               | REFERENCE      | `router/network.go`                                                                | Outbound HTTP egress; SSRF lens, private-IP guard inspection                                                                                                                  |
+| `router/worker.go`, `router/handle.go`, `router/factory.go`, `router/config.go`, `router/handle_lifecycle.go` | REFERENCE | as listed                                                                          | Destination delivery workers; backoff/retry policy; resource-exhaustion lens                                                                                                  |
+| `router/batchrouter/`, `router/customdestinationmanager/`, `router/throttler/`, `router/transformer/` | REFERENCE | as listed                                                                          | Batch egress; custom destination plugins; throttling; transformer round-trip                                                                                                  |
+| `jobsdb/*.go`                                     | REFERENCE      | `jobsdb/jobsdb.go`, `migration.go`, `jobsdb_read_excluded_partitions.go`, others   | PostgreSQL persistence layer; SQL injection lens; partition-read access control                                                                                               |
+| `sql/migrations/*.sql`, `sql/migrations/embed.go` | REFERENCE      | 100 SQL migration files + embed registry                                            | Schema review; `go:embed` directive inspection; DDL trust boundary                                                                                                            |
+| `services/oauth/`, `services/controlplane/`, `services/validators/` | REFERENCE | as listed                                                                          | OAuth flows; gRPC client to Control Plane; payload validators                                                                                                                 |
+| `services/alert/`, `services/alerta/`, `services/alerting/`, `services/archiver/`, `services/cloud-sources/`, `services/debugger/`, `services/dedup/`, `services/diagnostics/`, `services/fileuploader/`, `services/geolocation/`, `services/kvstoremanager/`, `services/notifier/`, `services/rmetrics/`, `services/rsources/`, `services/sql-migrator/`, `services/streammanager/`, `services/transformer/`, `services/transientsource/`, `services/monitoring/`, `services/profiling/` | REFERENCE | as listed                                                                          | Auxiliary services; injection, secrets-exposure, and misconfiguration lenses                                                                                                  |
+| `warehouse/**`                                    | REFERENCE      | All warehouse subfolders                                                            | Largest subsystem; multi-tenant warehouse loaders; destination credentials handling; all lenses                                                                               |
+| `backend-config/*.go`                             | REFERENCE      | `backend-config.go`, `types.go`, `account_association.go`, `dynamic_config.go`, `namespace_config.go`, `single_workspace.go`, `replay_types.go` | Workspace token handling; multi-workspace config; AuthN lens                                                                                              |
+| `internal/drain-config/`                          | REFERENCE      | `internal/drain-config/*.go`                                                       | HTTP `PUT /job/{job_run_id}` endpoint; AuthN + injection lens                                                                                                                 |
+| `internal/enricher/`                              | REFERENCE      | `internal/enricher/*.go`                                                           | MaxMind DB download via `filemanager.S3`; SSRF + supply-chain lens                                                                                                            |
+| `internal/pulsar/`, `internal/transformer-client/` | REFERENCE     | as listed                                                                          | Pulsar messaging; transformer HTTP client; injection + crypto lens                                                                                                            |
+| `enterprise/config-env/`, `enterprise/reporting/`, `enterprise/suppress-user/`, `enterprise/trackedusers/` | REFERENCE | as listed                                                                          | Enterprise features under Elastic License 2.0; env-var substitution; error normalization                                                                                      |
+| `admin/admin.go`                                  | REFERENCE      | `admin/admin.go`                                                                   | UNIX-socket RPC at `/tmp/rudder-server.sock`; AuthN/AuthZ + path-permission lens                                                                                              |
+| `utils/**`                                        | REFERENCE      | `utils/crash`, `utils/filemanagerutil`, `utils/httputil`, `utils/maputil`, `utils/misc`, `utils/payload`, `utils/pubsub`, `utils/revive`, `utils/sysUtils`, `utils/tcpproxy`, `utils/tests` | Cross-cutting utilities; payload limiter; HTTP utility wrappers; all lenses                                                                                                   |
+| `config/config.yaml`, `config/sample.env`         | REFERENCE      | as listed                                                                          | Configuration surface; secrets exposure lens; default-value review                                                                                                            |
+| `build/docker.env`                                | REFERENCE      | `build/docker.env`                                                                 | Container env defaults; secrets exposure lens                                                                                                                                 |
+| `Dockerfile`                                      | REFERENCE      | `Dockerfile`                                                                       | Container hardening review; SHA-pinned base image confirmation                                                                                                                |
+| `docker-compose.yml`                              | REFERENCE      | `docker-compose.yml`                                                                | Local dev stack; default credential review (Postgres 15-alpine, MinIO, Redis)                                                                                                 |
+| `build/docker-entrypoint.sh`, `build/docker-go-version.sh`, `scripts/start_server.sh` | REFERENCE | as listed                                                                          | Startup scripts; injection + privilege lens                                                                                                                                   |
+| `build/nginx.backend.conf`, `build/nginx.transformer.conf` | REFERENCE  | as listed                                                                          | NGINX reverse-proxy; security-header + TLS-cipher review                                                                                                                      |
+| `.github/workflows/*.{yml,yaml}`                  | REFERENCE      | 13 workflow files                                                                  | CI supply-chain trust boundary; token permissions; action pin review                                                                                                          |
+| `.github/dependabot.yml`                          | REFERENCE      | `.github/dependabot.yml`                                                            | Dependency-update automation review                                                                                                                                            |
+| `.golangci.yml`                                   | REFERENCE      | `.golangci.yml`                                                                     | Existing linter posture; what gosec already covers                                                                                                                            |
+| `go.mod`, `go.sum`                                | REFERENCE      | as listed                                                                          | Dependency manifest; SCA-style review of pinned versions and `replace` block                                                                                                  |
+| `SECURITY.md`                                     | REFERENCE      | `SECURITY.md`                                                                       | Responsible disclosure policy context                                                                                                                                          |
+
+### 0.3.8 New Files Detail
+
+- **`findings-config-a.json`** — content type: machine-readable security findings; based on user Directive 2 template literally; encodes the audit's primary deliverable.
+- **`blitzy-audit/config-a-decision-log.md`** — content type: documentation (decision log per Explainability rule); based on the section layout defined in 0.3.5; key sections include the severity rubric, CWE selection policy, decision table with at least the seven mandatory rows (D-001 through D-007), bidirectional traceability matrix, considered-but-not-flagged log, deviations, limitations, and pass/fail verification record.
+- **`blitzy-audit/config-a-executive-summary.html`** — content type: self-contained reveal.js HTML deck per Executive Presentation rule; structure defined in 0.3.6; 16 slides on the Blitzy brand identity; inline CSS; Mermaid + Lucide visuals; CDN-pinned library versions.
+
+### 0.3.9 Files to Modify Detail
+
+None. Config A produces only new artifacts; no existing repository file is modified, including no change to `.golangci.yml`, no addition of CI workflows, no test additions, and no remediation patches.
+
+### 0.3.10 Cross-File Dependencies
+
+The three new artifacts reference each other for completeness but have no source-side import dependencies on existing Go code:
+
+- `findings-config-a.json` is the canonical record of findings.
+- `blitzy-audit/config-a-decision-log.md` cross-references each finding by its sequential ID and by `file:line` locator.
+- `blitzy-audit/config-a-executive-summary.html` cross-references the findings JSON and decision log by relative path in its "Onboarding & Continuation" slide.
+
+No `import` statements, no `go:embed` directives, and no module-graph changes are introduced. The Go build is untouched.
+
+### 0.3.11 Audit Pipeline Overview
 
 ```mermaid
 flowchart LR
-    SDK["SDK/Source"] --> GW["Gateway\nport 8080"]
-    SF["Source Functions\nE-015"] --> GW
-
-    GW --> Proc["Processor"]
-
-    subgraph Pipeline["Enhanced Pipeline"]
-        direction LR
-        PP["1. Preprocess"] --> SH["2. Src Hydration"]
-        SH --> PT["3. Pre-Transform"]
-        PT --> UT["4. User Transform"]
-        UT --> IF["4.5 Insert Functions\nE-017"]
-        IF --> DT["5. Dest Transform"]
-        DT --> TP["5.5 Protocols\nE-020-E-025"]
-        TP --> ST["6. Store"]
-    end
-
-    Proc --> Pipeline
-    ST --> RT["Router\nE-036 Metrics"]
-    ST --> BRT["Batch Router"]
-    ST --> WH["Warehouse"]
-
-    RT --> DEST["Destinations\nE-011/E-012/E-014"]
-    RT --> DF["Dest Functions\nE-016"]
-    WH --> IDR["Identity Graph\nE-026-E-030"]
-
-    ALERT["Alerting E-037"] -.-> RT
-    REPLAY["Adv Replay E-038"] -.-> GW
-    PROF["Profiling E-039"] -.-> Pipeline
+    A[Repository Inventory<br/>766 Go src files<br/>184 YAML configs<br/>100 SQL migrations<br/>372 go.mod requires] --> B[Lens × Domain Matrix<br/>10 lenses × 11 domains]
+    B --> C[Candidate Observations]
+    C --> D{Evidence<br/>Sufficient?}
+    D -- Yes --> E[Assign Leaf CWE]
+    D -- No --> F[Decision Log<br/>Considered-but-not-flagged]
+    E --> G[Severity Rating<br/>critical / high / medium / low]
+    G --> H[200-char description]
+    H --> I[Findings Array]
+    I --> J[Minified JSON serializer<br/>separators=&quot;,&quot;,&quot;:&quot;<br/>ensure_ascii=False]
+    J --> K[findings-config-a.json]
+    F --> L[blitzy-audit/<br/>config-a-decision-log.md]
+    E --> L
+    K --> M[blitzy-audit/<br/>config-a-executive-summary.html]
+    L --> M
+%% no triple backticks inside diagram
 ```
 
-## 0.5 Technical Implementation
+## 0.4 Scope Boundaries and Dependencies
 
-### 0.5.1 File-by-File Execution Plan
+This sub-section bounds the audit's footprint explicitly. The intent is to prevent scope creep into remediation, scanner integration, or CI changes while still ensuring every required artifact lands in the right place.
 
-Every file listed below MUST be created or modified. Files are organized by sprint group and then by execution priority within each group.
+### 0.4.1 Exhaustively In Scope
 
-**Group 1 — Sprint 3–5: Destination Connector Expansion (E-010 to E-014)**
+The audit produces exactly three new artifacts and inspects every domain identified in sub-section 0.2.2 read-only. No file outside the three patterns below is created, modified, or deleted.
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `docs/gap-report/destination-priority-ranking.md` | E-010: Documented top-50 prioritized destination list with coverage analysis |
-| CREATE | `services/streammanager/<dest>/manager.go` (per new stream dest) | E-014: New stream destination producer implementing `common.StreamProducer` interface |
-| CREATE | `services/streammanager/<dest>/manager_test.go` (per new stream dest) | E-014: Unit tests for each new stream producer (gomock, validation, error mapping) |
-| MODIFY | `services/streammanager/streammanager.go` | E-014: Add `case` branches for each new stream destination in `NewProducer` switch |
-| MODIFY | `services/streammanager/streammanager_suite_test.go` | E-014: Add factory test assertions for new destination types |
-| MODIFY | `router/customdestinationmanager/customdestinationmanager.go` | E-014: Append new destination names to `ObjectStreamDestinations` array |
-| CREATE | `integration_test/destination_parity/*_test.go` | E-013: Payload parity integration tests for all 93+ shared connectors |
-| CREATE | `router/testdata/destination_payloads/*.json` | E-013: Reference payloads for field-by-field comparison |
-| MODIFY | `config/config.yaml` | E-010–E-014: Add configuration keys for new destinations |
+- **Findings artifact (CREATE):**
+    - `findings-config-a.json` — repository root; single-line minified UTF-8 JSON; user Directive 2.
+- **Decision log artifact (CREATE, mandated by Explainability rule):**
+    - `blitzy-audit/config-a-decision-log.md` — new folder `blitzy-audit/`; Markdown decision log with required sections per sub-section 0.3.5.
+- **Executive presentation artifact (CREATE, mandated by Executive Presentation rule):**
+    - `blitzy-audit/config-a-executive-summary.html` — same new folder; self-contained reveal.js HTML per sub-section 0.3.6.
+- **REFERENCE inspection (read-only, no modification):**
+    - All Go source under `gateway/`, `processor/`, `router/`, `services/`, `warehouse/`, `jobsdb/`, `internal/`, `enterprise/`, `backend-config/`, `admin/`, `utils/`, `runner/`, and root `main.go`
+    - All configuration under `config/`, `build/`
+    - All manifests: `go.mod`, `go.sum`, `Dockerfile`, `docker-compose.yml`
+    - All SQL: `sql/migrations/**/*.sql`, `sql/migrations/embed.go`
+    - All shell scripts: `scripts/*.sh`, `build/*.sh`
+    - All NGINX configuration: `build/nginx.*.conf`
+    - All CI configuration: `.github/workflows/**`, `.github/dependabot.yml`, `.github/labeler.yml`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `.golangci.yml`
+    - Policy and meta files: `SECURITY.md`, `README.md`, `LICENSE`
 
-**Group 2 — Sprint 4–6: Transformation and Functions Framework (E-015 to E-019)**
+### 0.4.2 Explicitly Out of Scope
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `functions/runtime/engine.go` | E-015/E-016/E-017: Core Functions runtime engine with handler dispatch |
-| CREATE | `functions/runtime/source_functions.go` | E-015: Source Functions `onRequest(request, settings)` handler execution |
-| CREATE | `functions/runtime/destination_functions.go` | E-016: Destination Functions typed handlers (`onTrack`, `onIdentify`, `onGroup`, `onPage`, `onScreen`, `onAlias`, `onDelete`, `onBatch`) |
-| CREATE | `functions/runtime/insert_functions.go` | E-017: Insert Functions pre-destination transformation hooks |
-| CREATE | `functions/runtime/errors.go` | E-015/E-016/E-017: Typed error classes (`EventNotSupported`, `InvalidEventPayload`, `ValidationError`, `RetryError`, `DropEvent`) |
-| CREATE | `functions/runtime/*_test.go` | E-015/E-016/E-017: Unit tests for all function types |
-| CREATE | `functions/api/handler.go` | E-018: Functions CRUD API handler (create, read, update, delete, list, test invocation) |
-| CREATE | `functions/api/routes.go` | E-018: HTTP route registration using chi router |
-| CREATE | `functions/api/*_test.go` | E-018: API endpoint tests |
-| CREATE | `functions/storage/repository.go` | E-018: PostgreSQL-backed function storage with versioning |
-| CREATE | `functions/secrets/manager.go` | E-019: Per-function encrypted settings and secrets storage |
-| CREATE | `functions/secrets/*_test.go` | E-019: Secrets management tests |
-| CREATE | `gateway/handle_http_functions.go` | E-015: Source Functions webhook endpoint |
-| CREATE | `sql/migrations/functions/*.sql` | E-018/E-019: Database migrations for functions and secrets tables |
-| MODIFY | `processor/pipeline_worker.go` | E-017: Add Insert Functions channel between user transform and dest transform stages |
-| MODIFY | `processor/processor.go` | E-015/E-016/E-017: Integrate Functions runtime into pipeline |
-| MODIFY | `processor/transformer/clients.go` | E-015/E-016: Add `FunctionsClient` interface |
-| MODIFY | `gateway/handle_http.go` | E-015: Mount Source Functions webhook endpoint |
-| MODIFY | `gateway/handle_http_auth.go` | E-015: Add Source Functions auth handler |
-| MODIFY | `main.go` | E-015: Wire Functions runtime into server startup |
-| MODIFY | `gateway/openapi.yaml` | E-018: Add Functions API endpoint schemas |
-| MODIFY | `config/config.yaml` | E-015–E-019: Add Functions configuration keys |
+The following are NOT part of Config A and would constitute scope violations if performed:
 
-**Group 3 — Sprint 5–7: Protocols and Tracking Plan Enforcement (E-020 to E-025)**
+- **External scanner invocation** of any kind: Snyk, Semgrep, CodeQL, Trivy, gitleaks, govulncheck, npm-audit, retire.js, OWASP Dependency-Check, Bandit, direct `gosec` invocation outside the existing `golangci-lint` run, exploit frameworks, fuzzers, DAST.
+- **Source code remediation.** No `*.go` file is modified to fix any identified vulnerability. Findings are reported; fixing them is a separate (future) configuration.
+- **Test additions or modifications.** No `*_test.go` file is added or changed. The existing 497 test files are untouched.
+- **CI workflow changes.** No `.github/workflows/*` file is added or changed. No security workflow is introduced.
+- **Linter configuration changes.** `.golangci.yml` is inspected but not modified. No new linter is enabled, no rule changed, no exclusion added.
+- **Dependency changes.** No package add/update/remove in `go.mod`. No regeneration of `go.sum`. No change to the `replace` block. No bump of Go toolchain version.
+- **Docker / container changes.** No `Dockerfile` modification. No `docker-compose.yml` modification. No NGINX configuration change.
+- **Runtime testing.** No live execution of `rudder-server`, no port binding, no traffic injection, no live database connection, no fuzzing.
+- **Exploit development.** No proof-of-concept payload that, if executed, would exploit a finding. Descriptions in `findings-config-a.json` characterize the weakness, not weaponize it.
+- **Performance optimization** unrelated to the audit.
+- **Refactoring** unrelated to the audit.
+- **Documentation rewrite** beyond the three required artifacts (no `README.md` change, no `SECURITY.md` change, no `docs/` change).
+- **Comparison configurations.** Other config arms (Config B, Config C, …) are explicitly out of scope for this AAP; only Config A is built here.
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `protocols/schema/validator.go` | E-020: JSON Schema draft-07 validation (required, regex, nested objects, enum, types) |
-| CREATE | `protocols/schema/common_schema.go` | E-020: Common JSON Schema applied to all events from connected sources |
-| CREATE | `protocols/schema/*_test.go` | E-020: Schema validation tests |
-| CREATE | `processor/anomalydetection/detector.go` | E-021: Anomaly detection for unexpected events/properties not in tracking plan |
-| CREATE | `processor/anomalydetection/tracker.go` | E-021: Event/property tracking with configurable time windows |
-| CREATE | `processor/anomalydetection/*_test.go` | E-021: Anomaly detection tests |
-| CREATE | `processor/enforcement/modes.go` | E-022: Block Event, Omit Properties, Allow — configurable per source per call type |
-| CREATE | `processor/enforcement/forwarder.go` | E-023: Server-to-server forwarding of blocked events to alternative source |
-| CREATE | `processor/enforcement/*_test.go` | E-022/E-023: Enforcement mode and forwarding tests |
-| CREATE | `protocols/api/handler.go` | E-024: Tracking plan CRUD API with versioning, CSV import/export |
-| CREATE | `protocols/api/routes.go` | E-024: HTTP route registration |
-| CREATE | `protocols/storage/repository.go` | E-024: Tracking plan persistence with version history |
-| CREATE | `protocols/api/*_test.go` | E-024: API tests |
-| CREATE | `sql/migrations/protocols/*.sql` | E-024: Migrations for tracking plan and version tables |
-| MODIFY | `processor/trackingplan.go` | E-020/E-022: Replace Transformer-delegated validation with local JSON Schema, add enforcement modes |
-| MODIFY | `processor/consent.go` | E-025: Connect consent filtering with Protocols enforcement decisions |
-| MODIFY | `backend-config/types.go` | E-022/E-024: Add enforcement mode fields, tracking plan config |
-| MODIFY | `gateway/handle_http.go` | E-024: Mount Protocols management API endpoints |
-| MODIFY | `gateway/openapi.yaml` | E-024: Add Protocols API endpoint schemas |
-| MODIFY | `config/config.yaml` | E-020–E-025: Add Protocols configuration keys |
+### 0.4.3 Dependency Inventory
 
-**Group 4 — Sprint 6–8: Identity Resolution and Profiles (E-026 to E-030)**
+No project dependency changes are required. The audit does not add, update, or remove any package in `go.mod`. The 372 require entries and the 666 distinct `go.sum` entries are unchanged. The `replace` block (which already overrides Snyk-flagged indirect dependencies) is not modified. The `.github/dependabot.yml` ecosystem list (`gomod`, `github-actions`, `docker`) is unchanged.
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `identity/graph/graph.go` | E-026: Real-time identity graph service with persistent graph store |
-| CREATE | `identity/graph/resolver.go` | E-026: Identity resolution engine (new/single/multi-match strategies) |
-| CREATE | `identity/graph/externalids.go` | E-028: External ID management (12+ types: user_id, email, anonymous_id, ios.id, android.id, etc.) |
-| CREATE | `identity/graph/*_test.go` | E-026/E-028: Graph and resolver tests |
-| CREATE | `identity/profiles/api.go` | E-027: Profiles REST API (traits, events, external_ids, metadata) with sub-200ms response |
-| CREATE | `identity/profiles/cache.go` | E-027: Redis-backed profile cache |
-| CREATE | `identity/profiles/*_test.go` | E-027: Profiles API tests |
-| CREATE | `identity/sync/syncer.go` | E-029: Profile sync to downstream destinations via change-data-capture |
-| CREATE | `identity/sync/*_test.go` | E-029: Sync tests |
-| CREATE | `identity/settings/settings.go` | E-030: Configurable resolution: blocked values (regex/exact), limits (weekly/monthly/annually/ever), priority |
-| CREATE | `identity/settings/*_test.go` | E-030: Settings tests |
-| CREATE | `identity/storage/repository.go` | E-026: PostgreSQL persistence for identity graph |
-| CREATE | `sql/migrations/identity/*.sql` | E-026: Migrations for identity graph tables |
-| CREATE | `proto/identity/*.proto` | E-027: gRPC service definitions for Profiles API |
-| MODIFY | `warehouse/identity/identity.go` | E-026: Refactor to share resolution logic with real-time graph |
-| MODIFY | `processor/processor.go` | E-026: Hook identity resolution into event processing pipeline |
-| MODIFY | `backend-config/types.go` | E-030: Add identity resolution settings schema |
-| MODIFY | `main.go` | E-026: Wire Identity service into startup |
-| MODIFY | `gateway/handle_http.go` | E-027: Mount Profiles API endpoints |
-| MODIFY | `gateway/openapi.yaml` | E-027: Add Profiles API schemas |
-| MODIFY | `docker-compose.yml` | E-027: Add Redis service for profile caching |
-| MODIFY | `config/config.yaml` | E-026–E-030: Add Identity configuration keys |
+Per the AAP conciseness rule, unchanged packages are not enumerated.
 
-**Group 5 — Sprint 8–10: Operational Tooling and Monitoring (E-036 to E-039)**
+### 0.4.4 Artifact-Internal CDN References
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `services/monitoring/dashboard.go` | E-036: Per-destination delivery metrics (success/failure, latency p50/p95/p99, throughput, retries, circuit breaker) |
-| CREATE | `services/monitoring/metrics.go` | E-036: Prometheus metric definitions and registration |
-| CREATE | `services/monitoring/*_test.go` | E-036: Monitoring tests |
-| CREATE | `services/alerting/engine.go` | E-037: Alerting rules engine (throughput drop, error spike, delivery failures, warehouse latency, JobsDB queue depth) |
-| CREATE | `services/alerting/channels.go` | E-037: Notification channels — webhook, email, Slack |
-| CREATE | `services/alerting/rules.go` | E-037: Alert rule definitions and threshold evaluation |
-| CREATE | `services/alerting/*_test.go` | E-037: Alerting tests |
-| CREATE | `gateway/handle_http_replay_advanced.go` | E-038: Advanced replay filters — source-level, date-range, destination-level, dry-run |
-| CREATE | `services/profiling/profiler.go` | E-039: Per-stage pipeline performance profiling (Gateway → Processor stages → Router → Warehouse) |
-| CREATE | `services/profiling/capacity.go` | E-039: Capacity planning report generator targeting 50K events/sec |
-| CREATE | `services/profiling/*_test.go` | E-039: Profiling and capacity tests |
-| MODIFY | `router/handle.go` | E-036: Add delivery metrics instrumentation |
-| MODIFY | `router/handle_observability.go` | E-036: Extend with dashboard metric collection |
-| MODIFY | `gateway/handle_http_replay.go` | E-038: Integrate advanced filter parameters |
-| MODIFY | `gateway/handle_http.go` | E-036/E-038: Mount monitoring API and advanced replay endpoints |
-| MODIFY | `services/alert/alertmanager.go` | E-037: Extend alert provider selection with Slack/email |
-| MODIFY | `archiver/archiver.go` | E-038: Support source/date-range filtering for advanced replay |
-| MODIFY | `config/config.yaml` | E-036–E-039: Add monitoring, alerting, and profiling configuration keys |
+The executive presentation HTML uses three CDN-hosted libraries via `<script>` and `<link>` references inside the static HTML file. These are NOT project dependencies — they do not enter the Go build, they do not appear in `go.mod`, and they have no impact on `rudder-server` runtime. They exist only inside the single self-contained `blitzy-audit/config-a-executive-summary.html` deliverable.
 
-### 0.5.2 Implementation Approach per File
+| Library      | Version  | Purpose                              | Mandated By                    |
+| ------------ | -------- | ------------------------------------ | ------------------------------ |
+| reveal.js    | 5.1.0    | Slide deck framework                 | Executive Presentation rule    |
+| Mermaid      | 11.4.0   | In-slide diagrams                    | Executive Presentation rule    |
+| Lucide       | 0.460.0  | SVG icon set                         | Executive Presentation rule    |
 
-- **Establish feature foundations** by creating core packages first: `functions/runtime/`, `protocols/schema/`, `identity/graph/`, `services/monitoring/` — each providing the foundational types and interfaces
-- **Integrate with existing systems** by modifying integration points: `processor/pipeline_worker.go` for Insert Functions, `processor/trackingplan.go` for enforcement modes, `gateway/handle_http.go` for new endpoints
-- **Follow existing patterns**: All new stream producers follow the `common.StreamProducer` interface pattern; all REST APIs use `chi/v5` routing; all tests use Ginkgo/Gomega or testify/require; all metrics use `rudder-go-kit/stats`
-- **Ensure quality** by implementing comprehensive tests alongside each feature: unit tests with gomock for interfaces, integration tests with dockertest for PostgreSQL-dependent features
-- **Document thoroughly**: Update `gateway/openapi.yaml` for all new endpoints, update `config/config.yaml` with configuration documentation, create dedicated feature documentation in `docs/`
+Google Fonts CDN is also referenced via a `<link>` tag to load the Inter, Space Grotesk, and Fira Code typefaces required by the Blitzy brand identity. Again, this is a static-HTML reference inside the deliverable, not a project dependency.
 
-### 0.5.3 User Interface Design
+### 0.4.5 Import / Reference Updates
 
-This implementation is a **backend-only** server-side feature set. No frontend UI components are required. All new capabilities are exposed via:
+None. No Go file imports change; no `go:embed` directive is added; no SQL migration is added; no module-graph change occurs. The audit is contract-bound to be additive-only at the artifact level and zero-touch at the source level.
 
-- **REST APIs**: Functions management API, Protocols management API, Profiles API, monitoring dashboard API, advanced replay API — all served by the Gateway HTTP server on port 8080
-- **gRPC APIs**: Profiles API for high-performance inter-service communication
-- **Prometheus metrics**: Per-destination delivery metrics, pipeline performance metrics — scraped by external Prometheus instances
-- **Configuration**: All features are configurable via `config/config.yaml` and backend-config runtime configuration
+## 0.5 Rules, Special Instructions and References
 
-## 0.6 Scope Boundaries
+This sub-section consolidates the rules that constrain Config A, the special instructions the agent must follow, and the citation appendix proving every claim in this AAP is grounded in the repository.
 
-### 0.6.1 Exhaustively In Scope
+### 0.5.1 Rules
 
-**Sprint 3–5: Destination Connector Expansion (E-010 to E-014)**
-- Destination prioritization analysis: `docs/gap-report/destination-priority-ranking.md`
-- All new stream destination producers: `services/streammanager/*/manager.go`
-- Stream producer factory registration: `services/streammanager/streammanager.go`
-- Custom destination manager updates: `router/customdestinationmanager/customdestinationmanager.go`
-- Payload parity validation for all ~93 shared connectors: `integration_test/destination_parity/**/*_test.go`
-- Payload reference fixtures: `router/testdata/destination_payloads/**/*.json`
-- Test suites: `services/streammanager/**/*_test.go`
+| Rule Source                              | Rule                                                                                                                                                                                                                                              | Implementation Hook                                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| User Directive 1                         | Identify all security vulnerabilities with CWE classification using the most specific CWE the agent is confident about; native agent analysis only — no external scanning tools.                                                                  | Lens × Domain matrix (0.2.3); CWE selection policy (0.3.3); exclusion list (0.4.2)                                            |
+| User Directive 2                         | Compile findings into `findings-config-a.json` — valid JSON, minified to a single line, no pretty-printing, no newlines, UTF-8. Empty array `[]` if zero findings. Each finding has all 5 fields: `file`, `line`, `severity`, `cwe`, `description` (≤200 chars). | JSON output contract (0.3.4); File transformation mapping (0.3.7)                                                            |
+| User Directive 2 — Pass/Fail Probe        | `cat findings-config-a.json \| wc -l` returns `1`. The content parses as valid JSON. Every finding has all 5 fields populated. No description exceeds 200 characters.                                                                              | Pass/Fail Verification Record section of the decision log (0.3.5 §9)                                                          |
+| Explainability rule                      | Every non-trivial implementation decision MUST be documented with rationale. A decision log Markdown table covers what was decided, what alternatives existed, why this choice was made, and what risks it carries. Bidirectional traceability matrix for migrations/refactors with 100% coverage and no gaps. Deviations from literal interpretation MUST have an explicit entry. Rationale must NOT be embedded in code comments. | `blitzy-audit/config-a-decision-log.md` (0.3.5) with 9 sections including mandatory decision rows D-001 through D-007         |
+| Executive Presentation rule              | Every deliverable MUST include a single self-contained reveal.js HTML executive summary, ALWAYS included independent of any other documentation. 12–18 slides (target 16). Four slide types: Title (`slide-title`), Section Divider (`slide-divider`), Content (default), Closing (`slide-closing`). Every slide ≥ 1 non-text visual. Zero emoji. Lucide SVG icons only. No fenced code blocks inside slides. Blitzy palette and Inter/Space Grotesk/Fira Code typography. Mermaid via `<pre class="mermaid">` with `startOnLoad: false`. CDN-pinned: reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0. `:root` CSS custom properties as specified. | `blitzy-audit/config-a-executive-summary.html` (0.3.6) with 16-slide structure and inline Blitzy theme CSS                    |
+| Inferred from rule conflict              | The Executive Presentation rule references a canonical theme file at `blitzy-deck/references/blitzy-reveal-theme.css`; that file does NOT exist in the repository `[blitzy-deck/:absent]`. Resolution: embed the full theme inline.                                                              | Decision D-006 in decision log                                                                                                |
+| Inferred from "1 new file" mismatch      | User input describes "1 new file" but the Explainability and Executive Presentation rules each mandate an additional artifact. Rules take precedence: 3 artifacts are produced.                                                                                                                  | Decision D-003 in decision log                                                                                                |
 
-**Sprint 4–6: Transformation and Functions Framework (E-015 to E-019)**
-- Functions runtime engine: `functions/runtime/**/*.go`
-- Functions management API: `functions/api/**/*.go`
-- Functions storage layer: `functions/storage/**/*.go`
-- Functions secrets management: `functions/secrets/**/*.go`
-- Source Functions Gateway endpoint: `gateway/handle_http_functions.go`
-- Pipeline integration: `processor/pipeline_worker.go`, `processor/processor.go`
-- Transformer client extension: `processor/transformer/clients.go`
-- Database migrations: `sql/migrations/functions/**/*.sql`
-- Gateway auth: `gateway/handle_http_auth.go`
-- Gateway routing: `gateway/handle_http.go`
-- Server startup wiring: `main.go`
-- API documentation: `gateway/openapi.yaml`
-- Configuration: `config/config.yaml`
-- All associated test files: `functions/**/*_test.go`, `integration_test/functions/**/*_test.go`
+### 0.5.2 Special Instructions
 
-**Sprint 5–7: Protocols and Tracking Plan Enforcement (E-020 to E-025)**
-- JSON Schema validation: `protocols/schema/**/*.go`
-- Anomaly detection: `processor/anomalydetection/**/*.go`
-- Enforcement modes: `processor/enforcement/**/*.go`
-- Tracking plan management API: `protocols/api/**/*.go`
-- Tracking plan storage: `protocols/storage/**/*.go`
-- Tracking plan validation refactor: `processor/trackingplan.go`
-- Consent integration: `processor/consent.go`
-- Backend config types: `backend-config/types.go`
-- Database migrations: `sql/migrations/protocols/**/*.sql`
-- Gateway routing: `gateway/handle_http.go`
-- API documentation: `gateway/openapi.yaml`
-- Configuration: `config/config.yaml`
-- All associated test files: `protocols/**/*_test.go`, `processor/anomalydetection/**/*_test.go`, `processor/enforcement/**/*_test.go`
+- **Read-only operation.** No `git` write operations against existing files; only `git add` of the three new artifacts.
+- **Reproducibility.** As the baseline arm of a multi-config study, the audit's methodology — recorded in the decision log — must be reproducible by another agent given the same inputs. Hidden heuristics are not acceptable.
+- **No sample/illustrative findings in the JSON output.** The example record in sub-section 0.3.4 is illustrative for this AAP; it does NOT seed `findings-config-a.json`. Only findings supported by actual evidence in the repository are written.
+- **Confidence floor.** If a candidate observation does not survive evidence review, it is logged under "Considered but not flagged" in the decision log, not emitted to the JSON file.
+- **Description copy-edit.** Each `description` is bounded to 200 UTF-8 characters; the serializer verifies length before write. Truncation is not permitted — descriptions are written to fit within 200 chars from the start.
+- **Folder creation.** The `blitzy-audit/` folder does not exist and is created as part of artifact write.
+- **Path normalization.** All `file` values in JSON records are repository-relative (no leading `./`, no absolute paths) with forward slashes.
+- **Stable ordering.** Findings in `findings-config-a.json` are ordered by `severity` (critical → high → medium → low) then alphabetically by `file` then ascending by `line`, to support reproducible diffs across audit runs.
 
-**Sprint 6–8: Identity Resolution and Profiles (E-026 to E-030)**
-- Identity graph service: `identity/graph/**/*.go`
-- Profiles API: `identity/profiles/**/*.go`
-- Profile sync: `identity/sync/**/*.go`
-- Resolution settings: `identity/settings/**/*.go`
-- Identity storage: `identity/storage/**/*.go`
-- Proto definitions: `proto/identity/**/*.proto`
-- Warehouse identity refactor: `warehouse/identity/identity.go`
-- Processor integration: `processor/processor.go`
-- Backend config types: `backend-config/types.go`
-- Database migrations: `sql/migrations/identity/**/*.sql`
-- Docker compose: `docker-compose.yml` (Redis service)
-- Server startup wiring: `main.go`
-- Gateway routing: `gateway/handle_http.go`
-- API documentation: `gateway/openapi.yaml`
-- Configuration: `config/config.yaml`
-- All associated test files: `identity/**/*_test.go`, `integration_test/identity/**/*_test.go`
+### 0.5.3 Attachments and External Inputs
 
-**Sprint 8–10: Operational Tooling and Monitoring (E-036 to E-039)**
-- Monitoring dashboard: `services/monitoring/**/*.go`
-- Alerting engine: `services/alerting/**/*.go`
-- Profiling tools: `services/profiling/**/*.go`
-- Advanced replay: `gateway/handle_http_replay_advanced.go`, `gateway/handle_http_replay.go`
-- Router observability: `router/handle.go`, `router/handle_observability.go`
-- Alert system extension: `services/alert/alertmanager.go`
-- Archiver integration: `archiver/archiver.go`
-- Gateway routing: `gateway/handle_http.go`
-- Configuration: `config/config.yaml`
-- All associated test files: `services/monitoring/**/*_test.go`, `services/alerting/**/*_test.go`, `services/profiling/**/*_test.go`
+No user-provided attachments. No Figma frames. No external URLs requiring `web_fetch`. The `INPUT_DIR` location `/tmp/environments_files` does not exist for this task, and the user attached zero environments. The audit operates exclusively on the repository contents.
 
-**Cross-Cutting:**
-- Build configuration: `go.mod`, `go.sum`
-- Docker configuration: `Dockerfile`, `docker-compose.yml`
-- CI/CD pipelines: `.github/workflows/tests.yaml`
-- Build targets: `Makefile`
+| Asset Type        | Count | Notes                                                                          |
+| ----------------- | ----- | ------------------------------------------------------------------------------ |
+| User attachments  | 0     | None                                                                           |
+| Figma frames      | 0     | None — no UI work; Design System Alignment Protocol not applicable             |
+| External URLs     | 0     | No `web_fetch` calls required                                                  |
+| Environment vars  | 0     | User-provided list was empty                                                   |
+| Secrets           | 0     | User-provided list was empty                                                   |
 
-### 0.6.2 Explicitly Out of Scope
+### 0.5.4 Citation Discipline
 
-- **Segment Engage / Campaigns** — Audience building, journey orchestration, and campaign management are explicitly deferred to Phase 2 per the sprint roadmap. These features depend on Identity Resolution (Phase 1) and Profiles API (E-027) being completed first.
-- **Reverse ETL** — Warehouse-to-destination sync pipelines with incremental change detection are deferred to Phase 2. Depends on warehouse connectors (Sprint 7–9, already completed) and destination connector expansion (Sprint 3–5).
-- **Advanced Personalization** — Real-time audience membership for personalization engines is deferred to Phase 2. Depends on Profiles API (E-027) and computed traits.
-- **Computed Traits and SQL Traits** — While mentioned in the identity parity analysis, these are not explicitly included in E-026 through E-030. The Profiles API (E-027) provides the foundation, but trait computation engine is Phase 2.
-- **Sprint 1–2: Event Spec Parity (E-001 to E-004)** — Already at 100% parity; not in the user's requested sprint list.
-- **Sprint 2–3: Source SDK Compatibility (E-005 to E-009)** — Not in the user's requested sprint list.
-- **Sprint 7–9: Warehouse Feature Enhancement (E-031 to E-035)** — Marked as COMPLETED in the sprint roadmap with ~95% parity achieved.
-- **Device-mode destination support** — Client-side SDK integration framework is an SDK-level concern, not a `rudder-server` concern.
-- **Actions-based destination architecture** — The newer Segment pattern with configurable field mappings is identified as a gap (DC-002) but not included in any sprint epic.
-- **Destination catalog API** — Programmatic destination management (DC-005) is not in scope.
-- **Functions Copilot (AI-assisted)** — AI-powered function generation (FN-011) is Low priority and not included.
-- **IP Allowlisting for functions** — NAT gateway for outbound traffic (FN-012) is not included.
-- **Performance optimization of existing code** beyond what is required for feature integration.
-- **Refactoring of existing unrelated code** that does not touch integration points.
+Every claim in this AAP about existing system state is grounded with an inline citation of the form `[<path>:<locator>]`. Where claims cannot be tied to a specific source location (e.g., aggregate metrics computed across the tree, or recommendations derived from rules), they are marked `[inferred — no direct source]` in the decision log so downstream stages can verify them.
 
-## 0.7 Rules for Feature Addition
+### 0.5.5 References — Repository Files and Folders Inspected
 
-### 0.7.1 Sequential Sprint Execution
+The agent performed exhaustive read-only inspection of the following paths to derive the conclusions in this AAP. The search log is comprehensive per the rule.
 
-- Implement sprints in strict order: Sprint 3–5 → Sprint 4–6 → Sprint 5–7 → Sprint 6–8 → Sprint 8–10
-- Complete each sprint fully before starting the next — this means all epics within a sprint must pass their success criteria
-- Run all tests (`make test` or `gotestsum --format pkgname-and-test-fails -- -p=1 -v -failfast -shuffle=on --timeout=15m`) after completing each sprint
-- Fix all CI failures resolvable through code changes; skip failures caused by missing repository secrets (AWS ECR credentials)
+**Root-level files**
 
-### 0.7.2 Exhaustive Scope Coverage
+- `main.go` — entrypoint `[main.go:full file]`
+- `go.mod` — module declaration `[go.mod:L1-L4]`, require blocks `[go.mod:require blocks]`, replace block addressing Snyk-flagged indirect deps `[go.mod:replace block]`
+- `go.sum` — module checksum manifest `[go.sum:entries]`
+- `Dockerfile` — multi-stage container build with SHA-pinned base images `[Dockerfile:multi-stage build]`
+- `docker-compose.yml` — local dev stack `[docker-compose.yml:services]`
+- `SECURITY.md` — disclosure policy `[SECURITY.md:full file]`
+- `.golangci.yml` — lint configuration with `gosec`, `depguard`, `forbidigo` enabled `[.golangci.yml:linters.enable]`, `[.golangci.yml:depguard.rules]`, `[.golangci.yml:forbidigo.forbid]`
+- `LICENSE`, `README.md`, `CONTRIBUTING.md` (if present) — meta files
 
-- For every epic, implement ALL items listed in scope — do not skip any variant, endpoint, or sub-case mentioned in the epic description
-- E-011 requires implementing 20 highest-priority cloud destination connectors — all 20 must be implemented
-- E-012 requires implementing the next 20 priority connectors — all 20 must be implemented
-- E-016 requires all 8 typed event handlers: `onTrack`, `onIdentify`, `onGroup`, `onPage`, `onScreen`, `onAlias`, `onDelete`, `onBatch`
-- E-020 requires full JSON Schema draft-07 support including ALL specified types: any, array, object, boolean, integer, number, string, null, Date time
-- E-028 requires support for ALL 12+ external identifier types listed in the Segment documentation
+**Top-level folders inspected**
 
-### 0.7.3 Design-Only Epics
+- `gateway/` — HTTP ingestion engine with `handle_http*.go`, `handle_webhook.go`, `handle_http_auth.go`, `handle_http_replay.go`, `handle_http_pixel.go`, `handle_http_beacon.go`, `handle_http_import.go`, `handle_http_retl.go`, `handle_http_functions.go` `[gateway/:folder listing]`
+- `processor/` — `processor.go`, `manager.go`, `consent.go`, `trackingplan.go`, `partition_worker.go`, `pipeline_worker.go` `[processor/:folder listing]`
+- `router/` — `router.go`, `config.go`, `factory.go`, `handle.go`, `handle_lifecycle.go`, `network.go`, `worker.go`, and subfolders `batchrouter/`, `customdestinationmanager/`, `throttler/`, `transformer/` `[router/:folder listing]`
+- `services/` — `alert`, `alerta`, `alerting`, `archiver`, `cloud-sources`, `controlplane`, `debugger`, `dedup`, `diagnostics`, `fileuploader`, `geolocation`, `kvstoremanager`, `notifier`, `oauth`, `rmetrics`, `rsources`, `sql-migrator`, `streammanager`, `transformer`, `transientsource`, `validators`, `monitoring`, `profiling` `[services/:folder listing]`
+- `warehouse/` — `admin`, `api`, `archive`, `backfill`, `bcm`, `client`, `constraints`, `encoding`, `healthmonitor`, `integrations`, `internal`, `multitenant`, `replay`, `router`, `safeguard`, `schema`, `selectivesync`, `slave`, `source`, `validations`, `identity` `[warehouse/:folder listing]`
+- `jobsdb/` — `jobsdb.go`, `migration.go`, `jobsdb_read_excluded_partitions.go`, others `[jobsdb/:folder listing]`
+- `sql/migrations/` — 100 SQL migration files plus `embed.go` using `go:embed` `[sql/migrations/embed.go]`
+- `backend-config/` — `backend-config.go`, `types.go`, `account_association.go`, `dynamic_config.go`, `namespace_config.go`, `single_workspace.go`, `replay_types.go` `[backend-config/:folder listing]`
+- `internal/` — `drain-config`, `enricher` (MaxMind DB download via `filemanager.S3`), `pulsar`, `transformer-client` `[internal/:folder listing]`
+- `enterprise/` — `LICENSE` (Elastic License 2.0), `config-env` (HandleT with env-var substitution), `reporting` (`config_subscriber.go`, `error_extractor.go`, `error_normalizer.go`), `suppress-user`, `trackedusers` `[enterprise/:folder listing]`
+- `admin/` — `admin.go` defining UNIX-socket RPC server bound to `/tmp/rudder-server.sock` with `ReadHeaderTimeout=3s` `[admin/admin.go:RPC server]`
+- `utils/` — `crash`, `filemanagerutil`, `httputil`, `maputil`, `misc`, `payload` (Limiter with adaptive throttling), `pubsub`, `revive`, `sysUtils`, `tcpproxy`, `tests` `[utils/:folder listing]`
+- `runner/` — `runner.go` (Runner lifecycle), `buckets.go` (Prometheus histogram boundaries), `runner_test.go` `[runner/:folder listing]`
+- `config/` — `config.yaml`, `sample.env` (JOBS_DB credentials, CONFIG_BACKEND_TOKEN, WORKSPACE_TOKEN, Kafka TLS, S3 credentials) `[config/:folder listing]`
+- `build/` — `docker-entrypoint.sh`, `docker-go-version.sh`, `nginx.backend.conf`, `nginx.transformer.conf`, `docker.env`, `wait-for-go/` `[build/:folder listing]`
+- `scripts/` — `batch.json` fixtures and `start_server.sh` (copies `/home/ubuntu/.env`, chowns, rotates JSON, restarts service) `[scripts/:folder listing]`
+- `.github/` — `dependabot.yml` (gomod, github-actions, docker), `labeler.yml`, `pull_request_template.md`, `ISSUE_TEMPLATE`, `tools/matrixchecker`, 13 workflow files (`builds.yml`, `docker-build-dockerhub.yml`, `docker-build-ecr.yml`, `housekeeping.yaml`, `labeler.yaml`, `pr-description-enforcer.yaml`, `prerelease.yaml`, `release-please.yaml`, `semantic-pr.yaml`, `sync-release.yaml`, `tests.yaml`, `verify.yml`) `[.github/:folder listing]`
+- `integration_test/` — 20 subfolders covering destination parity, multi-tenant, partition migration, reporting, retl, sdk compatibility, snowpipe streaming, srchydration, tracing, tracked users, transformer contract, warehouse `[integration_test/:folder listing]`
 
-- For epics marked "Design and prototype," deliver a design document and a minimal proof-of-concept only — do not implement production-grade service code
-- None of the epics in the five requested sprints are explicitly marked as design-only, but if any implementation reveals a need for design-first approach, document the design decision and provide a minimal PoC
+**Technical specification sections retrieved**
 
-### 0.7.4 Existing Pattern Compliance
+- `1.2 SYSTEM OVERVIEW` — RudderStack architecture, components, ports, deployment modes
+- `3.2 PROGRAMMING LANGUAGES` — Go 1.26.1 toolchain, version constraints, dependency policy
 
-- **Stream producers** must implement the `common.StreamProducer` interface from `services/streammanager/common/` and register via the `NewProducer` factory in `services/streammanager/streammanager.go`
-- **REST APIs** must use the `go-chi/chi/v5` router framework consistent with Gateway patterns in `gateway/handle_http.go`
-- **Configuration** must use `rudder-go-kit/config` reloadable variables following the pattern in `router/config.go`
-- **Logging** must use `rudder-go-kit/logger` with scoped child loggers (`logger.NewLogger().Child("package-name")`)
-- **Metrics** must use `rudder-go-kit/stats` tagged measurements following patterns in `processor/trackingplan.go`
-- **Tests** must use Ginkgo/Gomega for BDD integration tests or testify/require for unit tests, with gomock for interface mocking
-- **Database access** must use the existing PostgreSQL middleware pattern from `warehouse/identity/identity.go`
-- **Error handling** must follow Go convention with explicit error returns and structured logging via `obskit` labels
+**External research sources** (web search, used only to anchor methodology — not as finding evidence)
 
-### 0.7.5 Docker and Infrastructure
+- MITRE CWE — taxonomy and Top 25 framework for 2024
+- CISA — 2024 CWE Top 25 release announcement and Secure-by-Design guidance
+- Industry references on CWE specificity practice and CVSS-derived severity scoring
 
-- If any step requires Docker, start it first using `docker compose up -d` for required services (PostgreSQL, Transformer)
-- The `docker-compose.yml` defines: PostgreSQL (port 6432→5432), Transformer (port 9090), MinIO (ports 9000/9001, storage profile), etcd (port 2379, multi-tenant profile)
-- Integration tests may require `rudderlabs/compose-test` helpers for containerized dependencies
+### 0.5.6 Findings JSON — Schema Recap
 
-### 0.7.6 Backward Compatibility
+The output contract for `findings-config-a.json` is recapped here so downstream consumers can validate without re-reading sub-section 0.3.4:
 
-- All changes must maintain backward compatibility with the existing pipeline: the Processor's 6-stage pipeline, Router delivery, Batch Router, and Warehouse upload state machine must continue functioning for all currently supported destinations
-- New pipeline stages (Insert Functions) must be no-op when no Insert Functions are configured
-- Enhanced tracking plan enforcement must default to existing behavior (`propagateValidationErrors` equivalent) when advanced enforcement modes are not configured
-- The identity graph service must coexist with the existing warehouse identity resolution without disrupting current warehouse uploads
+```
+[{"file":"<repo-relative path>","line":<positive integer>,"severity":"critical|high|medium|low","cwe":"CWE-<digits>","description":"<≤200 UTF-8 chars>"}, ...]
+```
 
-### 0.7.7 Security Requirements
+Empty result: literal `[]` (two bytes). Pass/fail probe: `cat findings-config-a.json | wc -l` returns `1`.
 
-- Per-function secrets (E-019) must be encrypted at rest using the existing security patterns in the repository
-- Functions runtime (E-015, E-016, E-017) must execute user-defined JavaScript in a sandboxed environment preventing access to server internals
-- Identity resolution settings (E-030) must enforce blocked values to prevent merge-all scenarios that could corrupt the identity graph
-- API endpoints must enforce authentication consistent with existing Gateway auth middleware
+### 0.5.7 Closing Statement
 
-## 0.8 References
-
-### 0.8.1 Documentation Files Searched
-
-The following documentation files were read in full to derive the requirements and technical context for this Agent Action Plan:
-
-| File | Summary |
-|---|---|
-| `docs/gap-report/sprint-roadmap.md` | Master sprint roadmap defining all 39 epics (E-001 to E-039) across 8 sprint groups, with effort estimates, dependencies, success criteria, and parity progression forecasts. Identifies Sprint 7–9 (Warehouse) as COMPLETED. |
-| `docs/gap-report/destination-catalog-parity.md` | Comprehensive destination catalog gap analysis: RudderStack covers ~93 of Segment's ~503 active destinations (~23% raw coverage). Documents 13 stream destinations, 9 warehouse connectors, ~70 cloud destinations. Lists P1/P2/P3 missing destinations and payload parity comparison framework. |
-| `docs/gap-report/functions-parity.md` | Functions/Transformations parity analysis (~40% parity). Documents the architectural difference between RudderStack's batch-oriented Transformer service and Segment's per-event Lambda-based Functions runtime. Identifies 12 gaps (FN-001 through FN-012) including missing Source Functions, Destination Functions, Insert Functions, and management API. |
-| `docs/gap-report/protocols-parity.md` | Protocols/Tracking Plan parity analysis (~30% parity). Documents current tracking plan validation via external Transformer, consent management (85% parity), and 12 gaps (PR-001 through PR-012) including missing anomaly detection, enforcement modes, management API, and forward-blocked-events. |
-| `docs/gap-report/identity-parity.md` | Identity Resolution parity analysis (~20% parity — the largest gap area). Documents the fundamental architectural gap between RudderStack's batch-only warehouse identity resolution and Segment Unify's real-time identity graph. Identifies 12 gaps (ID-001 through ID-012) with the real-time identity graph as the critical foundation. |
-
-### 0.8.2 Codebase Files and Folders Searched
-
-The following repository files and folders were inspected to understand the existing architecture, integration points, and coding patterns:
-
-| Path | Type | Purpose of Inspection |
-|---|---|---|
-| Root (`""`) | Folder | Top-level repository structure — 40+ directories, Go monorepo layout |
-| `go.mod` | File | Module path, Go version (1.26.0), direct/indirect dependencies (200+ packages) |
-| `main.go` | File | Server entrypoint — startup lifecycle, signal handling |
-| `Makefile` | File | Build, test, lint targets — `make test` command structure |
-| `docker-compose.yml` | File | Local service stack — PostgreSQL 15, Transformer, MinIO, etcd |
-| `config/config.yaml` | File | Pipeline configuration parameters (200+ tunable keys) |
-| `services/streammanager/streammanager.go` | File | Stream producer factory — `NewProducer` switch for 13 destinations |
-| `services/streammanager/` | Folder | All stream destination producer packages and common interfaces |
-| `router/customdestinationmanager/customdestinationmanager.go` | File | Custom destination registry — `ObjectStreamDestinations` (13), `KVStoreDestinations` (1) |
-| `router/` | Folder | Routing subsystem — handle, worker, throttler, batch router, transformer proxy |
-| `processor/` | Folder | Processor subsystem — 6-stage pipeline, consent, tracking plan, event filter |
-| `processor/pipeline_worker.go` | File | Pipeline channels — preprocess, srcHydration, preTransform, userTransform, destTransform, store |
-| `processor/trackingplan.go` | File | Tracking plan validation — `TrackingPlanStatT`, `validateEvents()`, `reportViolations()` |
-| `processor/consent.go` | File | Consent management — OneTrust, Ketch, Generic CMP with OR/AND resolution |
-| `processor/transformer/clients.go` | File | Transformer client interfaces — User, Destination, TrackingPlan, SrcHydration |
-| `processor/internal/transformer/` | Folder | Internal transformer implementations — user_transformer, destination_transformer |
-| `gateway/` | Folder | HTTP ingestion surface — endpoints, auth, replay, webhook, throttler, validator |
-| `gateway/handle_http_replay.go` | File | Replay handler — `webReplayHandler()`, `withWarehouseReplayTag()` middleware |
-| `gateway/handle_http.go` | File | Endpoint mount and middleware — public endpoints |
-| `gateway/handle_http_auth.go` | File | Auth middleware — write-key, webhook, source-ID, replay, destination auth |
-| `gateway/openapi.yaml` | File | OpenAPI specification — current Gateway HTTP API |
-| `warehouse/` | Folder | Warehouse subsystem — router, integrations, identity, backfill, replay, health monitor |
-| `warehouse/identity/identity.go` | File | Identity resolution — `Identity` struct, `applyRule()`, `Resolve()`, merge rules model |
-| `backend-config/types.go` | File | Configuration schema — `SourceT`, `DestinationT`, `ConfigT`, tracking plan config |
-| `backend-config/backend-config.go` | File | Runtime config provider — workspace config, pubsub publication |
-| `backend-config/replay_types.go` | File | Replay configuration — `ApplyReplaySources` expansion |
-| `services/` | Folder | Service layer — 20 packages covering control plane, dedup, diagnostics, OAuth, alerts, etc. |
-| `services/alert/alertmanager.go` | File | Alert provider selection — PagerDuty, VictorOps |
-| `archiver/archiver.go` | File | Event archival — 10-day retention, gzipped JSONL |
-| `admin/admin.go` | File | RPC-over-HTTP admin interface — handler registration pattern |
-| `proto/` | Folder | Protobuf definitions — cluster, common auth, event schema, warehouse RPCs |
-| `.github/workflows/tests.yaml` | File | CI test workflow configuration |
-| `integration_test/` | Folder | End-to-end Docker-backed regression suites |
-| `router/throttler/` | Folder | GCRA-based destination throttling — factory, internal algorithms |
-| `Dockerfile` | File | Multi-stage container build |
-
-### 0.8.3 Segment Reference Documentation
-
-The following Segment documentation directories (in `refs/segment-docs/`) provide the reference specifications for parity targets:
-
-| Path | Purpose |
-|---|---|
-| `refs/segment-docs/src/connections/destinations/catalog/` | 648 destination catalog entries — basis for destination gap count |
-| `refs/segment-docs/src/_data/catalog/destinations.yml` | 503 active destination metadata with categories and methods |
-| `refs/segment-docs/src/connections/functions/` | Functions documentation — Source Functions, Destination Functions, Insert Functions |
-| `refs/segment-docs/src/connections/functions/source-functions.md` | Source Functions spec — `onRequest()` handler, event creation API |
-| `refs/segment-docs/src/connections/functions/destination-functions.md` | Destination Functions spec — typed handlers, error types, `fetch()` |
-| `refs/segment-docs/src/connections/functions/insert-functions.md` | Insert Functions spec — pre-destination hooks, handler list |
-| `refs/segment-docs/src/protocols/` | Protocols documentation — tracking plans, enforcement, validation |
-| `refs/segment-docs/src/protocols/enforce/schema-configuration.md` | Enforcement modes — Block Event, Omit Properties, Allow |
-| `refs/segment-docs/src/protocols/tracking-plan/create.md` | Tracking Plan editor and schema inference |
-| `refs/segment-docs/src/unify/` | Unify documentation — identity resolution, profiles, data graph |
-| `refs/segment-docs/src/unify/identity-resolution/index.md` | Identity graph resolution flow — flat matching logic |
-| `refs/segment-docs/src/unify/identity-resolution/externalids.md` | External ID types — 12+ default identifiers |
-| `refs/segment-docs/src/unify/identity-resolution/identity-resolution-settings.md` | Resolution settings — blocked values, limits, priority |
-| `refs/segment-docs/src/unify/profile-api.md` | Profiles REST API — traits, events, external_ids endpoints |
-
-### 0.8.4 Tech Spec Sections Referenced
-
-| Section | Content Retrieved |
-|---|---|
-| `1.4 Technology Stack Summary` | Core technology versions (Go 1.26.0, PostgreSQL 15, chi v5.2.5, gRPC v1.78.0), external service dependencies, bootstrap sequence |
-
-### 0.8.5 User-Provided Attachments
-
-No file attachments were provided for this project. All requirements are derived from the user's prompt text and the in-repository documentation files listed above.
+This Agent Action Plan defines a fully specified, evidence-grounded, contract-bound execution of the Config A baseline security audit for `blitzy-RudderStack`. Every requirement in the user's directives maps to a concrete artifact and a concrete acceptance criterion. The two project-wide rules (Explainability, Executive Presentation) are addressed by the two supplementary artifacts. The audit is read-only at the source level, additive-only at the artifact level, and reproducible at the methodology level. No file outside the three CREATE targets is touched.
 
