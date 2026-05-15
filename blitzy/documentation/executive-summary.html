@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Config I — SonarQube — blitzy-RudderStack</title>
+
+  <!-- reveal.js core CSS (pinned 5.1.0) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" id="theme">
+
+  <!-- Google Fonts: Inter, Space Grotesk, Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fira+Code:wght@400;500&display=swap">
+
+  <!-- Third-party libraries (pinned versions) -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <!-- Inline Blitzy reveal.js theme (self-contained; no local file dependencies) -->
+  <style>
+    :root {
+      --blitzy-primary: #5B39F3;
+      --blitzy-primary-dark: #2D1C77;
+      --blitzy-primary-navy: #1A105F;
+      --blitzy-primary-light: #7A6DEC;
+      --blitzy-primary-deep: #4101DB;
+      --blitzy-accent-teal: #94FAD5;
+      --blitzy-surface-0: #FFFFFF;
+      --blitzy-surface-1: #F4EFF6;
+      --blitzy-surface-2: #F2F0FE;
+      --blitzy-surface-3: #F5F5F5;
+      --blitzy-border: #D9D9D9;
+      --blitzy-border-soft: rgba(91, 57, 243, 0.18);
+      --blitzy-text: #333333;
+      --blitzy-text-muted: #999999;
+      --blitzy-text-invert: #FFFFFF;
+      --ff-body: 'Inter', system-ui, sans-serif;
+      --ff-display: 'Space Grotesk', 'Inter', sans-serif;
+      --ff-mono: 'Fira Code', 'Courier New', monospace;
+      --gradient-hero: linear-gradient(68deg, #7A6DEC 15.56%, #5B39F3 62.74%, #4101DB 84.44%);
+      --gradient-divider: linear-gradient(135deg, #2D1C77 0%, #5B39F3 100%);
+      --gradient-accent-bar: linear-gradient(90deg, #5B39F3 0%, #94FAD5 100%);
+    }
+
+    /* Base typography + reveal.js overrides */
+    .reveal { font-family: var(--ff-body); color: var(--blitzy-text); }
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4, .reveal h5, .reveal h6 {
+      font-family: var(--ff-display);
+      color: var(--blitzy-text);
+      text-transform: none;
+      letter-spacing: -0.01em;
+      font-weight: 600;
+    }
+    .reveal .slides section { text-align: left; padding: 0 60px; }
+    .reveal code, .reveal .eyebrow, .reveal .kpi-label { font-family: var(--ff-mono); }
+    .reveal p, .reveal li { color: var(--blitzy-text); line-height: 1.5; }
+    .reveal a { color: var(--blitzy-primary); }
+    .reveal strong { color: var(--blitzy-primary-dark); }
+
+    /* Slide type: Title (.slide-title) */
+    .reveal section.slide-title {
+      background: var(--gradient-hero);
+      color: var(--blitzy-text-invert);
+      text-align: center;
+      padding: 60px;
+    }
+    .reveal section.slide-title h1,
+    .reveal section.slide-title h2,
+    .reveal section.slide-title p { color: var(--blitzy-text-invert); }
+    .reveal section.slide-title h1 {
+      font-size: 2.8em;
+      font-weight: 700;
+      margin: 0.2em 0;
+    }
+    .reveal section.slide-title .eyebrow {
+      color: var(--blitzy-accent-teal);
+      font-size: 0.55em;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 1em;
+    }
+    .reveal section.slide-title .hero-icon {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 0.6em;
+    }
+    .reveal section.slide-title .hero-icon i,
+    .reveal section.slide-title .hero-icon svg {
+      width: 96px;
+      height: 96px;
+      color: var(--blitzy-accent-teal);
+      stroke: var(--blitzy-accent-teal);
+      stroke-width: 1.5;
+    }
+
+    /* Slide type: Divider (.slide-divider) */
+    .reveal section.slide-divider {
+      background: var(--gradient-divider);
+      color: var(--blitzy-text-invert);
+      text-align: center;
+      padding: 80px 60px;
+    }
+    .reveal section.slide-divider h2,
+    .reveal section.slide-divider h1 {
+      color: var(--blitzy-text-invert);
+      font-size: 2.6em;
+      margin: 0.3em 0;
+    }
+    .reveal section.slide-divider .divider-icon {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 0.4em;
+    }
+    .reveal section.slide-divider .divider-icon i,
+    .reveal section.slide-divider .divider-icon svg {
+      width: 80px;
+      height: 80px;
+      color: var(--blitzy-accent-teal);
+      stroke: var(--blitzy-accent-teal);
+      stroke-width: 1.5;
+    }
+    .reveal section.slide-divider .accent-bar {
+      width: 120px;
+      margin: 1em auto 0 auto;
+    }
+
+    /* Slide type: Closing (.slide-closing) */
+    .reveal section.slide-closing {
+      background: var(--blitzy-primary-navy);
+      color: var(--blitzy-text-invert);
+      padding: 60px;
+    }
+    .reveal section.slide-closing h2 {
+      color: var(--blitzy-text-invert);
+      font-size: 2.4em;
+      margin-bottom: 0.5em;
+    }
+    .reveal section.slide-closing li,
+    .reveal section.slide-closing p { color: var(--blitzy-text-invert); }
+    .reveal section.slide-closing .accent-bar { margin-top: 1.5em; }
+
+    /* Component: KPI grid + cards */
+    .reveal .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin: 1em 0;
+    }
+    .reveal .kpi-card {
+      background: var(--blitzy-surface-1);
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: left;
+    }
+    .reveal .kpi-icon { margin-bottom: 12px; }
+    .reveal .kpi-icon i,
+    .reveal .kpi-icon svg {
+      width: 32px;
+      height: 32px;
+      color: var(--blitzy-primary);
+      stroke: var(--blitzy-primary);
+      stroke-width: 2;
+    }
+    .reveal .kpi-value {
+      font-family: var(--ff-display);
+      font-size: 2.4em;
+      font-weight: 700;
+      color: var(--blitzy-primary);
+      line-height: 1;
+      margin: 4px 0;
+    }
+    .reveal .kpi-label {
+      font-family: var(--ff-mono);
+      font-size: 0.5em;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--blitzy-text-muted);
+    }
+
+    /* Component: eyebrow, accent-bar, brand-lockup, icon-row */
+    .reveal .eyebrow {
+      font-family: var(--ff-mono);
+      font-size: 0.55em;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--blitzy-primary);
+      display: block;
+      margin-bottom: 0.6em;
+    }
+    .reveal .accent-bar {
+      height: 4px;
+      width: 200px;
+      background: var(--gradient-accent-bar);
+      border-radius: 2px;
+      display: block;
+    }
+    .reveal .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 2em;
+      font-family: var(--ff-display);
+      font-weight: 600;
+      font-size: 0.7em;
+      color: var(--blitzy-text-invert);
+    }
+    .reveal .brand-lockup i,
+    .reveal .brand-lockup svg {
+      width: 28px;
+      height: 28px;
+      color: var(--blitzy-accent-teal);
+      stroke: var(--blitzy-accent-teal);
+      stroke-width: 2;
+    }
+    .reveal .icon-row {
+      display: flex;
+      justify-content: space-around;
+      gap: 32px;
+      margin: 1em 0;
+    }
+    .reveal .icon-row > div {
+      flex: 1;
+      text-align: center;
+    }
+    .reveal .icon-row i,
+    .reveal .icon-row svg {
+      width: 48px;
+      height: 48px;
+      color: var(--blitzy-primary);
+      stroke: var(--blitzy-primary);
+      stroke-width: 1.75;
+      display: block;
+      margin: 0 auto 8px auto;
+    }
+    .reveal .icon-row .icon-label {
+      font-family: var(--ff-display);
+      font-weight: 600;
+      color: var(--blitzy-text);
+      font-size: 0.6em;
+    }
+
+    /* Component: tables */
+    .reveal table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.6em;
+      margin: 0.8em 0;
+    }
+    .reveal table th {
+      background: var(--blitzy-surface-2);
+      color: var(--blitzy-primary-dark);
+      font-family: var(--ff-display);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 2px solid var(--blitzy-primary);
+    }
+    .reveal table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--blitzy-border);
+      vertical-align: top;
+    }
+    .reveal table tr:nth-child(even) td {
+      background: var(--blitzy-surface-3);
+    }
+    .reveal table code {
+      background: var(--blitzy-surface-2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--ff-mono);
+      font-size: 0.92em;
+      color: var(--blitzy-primary-deep);
+    }
+    .reveal table i,
+    .reveal table svg {
+      width: 18px;
+      height: 18px;
+      color: var(--blitzy-primary);
+      stroke: var(--blitzy-primary);
+      stroke-width: 2;
+      vertical-align: middle;
+      margin-right: 6px;
+      display: inline-block;
+    }
+
+    /* Component: Mermaid container */
+    .reveal pre.mermaid,
+    .reveal .mermaid {
+      background: var(--blitzy-surface-0);
+      padding: 20px;
+      margin: 1em auto;
+      text-align: center;
+      border-radius: 8px;
+      max-width: 100%;
+      font-size: 0.55em;
+      overflow: visible;
+    }
+    .reveal pre.mermaid svg,
+    .reveal .mermaid svg {
+      max-width: 100% !important;
+      height: auto !important;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Misc utility: list bullets with gradient accent square */
+    .reveal section ul { list-style: none; padding-left: 0; }
+    .reveal section ul li {
+      position: relative;
+      padding-left: 28px;
+      margin-bottom: 12px;
+    }
+    .reveal section ul li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.5em;
+      width: 12px;
+      height: 12px;
+      background: var(--gradient-accent-bar);
+      border-radius: 2px;
+    }
+    .reveal section.slide-divider ul li::before,
+    .reveal section.slide-closing ul li::before {
+      background: var(--blitzy-accent-teal);
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- Slide 1 — Title -->
+      <section class="slide-title">
+        <div class="hero-icon"><i data-lucide="shield-check"></i></div>
+        <span class="eyebrow">Config I — SonarQube</span>
+        <h1>Security Scan: blitzy-RudderStack</h1>
+        <p style="font-size: 0.7em; opacity: 0.9; margin-top: 0.8em;">Ephemeral static analysis, normalized findings inventory, leadership-ready output</p>
+      </section>
+
+      <!-- Slide 2 — At a Glance (KPI grid) -->
+      <section>
+        <span class="eyebrow">Headline KPIs</span>
+        <h2>At a Glance</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="bug"></i></div>
+            <div class="kpi-value">N</div>
+            <div class="kpi-label">Total Findings</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="alert-octagon"></i></div>
+            <div class="kpi-value">N</div>
+            <div class="kpi-label">Critical Issues</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="timer"></i></div>
+            <div class="kpi-value">N min</div>
+            <div class="kpi-label">Scan Duration</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="zap"></i></div>
+            <div class="kpi-value">N sec</div>
+            <div class="kpi-label">Cold-Start Time</div>
+          </div>
+        </div>
+        <p style="font-size: 0.55em; color: var(--blitzy-text-muted); margin-top: 0.8em;">KPIs populated post-scan. Output normalized to a five-field schema for cross-config comparison.</p>
+      </section>
+
+      <!-- Slide 3 — Architecture Overview (Mermaid) -->
+      <section>
+        <span class="eyebrow">Architecture</span>
+        <h2>How It Runs</h2>
+        <pre class="mermaid">
+graph LR
+    A[Host shell] --> B[Tooling ready]
+    B --> C[SonarQube container]
+    C --> D[Status UP]
+    D --> E[Scan + Quality Gate]
+    E --> F[Issues JSON]
+    F --> G[Rule to CWE map]
+    G --> H[Single-line JSON]
+    H --> I[Teardown]
+        </pre>
+      </section>
+
+      <!-- Slide 4 — Section Divider: What Was Done -->
+      <section class="slide-divider">
+        <div class="divider-icon"><i data-lucide="clipboard-check"></i></div>
+        <h2>What Was Done</h2>
+        <div class="accent-bar"></div>
+      </section>
+
+      <!-- Slide 5 — Scope of Work (table) -->
+      <section>
+        <span class="eyebrow">Scope</span>
+        <h2>Three Deliverables</h2>
+        <ul>
+          <li>One-shot ephemeral SonarQube Community Build scan</li>
+          <li>Normalized five-field findings inventory</li>
+          <li>Decision log and executive summary</li>
+        </ul>
+        <table>
+          <thead>
+            <tr><th>Artifact</th><th>Location</th><th>Purpose</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><i data-lucide="file-json"></i><code>findings-config-i.json</code></td>
+              <td>Workspace root</td>
+              <td>Primary deliverable; minified UTF-8 JSON array</td>
+            </tr>
+            <tr>
+              <td><i data-lucide="file-text"></i><code>decision-log.md</code></td>
+              <td><code>blitzy/documentation/</code></td>
+              <td>Explainability rule: why each non-trivial choice</td>
+            </tr>
+            <tr>
+              <td><i data-lucide="presentation"></i><code>executive-summary.html</code></td>
+              <td><code>blitzy/documentation/</code></td>
+              <td>This deck; leadership-facing overview</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Slide 6 — Section Divider: Why It Was Done -->
+      <section class="slide-divider">
+        <div class="divider-icon"><i data-lucide="target"></i></div>
+        <h2>Why It Was Done</h2>
+        <div class="accent-bar"></div>
+      </section>
+
+      <!-- Slide 7 — Business Value (icon row) -->
+      <section>
+        <span class="eyebrow">Business Value</span>
+        <h2>Cross-Tool Comparison</h2>
+        <ul>
+          <li>Baseline findings inventory for downstream remediation triage</li>
+          <li>Apples-to-apples comparison across security tools in series</li>
+          <li>Zero source modifications; fully additive deliverables</li>
+        </ul>
+        <div class="icon-row">
+          <div>
+            <i data-lucide="bar-chart-3"></i>
+            <div class="icon-label">Measurable</div>
+          </div>
+          <div>
+            <i data-lucide="git-compare"></i>
+            <div class="icon-label">Comparable</div>
+          </div>
+          <div>
+            <i data-lucide="award"></i>
+            <div class="icon-label">Auditable</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 8 — Section Divider: Architecture Changes -->
+      <section class="slide-divider">
+        <div class="divider-icon"><i data-lucide="layout-template"></i></div>
+        <h2>Architecture Changes</h2>
+        <div class="accent-bar"></div>
+      </section>
+
+      <!-- Slide 9 — Three New Artifacts (Mermaid component view) -->
+      <section>
+        <span class="eyebrow">Three New Artifacts</span>
+        <h2>Additive, Self-Contained</h2>
+        <pre class="mermaid">
+graph LR
+    A[findings-config-i.json] -- describes --> B[decision-log.md]
+    B -- summarized by --> C[executive-summary.html]
+    A -- visualized in --> C
+        </pre>
+        <p style="font-size: 0.55em; color: var(--blitzy-text-muted); margin-top: 0.8em;">Zero application source modifications. Existing tooling configs unchanged.</p>
+      </section>
+
+      <!-- Slide 10 — Section Divider: Findings Schema -->
+      <section class="slide-divider">
+        <div class="divider-icon"><i data-lucide="database"></i></div>
+        <h2>Findings Schema</h2>
+        <div class="accent-bar"></div>
+      </section>
+
+      <!-- Slide 11 — Five-Field Schema (table) -->
+      <section>
+        <span class="eyebrow">Schema</span>
+        <h2>Five-Field Output</h2>
+        <table>
+          <thead>
+            <tr><th>Field</th><th>Source</th><th>Constraint</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><i data-lucide="file-text"></i><code>file</code></td>
+              <td>Issue component (relative path)</td>
+              <td>String</td>
+            </tr>
+            <tr>
+              <td><i data-lucide="hash"></i><code>line</code></td>
+              <td>Issue line number</td>
+              <td>Integer; 0 if absent</td>
+            </tr>
+            <tr>
+              <td><i data-lucide="alert-triangle"></i><code>severity</code></td>
+              <td>BLOCKER/CRITICAL to critical; MAJOR to high; MINOR to medium; INFO to low</td>
+              <td>Enum: critical, high, medium, low</td>
+            </tr>
+            <tr>
+              <td><i data-lucide="shield-alert"></i><code>cwe</code></td>
+              <td>Rule tags CWE ID; fallback rule description</td>
+              <td>CWE-N or CWE-UNKNOWN</td>
+            </tr>
+            <tr>
+              <td><i data-lucide="message-square"></i><code>description</code></td>
+              <td>Issue message</td>
+              <td>String; max 200 chars</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Slide 12 — Section Divider: Risks &amp; Mitigations -->
+      <section class="slide-divider">
+        <div class="divider-icon"><i data-lucide="alert-circle"></i></div>
+        <h2>Risks &amp; Mitigations</h2>
+        <div class="accent-bar"></div>
+      </section>
+
+      <!-- Slide 13 — Three Risks, Three Mitigations (table) -->
+      <section>
+        <span class="eyebrow">Risks &amp; Mitigations</span>
+        <h2>Three Risks, Three Mitigations</h2>
+        <table>
+          <thead>
+            <tr><th>Risk</th><th>Mitigation</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><i data-lucide="alert-triangle"></i>Findings &gt; 500 truncated by <code>ps=500</code> cap</td>
+              <td>Stderr warning on <code>total &gt; 500</code>; pagination deferred to Config II</td>
+            </tr>
+            <tr>
+              <td><i data-lucide="alert-triangle"></i>Non-reproducible scans across days (rolling <code>community</code> tag)</td>
+              <td>Timestamp recorded in decision log; cross-config diff requires same-day reference</td>
+            </tr>
+            <tr>
+              <td><i data-lucide="alert-triangle"></i>Port 9000 conflict potential (MinIO under <code>storage</code> profile)</td>
+              <td>Operator pre-flight check <code>docker ps | grep 9000</code>; remap to <code>9001:9000</code> if held</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Slide 14 — Section Divider: Operational Readiness -->
+      <section class="slide-divider">
+        <div class="divider-icon"><i data-lucide="check-circle"></i></div>
+        <h2>Operational Readiness</h2>
+        <div class="accent-bar"></div>
+      </section>
+
+      <!-- Slide 15 — Verification Matrix (KPI grid) -->
+      <section>
+        <span class="eyebrow">Verification</span>
+        <h2>Pass/Fail Criteria</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="file-check"></i></div>
+            <div class="kpi-value">= 1</div>
+            <div class="kpi-label">Line Count</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="check-square"></i></div>
+            <div class="kpi-value">Valid</div>
+            <div class="kpi-label">JSON Parse</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="container"></i></div>
+            <div class="kpi-value">Removed</div>
+            <div class="kpi-label">Container State</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="list-checks"></i></div>
+            <div class="kpi-value">5 fields</div>
+            <div class="kpi-label">Schema Compliance</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 16 — Closing -->
+      <section class="slide-closing">
+        <span class="eyebrow" style="color: var(--blitzy-accent-teal);">Next Steps</span>
+        <h2>Onward to Config II</h2>
+        <ul>
+          <li>Compare findings with Config II (SonarSource Cloud) and beyond</li>
+          <li>Triage findings into remediation backlog</li>
+          <li>Reconcile overlap with existing DeepSource, Snyk, golangci-lint</li>
+        </ul>
+        <div class="accent-bar"></div>
+        <div class="brand-lockup">
+          <i data-lucide="shield-check"></i>
+          <span>Blitzy — Security Tooling Comparison Series</span>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Initialization: reveal.js + mermaid + Lucide -->
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      controlsTutorial: false,
+      width: 1920,
+      height: 1080
+    });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#F2F0FE',
+        primaryTextColor: '#333333',
+        primaryBorderColor: '#5B39F3',
+        lineColor: '#999999',
+        secondaryColor: '#F4EFF6'
+      }
+    });
+    Reveal.on('ready', () => { lucide.createIcons(); mermaid.run(); });
+    Reveal.on('slidechanged', () => { lucide.createIcons(); mermaid.run(); });
+  </script>
+</body>
+</html>
