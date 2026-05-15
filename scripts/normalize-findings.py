@@ -27,15 +27,27 @@ SEVERITY_MAP = {
 }
 
 GOSEC_RULE_TO_CWE = {
+    # Canonical map mirrored verbatim from Gosec v2.26.1 source
+    # (github.com/securego/gosec/v2/issue/issue.go, var ruleToCWE).
+    # When Gosec @latest advances, regenerate this table; the script falls back
+    # to "CWE-Unknown" with a stderr warning for any rule not present here.
     "G101": "798", "G102": "200", "G103": "242", "G104": "703",
     "G106": "322", "G107": "88",  "G108": "200", "G109": "190",
-    "G110": "409",
+    "G110": "409", "G111": "22",  "G112": "400", "G113": "444",
+    "G114": "676", "G115": "190", "G116": "838", "G117": "499",
+    "G118": "400", "G119": "200", "G120": "400", "G121": "346",
+    "G122": "367", "G123": "295", "G124": "614",
     "G201": "89",  "G202": "89",  "G203": "79",  "G204": "78",
     "G301": "276", "G302": "276", "G303": "377", "G304": "22",
-    "G305": "22",  "G306": "276", "G307": "703",
-    "G401": "326", "G402": "295", "G403": "310", "G404": "338",
-    "G501": "327", "G502": "327", "G503": "327", "G504": "327", "G505": "327",
-    "G601": "118",
+    "G305": "22",  "G306": "276", "G307": "276",
+    "G401": "328", "G402": "295", "G403": "310", "G404": "338",
+    "G405": "327", "G406": "328", "G407": "1204", "G408": "287",
+    "G501": "327", "G502": "327", "G503": "327", "G504": "327",
+    "G505": "327", "G506": "327", "G507": "327",
+    "G601": "118", "G602": "118",
+    "G701": "89",  "G702": "78",  "G703": "22",  "G704": "918",
+    "G705": "79",  "G706": "117", "G707": "93",  "G708": "94",
+    "G709": "502", "G710": "601",
 }
 
 REQUIRED_FIELDS = ("file", "line", "severity", "cwe", "description")
@@ -131,6 +143,8 @@ def _strip_uri(uri, base_uris, repo_root):
 
 
 def _build_rules_index(run):
+    if not isinstance(run, dict):
+        return {}
     driver = (run.get("tool", {}) or {}).get("driver", {}) or {}
     rules = driver.get("rules", []) or []
     index = {}
@@ -267,16 +281,23 @@ def _extract_findings(sarif, repo_root):
 def _emit_minified(findings, out_path):
     payload = json.dumps(findings, separators=(",", ":"), ensure_ascii=False)
     with open(out_path, "wb") as f:
-        f.write(payload.encode("utf-8"))
+        f.write(payload.encode("utf-8") + b"\n")
 
 
 def _self_check(out_path):
     with open(out_path, "rb") as f:
         data = f.read()
 
-    newline_count = data.count(b"\n")
-    assert newline_count == 0, (
-        f"output contains {newline_count} newlines (must be 0 for single-line file)"
+    # The output file is a single logical line: exactly one terminating
+    # newline byte and zero embedded newlines, so the AAP final pass/fail
+    # gate `cat findings-config-d.json | wc -l` returns exactly 1.
+    assert data.endswith(b"\n"), (
+        "output must end with exactly one trailing newline byte (wc -l == 1)"
+    )
+    embedded_newlines = data[:-1].count(b"\n")
+    assert embedded_newlines == 0, (
+        f"output contains {embedded_newlines} embedded newlines "
+        f"(must be 0 for single-line file)"
     )
 
     arr = json.loads(data.decode("utf-8"))
