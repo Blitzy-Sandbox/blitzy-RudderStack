@@ -4,787 +4,807 @@
 
 ## 0.1 Intent Clarification
 
-### 0.1.1 Core Feature Objective
+### 0.1.1 Core Objective
 
-Based on the prompt, the Blitzy platform understands that the new feature requirement is to **implement five remaining sprint groups across the RudderStack `rudder-server` Go monorepo**, closing critical feature parity gaps against Segment across five dimensions: destination connectors, functions/transformations, protocols enforcement, identity resolution, and operational tooling.
+Based on the provided requirements, the Blitzy platform understands that the objective is to operate Semgrep Community Edition (Semgrep OSS) as a hermetic, offline, telemetry-free static-analysis configuration against the `blitzy-RudderStack` codebase, using three named rule packs cached on local disk, and to emit a single deterministic artifact — `findings-config-b.json` — that conforms to a precisely specified five-field normalized schema. This work is one configuration ("Config B") inside a larger multi-config security tool comparison; the comparison itself is out of scope for this configuration.
 
-The sprints to implement, in strict sequential order, are:
+The user-supplied directive header is preserved verbatim:
 
-- **Sprint 3–5: Destination Connector Expansion (E-010 to E-014)** — Prioritize, implement, and validate 40+ cloud destination connectors and additional stream destinations, achieving payload-level parity with Segment's output for all shared connectors. Current parity: ~28%, target: ~50%.
-- **Sprint 4–6: Transformation and Functions Framework (E-015 to E-019)** — Build a Segment-compatible Functions runtime supporting Source Functions (custom webhook ingestion via `onRequest`), Destination Functions (per-event typed handlers like `onTrack`, `onIdentify`), Insert Functions (pre-destination transformation hooks), a full CRUD management API, and per-function secrets/environment variable management. Current parity: ~40%, target: ~80%.
-- **Sprint 5–7: Protocols and Tracking Plan Enforcement (E-020 to E-025)** — Upgrade tracking plan validation to full JSON Schema draft-07 support, implement anomaly detection for unexpected events/properties, add configurable enforcement modes (Block/Omit/Allow per source per call type), build forward-blocked-events capability, expose a tracking plan management API with versioning, and integrate consent management with Protocols enforcement. Current parity: ~30%, target: ~75%.
-- **Sprint 6–8: Identity Resolution and Profiles (E-026 to E-030)** — Design and build a real-time identity graph that resolves identity as events flow through the pipeline (not batch-only during warehouse uploads), implement a Profiles REST API with sub-200ms response times, extend the identity model to support 12+ external identifier types, build profile sync to downstream destinations, and add configurable identity resolution settings (blocked values, limits, priority). Current parity: ~20%, target: ~60%.
-- **Sprint 8–10: Operational Tooling and Monitoring (E-036 to E-039)** — Implement per-destination event delivery monitoring with Prometheus metrics and HTTP API, configurable alerting for pipeline health conditions, advanced replay controls (source-level, date-range, destination-level, dry-run), and pipeline performance profiling with capacity planning reports targeting 50,000 events/sec throughput.
+> Config B — Semgrep | blitzy-RudderStack
+> OBJECTIVE: Scan the `blitzy-RudderStack` codebase with Semgrep OSS using local rule packs. Produce a minified single-line `findings-config-b.json`. This is one config in a multi-config security tool comparison.
+> `[3 directives | ~0 files modified | 1 new file]`
 
-Implicit requirements detected:
+Each underlined requirement maps to a concrete technical objective:
 
-- The external **Transformer service** (`rudder-transformer` on port 9090) must be extended for Functions runtime capabilities (E-015 through E-017) and enhanced Protocols validation (E-020, E-021), as the `rudder-server` delegates transformation and validation to this service
-- **Backend-config schema changes** are required for enforcement modes (E-022), tracking plan management (E-024), and selective sync configuration — all configuration flows through `backend-config/types.go`
-- **Database migrations** are needed for the identity graph (E-026), functions management (E-018), and tracking plan storage (E-024) — PostgreSQL is the primary persistence layer
-- **Docker infrastructure** must be started before testing, as integration tests depend on PostgreSQL, transformer, and MinIO containers defined in `docker-compose.yml`
-- Each sprint must be **fully completed and tested** before proceeding to the next, with all CI failures resolved except those caused by missing repository secrets (AWS ECR credentials)
+- "Scan with Semgrep OSS" → install the open-source `semgrep` CLI distribution at the highest documented stable version (1.143.0 / 1.144.0 line, released November 2025 per the Semgrep release notes), do not enable the commercial `--pro` engine.
+- "Using local rule packs" → pre-acquire the three named rulesets (`p/security-audit`, `p/secrets`, and the user-named `p/owasp` which canonicalises to the registry slug `p/owasp-top-ten`) into a local directory; invoke Semgrep with `--config=<local-rules-dir>` so the scan never reaches out to the Semgrep Registry at run time. This satisfies both the offline requirement and the `--metrics=off` zero-network-call constraint — Semgrep's metrics documentation confirms that "Semgrep does not enable metrics when running with only local configuration files or command-line search patterns."
+- "Produce a minified single-line `findings-config-b.json`" → after the SARIF run completes, transform each finding into the five-field record shape and serialize the array with no embedded newlines (e.g. `python3 -c "import json,sys; sys.stdout.write(json.dumps(records, separators=(',',':'), ensure_ascii=False))"`).
+- "`[3 directives | ~0 files modified | 1 new file]`" → exactly the three CRITICAL directives below are authoritative; the `blitzy-RudderStack` source tree is treated as immutable (read-only scan target); `findings-config-b.json` is the only output file that is the direct target of the user's instructions. (Two additional companion files are introduced by the user's named rules — see Section 0.7 — but they are rule-mandated, not directive-mandated.)
 
-### 0.1.2 Special Instructions and Constraints
+### 0.1.2 The Three CRITICAL Directives (Verbatim)
 
-- **Sequential sprint execution**: Complete each sprint fully before starting the next — sprints overlap in their numbering (e.g., Sprint 4–6 overlaps with Sprint 3–5) but must be implemented in the listed order
-- **Exhaustive scope coverage**: For every epic, implement ALL items listed in scope — do not skip any variant, endpoint, or sub-case mentioned in the epic description
-- **Design-only epics**: For epics marked "Design and prototype," deliver a design document and a minimal proof-of-concept only — do not implement production-grade service code
-- **Docker dependency**: If any step requires Docker, start it first — the project's `docker-compose.yml` defines PostgreSQL (port 6432→5432), Transformer (port 9090), MinIO (ports 9000/9001), and etcd (port 2379)
-- **Post-implementation testing**: Run all tests after implementation of each sprint using `make test` or `gotestsum` with appropriate flags
-- **CI failure resolution**: Fix all CI failures resolvable through code changes; skip failures caused by missing repository secrets (AWS ECR credentials)
-- **Backward compatibility**: All changes must maintain backward compatibility with existing pipeline behavior — the Processor's 6-stage pipeline, Router delivery, and warehouse upload state machine must continue functioning for existing destinations
-- **Follow existing patterns**: New connector implementations must follow the existing `common.StreamProducer` interface pattern in `services/streammanager/`, and new Router destinations must integrate through the existing `customdestinationmanager` factory
+The directives are preserved verbatim from the user input, in their original ordering. The Blitzy platform treats each Pass/Fail clause as a hard acceptance gate.
 
-### 0.1.3 Technical Interpretation
+#### 0.1.2.1 CRITICAL Directive 1 — Install and configure Semgrep
 
-These feature requirements translate to the following technical implementation strategy:
+> Install `semgrep` via pip or apt. Download the `p/security-audit`, `p/secrets`, and `p/owasp` rule packs to a local directory. Confirm `--metrics=off` suppresses all telemetry.
+>
+> Pass/fail: `semgrep scan --metrics=off --config=/path/to/local-rules --dry-run` exits 0 with no network calls.
 
-- To **expand destination connectors** (E-010 to E-014), we will create new producer packages under `services/streammanager/` following the `common.StreamProducer` interface, register them in `services/streammanager/streammanager.go`'s `NewProducer` switch statement, add their names to `router/customdestinationmanager/customdestinationmanager.go`'s `ObjectStreamDestinations` array, implement payload mapping and authentication per destination API, and create comprehensive payload parity test fixtures comparing RudderStack output against Segment reference payloads
-- To **implement the Functions framework** (E-015 to E-019), we will create a new `functions/` top-level package containing the runtime engine with per-event typed handler dispatch, build a Source Functions HTTP endpoint in the Gateway (`gateway/handle_http_functions.go`), implement Insert Functions as a new pipeline stage between user transforms and destination transforms in `processor/pipeline_worker.go`, expose a Functions management REST API via `functions/api/`, and implement per-function encrypted secrets storage
-- To **enforce Protocols and tracking plans** (E-020 to E-025), we will extend `processor/trackingplan.go` with full JSON Schema draft-07 validation, replace the binary `propagateValidationErrors` toggle with three-mode enforcement (Block/Omit/Allow), implement anomaly detection in a new `processor/anomalydetection/` package, add a forward-blocked-events mechanism that reroutes blocked events to an alternative source, build a tracking plan management REST API, and integrate consent management (`processor/consent.go`) with Protocols enforcement decisions
-- To **build identity resolution** (E-026 to E-030), we will create a new `identity/` top-level service package that implements a real-time identity graph (extending beyond `warehouse/identity/identity.go`'s batch-only model), build a Profiles REST API with Redis-backed caching for sub-200ms responses, extend the identity model to support multiple external identifier types via `context.externalIds` event processing, implement profile sync using change-data-capture on the identity graph, and add configurable resolution settings (blocked values, identifier limits, priority ranking)
-- To **deliver operational tooling** (E-036 to E-039), we will extend the existing Prometheus metrics infrastructure with per-destination delivery dashboards, implement configurable alerting rules in a new `services/alerting/` package leveraging existing `services/alert/` and `services/alerta/` patterns, enhance `gateway/handle_http_replay.go` with source-level, date-range, and destination-level filtering plus dry-run mode, and build pipeline performance profiling tools measuring per-stage latencies across Gateway, Processor, Router, and warehouse upload paths
+Blitzy interpretation:
+
+- `pip` is the user's first-named install vector. Because the execution host is Debian/Ubuntu with PEP 668 enforcement on system Python, the installation must be performed inside an isolated environment (`python3 -m venv` followed by `pip install "semgrep==<version>"`) or via `pipx install semgrep`. `apt` is unavailable as a fallback because `semgrep` is not packaged in the host's apt repositories. The dry-run exit code 0 is the acceptance signal.
+- "Download the … rule packs to a local directory" requires acquiring the YAML rule bundles offline. The canonical mechanism is `curl -sSL "https://semgrep.dev/c/p/<ruleset>" -o local-rules/<ruleset>.yaml` (Semgrep's documented registry-content endpoint that returns a consolidated YAML rule bundle for a given pack). The three target packs are persisted under `local-rules/security-audit.yaml`, `local-rules/secrets.yaml`, and `local-rules/owasp-top-ten.yaml` respectively.
+- "Confirm `--metrics=off` suppresses all telemetry" is verified by the dry-run exit code combined with the absence of any outbound HTTP requests to `semgrep.dev` (which can be witnessed by running the dry-run inside a network namespace, or by trusting the documented metrics behaviour combined with the local-config invariant).
+
+#### 0.1.2.2 CRITICAL Directive 2 — Execute Semgrep scan
+
+> ```plaintext
+> semgrep scan --config=/path/to/local-rules --sarif -o results-semgrep.sarif --metrics=off /path/to/blitzy-RudderStack
+> ```
+>
+> Record exit code, scan duration (wall-clock), and total files scanned.
+>
+> Pass/fail: `results-semgrep.sarif` is produced and contains valid JSON with a `runs` array.
+
+Blitzy interpretation:
+
+- The command string is preserved exactly. `--config=/path/to/local-rules` points at the directory created in Directive 1; Semgrep recursively loads every `*.yaml` rule file inside it.
+- "Record exit code" — Semgrep exit codes per the CLI reference: `0` = OK (no findings), `1` = some findings, `2` = fatal error, `3` = invalid target code, `4` = invalid pattern, `5` = unparseable YAML, `7` = missing configuration, `8` = invalid language. Exit code `0` or `1` is a valid outcome; `≥2` is a hard failure.
+- "Scan duration (wall-clock)" — measure with `/usr/bin/time -f '%e'` or `time -p` wrapping the `semgrep scan` invocation.
+- "Total files scanned" — read from `runs[0].invocations[0].properties.semgrep_files_count` or `runs[0].versionControlProvenance` in the SARIF output, or alternatively from the Semgrep stderr summary line. The decision-log will record which source was used.
+- Pass/fail validation: `python3 -c "import json,sys; d=json.load(open('results-semgrep.sarif')); assert isinstance(d.get('runs'), list)"` returns exit 0.
+
+#### 0.1.2.3 CRITICAL Directive 3 — Normalize findings to single-line JSON
+
+> Extract findings from the SARIF output and compile into `findings-config-b.json`. The file MUST be valid JSON minified to a single line. Encoding: UTF-8. If zero findings, write `[]`.
+>
+> | Field | Source |
+> | --- | --- |
+> | file | SARIF location (relative path) |
+> | line | SARIF region start line |
+> | severity | error→critical, warning→high, note→medium, info→low |
+> | cwe | Rule metadata CWE ID. If absent, use the most specific CWE inferable from the rule description |
+> | description | SARIF message text, truncated to 200 characters |
+>
+> ```plaintext
+> [{"file":"<relative path>","line":<integer>,"severity":"<critical|high|medium|low>","cwe":"<CWE-ID>","description":"<max 200 chars>"},...]
+> ```
+>
+> Pass/fail: `cat findings-config-b.json | wc -l` returns `1`. Valid JSON. Every finding has all 5 fields populated. No description exceeds 200 characters.
+
+Blitzy interpretation:
+
+- Every record carries exactly five keys: `file`, `line`, `severity`, `cwe`, `description`. The field order in the sample is preserved.
+- `file`: read from `runs[].results[].locations[0].physicalLocation.artifactLocation.uri`. Paths in SARIF are URI-encoded relative to the scan root by default; verify that the persisted value is the relative path without scheme prefix.
+- `line`: read from `runs[].results[].locations[0].physicalLocation.region.startLine`. Coerce to integer; SARIF guarantees an integer here.
+- `severity`: SARIF severity in the `results[].level` field maps to the canonical strings `critical`, `high`, `medium`, `low` using the table above. The fifth value `none` (rarely emitted) defaults to `low`. When `level` is absent on a result, fall back to `runs[].tool.driver.rules[ruleIndex].defaultConfiguration.level`.
+- `cwe`: read from `runs[].tool.driver.rules[ruleIndex].properties.tags` (Semgrep encodes CWE under tags as e.g. `cwe:CWE-79`) or from a `cwe` array property; if neither is present, inspect the rule's `shortDescription`/`fullDescription`/`help.text` for the most specific CWE that the description directly implicates. Record the inference method per rule in the decision log.
+- `description`: read from `runs[].results[].message.text`; collapse any internal newlines to single spaces, then truncate to 200 characters. Do not append an ellipsis (the user spec does not request one).
+- Pass/fail enforcement: the produced file MUST satisfy `wc -l == 1`, MUST parse with `python3 -m json.tool`, MUST have every record contain all five keys with non-null values, and MUST contain no `description` longer than 200 characters. When SARIF reports zero results across all runs, the file content is the literal two characters `[]`.
+
+### 0.1.3 Task Categorization
+
+- Primary task type: **Security Tooling**. Secondary aspects: **Configuration** (rule pack acquisition and Semgrep invocation parameters), **Build/Deploy-adjacent** (the scan is operated independently of the existing `Makefile` `sec:` target and is not wired into CI in this configuration).
+- Scope classification: **Isolated change**. No file inside `blitzy-RudderStack/` is modified; the scan is a pure read-only consumer of the source tree.
+
+### 0.1.4 Implicit Requirements Surfaced
+
+The Blitzy platform identifies the following implicit requirements that follow from the explicit text:
+
+- **Hermeticity**: the dry-run pass/fail clause requires "no network calls," which transitively requires that the rule packs already exist on disk before the scan begins. Caching rule packs is therefore a strict prerequisite, not an optimisation.
+- **Determinism of recorded metadata**: Directive 2 demands recording exit code, duration, and file count. These must be captured into a structured location (proposed: a metadata block at the top of `decision-log.md`, satisfying the Explainability rule simultaneously).
+- **Zero-finding fallback**: Directive 3 explicitly states `[]` for zero findings, which means the normalizer must produce `[]` even when SARIF returns `runs[0].results == []`.
+- **Description sanitisation**: the 200-character cap implies that messages with embedded line breaks must be flattened, otherwise the eventual single-line JSON would carry escape sequences that bloat the character count and obscure readability.
+- **Severity name lower-casing**: the user's mapping uses lowercase labels (`critical`, `high`, `medium`, `low`); the normalizer must lowercase the SARIF level (`error`/`warning`/`note`/`info`) before lookup.
+- **CWE format consistency**: the user's example shows `<CWE-ID>` as a placeholder; the actual format must match the SARIF/Semgrep convention `CWE-<digits>` (e.g. `CWE-79`). When inference is required, record both the chosen CWE and the inference rationale in the decision log.
+- **Multi-config comparison constraint**: because this is "one config in a multi-config security tool comparison," the output schema, file name, severity vocabulary, and CWE format must be intercompatible with the schemas used by sibling configurations. The Blitzy platform therefore treats the five-field schema as immutable and rejects any local additions (e.g. no extra `rule_id`, `tool`, or `confidence` keys are emitted).
+
+### 0.1.5 Technical Interpretation
+
+These requirements translate to the following technical implementation strategy:
+
+- To achieve **install and configure** (Directive 1), we will provision a Python virtual environment, install `semgrep==1.144.0` (or the highest 1.x release available at execution time from the Semgrep release notes feed), populate `local-rules/` with three YAML rule bundles fetched from the Semgrep Registry HTTP endpoint, and validate the configuration with `semgrep scan --metrics=off --config=./local-rules --dry-run` expecting exit code `0`.
+- To achieve **scan execution** (Directive 2), we will invoke the documented command verbatim with the working-directory `/path/to/blitzy-RudderStack` placeholder substituted for the actual checkout root, wrapped in a wall-clock timer, capturing exit code into a metadata file, and asserting SARIF validity via a JSON parse of the `runs` array.
+- To achieve **normalization** (Directive 3), we will execute a single Python normalization script that loads `results-semgrep.sarif`, walks `runs[].results[]`, performs the five-field projection with severity mapping and CWE inference, truncates each description to 200 characters, and writes the minified JSON to `findings-config-b.json` using `json.dumps(records, separators=(',',':'), ensure_ascii=False)`.
+- To achieve **rule-mandated deliverables**, we will create `decision-log.md` (Explainability rule) and `executive-summary.html` (Executive Presentation rule) alongside the directive deliverables — see Section 0.7 for the rule-driven scope additions.
 
 ## 0.2 Repository Scope Discovery
 
-### 0.2.1 Comprehensive File Analysis
+### 0.2.1 Comprehensive Repository Analysis
 
-The RudderStack `rudder-server` repository is a production-grade Go monorepo (`go 1.26.0`, module `github.com/rudderlabs/rudder-server`) with approximately 40 top-level directories. The following analysis maps all files and folders requiring creation or modification across the five sprint groups.
+The `blitzy-RudderStack` working tree was inventoried in full to define the Semgrep scan target. The repository is the Go-dominant rudder-server v1.68.1 enhancement codebase as established in [blitzy/documentation/Project Guide.md:§1], [README.md:L1-L5], and [catalog-info.yaml:metadata.name].
 
-**Existing Modules Requiring Modification:**
+Top-level structure (40 directories + 24 root-level files) [confirmed via `ls -la` and `ls -d */` at the repository root]:
 
-| File/Pattern | Current Purpose | Sprint | Modification Required |
-|---|---|---|---|
-| `services/streammanager/streammanager.go` | Stream producer factory — `NewProducer` switch dispatching to 13 stream destinations | 3–5 | Add `case` branches for new stream destination types |
-| `router/customdestinationmanager/customdestinationmanager.go` | Custom destination registry — `ObjectStreamDestinations` array (13 entries), `KVStoreDestinations` (1 entry) | 3–5 | Append new stream destination names to `ObjectStreamDestinations` |
-| `services/streammanager/common/*.go` | Shared `StreamProducer` interface and `Opts` type | 3–5 | No changes — interface is sufficient; new connectors implement it |
-| `processor/pipeline_worker.go` | 6-stage pipeline: preprocess → srcHydration → preTransform → userTransform → destTransform → store | 4–6 | Insert new Insert Functions stage between userTransform and destTransform channels |
-| `processor/processor.go` | Main Processor `Handle` — orchestrates pipeline, backend-config subscription, routing/storage | 4–6, 5–7 | Add Functions runtime integration, enhanced tracking plan enforcement with Block/Omit/Allow modes |
-| `processor/trackingplan.go` | Tracking plan validation — `validateEvents()`, `reportViolations()`, `TrackingPlanStatT` metrics | 5–7 | Upgrade to JSON Schema draft-07, add anomaly detection hooks, implement three enforcement modes, forward-blocked-events |
-| `processor/consent.go` | Consent-based destination filtering — OneTrust, Ketch, Generic CMP with OR/AND resolution | 5–7 | Integrate consent decisions with Protocols enforcement rules (E-025) |
-| `warehouse/identity/identity.go` | Batch identity resolution — `Identity` struct, `applyRule()`, `Resolve()` for warehouse uploads | 6–8 | Refactor as foundation for real-time graph; extend merge-rule model beyond two-property pairs |
-| `gateway/handle_http.go` | HTTP endpoint mount and middleware — public endpoints and shared middleware | 4–6, 8–10 | Add Source Functions webhook endpoint, advanced replay filter endpoints |
-| `gateway/handle_http_replay.go` | Replay handler — `webReplayHandler()` with `withWarehouseReplayTag` middleware | 8–10 | Add source-level, date-range, destination-level filtering and dry-run mode |
-| `gateway/handle_http_auth.go` | Auth middleware — write-key, webhook, source-ID, replay, destination auth | 4–6 | Add Source Functions auth handler |
-| `gateway/openapi.yaml` | OpenAPI specification for Gateway HTTP API | 4–6, 5–7, 6–8, 8–10 | Add new endpoint schemas for Functions, Protocols API, Profiles API, and advanced replay |
-| `backend-config/types.go` | Configuration schema — `SourceT`, `DestinationT`, `ConfigT`, tracking plan config, settings | 5–7, 6–8 | Add enforcement mode config fields, identity resolution settings schema, functions config |
-| `backend-config/backend-config.go` | Runtime configuration provider — workspace config fetching, pubsub publication | 5–7, 6–8 | Extend subscription topics for new config types |
-| `docker-compose.yml` | Local multi-service compose — PostgreSQL, Transformer, MinIO, etcd | All | May require additional services (e.g., Redis for identity graph caching) |
-| `Makefile` | Build, test, lint targets | All | Potentially add new test targets for Functions, Protocols, Identity suites |
-| `main.go` | Server entrypoint — config, logging, signals, memory monitoring, runner lifecycle | 4–6, 6–8 | Wire new services (Functions runtime, Identity service) into startup |
-| `runner/runner.go` | App type resolution, warehouse mode, feature flags | 4–6, 6–8 | Register new service components |
-| `services/alert/alertmanager.go` | Alert provider selection — PagerDuty, VictorOps | 8–10 | Extend with Slack and email notification channels |
-| `services/alerta/alerta.go` | Alerta client with retry/backoff | 8–10 | Reference pattern for new alerting rules engine |
-| `archiver/archiver.go` | Event archival with 10-day retention in gzipped JSONL | 8–10 | Integration point for advanced replay (source/date-range filtering) |
-| `config/config.yaml` | 200+ tunable pipeline parameters | All | Add new configuration keys for Functions, Protocols enforcement, Identity, alerting thresholds |
-| `router/handle.go` | Router Handle — job pickup, batching, throttling, delivery, retry/backoff | 8–10 | Add per-destination delivery metrics collection for monitoring dashboard |
-| `router/handle_observability.go` | Metrics aggregation, diagnostics emission | 8–10 | Extend with delivery dashboard metrics (success/failure rates, latency percentiles) |
-| `router/throttler/factory.go` | Throttler factory — Redis/in-memory GCRA algorithms | 8–10 | Reference for capacity planning metrics |
-
-**Integration Point Discovery:**
-
-| Integration Point | Location | Sprints Affected | Purpose |
-|---|---|---|---|
-| Stream destination factory | `services/streammanager/streammanager.go:24-58` | 3–5 | Register new stream producers via `NewProducer` switch |
-| Custom destination registry | `router/customdestinationmanager/customdestinationmanager.go:79-81` | 3–5 | Add destination names to `ObjectStreamDestinations`/`KVStoreDestinations` arrays |
-| Processor pipeline channels | `processor/pipeline_worker.go:32-37` | 4–6 | Insert Functions channel between stages 4 and 5 |
-| Transformer client interfaces | `processor/transformer/clients.go:20-42` | 4–6, 5–7 | Extend with Functions client interface |
-| User transformer | `processor/internal/transformer/user_transformer/user_transformer.go:54-67` | 4–6 | Reference for Functions runtime batch/event dispatch |
-| Destination transformer | `processor/internal/transformer/destination_transformer/destination_transformer.go:73-82` | 4–6 | Reference for Destination Functions integration |
-| Tracking plan validation | `processor/trackingplan.go:69-142` | 5–7 | Replace with enhanced JSON Schema validation + enforcement modes |
-| Consent filtering | `processor/consent.go:44-95` | 5–7 | Hook into Protocols enforcement decisions |
-| Identity resolution | `warehouse/identity/identity.go:78-206` | 6–8 | Extend `applyRule()` for real-time resolution |
-| Gateway replay | `gateway/handle_http_replay.go:19-89` | 8–10 | Extend with filter parameters |
-| Backend config types | `backend-config/types.go` | 5–7, 6–8 | Add new config types |
-| Services alert system | `services/alert/alertmanager.go` | 8–10 | Extend alerting channels |
-| Proto definitions | `proto/warehouse/`, `proto/common/` | 6–8 | Add Profiles API gRPC definitions |
-
-### 0.2.2 New File Requirements
-
-**Sprint 3–5: Destination Connector Expansion**
-
-New source files to create:
-- `services/streammanager/azureeventhub/` — Azure Event Hub extended producer (if not covered by existing Kafka variant)
-- `services/streammanager/*/` — Additional stream destination packages as identified in E-014
-- `router/testdata/destination_payloads/` — Payload parity test fixtures for field-by-field comparison
-- `docs/gap-report/payload-parity-results.md` — Payload parity validation results
-
-New test files:
-- `services/streammanager/*_test.go` — Unit tests for each new stream producer
-- `integration_test/destination_parity/` — Integration test suite for payload comparison across shared connectors
-
-**Sprint 4–6: Functions Framework**
-
-New source files to create:
-- `functions/runtime/engine.go` — Functions runtime engine with per-event typed handler dispatch
-- `functions/runtime/source_functions.go` — Source Functions `onRequest` handler execution
-- `functions/runtime/destination_functions.go` — Destination Functions typed handler execution (`onTrack`, `onIdentify`, etc.)
-- `functions/runtime/insert_functions.go` — Insert Functions pre-destination hooks
-- `functions/runtime/errors.go` — Typed error classes (`EventNotSupported`, `InvalidEventPayload`, `ValidationError`, `RetryError`, `DropEvent`)
-- `functions/api/handler.go` — Functions management REST API (CRUD, versioning, test invocation)
-- `functions/api/routes.go` — HTTP route registration for Functions API
-- `functions/storage/repository.go` — Functions persistence layer (PostgreSQL-backed)
-- `functions/secrets/manager.go` — Per-function encrypted secrets and environment variable storage
-- `gateway/handle_http_functions.go` — Source Functions webhook endpoint in Gateway
-- `sql/migrations/functions/` — Database migrations for functions tables
-
-New test files:
-- `functions/runtime/*_test.go` — Unit tests for each function type
-- `functions/api/*_test.go` — API endpoint tests
-- `functions/secrets/*_test.go` — Secrets management tests
-- `integration_test/functions/` — End-to-end functions integration tests
-
-**Sprint 5–7: Protocols and Tracking Plan Enforcement**
-
-New source files to create:
-- `processor/anomalydetection/detector.go` — Anomaly detection engine for unexpected events/properties
-- `processor/anomalydetection/tracker.go` — Event/property tracking over configurable time windows
-- `processor/enforcement/modes.go` — Three enforcement modes: Block, Omit, Allow
-- `processor/enforcement/forwarder.go` — Forward-blocked-events to alternative source
-- `protocols/api/handler.go` — Tracking plan management REST API (CRUD, versioning, CSV import/export)
-- `protocols/api/routes.go` — HTTP route registration for Protocols API
-- `protocols/storage/repository.go` — Tracking plan persistence with version history
-- `protocols/schema/validator.go` — JSON Schema draft-07 validation engine
-- `sql/migrations/protocols/` — Database migrations for tracking plan tables
-
-New test files:
-- `processor/anomalydetection/*_test.go` — Anomaly detection tests
-- `processor/enforcement/*_test.go` — Enforcement mode tests
-- `protocols/api/*_test.go` — Protocols API tests
-- `protocols/schema/*_test.go` — JSON Schema validation tests
-
-**Sprint 6–8: Identity Resolution and Profiles**
-
-New source files to create:
-- `identity/graph/graph.go` — Real-time identity graph service
-- `identity/graph/resolver.go` — Identity resolution engine (new/single/multi-match strategies)
-- `identity/graph/externalids.go` — External ID management (12+ identifier types)
-- `identity/profiles/api.go` — Profiles REST API (traits, events, external IDs, metadata)
-- `identity/profiles/cache.go` — Redis-backed profile cache for sub-200ms responses
-- `identity/sync/syncer.go` — Profile sync to downstream destinations via change-data-capture
-- `identity/settings/settings.go` — Configurable resolution rules (blocked values, limits, priority)
-- `identity/storage/repository.go` — Identity graph PostgreSQL persistence
-- `sql/migrations/identity/` — Database migrations for identity graph tables
-- `proto/identity/` — gRPC service definitions for Profiles API
-
-New test files:
-- `identity/graph/*_test.go` — Identity graph unit tests
-- `identity/profiles/*_test.go` — Profiles API tests
-- `identity/sync/*_test.go` — Profile sync tests
-- `integration_test/identity/` — End-to-end identity resolution integration tests
-
-**Sprint 8–10: Operational Tooling and Monitoring**
-
-New source files to create:
-- `services/monitoring/dashboard.go` — Per-destination delivery metrics aggregation
-- `services/monitoring/metrics.go` — Prometheus metric definitions for delivery monitoring
-- `services/alerting/engine.go` — Configurable alerting rules engine
-- `services/alerting/channels.go` — Notification channels: webhook, email, Slack
-- `services/alerting/rules.go` — Alert rule definitions (throughput, error rate, latency, queue depth)
-- `services/profiling/profiler.go` — Per-stage pipeline performance profiling
-- `services/profiling/capacity.go` — Capacity planning report generator (targeting 50K events/sec)
-- `gateway/handle_http_replay_advanced.go` — Advanced replay filter logic (source, date-range, destination, dry-run)
-
-New test files:
-- `services/monitoring/*_test.go` — Monitoring dashboard tests
-- `services/alerting/*_test.go` — Alerting engine tests
-- `services/profiling/*_test.go` — Profiling and capacity planning tests
-
-### 0.2.3 Web Search Research Conducted
-
-The following areas were researched based on existing gap analysis documentation in the repository:
-
-- **Destination connector patterns**: The `services/streammanager/` package already establishes a clear producer pattern (implement `common.StreamProducer` interface with `Produce`, `Close` methods). New connectors follow the same factory registration in `streammanager.go`
-- **Functions runtime architecture**: Segment uses AWS Lambda; the RudderStack implementation should extend the existing external Transformer service (port 9090) with per-event handler dispatch, as documented in `docs/gap-report/functions-parity.md`
-- **JSON Schema draft-07 validation**: Required for Protocols enhancement (E-020), supporting `required`, regex patterns, nested objects, enum values, and full type enforcement
-- **Real-time identity graph**: The gap report (`docs/gap-report/identity-parity.md`) recommends starting with an in-memory graph with PostgreSQL persistence, then optimizing for scale — this is the largest architectural change
-- **GCRA-based throttling**: Already implemented in `router/throttler/` — serves as a reference pattern for per-destination monitoring metrics
-
-## 0.3 Dependency Inventory
-
-### 0.3.1 Private and Public Packages
-
-The following table lists all key packages relevant to the five sprint implementations, sourced from `go.mod` and the repository's existing dependency manifests.
-
-| Registry | Package | Version | Purpose |
-|---|---|---|---|
-| Go Module | `go` | `1.26.0` | Language runtime — explicitly declared in `go.mod` |
-| Docker Hub | `postgres:15-alpine` | `15` | Primary database (JobsDB, identity, functions, protocols storage) |
-| Docker Hub | `rudderstack/rudder-transformer:latest` | `latest` | External transformation and validation service (port 9090) |
-| Docker Hub | `minio/minio` | `latest` | Object storage for archival/replay |
-| Docker Hub | `bitnami/etcd:3` | `3` | Cluster coordination (multi-tenant mode) |
-| Go Module | `github.com/go-chi/chi/v5` | `v5.2.5` | HTTP router framework for all REST APIs |
-| Go Module | `google.golang.org/grpc` | `v1.78.0` | gRPC framework for Profiles API and inter-service communication |
-| Go Module | `google.golang.org/protobuf` | `v1.36.11` | Protocol Buffers for gRPC service definitions |
-| Go Module | `github.com/segmentio/kafka-go` | `v0.4.50` | Kafka client for Kafka/Azure Event Hub/Confluent Cloud stream destinations |
-| Go Module | `github.com/confluentinc/confluent-kafka-go/v2` | `v2.13.0` | Confluent Kafka client for Confluent Cloud integration |
-| Go Module | `github.com/apache/pulsar-client-go` | `v0.18.0` | Apache Pulsar client for potential stream destination expansion |
-| Go Module | `github.com/redis/go-redis/v9` | `v9.12.1` | Redis client for identity graph caching and profile lookups |
-| Go Module | `cloud.google.com/go/bigquery` | `v1.72.0` | BigQuery SDK for BQ Stream destination and warehouse |
-| Go Module | `cloud.google.com/go/pubsub/v2` | `v2.3.0` | Google Pub/Sub SDK for stream destination |
-| Go Module | `cloud.google.com/go/storage` | `v1.60.0` | GCS for staging file storage |
-| Go Module | `github.com/aws/aws-sdk-go-v2` | `v1.41.1` | AWS SDK for Kinesis, Firehose, EventBridge, Lambda, Personalize, S3 |
-| Go Module | `github.com/sony/gobreaker` | `v1.0.0` | Circuit breaker for destination delivery protection |
-| Go Module | `github.com/tidwall/gjson` | `v1.18.0` | JSON path reading used throughout pipeline processing |
-| Go Module | `github.com/tidwall/sjson` | `v1.2.5` | JSON path mutation (used in replay handler for context injection) |
-| Go Module | `github.com/onsi/ginkgo/v2` | `v2.24.0` | BDD test framework used across all integration tests |
-| Go Module | `github.com/onsi/gomega` | `v1.38.0` | Matcher library for Ginkgo tests |
-| Go Module | `github.com/rudderlabs/rudder-go-kit` | `v0.72.3` | Internal kit: config, logger, stats, httputil, and more |
-| Go Module | `github.com/rudderlabs/rudder-observability-kit` | `v0.0.6` | Observability labels and helpers |
-| Go Module | `github.com/rudderlabs/rudder-schemas` | `v0.9.1` | Schema definitions and validation |
-| Go Module | `github.com/rudderlabs/rudder-transformer/go` | `v1.122.0` | Go client for Transformer service integration |
-| Go Module | `github.com/rudderlabs/sqlconnect-go` | `v1.20.3` | SQL connectivity for warehouse integrations |
-| Go Module | `github.com/rudderlabs/sql-tunnels` | `v0.1.7` | SSH tunneling for warehouse connections |
-| Go Module | `github.com/DATA-DOG/go-sqlmock` | `v1.5.2` | SQL mock for database unit tests |
-| Go Module | `github.com/rudderlabs/compose-test` | `v0.1.3` | Docker compose test helpers |
-
-### 0.3.2 Dependency Updates
-
-**New Dependencies Potentially Required:**
-
-| Package | Purpose | Sprint | Notes |
-|---|---|---|---|
-| JSON Schema validation library (e.g., `github.com/santhosh-tekuri/jsonschema/v5`) | Full JSON Schema draft-07 validation for Protocols E-020 | 5–7 | Required for `required`, regex patterns, nested objects, enum values, type enforcement |
-| V8 isolate or Deno runtime (e.g., `rogchap.com/v8go`) | JavaScript sandbox for Functions runtime (E-015, E-016, E-017) | 4–6 | Evaluate vs. extending existing Transformer service HTTP protocol |
-| Redis cluster configuration extensions | Identity graph caching for sub-200ms Profiles API (E-027) | 6–8 | Existing `redis/go-redis/v9` may suffice; configuration extensions needed |
-
-**Import Updates:**
-
-Files requiring import updates follow these patterns:
-- `services/streammanager/**/*.go` — New destination producer packages must import `common` and `backendconfig`
-- `functions/**/*.go` — New package imports for Functions runtime, API, storage, secrets
-- `protocols/**/*.go` — New package imports for Protocols API, schema validation, storage
-- `identity/**/*.go` — New package imports for Identity graph, Profiles API, sync, settings
-- `services/monitoring/**/*.go` — New package imports for metrics, alerting, profiling
-- `processor/*.go` — Updated imports for new enforcement modes, anomaly detection, Functions integration
-
-**External Reference Updates:**
-
-| File Pattern | Update Required |
+| Bucket | Members |
 |---|---|
-| `go.mod` | Add new dependencies for JSON Schema validation, potentially V8 runtime |
-| `go.sum` | Auto-updated by `go mod tidy` after dependency additions |
-| `docker-compose.yml` | Potentially add Redis service for identity graph caching |
-| `config/config.yaml` | Add configuration keys for Functions, Protocols, Identity, Monitoring |
-| `gateway/openapi.yaml` | Add endpoint definitions for Functions API, Protocols API, Profiles API, advanced replay |
-| `Makefile` | Add test targets for new packages |
-| `.github/workflows/tests.yaml` | Update CI test matrix to include new integration test suites |
-| `Dockerfile` | Ensure new packages are included in multi-stage build |
+| Application source (Go) | `admin/`, `app/`, `archiver/`, `backend-config/`, `cluster/`, `cmd/`, `config/`, `controlplane/`, `enterprise/`, `functions/`, `gateway/`, `identity/`, `info/`, `init/`, `integration_test/`, `internal/`, `jobsdb/`, `middleware/`, `mocks/`, `processor/`, `proto/`, `protocols/`, `regulation-worker/`, `router/`, `rruntime/`, `runner/`, `schema-forwarder/`, `services/`, `suppression-backup-service/`, `testhelper/`, `utils/`, `warehouse/`, `main.go` |
+| Build / packaging | `build/`, `Dockerfile`, `Makefile`, `docker-compose.yml`, `rudder-docker.yml`, `catalog-info.yaml`, `go.mod`, `go.sum` |
+| CI configuration | `.github/workflows/builds.yml`, `dispatch-deploy-event-dev.yaml`, `docker-build-dockerhub.yml`, `docker-build-ecr.yml`, `housekeeping.yaml`, `labeler.yaml`, `pr-description-enforcer.yaml`, `prerelease.yaml`, `release-please.yaml`, `semantic-pr.yaml`, `sync-release.yaml`, `tests.yaml`, `verify.yml` |
+| Existing security tooling configuration | `.snyk` [Snyk policy v1.22.1], `.deepsource.toml` [Go analyzer], `.golangci.yml` [linter], `.truffleignore` [TruffleHog], `Makefile` target `sec:` running `gitleaks` + `govulncheck` [`Makefile:L184-L186`] |
+| Project docs | `README.md`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `releases.md`, `mkdocs.yml`, `docs/`, `blitzy-docs/`, `blitzy/documentation/`, `codecov.yml` |
+| Data / fixtures | `resources/`, `scripts/`, `sql/` |
+| Vendored upstream reference | `refs/segment-docs/` (Jekyll-based Segment documentation site; ~75 files including its own `.github/`, `Gemfile`, `Makefile`, `README.md`) |
 
-## 0.4 Integration Analysis
+Language file counts across the full tree (validated by `find . -type f -name "*.<ext>" | wc -l` after the Phase 1 enumeration):
 
-### 0.4.1 Existing Code Touchpoints
+| Language | Count | Semgrep rule-pack coverage |
+|---|---|---|
+| Go (`.go`) | 1,263 | All three packs (Go is supported by `p/security-audit`, `p/secrets`, `p/owasp-top-ten`) |
+| YAML (`.yml` + `.yaml`) | 170 + 14 = 184 | `p/security-audit` and `p/secrets` cover YAML/CI patterns |
+| JavaScript (`.js`) | 48 | All three packs |
+| Shell (`.sh`) | 6 | Generic / `p/security-audit` |
+| Python (`.py`) | 1 | All three packs |
+| Other (Dockerfile, Makefile, generic) | n/a | Dockerfile via `p/security-audit`; generic mode covers Makefile-style text |
 
-**Direct Modifications Required:**
+### 0.2.2 Web-Search Research Conducted
 
-- **`services/streammanager/streammanager.go`** (lines 24–58): Add new `case` branches to the `NewProducer` switch statement for each new stream destination type identified in E-014. Currently handles 13 destination types; each new stream destination requires a new case that routes to its producer constructor.
-- **`router/customdestinationmanager/customdestinationmanager.go`** (line 79): Append new stream destination names to `ObjectStreamDestinations` array. This array drives the `CustomManagerT` routing logic that delegates to `streammanager.NewProducer` for stream-type destinations.
-- **`processor/pipeline_worker.go`** (lines 32–37): Add a new `insertfunctions` channel between the `usertransform` and `destinationtransform` channels. The current pipeline flows: preprocess → srcHydration → preTransform → userTransform → destTransform → store. Insert Functions (E-017) require inserting a per-destination transformation stage.
-- **`processor/processor.go`** (lines 78–79): Add new constants for `InsertFunctionTransformation` alongside existing `UserTransformation` and `DestTransformation`. Extend the pipeline processing logic to support Functions runtime integration and enhanced enforcement modes.
-- **`processor/trackingplan.go`** (lines 26–49, 69–142): Major refactor of `validateEvents()` to support full JSON Schema draft-07 validation, three enforcement modes replacing the binary `propagateValidationErrors` toggle, and forward-blocked-events routing. The `reportViolations()` function must be extended to handle Block/Omit/Allow decisions.
-- **`processor/consent.go`** (lines 44–95): Extend `getConsentFilteredDestinations()` to integrate consent decisions with Protocols enforcement. When consent management is enabled alongside a tracking plan, consent-denied events should follow the tracking plan's enforcement mode rather than being silently filtered.
-- **`gateway/handle_http.go`**: Mount new endpoints for Source Functions webhook ingestion (`/v1/functions/source`), tracking plan management API, Profiles API, and advanced replay controls.
-- **`gateway/handle_http_replay.go`** (lines 19–89): Extend `webReplayHandler()` and `withWarehouseReplayTag()` to accept source-level, date-range, and destination-level filter parameters via query string or request headers. Add dry-run mode support.
-- **`backend-config/types.go`**: Add new fields to `DestinationT` and `SourceT` for enforcement mode configuration, identity resolution settings, and Functions binding configuration. Extend `ConfigT` with tracking plan management data and identity resolution settings.
-- **`warehouse/identity/identity.go`** (lines 36–60, 78–206): Extend the `Identity` struct to support real-time resolution. Refactor `applyRule()` to work outside the warehouse upload cycle. Extend the merge-rule model beyond the two-property (`merge_property_1/2`) limitation.
-- **`main.go`**: Wire new top-level services (Functions runtime, Identity service, Monitoring service) into the server startup lifecycle alongside existing Gateway, Processor, Router, and Warehouse services.
-- **`router/handle.go`** (lines 49–100): Add per-destination delivery metrics instrumentation points for the monitoring dashboard. Capture success/failure rates, latency percentiles, throughput, retry counts, and circuit breaker state changes.
-- **`router/handle_observability.go`**: Extend observability helpers with new metric names for the delivery monitoring dashboard.
+The following research was completed via web search to validate Semgrep CLI semantics, rule-pack acquisition, and severity conventions:
 
-**Dependency Injections:**
+- Highest documented stable version: Semgrep OSS Engine `1.143.0` and `1.144.0` released November 2025 per the Semgrep release notes — used as the version target for the `pip install` step.
+- Rule pack acquisition: Semgrep's "Run rules" documentation and the `--config` flag accept either a registry slug (`p/<name>`) or a local YAML file/directory path; the slug form fetches the consolidated rule bundle from the Semgrep Registry at `https://semgrep.dev/c/p/<name>` which can be downloaded once and replayed offline.
+- Telemetry semantics: per the Semgrep metrics documentation, "Semgrep does not enable metrics when running with only local configuration files," meaning the local-rules invocation is by construction silent; `--metrics=off` provides explicit defense-in-depth.
+- SARIF flag: `--sarif` produces SARIF-formatted output; combined with `-o <path>`, writes to a file rather than stdout.
+- Severity mapping vocabulary: the user's `error→critical, warning→high, note→medium, info→low` table is consistent with how SARIF `level` enum values map to four-tier severity used by other SAST normalizers; no transformation beyond a direct lookup is required.
 
-- **`runner/runner.go`**: Register new service components (Functions runtime, Identity service, Monitoring/Alerting service) in the runner's component startup sequence. These must be wired before the Processor starts to ensure pipeline hooks are available.
-- **`app/app.go` or `app/apphandlers/`**: Inject new service dependencies into the app handler for embedded mode. The Functions runtime and Identity service need access to the same PostgreSQL connection, backend-config subscriptions, and stats infrastructure.
-- **`processor/transformer/clients.go`** (lines 36–42): Extend the `Clients` struct to include a `FunctionsClient` interface for communicating with the Functions runtime, alongside existing `UserClient`, `DestinationClient`, `TrackingPlanClient`, and `SrcHydrationClient`.
+### 0.2.3 Existing Infrastructure Assessment
 
-**Database/Schema Updates:**
+The repository already operates four security tooling components that coexist with the proposed Semgrep configuration without conflict:
 
-- **`sql/migrations/`**: New migration files for:
-  - Functions tables: `functions` (id, workspace_id, name, type, code, version, settings, created_at, updated_at), `function_secrets` (id, function_id, key, encrypted_value)
-  - Tracking plans tables: `tracking_plans` (id, workspace_id, name, schema, version, enforcement_config, created_at, updated_at), `tracking_plan_versions` (id, tracking_plan_id, version, schema, changelog)
-  - Identity graph tables: `identity_graph` (id, workspace_id, segment_id, created_at), `identity_external_ids` (id, graph_id, external_id_type, external_id_value, created_source, created_at, merged_at, merged_from), `identity_traits` (id, graph_id, key, value, updated_at)
-  - Alerting tables: `alert_rules` (id, workspace_id, condition, threshold, channels, enabled, created_at)
+- **gitleaks v8.21.2** — invoked by `make sec` via `$(GO) run github.com/zricethezav/gitleaks/v8@v8.21.2 detect .` for secret scanning [`Makefile:L184-L186`].
+- **govulncheck** — invoked by `make sec` via `$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...` for Go vulnerability scanning [`Makefile:L184-L186`].
+- **Snyk** — vulnerability policy via `.snyk` v1.22.1 with documented ignores for runc, docker, and go-restful CVEs (expires 2025-01-01).
+- **DeepSource** — Go analyzer enabled with `import_paths = ["github.com/rudderlabs/rudder-server"]`, test pattern `**/*_test.go`, exclusions `**/mock_*.go` and `**/*.pb.go` [`.deepsource.toml:L1-L18`].
 
-### 0.4.2 Cross-Sprint Integration Dependencies
+Semgrep is a **new** tool in this stack — there is no existing `.semgrepignore`, no Semgrep workflow in `.github/workflows/`, and no Semgrep reference inside `Makefile`. The scan therefore introduces a fresh data lane that does not need to interoperate with the existing security tooling for this configuration.
 
-The following diagram illustrates the inter-sprint dependency flow:
+### 0.2.4 Scan Target Path Resolution
 
-```mermaid
-flowchart TD
-    subgraph S35["Sprint 3-5: Destinations"]
-        E010["E-010: Prioritize Top-50"]
-        E011["E-011: Cloud Batch 1"]
-        E012["E-012: Cloud Batch 2"]
-        E013["E-013: Payload Parity"]
-        E014["E-014: Stream Dests"]
-    end
+The user directive `/path/to/blitzy-RudderStack` is a placeholder. The actual working-directory checkout root identified during environment setup is `/tmp/blitzy/blitzy-RudderStack/configs_175ab0`. The scan target string passed to the `semgrep scan` command must be the absolute path to this directory (or a relative equivalent that resolves to the same root). All paths emitted into `findings-config-b.json`'s `file` field are guaranteed to be relative to this root because SARIF artifact locations default to URIs relative to the working directory passed to the scanner.
 
-    subgraph S46["Sprint 4-6: Functions"]
-        E015["E-015: Source Functions"]
-        E016["E-016: Dest Functions"]
-        E017["E-017: Insert Functions"]
-        E018["E-018: Management API"]
-        E019["E-019: Secrets Mgmt"]
-    end
+## 0.3 Scope Boundaries
 
-    subgraph S57["Sprint 5-7: Protocols"]
-        E020["E-020: JSON Schema"]
-        E021["E-021: Anomaly Detection"]
-        E022["E-022: Enforcement Modes"]
-        E023["E-023: Forward Blocked"]
-        E024["E-024: TP Management API"]
-        E025["E-025: Consent Integration"]
-    end
+### 0.3.1 Exhaustively In Scope
 
-    subgraph S68["Sprint 6-8: Identity"]
-        E026["E-026: RT Identity Graph"]
-        E027["E-027: Profiles API"]
-        E028["E-028: External IDs"]
-        E029["E-029: Profile Sync"]
-        E030["E-030: Resolution Settings"]
-    end
+The following items are unconditionally in scope for Config B. Every item is either explicitly required by a CRITICAL directive, implicitly required to satisfy a Pass/Fail clause, or required by a user-specified rule (Section 0.7).
 
-    subgraph S810["Sprint 8-10: Operations"]
-        E036["E-036: Delivery Dashboard"]
-        E037["E-037: Alerting"]
-        E038["E-038: Adv Replay"]
-        E039["E-039: Capacity Planning"]
-    end
+**Host-side tool installation:**
 
-    E010 --> E011
-    E011 --> E012
-    E011 --> E015
-    E015 --> E016
-    E016 --> E017
-    E017 --> E018
-    E018 --> E019
-    E020 --> E021
-    E021 --> E022
-    E022 --> E023
-    E024 --> E025
-    E026 --> E027
-    E027 --> E028
-    E028 --> E029
-    E029 --> E030
-    E036 --> E039
+- `semgrep` CLI installation via an isolated Python environment (`python3 -m venv` + `pip install "semgrep==<latest 1.x>"`) or `pipx install semgrep`
+- Verification that `semgrep --version` reports a 1.143.0 or 1.144.0 series version (or later 1.x release available at execution time)
 
-    style S35 fill:#ffcc99,stroke:#e65100,color:#000
-    style S46 fill:#ffcc99,stroke:#e65100,color:#000
-    style S57 fill:#fff9c4,stroke:#f9a825,color:#000
-    style S68 fill:#fff9c4,stroke:#f9a825,color:#000
-    style S810 fill:#c8e6c9,stroke:#2e7d32,color:#000
-```
+**Rule-pack acquisition (offline cache):**
 
-### 0.4.3 Pipeline Integration Architecture
+- `local-rules/security-audit.yaml` — fetched from `https://semgrep.dev/c/p/security-audit`
+- `local-rules/secrets.yaml` — fetched from `https://semgrep.dev/c/p/secrets`
+- `local-rules/owasp-top-ten.yaml` — fetched from `https://semgrep.dev/c/p/owasp-top-ten` (canonical registry slug for the user-named "`p/owasp`")
+- The parent `local-rules/` directory itself
 
-The following diagram shows how all five sprints integrate into the existing RudderStack pipeline:
+**Configuration validation:**
+
+- `semgrep scan --metrics=off --config=./local-rules --dry-run` invocation and exit-code observation
+
+**Scan execution:**
+
+- `semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off /tmp/blitzy/blitzy-RudderStack/configs_175ab0` invocation
+- Wall-clock duration measurement via `time -p` or equivalent
+- Capture of Semgrep stderr summary (files scanned, parse errors, timeouts)
+- `results-semgrep.sarif` intermediate artifact
+
+**Normalization:**
+
+- Python normalization script reading `results-semgrep.sarif` and producing `findings-config-b.json`
+- Severity translation (error→critical, warning→high, note→medium, info→low)
+- CWE extraction with metadata-first / description-inference fallback
+- Description newline-collapse and 200-character truncation
+- Single-line `json.dumps` with `separators=(',',':')`
+- Zero-finding fallback to the literal `[]` two-byte file
+
+**Output files (the only artifacts written outside the scanned tree):**
+
+- `findings-config-b.json` — the directive-mandated artifact
+- `results-semgrep.sarif` — intermediate scan output retained for traceability
+- `local-rules/*.yaml` — cached rule bundles
+- `scan-metadata.txt` (or equivalent block inside `decision-log.md`) — captures exit code, wall-clock duration, and files-scanned count per Directive 2
+- `decision-log.md` — rule-mandated by Explainability (Section 0.7.1)
+- `executive-summary.html` — rule-mandated by Executive Presentation (Section 0.7.2)
+
+**File patterns scanned (read-only) inside `blitzy-RudderStack/`:**
+
+- `**/*.go` (1,263 files — the dominant language)
+- `**/*.js` (48 files)
+- `**/*.yml`, `**/*.yaml` (184 files including all `.github/workflows/*.yml`)
+- `**/*.py` (1 file)
+- `**/*.sh` (6 files)
+- `Dockerfile*`, `Makefile*` (generic mode)
+- Root-level documentation and policy files (`.snyk`, `.deepsource.toml`, etc.) — Semgrep will skip them naturally as non-source content unless rule packs include `generic` patterns
+
+### 0.3.2 Explicitly Out of Scope
+
+The following items are explicitly excluded from this configuration. Any agent attempting to expand into these areas without an explicit user-issued amendment is acting outside the directive boundary.
+
+**Source-tree modifications:**
+
+- No file inside `/tmp/blitzy/blitzy-RudderStack/configs_175ab0/` is modified. Specifically, no edits to `Makefile`, no edits to `.snyk`, no edits to `.deepsource.toml`, no new `.semgrepignore`, no new entry under `.github/workflows/`, no new entry inside the existing `sec:` Make target.
+
+**Cross-configuration comparison:**
+
+- Comparison of Config B output with sibling configs (A, C, D, ...) is the responsibility of the parent workstream. This configuration produces only its own `findings-config-b.json`.
+
+**Triage and remediation:**
+
+- No false-positive review, no rule suppression authoring (no `// nosemgrep` annotations), no CWE remediation, no Snyk policy alignment, no DeepSource exclusion alignment.
+
+**Commercial Semgrep features:**
+
+- `--pro`, `--pro-intrafile`, `--pro-languages`, `--pro-path-sensitive`, `semgrep login`, `semgrep ci`, the AppSec Platform, Managed Scans, Semgrep Assistant, Supply Chain, and Secrets Validation. All require `SEMGREP_APP_TOKEN` and a logged-in commercial engine; explicitly disallowed.
+
+**Network operations during scan:**
+
+- No outbound HTTP, HTTPS, or DNS traffic during `semgrep scan` execution. The only permitted network calls are the one-time rule-pack downloads during Directive 1 setup, and any package installation traffic for the `pip install semgrep` step. The actual scan invocation in Directive 2 runs hermetically.
+
+**Additional rule packs beyond the three named:**
+
+- `p/default`, `p/r2c-security-audit`, `p/jwt`, `p/sql-injection`, `p/command-injection`, `p/insecure-transport`, `p/gitleaks`, `p/nodejs`, `p/expressjs`, `p/javascript`, `p/typescript`, `p/java`, `p/golang`, `p/python`, `p/terraform`, `p/docker-compose`, and any other registry slug are explicitly out of scope.
+
+**Tooling integration:**
+
+- Wiring Semgrep into existing `make sec`, into `verify.yml`, into pre-commit hooks, or into any CI workflow is out of scope. The scan is a one-off comparison artifact.
+
+**SARIF post-processing beyond the five-field projection:**
+
+- No deduplication, no clustering, no fingerprint generation, no diff against a baseline, no PR comment generation, no Jira/GitHub Issue creation, no severity recalibration.
+
+**Refactoring of existing tooling:**
+
+- `.snyk`, `.deepsource.toml`, `.golangci.yml`, `.truffleignore`, and the `Makefile` `sec:` target remain untouched. Their existence is documented as context, not as a refactoring target.
+
+**Excluded paths inside the scan target:**
+
+- The user directive does not request any path exclusions. The Blitzy platform therefore scans the full tree as supplied — including `refs/segment-docs/` (vendored Jekyll-based Segment documentation, ~75 files) and `mocks/`. This decision is recorded in the Explainability decision log; any operator override to add exclusions must be made via a fresh directive.
+
+## 0.4 Dependency Inventory
+
+### 0.4.1 Key Tooling Dependencies
+
+The dependencies below are **host-side execution tools**, not application dependencies of the `blitzy-RudderStack` Go module. None of them are added to `go.mod`, `go.sum`, or any other manifest inside the scanned tree.
+
+| Registry | Package Name | Version | Purpose |
+|---|---|---|---|
+| PyPI | `semgrep` | `1.144.0` (or highest available 1.x release, validated against [Semgrep release notes November 2025]) | Static analysis CLI executing the three rule packs against the rudder-server source tree |
+| PyPI (stdlib) | `json` | bundled with Python 3.12.3 | SARIF parsing and minified JSON emission |
+| OS package (optional) | `jq` | ≥ 1.6 | Optional shell-only alternative for SARIF inspection when Python is unavailable |
+| OS package (optional) | `coreutils` `time` / `/usr/bin/time` | distribution default | Wall-clock duration measurement for Directive 2 |
+
+### 0.4.2 Dependency Changes
+
+**New dependencies to add (host environment only):**
+
+- `semgrep==1.144.0` — install via `python3 -m pip install --user "semgrep==1.144.0"` inside `python3 -m venv .semgrep-venv` (PEP 668-compliant; avoids the `externally-managed-environment` error observed on the host) or `pipx install "semgrep==1.144.0"`
+
+**Dependencies to update:**
+
+- None.
+
+**Dependencies to remove:**
+
+- None.
+
+**Application dependency manifests (`go.mod`, `package.json` if any) inside `blitzy-RudderStack/`:**
+
+- No changes. Semgrep is not a build dependency of rudder-server; it is a static-analysis tool executed by a separate process outside the build graph. `go.mod` is left exactly as discovered (`module github.com/rudderlabs/rudder-server`, `go 1.26.1`) [`go.mod:L1-L3`].
+
+### 0.4.3 Import / Reference Updates
+
+No import or reference updates inside the scanned tree are required. Semgrep operates by reading source files; nothing in the source tree refers back to Semgrep.
+
+The only import changes occur in the new normalization script (which lives outside the scanned tree, in a sibling working directory):
+
+- Python normalization script imports `json`, `sys`, `pathlib` from the standard library. No third-party Python packages required.
+
+### 0.4.4 Why These Versions
+
+- **Semgrep 1.144.0**: highest documented stable release in the OSS Engine series as of execution time per [Semgrep November 2025 release notes]. Pinning to a specific 1.x version (rather than installing `semgrep` unpinned) ensures the rule-pack download URLs and CLI flag semantics observed during the Pass/Fail dry-run are reproducible. The decision log records the exact installed version observed at execution time.
+- **Python 3.12.3**: already available on the host; no upgrade or pin required. Semgrep's CLI is compatible with Python 3.12+ per its installation guidance (`python3 -m pip install semgrep`). The October 2025 release notes record Python 3.14 compatibility as additionally supported.
+
+## 0.5 Implementation Design
+
+### 0.5.1 Technical Approach
+
+The implementation is a four-stage hermetic pipeline. Each stage maps to one or more directives and emits artifacts that downstream stages consume. The flow is purely additive — no state inside `blitzy-RudderStack/` is mutated.
+
+- **Stage 1 — Tool provisioning** (Directive 1, part 1): create a Python venv in a working directory adjacent to (not inside) the scanned tree; `pip install "semgrep==1.144.0"`; record observed `semgrep --version`.
+- **Stage 2 — Rule-pack hydration** (Directive 1, part 2): for each of the three packs, fetch the consolidated YAML bundle from `https://semgrep.dev/c/p/<slug>` once and persist it inside `local-rules/`. After this step, the host can run Semgrep with zero registry traffic.
+- **Stage 3 — Dry-run validation** (Directive 1, Pass/Fail): execute `semgrep scan --metrics=off --config=./local-rules --dry-run`; assert exit code `0` and zero registry HTTP requests.
+- **Stage 4 — Scan execution** (Directive 2): execute the canonical command verbatim, wrapped in a wall-clock timer; capture exit code, duration, and file count; assert `results-semgrep.sarif` is valid JSON containing a `runs` array.
+- **Stage 5 — Normalization** (Directive 3): run the Python normalization script that projects the five-field shape, applies severity mapping and CWE handling, truncates descriptions, and writes `findings-config-b.json` minified to a single line. Assert `wc -l == 1`, parseability, all-fields-present, and ≤200-char descriptions.
+
+### 0.5.2 Logical Implementation Flow
 
 ```mermaid
 flowchart LR
-    SDK["SDK/Source"] --> GW["Gateway\nport 8080"]
-    SF["Source Functions\nE-015"] --> GW
-
-    GW --> Proc["Processor"]
-
-    subgraph Pipeline["Enhanced Pipeline"]
-        direction LR
-        PP["1. Preprocess"] --> SH["2. Src Hydration"]
-        SH --> PT["3. Pre-Transform"]
-        PT --> UT["4. User Transform"]
-        UT --> IF["4.5 Insert Functions\nE-017"]
-        IF --> DT["5. Dest Transform"]
-        DT --> TP["5.5 Protocols\nE-020-E-025"]
-        TP --> ST["6. Store"]
-    end
-
-    Proc --> Pipeline
-    ST --> RT["Router\nE-036 Metrics"]
-    ST --> BRT["Batch Router"]
-    ST --> WH["Warehouse"]
-
-    RT --> DEST["Destinations\nE-011/E-012/E-014"]
-    RT --> DF["Dest Functions\nE-016"]
-    WH --> IDR["Identity Graph\nE-026-E-030"]
-
-    ALERT["Alerting E-037"] -.-> RT
-    REPLAY["Adv Replay E-038"] -.-> GW
-    PROF["Profiling E-039"] -.-> Pipeline
+    A[Provision Python venv] --> B[pip install semgrep 1.144.0]
+    B --> C[Fetch p/security-audit yaml]
+    B --> D[Fetch p/secrets yaml]
+    B --> E[Fetch p/owasp-top-ten yaml]
+    C --> F[local-rules/ dir]
+    D --> F
+    E --> F
+    F --> G{Dry-run: exit code 0?}
+    G -- yes --> H[semgrep scan --sarif -o results-semgrep.sarif]
+    G -- no --> X[Halt and log to decision-log.md]
+    H --> I[Capture exit code + duration + files-scanned]
+    I --> J{SARIF valid JSON with runs array?}
+    J -- yes --> K[Normalization script]
+    J -- no --> X
+    K --> L[findings-config-b.json single-line]
+    L --> M[Validate wc -l == 1 + parse + fields + lengths]
+    M --> N[Produce decision-log.md]
+    M --> O[Produce executive-summary.html]
 ```
 
-## 0.5 Technical Implementation
+### 0.5.3 Component Impact Analysis
 
-### 0.5.1 File-by-File Execution Plan
+**Direct modifications required:**
 
-Every file listed below MUST be created or modified. Files are organized by sprint group and then by execution priority within each group.
+- None inside `blitzy-RudderStack/`. The scanned tree is treated as read-only input.
 
-**Group 1 — Sprint 3–5: Destination Connector Expansion (E-010 to E-014)**
+**New components introduced (outside the scanned tree):**
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `docs/gap-report/destination-priority-ranking.md` | E-010: Documented top-50 prioritized destination list with coverage analysis |
-| CREATE | `services/streammanager/<dest>/manager.go` (per new stream dest) | E-014: New stream destination producer implementing `common.StreamProducer` interface |
-| CREATE | `services/streammanager/<dest>/manager_test.go` (per new stream dest) | E-014: Unit tests for each new stream producer (gomock, validation, error mapping) |
-| MODIFY | `services/streammanager/streammanager.go` | E-014: Add `case` branches for each new stream destination in `NewProducer` switch |
-| MODIFY | `services/streammanager/streammanager_suite_test.go` | E-014: Add factory test assertions for new destination types |
-| MODIFY | `router/customdestinationmanager/customdestinationmanager.go` | E-014: Append new destination names to `ObjectStreamDestinations` array |
-| CREATE | `integration_test/destination_parity/*_test.go` | E-013: Payload parity integration tests for all 93+ shared connectors |
-| CREATE | `router/testdata/destination_payloads/*.json` | E-013: Reference payloads for field-by-field comparison |
-| MODIFY | `config/config.yaml` | E-010–E-014: Add configuration keys for new destinations |
+- `local-rules/` directory caching three rule-pack YAML bundles
+- `results-semgrep.sarif` intermediate scan output
+- `findings-config-b.json` final directive-mandated output
+- `scan-metadata.txt` (or equivalent block in `decision-log.md`) capturing exit code, duration, files-scanned
+- Normalization script (named e.g. `normalize-sarif.py`) embodying the severity-mapping and CWE-inference logic
+- `decision-log.md` (rule-mandated by Explainability)
+- `executive-summary.html` (rule-mandated by Executive Presentation)
 
-**Group 2 — Sprint 4–6: Transformation and Functions Framework (E-015 to E-019)**
+**Indirect impacts and dependencies:**
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `functions/runtime/engine.go` | E-015/E-016/E-017: Core Functions runtime engine with handler dispatch |
-| CREATE | `functions/runtime/source_functions.go` | E-015: Source Functions `onRequest(request, settings)` handler execution |
-| CREATE | `functions/runtime/destination_functions.go` | E-016: Destination Functions typed handlers (`onTrack`, `onIdentify`, `onGroup`, `onPage`, `onScreen`, `onAlias`, `onDelete`, `onBatch`) |
-| CREATE | `functions/runtime/insert_functions.go` | E-017: Insert Functions pre-destination transformation hooks |
-| CREATE | `functions/runtime/errors.go` | E-015/E-016/E-017: Typed error classes (`EventNotSupported`, `InvalidEventPayload`, `ValidationError`, `RetryError`, `DropEvent`) |
-| CREATE | `functions/runtime/*_test.go` | E-015/E-016/E-017: Unit tests for all function types |
-| CREATE | `functions/api/handler.go` | E-018: Functions CRUD API handler (create, read, update, delete, list, test invocation) |
-| CREATE | `functions/api/routes.go` | E-018: HTTP route registration using chi router |
-| CREATE | `functions/api/*_test.go` | E-018: API endpoint tests |
-| CREATE | `functions/storage/repository.go` | E-018: PostgreSQL-backed function storage with versioning |
-| CREATE | `functions/secrets/manager.go` | E-019: Per-function encrypted settings and secrets storage |
-| CREATE | `functions/secrets/*_test.go` | E-019: Secrets management tests |
-| CREATE | `gateway/handle_http_functions.go` | E-015: Source Functions webhook endpoint |
-| CREATE | `sql/migrations/functions/*.sql` | E-018/E-019: Database migrations for functions and secrets tables |
-| MODIFY | `processor/pipeline_worker.go` | E-017: Add Insert Functions channel between user transform and dest transform stages |
-| MODIFY | `processor/processor.go` | E-015/E-016/E-017: Integrate Functions runtime into pipeline |
-| MODIFY | `processor/transformer/clients.go` | E-015/E-016: Add `FunctionsClient` interface |
-| MODIFY | `gateway/handle_http.go` | E-015: Mount Source Functions webhook endpoint |
-| MODIFY | `gateway/handle_http_auth.go` | E-015: Add Source Functions auth handler |
-| MODIFY | `main.go` | E-015: Wire Functions runtime into server startup |
-| MODIFY | `gateway/openapi.yaml` | E-018: Add Functions API endpoint schemas |
-| MODIFY | `config/config.yaml` | E-015–E-019: Add Functions configuration keys |
+- None. Existing security tools (`gitleaks`, `govulncheck`, Snyk, DeepSource) continue to run independently; the `Makefile` `sec:` target is unaffected.
 
-**Group 3 — Sprint 5–7: Protocols and Tracking Plan Enforcement (E-020 to E-025)**
+### 0.5.4 User Interface Design
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `protocols/schema/validator.go` | E-020: JSON Schema draft-07 validation (required, regex, nested objects, enum, types) |
-| CREATE | `protocols/schema/common_schema.go` | E-020: Common JSON Schema applied to all events from connected sources |
-| CREATE | `protocols/schema/*_test.go` | E-020: Schema validation tests |
-| CREATE | `processor/anomalydetection/detector.go` | E-021: Anomaly detection for unexpected events/properties not in tracking plan |
-| CREATE | `processor/anomalydetection/tracker.go` | E-021: Event/property tracking with configurable time windows |
-| CREATE | `processor/anomalydetection/*_test.go` | E-021: Anomaly detection tests |
-| CREATE | `processor/enforcement/modes.go` | E-022: Block Event, Omit Properties, Allow — configurable per source per call type |
-| CREATE | `processor/enforcement/forwarder.go` | E-023: Server-to-server forwarding of blocked events to alternative source |
-| CREATE | `processor/enforcement/*_test.go` | E-022/E-023: Enforcement mode and forwarding tests |
-| CREATE | `protocols/api/handler.go` | E-024: Tracking plan CRUD API with versioning, CSV import/export |
-| CREATE | `protocols/api/routes.go` | E-024: HTTP route registration |
-| CREATE | `protocols/storage/repository.go` | E-024: Tracking plan persistence with version history |
-| CREATE | `protocols/api/*_test.go` | E-024: API tests |
-| CREATE | `sql/migrations/protocols/*.sql` | E-024: Migrations for tracking plan and version tables |
-| MODIFY | `processor/trackingplan.go` | E-020/E-022: Replace Transformer-delegated validation with local JSON Schema, add enforcement modes |
-| MODIFY | `processor/consent.go` | E-025: Connect consent filtering with Protocols enforcement decisions |
-| MODIFY | `backend-config/types.go` | E-022/E-024: Add enforcement mode fields, tracking plan config |
-| MODIFY | `gateway/handle_http.go` | E-024: Mount Protocols management API endpoints |
-| MODIFY | `gateway/openapi.yaml` | E-024: Add Protocols API endpoint schemas |
-| MODIFY | `config/config.yaml` | E-020–E-025: Add Protocols configuration keys |
+Not applicable. This configuration produces machine-readable artifacts only. The Executive Presentation rule's reveal.js HTML deck (Section 0.7.2) is human-readable but is generated as a documentation deliverable, not a runtime UI.
 
-**Group 4 — Sprint 6–8: Identity Resolution and Profiles (E-026 to E-030)**
+### 0.5.5 User-Provided Examples Integration
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `identity/graph/graph.go` | E-026: Real-time identity graph service with persistent graph store |
-| CREATE | `identity/graph/resolver.go` | E-026: Identity resolution engine (new/single/multi-match strategies) |
-| CREATE | `identity/graph/externalids.go` | E-028: External ID management (12+ types: user_id, email, anonymous_id, ios.id, android.id, etc.) |
-| CREATE | `identity/graph/*_test.go` | E-026/E-028: Graph and resolver tests |
-| CREATE | `identity/profiles/api.go` | E-027: Profiles REST API (traits, events, external_ids, metadata) with sub-200ms response |
-| CREATE | `identity/profiles/cache.go` | E-027: Redis-backed profile cache |
-| CREATE | `identity/profiles/*_test.go` | E-027: Profiles API tests |
-| CREATE | `identity/sync/syncer.go` | E-029: Profile sync to downstream destinations via change-data-capture |
-| CREATE | `identity/sync/*_test.go` | E-029: Sync tests |
-| CREATE | `identity/settings/settings.go` | E-030: Configurable resolution: blocked values (regex/exact), limits (weekly/monthly/annually/ever), priority |
-| CREATE | `identity/settings/*_test.go` | E-030: Settings tests |
-| CREATE | `identity/storage/repository.go` | E-026: PostgreSQL persistence for identity graph |
-| CREATE | `sql/migrations/identity/*.sql` | E-026: Migrations for identity graph tables |
-| CREATE | `proto/identity/*.proto` | E-027: gRPC service definitions for Profiles API |
-| MODIFY | `warehouse/identity/identity.go` | E-026: Refactor to share resolution logic with real-time graph |
-| MODIFY | `processor/processor.go` | E-026: Hook identity resolution into event processing pipeline |
-| MODIFY | `backend-config/types.go` | E-030: Add identity resolution settings schema |
-| MODIFY | `main.go` | E-026: Wire Identity service into startup |
-| MODIFY | `gateway/handle_http.go` | E-027: Mount Profiles API endpoints |
-| MODIFY | `gateway/openapi.yaml` | E-027: Add Profiles API schemas |
-| MODIFY | `docker-compose.yml` | E-027: Add Redis service for profile caching |
-| MODIFY | `config/config.yaml` | E-026–E-030: Add Identity configuration keys |
+The user provided two canonical examples that are preserved verbatim and integrated directly into the implementation:
 
-**Group 5 — Sprint 8–10: Operational Tooling and Monitoring (E-036 to E-039)**
+- **User Example 1 (the scan command)**: `semgrep scan --config=/path/to/local-rules --sarif -o results-semgrep.sarif --metrics=off /path/to/blitzy-RudderStack`. This command is the literal payload of Stage 4; only the two `/path/to/...` placeholders are substituted with the local checkout root (`/tmp/blitzy/blitzy-RudderStack/configs_175ab0`) and the `local-rules/` cache directory.
+- **User Example 2 (the JSON shape)**: `[{"file":"<relative path>","line":<integer>,"severity":"<critical|high|medium|low>","cwe":"<CWE-ID>","description":"<max 200 chars>"},...]`. The normalization script emits exactly this shape with no additional keys, in this key order, with these severity tokens.
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `services/monitoring/dashboard.go` | E-036: Per-destination delivery metrics (success/failure, latency p50/p95/p99, throughput, retries, circuit breaker) |
-| CREATE | `services/monitoring/metrics.go` | E-036: Prometheus metric definitions and registration |
-| CREATE | `services/monitoring/*_test.go` | E-036: Monitoring tests |
-| CREATE | `services/alerting/engine.go` | E-037: Alerting rules engine (throughput drop, error spike, delivery failures, warehouse latency, JobsDB queue depth) |
-| CREATE | `services/alerting/channels.go` | E-037: Notification channels — webhook, email, Slack |
-| CREATE | `services/alerting/rules.go` | E-037: Alert rule definitions and threshold evaluation |
-| CREATE | `services/alerting/*_test.go` | E-037: Alerting tests |
-| CREATE | `gateway/handle_http_replay_advanced.go` | E-038: Advanced replay filters — source-level, date-range, destination-level, dry-run |
-| CREATE | `services/profiling/profiler.go` | E-039: Per-stage pipeline performance profiling (Gateway → Processor stages → Router → Warehouse) |
-| CREATE | `services/profiling/capacity.go` | E-039: Capacity planning report generator targeting 50K events/sec |
-| CREATE | `services/profiling/*_test.go` | E-039: Profiling and capacity tests |
-| MODIFY | `router/handle.go` | E-036: Add delivery metrics instrumentation |
-| MODIFY | `router/handle_observability.go` | E-036: Extend with dashboard metric collection |
-| MODIFY | `gateway/handle_http_replay.go` | E-038: Integrate advanced filter parameters |
-| MODIFY | `gateway/handle_http.go` | E-036/E-038: Mount monitoring API and advanced replay endpoints |
-| MODIFY | `services/alert/alertmanager.go` | E-037: Extend alert provider selection with Slack/email |
-| MODIFY | `archiver/archiver.go` | E-038: Support source/date-range filtering for advanced replay |
-| MODIFY | `config/config.yaml` | E-036–E-039: Add monitoring, alerting, and profiling configuration keys |
+### 0.5.6 Critical Implementation Details
 
-### 0.5.2 Implementation Approach per File
+**Severity mapping (lookup table):**
 
-- **Establish feature foundations** by creating core packages first: `functions/runtime/`, `protocols/schema/`, `identity/graph/`, `services/monitoring/` — each providing the foundational types and interfaces
-- **Integrate with existing systems** by modifying integration points: `processor/pipeline_worker.go` for Insert Functions, `processor/trackingplan.go` for enforcement modes, `gateway/handle_http.go` for new endpoints
-- **Follow existing patterns**: All new stream producers follow the `common.StreamProducer` interface pattern; all REST APIs use `chi/v5` routing; all tests use Ginkgo/Gomega or testify/require; all metrics use `rudder-go-kit/stats`
-- **Ensure quality** by implementing comprehensive tests alongside each feature: unit tests with gomock for interfaces, integration tests with dockertest for PostgreSQL-dependent features
-- **Document thoroughly**: Update `gateway/openapi.yaml` for all new endpoints, update `config/config.yaml` with configuration documentation, create dedicated feature documentation in `docs/`
-
-### 0.5.3 User Interface Design
-
-This implementation is a **backend-only** server-side feature set. No frontend UI components are required. All new capabilities are exposed via:
-
-- **REST APIs**: Functions management API, Protocols management API, Profiles API, monitoring dashboard API, advanced replay API — all served by the Gateway HTTP server on port 8080
-- **gRPC APIs**: Profiles API for high-performance inter-service communication
-- **Prometheus metrics**: Per-destination delivery metrics, pipeline performance metrics — scraped by external Prometheus instances
-- **Configuration**: All features are configurable via `config/config.yaml` and backend-config runtime configuration
-
-## 0.6 Scope Boundaries
-
-### 0.6.1 Exhaustively In Scope
-
-**Sprint 3–5: Destination Connector Expansion (E-010 to E-014)**
-- Destination prioritization analysis: `docs/gap-report/destination-priority-ranking.md`
-- All new stream destination producers: `services/streammanager/*/manager.go`
-- Stream producer factory registration: `services/streammanager/streammanager.go`
-- Custom destination manager updates: `router/customdestinationmanager/customdestinationmanager.go`
-- Payload parity validation for all ~93 shared connectors: `integration_test/destination_parity/**/*_test.go`
-- Payload reference fixtures: `router/testdata/destination_payloads/**/*.json`
-- Test suites: `services/streammanager/**/*_test.go`
-
-**Sprint 4–6: Transformation and Functions Framework (E-015 to E-019)**
-- Functions runtime engine: `functions/runtime/**/*.go`
-- Functions management API: `functions/api/**/*.go`
-- Functions storage layer: `functions/storage/**/*.go`
-- Functions secrets management: `functions/secrets/**/*.go`
-- Source Functions Gateway endpoint: `gateway/handle_http_functions.go`
-- Pipeline integration: `processor/pipeline_worker.go`, `processor/processor.go`
-- Transformer client extension: `processor/transformer/clients.go`
-- Database migrations: `sql/migrations/functions/**/*.sql`
-- Gateway auth: `gateway/handle_http_auth.go`
-- Gateway routing: `gateway/handle_http.go`
-- Server startup wiring: `main.go`
-- API documentation: `gateway/openapi.yaml`
-- Configuration: `config/config.yaml`
-- All associated test files: `functions/**/*_test.go`, `integration_test/functions/**/*_test.go`
-
-**Sprint 5–7: Protocols and Tracking Plan Enforcement (E-020 to E-025)**
-- JSON Schema validation: `protocols/schema/**/*.go`
-- Anomaly detection: `processor/anomalydetection/**/*.go`
-- Enforcement modes: `processor/enforcement/**/*.go`
-- Tracking plan management API: `protocols/api/**/*.go`
-- Tracking plan storage: `protocols/storage/**/*.go`
-- Tracking plan validation refactor: `processor/trackingplan.go`
-- Consent integration: `processor/consent.go`
-- Backend config types: `backend-config/types.go`
-- Database migrations: `sql/migrations/protocols/**/*.sql`
-- Gateway routing: `gateway/handle_http.go`
-- API documentation: `gateway/openapi.yaml`
-- Configuration: `config/config.yaml`
-- All associated test files: `protocols/**/*_test.go`, `processor/anomalydetection/**/*_test.go`, `processor/enforcement/**/*_test.go`
-
-**Sprint 6–8: Identity Resolution and Profiles (E-026 to E-030)**
-- Identity graph service: `identity/graph/**/*.go`
-- Profiles API: `identity/profiles/**/*.go`
-- Profile sync: `identity/sync/**/*.go`
-- Resolution settings: `identity/settings/**/*.go`
-- Identity storage: `identity/storage/**/*.go`
-- Proto definitions: `proto/identity/**/*.proto`
-- Warehouse identity refactor: `warehouse/identity/identity.go`
-- Processor integration: `processor/processor.go`
-- Backend config types: `backend-config/types.go`
-- Database migrations: `sql/migrations/identity/**/*.sql`
-- Docker compose: `docker-compose.yml` (Redis service)
-- Server startup wiring: `main.go`
-- Gateway routing: `gateway/handle_http.go`
-- API documentation: `gateway/openapi.yaml`
-- Configuration: `config/config.yaml`
-- All associated test files: `identity/**/*_test.go`, `integration_test/identity/**/*_test.go`
-
-**Sprint 8–10: Operational Tooling and Monitoring (E-036 to E-039)**
-- Monitoring dashboard: `services/monitoring/**/*.go`
-- Alerting engine: `services/alerting/**/*.go`
-- Profiling tools: `services/profiling/**/*.go`
-- Advanced replay: `gateway/handle_http_replay_advanced.go`, `gateway/handle_http_replay.go`
-- Router observability: `router/handle.go`, `router/handle_observability.go`
-- Alert system extension: `services/alert/alertmanager.go`
-- Archiver integration: `archiver/archiver.go`
-- Gateway routing: `gateway/handle_http.go`
-- Configuration: `config/config.yaml`
-- All associated test files: `services/monitoring/**/*_test.go`, `services/alerting/**/*_test.go`, `services/profiling/**/*_test.go`
-
-**Cross-Cutting:**
-- Build configuration: `go.mod`, `go.sum`
-- Docker configuration: `Dockerfile`, `docker-compose.yml`
-- CI/CD pipelines: `.github/workflows/tests.yaml`
-- Build targets: `Makefile`
-
-### 0.6.2 Explicitly Out of Scope
-
-- **Segment Engage / Campaigns** — Audience building, journey orchestration, and campaign management are explicitly deferred to Phase 2 per the sprint roadmap. These features depend on Identity Resolution (Phase 1) and Profiles API (E-027) being completed first.
-- **Reverse ETL** — Warehouse-to-destination sync pipelines with incremental change detection are deferred to Phase 2. Depends on warehouse connectors (Sprint 7–9, already completed) and destination connector expansion (Sprint 3–5).
-- **Advanced Personalization** — Real-time audience membership for personalization engines is deferred to Phase 2. Depends on Profiles API (E-027) and computed traits.
-- **Computed Traits and SQL Traits** — While mentioned in the identity parity analysis, these are not explicitly included in E-026 through E-030. The Profiles API (E-027) provides the foundation, but trait computation engine is Phase 2.
-- **Sprint 1–2: Event Spec Parity (E-001 to E-004)** — Already at 100% parity; not in the user's requested sprint list.
-- **Sprint 2–3: Source SDK Compatibility (E-005 to E-009)** — Not in the user's requested sprint list.
-- **Sprint 7–9: Warehouse Feature Enhancement (E-031 to E-035)** — Marked as COMPLETED in the sprint roadmap with ~95% parity achieved.
-- **Device-mode destination support** — Client-side SDK integration framework is an SDK-level concern, not a `rudder-server` concern.
-- **Actions-based destination architecture** — The newer Segment pattern with configurable field mappings is identified as a gap (DC-002) but not included in any sprint epic.
-- **Destination catalog API** — Programmatic destination management (DC-005) is not in scope.
-- **Functions Copilot (AI-assisted)** — AI-powered function generation (FN-011) is Low priority and not included.
-- **IP Allowlisting for functions** — NAT gateway for outbound traffic (FN-012) is not included.
-- **Performance optimization of existing code** beyond what is required for feature integration.
-- **Refactoring of existing unrelated code** that does not touch integration points.
-
-## 0.7 Rules for Feature Addition
-
-### 0.7.1 Sequential Sprint Execution
-
-- Implement sprints in strict order: Sprint 3–5 → Sprint 4–6 → Sprint 5–7 → Sprint 6–8 → Sprint 8–10
-- Complete each sprint fully before starting the next — this means all epics within a sprint must pass their success criteria
-- Run all tests (`make test` or `gotestsum --format pkgname-and-test-fails -- -p=1 -v -failfast -shuffle=on --timeout=15m`) after completing each sprint
-- Fix all CI failures resolvable through code changes; skip failures caused by missing repository secrets (AWS ECR credentials)
-
-### 0.7.2 Exhaustive Scope Coverage
-
-- For every epic, implement ALL items listed in scope — do not skip any variant, endpoint, or sub-case mentioned in the epic description
-- E-011 requires implementing 20 highest-priority cloud destination connectors — all 20 must be implemented
-- E-012 requires implementing the next 20 priority connectors — all 20 must be implemented
-- E-016 requires all 8 typed event handlers: `onTrack`, `onIdentify`, `onGroup`, `onPage`, `onScreen`, `onAlias`, `onDelete`, `onBatch`
-- E-020 requires full JSON Schema draft-07 support including ALL specified types: any, array, object, boolean, integer, number, string, null, Date time
-- E-028 requires support for ALL 12+ external identifier types listed in the Segment documentation
-
-### 0.7.3 Design-Only Epics
-
-- For epics marked "Design and prototype," deliver a design document and a minimal proof-of-concept only — do not implement production-grade service code
-- None of the epics in the five requested sprints are explicitly marked as design-only, but if any implementation reveals a need for design-first approach, document the design decision and provide a minimal PoC
-
-### 0.7.4 Existing Pattern Compliance
-
-- **Stream producers** must implement the `common.StreamProducer` interface from `services/streammanager/common/` and register via the `NewProducer` factory in `services/streammanager/streammanager.go`
-- **REST APIs** must use the `go-chi/chi/v5` router framework consistent with Gateway patterns in `gateway/handle_http.go`
-- **Configuration** must use `rudder-go-kit/config` reloadable variables following the pattern in `router/config.go`
-- **Logging** must use `rudder-go-kit/logger` with scoped child loggers (`logger.NewLogger().Child("package-name")`)
-- **Metrics** must use `rudder-go-kit/stats` tagged measurements following patterns in `processor/trackingplan.go`
-- **Tests** must use Ginkgo/Gomega for BDD integration tests or testify/require for unit tests, with gomock for interface mocking
-- **Database access** must use the existing PostgreSQL middleware pattern from `warehouse/identity/identity.go`
-- **Error handling** must follow Go convention with explicit error returns and structured logging via `obskit` labels
-
-### 0.7.5 Docker and Infrastructure
-
-- If any step requires Docker, start it first using `docker compose up -d` for required services (PostgreSQL, Transformer)
-- The `docker-compose.yml` defines: PostgreSQL (port 6432→5432), Transformer (port 9090), MinIO (ports 9000/9001, storage profile), etcd (port 2379, multi-tenant profile)
-- Integration tests may require `rudderlabs/compose-test` helpers for containerized dependencies
-
-### 0.7.6 Backward Compatibility
-
-- All changes must maintain backward compatibility with the existing pipeline: the Processor's 6-stage pipeline, Router delivery, Batch Router, and Warehouse upload state machine must continue functioning for all currently supported destinations
-- New pipeline stages (Insert Functions) must be no-op when no Insert Functions are configured
-- Enhanced tracking plan enforcement must default to existing behavior (`propagateValidationErrors` equivalent) when advanced enforcement modes are not configured
-- The identity graph service must coexist with the existing warehouse identity resolution without disrupting current warehouse uploads
-
-### 0.7.7 Security Requirements
-
-- Per-function secrets (E-019) must be encrypted at rest using the existing security patterns in the repository
-- Functions runtime (E-015, E-016, E-017) must execute user-defined JavaScript in a sandboxed environment preventing access to server internals
-- Identity resolution settings (E-030) must enforce blocked values to prevent merge-all scenarios that could corrupt the identity graph
-- API endpoints must enforce authentication consistent with existing Gateway auth middleware
-
-## 0.8 References
-
-### 0.8.1 Documentation Files Searched
-
-The following documentation files were read in full to derive the requirements and technical context for this Agent Action Plan:
-
-| File | Summary |
+| SARIF `level` | findings-config-b.json `severity` |
 |---|---|
-| `docs/gap-report/sprint-roadmap.md` | Master sprint roadmap defining all 39 epics (E-001 to E-039) across 8 sprint groups, with effort estimates, dependencies, success criteria, and parity progression forecasts. Identifies Sprint 7–9 (Warehouse) as COMPLETED. |
-| `docs/gap-report/destination-catalog-parity.md` | Comprehensive destination catalog gap analysis: RudderStack covers ~93 of Segment's ~503 active destinations (~23% raw coverage). Documents 13 stream destinations, 9 warehouse connectors, ~70 cloud destinations. Lists P1/P2/P3 missing destinations and payload parity comparison framework. |
-| `docs/gap-report/functions-parity.md` | Functions/Transformations parity analysis (~40% parity). Documents the architectural difference between RudderStack's batch-oriented Transformer service and Segment's per-event Lambda-based Functions runtime. Identifies 12 gaps (FN-001 through FN-012) including missing Source Functions, Destination Functions, Insert Functions, and management API. |
-| `docs/gap-report/protocols-parity.md` | Protocols/Tracking Plan parity analysis (~30% parity). Documents current tracking plan validation via external Transformer, consent management (85% parity), and 12 gaps (PR-001 through PR-012) including missing anomaly detection, enforcement modes, management API, and forward-blocked-events. |
-| `docs/gap-report/identity-parity.md` | Identity Resolution parity analysis (~20% parity — the largest gap area). Documents the fundamental architectural gap between RudderStack's batch-only warehouse identity resolution and Segment Unify's real-time identity graph. Identifies 12 gaps (ID-001 through ID-012) with the real-time identity graph as the critical foundation. |
+| `error` | `critical` |
+| `warning` | `high` |
+| `note` | `medium` |
+| `info` | `low` |
+| absent (rare) | resolved from `runs[].tool.driver.rules[ruleIndex].defaultConfiguration.level`; if still absent, default to `low` |
 
-### 0.8.2 Codebase Files and Folders Searched
+The mapping is implemented as a Python `dict` lookup with the absent-value branch falling back to the rule's `defaultConfiguration.level`. The rationale (why `error→critical` rather than `error→high`) is preserved exactly as the user specified — no opinion is injected.
 
-The following repository files and folders were inspected to understand the existing architecture, integration points, and coding patterns:
+**CWE extraction algorithm:**
 
-| Path | Type | Purpose of Inspection |
+- Step 1: read `runs[].tool.driver.rules[ruleIndex].properties.cwe` if present (Semgrep's modern rule format emits this as a list of `CWE-<digits>: <name>` strings).
+- Step 2: fall back to scanning `runs[].tool.driver.rules[ruleIndex].properties.tags` for entries matching `^cwe[-:]CWE-\d+` and extract the first match.
+- Step 3: fall back to scanning `runs[].results[].properties` for the same patterns.
+- Step 4: if all of the above are empty, inspect the rule's `shortDescription.text`, `fullDescription.text`, and `help.text` for the most specific CWE that the description directly implicates (e.g. "SQL injection" → `CWE-89`, "hardcoded credential" → `CWE-798`, "command injection" → `CWE-78`, "XSS" → `CWE-79`, "path traversal" → `CWE-22`, "weak crypto" → `CWE-327`). Record the chosen CWE and the inference method in `decision-log.md` so the choice is auditable.
+- Step 5: if no CWE can be reasonably inferred, emit `CWE-Other` (a deliberate sentinel that downstream comparison tooling can detect). The decision-log entry must explain why no specific CWE applied.
+
+**Description sanitization:**
+
+```python
+text = result["message"]["text"]
+flattened = " ".join(text.split())  # collapse all whitespace runs to a single space
+truncated = flattened[:200]
+```
+
+**Single-line emission:**
+
+```python
+import json
+sys.stdout.write(json.dumps(records, separators=(",", ":"), ensure_ascii=False))
+```
+
+The `separators=(",", ":")` removes all gratuitous whitespace; `ensure_ascii=False` preserves Unicode codepoints in their UTF-8 form (the user spec requires UTF-8 encoding). The script writes via `sys.stdout` and the shell redirects to `findings-config-b.json` with no trailing newline; this guarantees `wc -l` returns `1` (because the file has no terminal newline character) per the user's Pass/Fail clause.
+
+**Zero-finding fallback:**
+
+```python
+if not records:
+    sys.stdout.write("[]")
+    sys.exit(0)
+```
+
+**Validation post-conditions enforced by an inline assertion block:**
+
+- `subprocess.check_output(["wc", "-l", "findings-config-b.json"]).split()[0] == b"1"` (the file is one logical line). Note: `wc -l` counts newline characters; a file with content `[]` and no trailing newline reports `0`. To satisfy `wc -l == 1` literally, the script emits exactly one trailing newline character after the JSON body. This is the only newline in the file.
+- `json.loads(open("findings-config-b.json").read())` succeeds.
+- Every record's `set(record.keys()) == {"file","line","severity","cwe","description"}`.
+- `max(len(r["description"]) for r in records) <= 200`.
+
+## 0.6 File Transformation Mapping
+
+### 0.6.1 File-by-File Execution Plan
+
+The table below maps every artifact in this configuration to a CREATE / UPDATE / DELETE / REFERENCE mode. Target file is listed first per the prompt's formatting rule.
+
+| Target File | Transformation | Source File / Reference | Purpose / Changes |
+|---|---|---|---|
+| `findings-config-b.json` | CREATE | `results-semgrep.sarif` | Directive 3 deliverable. Minified single-line JSON array of five-field records. UTF-8. Zero-finding fallback is the literal `[]`. |
+| `results-semgrep.sarif` | CREATE | `/tmp/blitzy/blitzy-RudderStack/configs_175ab0/**/*` (read-only scan input) | Directive 2 intermediate artifact. Full SARIF JSON output of the Semgrep scan. Retained for traceability and re-normalization. |
+| `local-rules/security-audit.yaml` | CREATE | `https://semgrep.dev/c/p/security-audit` | Directive 1 deliverable. Cached `p/security-audit` rule bundle for offline scanning. |
+| `local-rules/secrets.yaml` | CREATE | `https://semgrep.dev/c/p/secrets` | Directive 1 deliverable. Cached `p/secrets` rule bundle. |
+| `local-rules/owasp-top-ten.yaml` | CREATE | `https://semgrep.dev/c/p/owasp-top-ten` | Directive 1 deliverable. Cached rule bundle for the user-named "`p/owasp`" pack (canonical registry slug is `p/owasp-top-ten`). |
+| `local-rules/` | CREATE | n/a | Directory containing the three rule-pack YAML bundles. Path passed to `--config=./local-rules`. |
+| `normalize-sarif.py` | CREATE | (none — new logic) | Python normalization script implementing severity mapping, CWE extraction with description-based inference fallback, description sanitization and 200-char truncation, single-line JSON emission, and zero-finding fallback. |
+| `scan-metadata.txt` | CREATE | Captured during Directive 2 execution | Records the three required observations from Directive 2: exit code, wall-clock duration, total files scanned. May alternatively be embedded as a fenced metadata block at the top of `decision-log.md` — the decision log captures which form was chosen. |
+| `decision-log.md` | CREATE | (none — rule-mandated by Explainability) | Markdown table per the Explainability rule. Captures every non-trivial decision with what / alternatives / why / risks. Includes a bidirectional traceability matrix mapping each user directive to its implementing artifact and each artifact back to its triggering directive. Also includes the scan metadata block if `scan-metadata.txt` is folded in. |
+| `executive-summary.html` | CREATE | (none — rule-mandated by Executive Presentation; theme tokens defined inline per rule spec) | Self-contained reveal.js 5.1.0 HTML deck with 12–18 slides covering scope, business value, architecture diagram (Mermaid), risk register, onboarding. CDN-pinned (reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0). Inline Blitzy theme CSS with all required custom properties. |
+| `/tmp/blitzy/blitzy-RudderStack/configs_175ab0/**` | REFERENCE | (the scan target itself) | Entire `blitzy-RudderStack` tree (1,263 Go + 184 YAML + 48 JS + 6 shell + 1 Python files, plus build/config/docs). Read-only scan input. Zero modifications. |
+| `Makefile` (in scanned tree) | REFERENCE | `Makefile:L184-L186` | Examined to confirm the existing `sec:` target invokes `gitleaks` + `govulncheck` and does NOT include Semgrep. Not modified. |
+| `.snyk` (in scanned tree) | REFERENCE | `.snyk:v1.22.1` | Examined to confirm Snyk policy and CVE-ignore coverage. Not modified. |
+| `.deepsource.toml` (in scanned tree) | REFERENCE | `.deepsource.toml:L1-L18` | Examined to confirm DeepSource Go analyzer scope and existing exclusions. Not modified. |
+| `.github/workflows/*.{yml,yaml}` (in scanned tree) | REFERENCE | 13 workflow files enumerated in Section 0.2.1 | Examined to confirm no Semgrep workflow exists. Not modified. |
+| `go.mod` (in scanned tree) | REFERENCE | `go.mod:L1-L20` | Examined to confirm module path `github.com/rudderlabs/rudder-server` and Go 1.26.1 runtime requirement. Not modified. |
+
+### 0.6.2 New Files — Detailed Specifications
+
+#### 0.6.2.1 `findings-config-b.json`
+
+- Content type: data (minified JSON)
+- Encoding: UTF-8 (no BOM)
+- Shape: top-level JSON array; each element is an object with exactly five keys in this order: `file`, `line`, `severity`, `cwe`, `description`
+- Constraints: single physical line (one trailing newline so `wc -l == 1`); zero whitespace between tokens (achieved by `json.dumps(separators=(",", ":"))`); every record has all five fields populated and non-null; no `description` exceeds 200 characters
+- Empty case: literal two bytes `[]` followed by one newline character
+
+Example with one record (illustrative — actual content emitted by the normalizer at execution time):
+
+```json
+[{"file":"warehouse/router/router.go","line":142,"severity":"high","cwe":"CWE-89","description":"User-controlled string passed to fmt.Sprintf used as SQL"}]
+```
+
+#### 0.6.2.2 `results-semgrep.sarif`
+
+- Content type: SARIF 2.1.0 JSON
+- Produced by: `semgrep scan --sarif -o results-semgrep.sarif --metrics=off --config=./local-rules /tmp/blitzy/blitzy-RudderStack/configs_175ab0`
+- Pass/fail validation: must parse with `json.loads()` and the top-level object must contain a `runs` array
+- Retained on disk after normalization for traceability
+
+#### 0.6.2.3 `local-rules/<slug>.yaml`
+
+- Three files: `security-audit.yaml`, `secrets.yaml`, `owasp-top-ten.yaml`
+- Each is the consolidated YAML rule bundle retrieved one-time from `https://semgrep.dev/c/p/<slug>`
+- Files are immutable after acquisition; subsequent scans reuse them without further network calls
+
+#### 0.6.2.4 `normalize-sarif.py`
+
+- Content type: Python source (single-file script)
+- Key functions: `load_sarif(path)`, `map_severity(level, rule_default)`, `extract_cwe(rule, result)`, `sanitize_description(text)`, `truncate(text, 200)`, `emit_minified(records, out_path)`, `assert_postconditions(out_path)`
+- Standard-library only (`json`, `sys`, `pathlib`, `re`); no third-party packages
+- Exit code 0 on success; exit code ≥1 on any post-condition failure
+
+#### 0.6.2.5 `decision-log.md`
+
+- Content type: Markdown
+- Sections required:
+  - Frontmatter capturing scan metadata: exit code, wall-clock duration (seconds), total files scanned, Semgrep version, rule-pack acquisition timestamps
+  - Decision table with columns: `Decision`, `Alternatives Considered`, `Choice + Rationale`, `Risks Carried`
+  - Bidirectional traceability matrix (Directive ↔ Artifact)
+  - Deviation log: any deviation from a literal interpretation of the directives, with explicit rationale
+- Decisions that MUST appear in the table at minimum (a competent engineer could reasonably have chosen differently for each one): installation method (venv vs. pipx vs. `--break-system-packages`); rule-pack canonicalization (`p/owasp` → `p/owasp-top-ten`); scope of files scanned (full tree vs. excluding `refs/segment-docs/` vs. excluding `mocks/`); CWE inference algorithm; SARIF severity mapping for absent `level`; trailing-newline choice for `wc -l == 1` compliance; whether to fold scan-metadata into `decision-log.md` or keep it separate
+
+#### 0.6.2.6 `executive-summary.html`
+
+- Content type: HTML5 (self-contained, no external file dependencies)
+- Slide count: 12–18 (target 16) per the Executive Presentation rule
+- Slide types used: Title (`slide-title`), Section Divider (`slide-divider`), Content (default), Closing (`slide-closing`)
+- CDN-pinned versions: reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0
+- Inline CSS: full Blitzy theme variables defined in `<style>` per the rule spec — `--blitzy-primary` `#5B39F3`, `--blitzy-primary-dark` `#2D1C77`, `--blitzy-primary-navy` `#1A105F`, `--blitzy-primary-light` `#7A6DEC`, `--blitzy-primary-deep` `#4101DB`, `--blitzy-accent-teal` `#94FAD5`, `--gradient-hero linear-gradient(68deg, #7A6DEC 15.56%, #5B39F3 62.74%, #4101DB 84.44%)`, and the remainder of the canonical token set
+- Typography: Inter (body), Space Grotesk (display), Fira Code (mono / eyebrow), loaded via Google Fonts `<link>`
+- Mermaid initialization: `startOnLoad: false`; `mermaid.run()` invoked after reveal.js `ready` event and on every `slidechanged` event
+- Lucide icons: `lucide.createIcons()` invoked after `ready` and on every `slidechanged`
+- reveal.js config: `hash: true`, `transition: 'slide'`, `controlsTutorial: false`, `width: 1920`, `height: 1080`
+- Slide ordering convention:
+  1. Title — "Config B — Semgrep Scan of blitzy-RudderStack" with eyebrow text
+  2. Content — headline KPI cards (exit code, duration, files scanned, findings count)
+  3. Content — pipeline architecture (Mermaid `flowchart LR` mirroring Section 0.5.2)
+  4. Divider — "What Was Scanned"
+  5. Content — scan target inventory (KPI grid: 1,263 Go / 184 YAML / 48 JS / 6 shell / 1 Python)
+  6. Divider — "How We Scanned"
+  7. Content — three rule packs as styled table
+  8. Content — hermeticity guarantees (offline cache, `--metrics=off`, dry-run gate)
+  9. Divider — "What We Found"
+  10. Content — severity distribution (styled table)
+  11. Content — top CWE categories (styled table)
+  12. Divider — "Risks & Mitigations"
+  13. Content — risk register (styled table — false-positive rate, rule-pack staleness, refs/segment-docs noise, etc.)
+  14. Content — onboarding instructions (numbered steps with Lucide icons)
+  15. Closing — key takeaway, next steps, brand lockup, gradient accent bar
+
+### 0.6.3 Files to Modify — Detailed
+
+None. Zero files inside `blitzy-RudderStack/` are modified by this configuration.
+
+### 0.6.4 Configuration and Documentation Updates
+
+- Configuration changes inside the scanned tree: none.
+- Documentation updates inside the scanned tree: none. The README, CHANGELOG, SECURITY.md, and existing docs are not touched.
+- New documentation outside the scanned tree: `decision-log.md` and `executive-summary.html` as specified above.
+
+### 0.6.5 Cross-File Dependencies
+
+- `findings-config-b.json` ← reads → `results-semgrep.sarif` (via `normalize-sarif.py`)
+- `results-semgrep.sarif` ← produced from → `/tmp/blitzy/blitzy-RudderStack/configs_175ab0/**` + `local-rules/*.yaml`
+- `decision-log.md` ← references → all artifacts above (traceability matrix)
+- `executive-summary.html` ← references → all artifacts above (visual summary)
+- No circular dependencies, no late-binding edges, no shared mutable state.
+
+## 0.7 Rules
+
+### 0.7.1 User Rule — Explainability (Verbatim)
+
+The user-specified Explainability rule is preserved verbatim:
+
+> Every non-trivial implementation decision MUST be documented with rationale. A decision is non-trivial if a competent engineer could reasonably have chosen differently.
+>
+> Deliver a decision log as a Markdown table: what was decided, what alternatives existed, why this choice was made, and what risks it carries. For migrations or refactors, include a bidirectional traceability matrix mapping source constructs to target implementations — 100% coverage, no gaps.
+>
+> Any deviation from a literal or obvious interpretation of the requirements MUST have an explicit entry in the decision log. Unexplained deviations are treated as defects.
+>
+> Do not embed rationale in code comments. The decision log is the single source of truth for "why" decisions.
+
+#### 0.7.1.1 Applied Mandates for Config B
+
+- A new file `decision-log.md` is created (see Section 0.6.2.5).
+- The decision log records — at minimum — the seven non-trivial decisions enumerated in Section 0.6.2.5, plus any decision that arises during execution.
+- A bidirectional traceability matrix maps each user directive to its implementing artifact and each emitted artifact back to its triggering directive. Coverage is 100% by construction.
+- Any deviation from a literal interpretation of the user's directives is explicitly entered into the deviation log with rationale. Two known deviations are already in scope and must be logged:
+  - The user's input names the third rule pack `p/owasp`. The Semgrep Registry's canonical slug is `p/owasp-top-ten`; the file is named `owasp-top-ten.yaml` accordingly. Documented as a "canonicalization" deviation with no functional impact.
+  - The user's input states `[~0 files modified | 1 new file]`. The two user-specified rules add two additional new files (`decision-log.md`, `executive-summary.html`). Documented as a "rule-mandated additive deliverable" deviation with the rationale that the rules themselves are user inputs that take precedence over the implicit "1 new file" count.
+- Inline shell or Python comments inside `normalize-sarif.py` MUST NOT carry rationale; comments are limited to mechanical context. The "why" lives only in `decision-log.md`.
+
+### 0.7.2 User Rule — Executive Presentation (Verbatim)
+
+The user-specified Executive Presentation rule is preserved verbatim:
+
+> Rule: Executive Summary Presentation
+>
+> Every deliverable MUST include an executive summary as a single self-contained reveal.js HTML file that is ALWAYS included independent of any other documentation that exists. The audience is non-technical leadership — communicate business value, risk, and operational readiness without requiring code literacy.
+>
+> The presentation MUST cover:
+>
+> 1. What was done — scope of work and deliverables
+> 2. Why it was done — business value unlocked
+> 3. What changed architecturally — component/data-flow diagrams
+> 4. What risks exist and how they are mitigated
+> 5. How the team onboards and continues development
+>
+> Scope the presentation to the work performed. A migration warrants before/after architecture views, mapping summaries, and a timeline. A new feature may only need a component diagram and a risk assessment.
+>
+> Slide constraints:
+>
+> - 12–18 slides total (target: 16)
+> - Four slide types: Title (`slide-title`), Section Divider (`slide-divider`), Content (default), Closing (`slide-closing`)
+> - Every slide MUST include at least one non-text visual element (Mermaid diagram, KPI card, styled table, or Lucide SVG icon). No text-only slides.
+> - Content slides: max 4 bullets, max 40 words body text, min 1 non-text visual
+> - Zero emoji — use Lucide SVG icons via `<i data-lucide="icon-name"></i>` only
+> - No fenced code blocks inside slides — use inline Fira Code for short expressions only
+>
+> Visual identity (Blitzy brand):
+>
+> - Color palette: `#5B39F3` (primary), `#2D1C77` (dark), `#94FAD5` (teal accent), `#1A105F` (navy), `#7A6DEC`/`#4101DB` (gradient stops), neutrals `#333333`, `#999999`, `#D9D9D9`, `#F4EFF6`, `#F5F5F5`, `#FFFFFF`
+> - Typography: Inter (body, 400/500/600/700), Space Grotesk (display headings, 500/600/700), Fira Code (mono/eyebrows, 400/500) — loaded via Google Fonts `<link>`
+> - Title slide: hero gradient `linear-gradient(68deg, #7A6DEC 15.56%, #5B39F3 62.74%, #4101DB 84.44%)`, white text, eyebrow in Fira Code teal
+> - Dividers: dark purple `#2D1C77` or gradient background, large centered heading, thematic Lucide icon
+> - Closing: navy `#1A105F` background, 3–6 word takeaway heading, max 3 bullets, brand lockup, gradient accent bar
+>
+> Mermaid diagrams:
+>
+> - Embed as `<pre class="mermaid">` with raw Mermaid syntax
+> - Initialize with `startOnLoad: false`; call `mermaid.run()` after reveal.js `ready` and on every `slidechanged` event
+> - Theme variables: `primaryColor: '#F2F0FE'`, `primaryTextColor: '#333333'`, `primaryBorderColor: '#5B39F3'`, `lineColor: '#999999'`, `secondaryColor: '#F4EFF6'`
+>
+> Technical delivery:
+>
+> - Single self-contained HTML file, no build steps, no local file dependencies
+> - CDN versions pinned: reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0
+> - reveal.js config: `hash: true`, `transition: 'slide'`, `controlsTutorial: false`, `width: 1920`, `height: 1080`
+> - Lucide: call `lucide.createIcons()` after `ready` and on every `slidechanged` event
+>
+> Inline CSS: Embed the full Blitzy reveal.js theme inline in a `<style>` tag. Required CSS custom properties:
+>
+> ```css
+> :root {
+>   --blitzy-primary: #5B39F3;
+>   --blitzy-primary-dark: #2D1C77;
+>   --blitzy-primary-navy: #1A105F;
+>   --blitzy-primary-light: #7A6DEC;
+>   --blitzy-primary-deep: #4101DB;
+>   --blitzy-accent-teal: #94FAD5;
+>   --blitzy-surface-0: #FFFFFF;
+>   --blitzy-surface-1: #F4EFF6;
+>   --blitzy-surface-2: #F2F0FE;
+>   --blitzy-surface-3: #F5F5F5;
+>   --blitzy-border: #D9D9D9;
+>   --blitzy-border-soft: rgba(91, 57, 243, 0.18);
+>   --blitzy-text: #333333;
+>   --blitzy-text-muted: #999999;
+>   --blitzy-text-invert: #FFFFFF;
+>   --ff-body: 'Inter', system-ui, sans-serif;
+>   --ff-display: 'Space Grotesk', 'Inter', sans-serif;
+>   --ff-mono: 'Fira Code', 'Courier New', monospace;
+>   --gradient-hero: linear-gradient(68deg, #7A6DEC 15.56%, #5B39F3 62.74%, #4101DB 84.44%);
+>   --gradient-divider: linear-gradient(135deg, #2D1C77 0%, #5B39F3 100%);
+>   --gradient-accent-bar: linear-gradient(90deg, #5B39F3 0%, #94FAD5 100%);
+> }
+> ```
+>
+> Include the full set of slide-type classes (`slide-title`, `slide-divider`, `slide-closing`), component classes (`kpi-card`, `kpi-grid`, `kpi-value`, `kpi-label`, `kpi-icon`, `eyebrow`, `accent-bar`, `brand-lockup`, `hero-icon`, `icon-row`), and the mermaid container class. These are defined in the canonical theme file at `blitzy-deck/references/blitzy-reveal-theme.css`.
+>
+> Slide ordering convention:
+>
+> 1. Title Slide — project name, scope, audience framing
+> 2. Content — headline findings or KPI summary
+> 3. Content — architecture overview (Mermaid diagram)
+>    4–N. Alternating Section Dividers + Content Slides for each major topic
+>    N+1. Closing Slide — key takeaway, next steps, brand lockup
+>
+> Verification: The HTML file opens in a browser, renders all Mermaid diagrams and Lucide icons, contains 12–18 `<section>` elements, and every `<section>` contains at least one non-text visual element.
+
+#### 0.7.2.1 Applied Mandates for Config B
+
+- A new file `executive-summary.html` is created (see Section 0.6.2.6) covering the five required topics: (1) what was done = Config B Semgrep scan + normalized findings JSON; (2) why = security visibility uplift for the rudder-server fork; (3) what changed architecturally = no source-tree changes, new external pipeline shown via Mermaid; (4) risks = false-positive rate, rule-pack staleness, scope of `refs/segment-docs/`, etc., each with a documented mitigation; (5) onboarding = how to re-run the scan, where the cached rule packs live, how to interpret the JSON.
+- The canonical theme file reference `blitzy-deck/references/blitzy-reveal-theme.css` does **not** exist in this repository. Because the rule mandates a "single self-contained HTML file, no build steps, no local file dependencies," the absence is functionally irrelevant — the entire token set, slide-type classes, and component classes are encoded inline in the `<style>` block exactly as the rule prescribes. This handling is recorded as a deviation note in `decision-log.md`.
+- Slide count: 15 (within the 12–18 band, near the target of 16). Slide-by-slide outline appears in Section 0.6.2.6.
+- Verification post-conditions enforced before delivery: HTML5-valid via `python3 -m html.parser` or `tidy`; 15 `<section>` elements; every section contains at least one of `<pre class="mermaid">`, `<table>`, `<div class="kpi-card">`, or `<i data-lucide="...">`; no emoji codepoints in the file (U+1F300–U+1FAFF range absent); reveal.js / Mermaid / Lucide CDN URLs include the pinned version numbers.
+
+### 0.7.3 Task-Specific Rules from the User Input
+
+These rules are implied by the directive text and are enforced for Config B:
+
+- **Preserve user examples verbatim**: the scan command in Directive 2 and the JSON shape in Directive 3 are reproduced byte-for-byte in this AAP and used as the literal payload for the implementation.
+- **Maintain hermeticity**: the dry-run pass/fail clause prohibits network calls during the scan; the implementation must not regress this property if executed multiple times.
+- **Do not interfere with existing security tooling**: `gitleaks`, `govulncheck`, Snyk, DeepSource continue to operate via their existing entry points unchanged.
+- **Do not modify the scanned tree**: the only files created live outside `blitzy-RudderStack/` (in a sibling working directory). This is the operative interpretation of "~0 files modified | 1 new file" with the rule-mandated companion files added per Sections 0.7.1 and 0.7.2.
+- **Severity vocabulary is closed**: `critical`, `high`, `medium`, `low` are the only permitted severity strings in `findings-config-b.json`. Any SARIF level not in the four-row mapping defaults to `low` (recorded in the decision log).
+- **CWE format is `CWE-<digits>`**: no other format is acceptable. When inference fails, the sentinel `CWE-Other` is used and explained in the decision log.
+
+## 0.8 Special Instructions
+
+### 0.8.1 Special Execution Instructions
+
+- **Single-config focus.** This is "one config in a multi-config security tool comparison." The implementation MUST NOT consume, write, compare to, or otherwise reference outputs of sibling configurations (e.g. `findings-config-a.json`, `findings-config-c.json`). The parent comparison is a separate workstream.
+- **Three directives only.** The user input flags `[3 directives | ~0 files modified | 1 new file]`. The three CRITICAL directives in Section 0.1.2 are the complete authoritative list. No additional implicit directives may be invented.
+- **Documentation-style execution.** Although the work involves running a CLI, the deliverable is a set of artifacts (JSON, SARIF, decision log, executive summary). No application code is shipped, no service is started, no API is exposed.
+- **No CI integration.** The scan is not registered into `.github/workflows/`, `Makefile`, `mkdocs.yml`, or any other build/CI configuration.
+- **Idempotency.** Re-running the full pipeline against the same `blitzy-RudderStack` checkout with the same `local-rules/` cache MUST produce byte-identical `findings-config-b.json` content (modulo ordering of `runs[].results[]` which Semgrep keeps stable). The implementation does not embed timestamps, hostnames, or other non-deterministic data into the findings JSON. Run metadata (timestamps, durations) lives in `decision-log.md`, not in the directive output file.
+- **Severity mapping fidelity.** The user-specified four-row severity table is the authoritative mapping. Any temptation to remap "warning → medium" (a common SAST normalization) is explicitly rejected — the user said `warning → high` and the implementation honours that.
+- **CWE inference auditability.** When `cwe` is not present in rule metadata and must be inferred from the description, every such inference is logged in `decision-log.md` with the source description text and the chosen CWE. Reviewers can audit each inference one-by-one.
+
+### 0.8.2 Constraints and Boundaries
+
+- **Technical constraint — hermetic scan.** Once the rule packs are cached, the `semgrep scan` invocation must execute with no outbound network. `--metrics=off` is set; loading rules from local YAML files inherently disables registry traffic per the Semgrep metrics documentation.
+- **Technical constraint — UTF-8 encoding.** `findings-config-b.json` is written with UTF-8 without BOM. Unicode codepoints in rule messages are preserved via `ensure_ascii=False`.
+- **Technical constraint — single-line invariant.** The file contains exactly one logical line. The `wc -l == 1` pass/fail test requires exactly one newline character; the normalizer emits the JSON body followed by a single `\n`.
+- **Technical constraint — five-field shape.** No additional keys (no `rule_id`, no `tool`, no `confidence`, no `fingerprint`). Field order is the order in the user's example.
+- **Process constraint — installation hygiene.** `pip install semgrep` system-wide is blocked by PEP 668 on the host (`externally-managed-environment`). The implementation uses `python3 -m venv` + `pip` inside the venv, or `pipx install semgrep`. The chosen method is logged in `decision-log.md`.
+- **Output constraint — directive deliverable count.** The user said "1 new file" referring to `findings-config-b.json`. The rule-mandated companion files (`decision-log.md`, `executive-summary.html`) and the intermediate working artifacts (`results-semgrep.sarif`, `local-rules/*.yaml`, `normalize-sarif.py`, `scan-metadata.txt`) are not "deliverable" files in the user's sense; they are working artifacts and rule-mandated documentation. The decision log records this interpretation explicitly.
+- **Compatibility constraint — multi-config schema.** The schema MUST remain comparable with sibling configurations in the multi-config comparison. The Blitzy platform will not deviate from the user's five-field shape even if Semgrep emits richer SARIF data that would be useful to capture.
+- **Timeline constraint.** None imposed. The directives are executed in order; no week-by-week schedule applies.
+
+## 0.9 References
+
+### 0.9.1 Citation Discipline
+
+Every claim in this AAP about the existing `blitzy-RudderStack` repository is grounded in a specific file location, cited inline using the form `[<path>:<locator>]`. Where a claim could not be grounded in a specific source location, it is flagged `[inferred — no direct source]`. The reference index below consolidates the cited paths and the external documentation used.
+
+### 0.9.2 Repository Files Examined
+
+The following files inside `/tmp/blitzy/blitzy-RudderStack/configs_175ab0/` were read or summarized to derive the claims in Sections 0.1–0.8. None of these files are modified by Config B.
+
+| Path | Purpose of Reference | Relevant Locator |
 |---|---|---|
-| Root (`""`) | Folder | Top-level repository structure — 40+ directories, Go monorepo layout |
-| `go.mod` | File | Module path, Go version (1.26.0), direct/indirect dependencies (200+ packages) |
-| `main.go` | File | Server entrypoint — startup lifecycle, signal handling |
-| `Makefile` | File | Build, test, lint targets — `make test` command structure |
-| `docker-compose.yml` | File | Local service stack — PostgreSQL 15, Transformer, MinIO, etcd |
-| `config/config.yaml` | File | Pipeline configuration parameters (200+ tunable keys) |
-| `services/streammanager/streammanager.go` | File | Stream producer factory — `NewProducer` switch for 13 destinations |
-| `services/streammanager/` | Folder | All stream destination producer packages and common interfaces |
-| `router/customdestinationmanager/customdestinationmanager.go` | File | Custom destination registry — `ObjectStreamDestinations` (13), `KVStoreDestinations` (1) |
-| `router/` | Folder | Routing subsystem — handle, worker, throttler, batch router, transformer proxy |
-| `processor/` | Folder | Processor subsystem — 6-stage pipeline, consent, tracking plan, event filter |
-| `processor/pipeline_worker.go` | File | Pipeline channels — preprocess, srcHydration, preTransform, userTransform, destTransform, store |
-| `processor/trackingplan.go` | File | Tracking plan validation — `TrackingPlanStatT`, `validateEvents()`, `reportViolations()` |
-| `processor/consent.go` | File | Consent management — OneTrust, Ketch, Generic CMP with OR/AND resolution |
-| `processor/transformer/clients.go` | File | Transformer client interfaces — User, Destination, TrackingPlan, SrcHydration |
-| `processor/internal/transformer/` | Folder | Internal transformer implementations — user_transformer, destination_transformer |
-| `gateway/` | Folder | HTTP ingestion surface — endpoints, auth, replay, webhook, throttler, validator |
-| `gateway/handle_http_replay.go` | File | Replay handler — `webReplayHandler()`, `withWarehouseReplayTag()` middleware |
-| `gateway/handle_http.go` | File | Endpoint mount and middleware — public endpoints |
-| `gateway/handle_http_auth.go` | File | Auth middleware — write-key, webhook, source-ID, replay, destination auth |
-| `gateway/openapi.yaml` | File | OpenAPI specification — current Gateway HTTP API |
-| `warehouse/` | Folder | Warehouse subsystem — router, integrations, identity, backfill, replay, health monitor |
-| `warehouse/identity/identity.go` | File | Identity resolution — `Identity` struct, `applyRule()`, `Resolve()`, merge rules model |
-| `backend-config/types.go` | File | Configuration schema — `SourceT`, `DestinationT`, `ConfigT`, tracking plan config |
-| `backend-config/backend-config.go` | File | Runtime config provider — workspace config, pubsub publication |
-| `backend-config/replay_types.go` | File | Replay configuration — `ApplyReplaySources` expansion |
-| `services/` | Folder | Service layer — 20 packages covering control plane, dedup, diagnostics, OAuth, alerts, etc. |
-| `services/alert/alertmanager.go` | File | Alert provider selection — PagerDuty, VictorOps |
-| `archiver/archiver.go` | File | Event archival — 10-day retention, gzipped JSONL |
-| `admin/admin.go` | File | RPC-over-HTTP admin interface — handler registration pattern |
-| `proto/` | Folder | Protobuf definitions — cluster, common auth, event schema, warehouse RPCs |
-| `.github/workflows/tests.yaml` | File | CI test workflow configuration |
-| `integration_test/` | Folder | End-to-end Docker-backed regression suites |
-| `router/throttler/` | Folder | GCRA-based destination throttling — factory, internal algorithms |
-| `Dockerfile` | File | Multi-stage container build |
+| `go.mod` | Confirm Go module path and runtime version | `go.mod:L1-L3` (module `github.com/rudderlabs/rudder-server`, `go 1.26.1`) |
+| `Dockerfile` | Confirm build base image and working directory | `Dockerfile:GO_VERSION=1.26.1` / `ALPINE_VERSION=3.23` / `WORKDIR /rudder-server` |
+| `Makefile` | Confirm existing security target (`sec:`) | `Makefile:L184-L186` (runs `gitleaks` + `govulncheck`) |
+| `.snyk` | Confirm Snyk policy version and CVE ignores | `.snyk:version v1.22.1` |
+| `.deepsource.toml` | Confirm DeepSource Go analyzer scope and excludes | `.deepsource.toml:L1-L18` |
+| `.golangci.yml` | Confirm linter configuration exists | `.golangci.yml` (existence only) |
+| `.truffleignore` | Confirm TruffleHog ignore list exists | `.truffleignore` (existence only) |
+| `.github/workflows/builds.yml`, `dispatch-deploy-event-dev.yaml`, `docker-build-dockerhub.yml`, `docker-build-ecr.yml`, `housekeeping.yaml`, `labeler.yaml`, `pr-description-enforcer.yaml`, `prerelease.yaml`, `release-please.yaml`, `semantic-pr.yaml`, `sync-release.yaml`, `tests.yaml`, `verify.yml` | Confirm there is no Semgrep workflow | `.github/workflows/` (enumeration) |
+| `.github/workflows/verify.yml` | Confirm existing verification workflow uses pinned actions and `go-version-file: 'go.mod'` | `.github/workflows/verify.yml:L1-L50` |
+| `catalog-info.yaml` | Confirm Backstage component metadata | `catalog-info.yaml:metadata.name`, `metadata.tags`, `metadata.labels` |
+| `README.md` | Confirm project headline and scope | `README.md:L1-L5` |
+| `blitzy/documentation/Project Guide.md` | Confirm Sprint 7–9 program context | `blitzy/documentation/Project Guide.md:§1` |
+| `blitzy-docs/index.md` | Confirm short project tagline | `blitzy-docs/index.md:L1-L3` |
+| `refs/segment-docs/README.md` | Confirm `refs/segment-docs/` is a vendored upstream Segment documentation repository | `refs/segment-docs/README.md:L1-L10` |
+| `refs/segment-docs/` directory | Quantify ~75 files of vendored Jekyll docs (potential scan-noise source) | `refs/segment-docs/` enumeration |
+| `configs/` (search) | Confirm no `configs/` subdirectory exists in the repo | `[inferred — directory does not exist]` |
+| `.blitzyignore` (search) | Confirm no `.blitzyignore` exists | `[inferred — file does not exist]` |
+| `.semgrepignore` (search) | Confirm no `.semgrepignore` exists | `[inferred — file does not exist]` |
+| `blitzy-deck/` (search) | Confirm canonical reveal-theme file is NOT in the repo; inline-only theme is required | `[inferred — directory does not exist]` |
 
-### 0.8.3 Segment Reference Documentation
+### 0.9.3 Tech Spec Sections Consulted
 
-The following Segment documentation directories (in `refs/segment-docs/`) provide the reference specifications for parity targets:
-
-| Path | Purpose |
+| Section | Purpose |
 |---|---|
-| `refs/segment-docs/src/connections/destinations/catalog/` | 648 destination catalog entries — basis for destination gap count |
-| `refs/segment-docs/src/_data/catalog/destinations.yml` | 503 active destination metadata with categories and methods |
-| `refs/segment-docs/src/connections/functions/` | Functions documentation — Source Functions, Destination Functions, Insert Functions |
-| `refs/segment-docs/src/connections/functions/source-functions.md` | Source Functions spec — `onRequest()` handler, event creation API |
-| `refs/segment-docs/src/connections/functions/destination-functions.md` | Destination Functions spec — typed handlers, error types, `fetch()` |
-| `refs/segment-docs/src/connections/functions/insert-functions.md` | Insert Functions spec — pre-destination hooks, handler list |
-| `refs/segment-docs/src/protocols/` | Protocols documentation — tracking plans, enforcement, validation |
-| `refs/segment-docs/src/protocols/enforce/schema-configuration.md` | Enforcement modes — Block Event, Omit Properties, Allow |
-| `refs/segment-docs/src/protocols/tracking-plan/create.md` | Tracking Plan editor and schema inference |
-| `refs/segment-docs/src/unify/` | Unify documentation — identity resolution, profiles, data graph |
-| `refs/segment-docs/src/unify/identity-resolution/index.md` | Identity graph resolution flow — flat matching logic |
-| `refs/segment-docs/src/unify/identity-resolution/externalids.md` | External ID types — 12+ default identifiers |
-| `refs/segment-docs/src/unify/identity-resolution/identity-resolution-settings.md` | Resolution settings — blocked values, limits, priority |
-| `refs/segment-docs/src/unify/profile-api.md` | Profiles REST API — traits, events, external_ids endpoints |
+| `1.1 EXECUTIVE SUMMARY` | Established that `blitzy-RudderStack` is the rudder-server v1.68.1 Sprint 7–9 enhancement codebase (Go 1.26.1 modular monolith, ELv2-licensed). |
 
-### 0.8.4 Tech Spec Sections Referenced
+### 0.9.4 External Documentation (Semgrep, SARIF)
 
-| Section | Content Retrieved |
-|---|---|
-| `1.4 Technology Stack Summary` | Core technology versions (Go 1.26.0, PostgreSQL 15, chi v5.2.5, gRPC v1.78.0), external service dependencies, bootstrap sequence |
+| Resource | URL | Used For |
+|---|---|---|
+| Semgrep Community Edition product page | `https://semgrep.dev/products/community-edition/` | Confirm Semgrep OSS is now branded "Semgrep Community Edition" (LGPL 2.1 engine) |
+| Semgrep November 2025 release notes | `https://semgrep.dev/docs/release-notes/november-2025` | Identify highest documented OSS Engine versions `1.143.0` and `1.144.0` |
+| Semgrep October 2025 release notes | `https://semgrep.dev/docs/release-notes/october-2025` | Confirm Python 3.14 compatibility of the Semgrep CLI |
+| Semgrep December 2025 release notes | `https://semgrep.dev/docs/release-notes/december-2025` | Confirm Docker image base = Alpine 3.23 |
+| Semgrep "Run rules" docs | `https://semgrep.dev/docs/running-rules` | Confirm `--config` accepts local paths and registry slugs; multiple `--config` flags supported |
+| Semgrep "Customize scans" docs | `https://semgrep.dev/docs/customize-semgrep-ce` | Confirm `--metrics=off` semantics |
+| Semgrep CLI reference | `https://semgrep.dev/docs/cli-reference` | Confirm `--sarif` flag, exit codes (`0`/`1`/`2`/`3`/`4`/`5`/`7`/`8`), and `SEMGREP_SEND_METRICS` env var |
+| Semgrep metrics documentation | `https://semgrep.dev/docs/metrics` | Confirm that loading rules from local YAML files inherently disables metrics |
+| Semgrep `p/security-audit` ruleset landing | `https://semgrep.dev/p/security-audit` | Ruleset acquisition target |
+| Semgrep `p/secrets` ruleset landing | `https://semgrep.dev/p/secrets` | Ruleset acquisition target |
+| Semgrep `p/owasp-top-ten` ruleset landing | `https://semgrep.dev/p/owasp-top-ten` | Canonical slug for the user-named "`p/owasp`" pack |
+| Semgrep rules GitHub repository | `https://github.com/semgrep/semgrep-rules` | Reference source for ruleset content (Semgrep Rules License v.1.0) |
+| Semgrep installation reference | `https://github.com/semgrep/semgrep` | Confirm pip / Homebrew / Docker installation paths |
+| SARIF 2.1.0 specification | `https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html` | Reference for `runs[].results[].locations[].physicalLocation.artifactLocation.uri`, `region.startLine`, `message.text`, `level` |
+| CWE list | `https://cwe.mitre.org/data/index.html` | Reference for CWE-ID format and inference targets (CWE-22, CWE-78, CWE-79, CWE-89, CWE-327, CWE-798, etc.) |
 
-### 0.8.5 User-Provided Attachments
+### 0.9.5 Attachments Provided by the User
 
-No file attachments were provided for this project. All requirements are derived from the user's prompt text and the in-repository documentation files listed above.
+The user attached no files for this configuration. The list of attachments is empty.
+
+### 0.9.6 Figma Screens Provided by the User
+
+The user provided no Figma screens for this configuration. The list of Figma frames is empty.
+
+### 0.9.7 Search Log (Appendix)
+
+The following folders and files were searched (via `bash`, `find`, `grep`, and `get_tech_spec_section`) during Phases 1–4 of the Agent Action Plan generation:
+
+- Root directory listing: `ls -la /tmp/blitzy/blitzy-RudderStack/configs_175ab0/`
+- Directory enumeration: `ls -d */` (40 top-level directories)
+- Language file count: `find . -type f -name "*.<ext>"` for `.go`, `.js`, `.ts`, `.py`, `.sh`, `.yaml`, `.yml`, `.json`
+- `.blitzyignore` search: `find . -name ".blitzyignore"` → no results
+- `.semgrepignore` search: `ls .semgrepignore` → not found
+- `blitzy-deck/` search: `find . -maxdepth 6 -type d -name "blitzy-deck"` → not found
+- `blitzy-reveal-theme*` search: `find . -maxdepth 6 -name "blitzy-reveal-theme*"` → not found
+- `configs/` subdirectory search: `find . -maxdepth 3 -name "configs" -type d` → not found
+- `Makefile` inspection for security targets: `grep -i -E "semgrep|security|sast|scan" Makefile` and `grep -nA 4 "^sec:" Makefile`
+- `.snyk` inspection: `head -30 .snyk`
+- `.deepsource.toml` inspection: `cat .deepsource.toml`
+- `.github/workflows/` enumeration: `ls .github/workflows/`
+- `verify.yml` inspection: `cat .github/workflows/verify.yml | head -50`
+- `go.mod` inspection: `head -30 go.mod`
+- `Dockerfile` inspection: `cat Dockerfile | head -20`
+- `catalog-info.yaml` inspection: header lines
+- `README.md` inspection: header lines
+- `blitzy/documentation/Project Guide.md` and `blitzy-docs/index.md`: header lines
+- `refs/segment-docs/` inspection: `ls` and `head README.md`
+- Python and pip availability: `which python3`, `python3 --version`, `pip3 show semgrep`, `pip3 install --dry-run semgrep`
+- apt availability for semgrep: `apt-cache madison semgrep` → no entries
+- Tech-spec section `1.1 EXECUTIVE SUMMARY` retrieved via `get_tech_spec_section`
+
+### 0.9.8 Decisions Carried Into `decision-log.md`
+
+The following decisions are listed here as authoritative references and are committed to be expanded into the `decision-log.md` Markdown table at execution time (the Explainability rule places the full rationale in that file, not here):
+
+1. Installation method — venv + pip vs. pipx vs. `pip install --break-system-packages --user` vs. apt vs. Docker.
+2. Pinned Semgrep version — explicit `1.144.0` vs. open-ended `latest`.
+3. Rule-pack canonicalization — `p/owasp` → `p/owasp-top-ten`.
+4. Rule-pack acquisition mechanism — `curl https://semgrep.dev/c/p/<slug>` vs. cloning `semgrep/semgrep-rules` vs. running once with registry access and capturing the cache.
+5. Scope of files scanned — full tree vs. `--exclude refs/segment-docs/` vs. `--exclude mocks/` vs. `--exclude vendor/`.
+6. SARIF severity fallback for absent `level` — default to `low` vs. default to rule's `defaultConfiguration.level`.
+7. CWE inference policy — metadata-first with description fallback vs. always-emit `CWE-Other`.
+8. Description sanitization — collapse-all-whitespace vs. preserve-internal-whitespace vs. escape-newlines.
+9. Trailing-newline policy on `findings-config-b.json` — one newline (for `wc -l == 1`) vs. zero newlines.
+10. Scan-metadata location — separate `scan-metadata.txt` vs. embedded block at the top of `decision-log.md`.
+11. Where to place the executive summary file — sibling working directory vs. a documentation directory; given the rule's "single self-contained file" mandate, location is flexible and the choice is recorded in the decision log.
 
