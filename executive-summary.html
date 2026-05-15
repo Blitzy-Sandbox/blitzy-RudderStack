@@ -224,6 +224,9 @@
     .slide-closing ul li::before {
       background: var(--gradient-accent-bar);
     }
+    .slide-closing .hero-icon {
+      color: var(--blitzy-accent-teal);
+    }
     .slide-closing .accent-bar {
       position: absolute;
       left: 0;
@@ -379,13 +382,7 @@
       max-width: 100%;
       height: auto;
     }
-    /* Mermaid 11.x hardcodes max-width: 200px on inline foreignObject divs
-       and emits node-label text wrapped in a block-level <p> element
-       inside an inline <span>. That block-in-inline mix forces text onto
-       a second line that gets clipped by the fixed foreignObject height.
-       The overrides below normalise the labels to inline rendering and
-       allow each label box to stretch a bit past its measured width so
-       the last glyph never gets clipped by sub-pixel rounding. */
+    /* Mermaid foreignObject label overrides. */
     .reveal .mermaid foreignObject > div {
       max-width: none !important;
       white-space: nowrap !important;
@@ -410,9 +407,7 @@
       rx: 8;
       ry: 8;
     }
-    /* Hide empty edge-label backdrops that Mermaid 11.x emits for every
-       arrow, including arrows without a textual label. They render as
-       small floating rectangles otherwise. */
+    /* Edge-label visibility rules. */
     .reveal .mermaid .edgeLabel:empty,
     .reveal .mermaid .edgeLabel .labelBkg:empty,
     .reveal .mermaid foreignObject:has(.edgeLabel:empty) {
@@ -604,7 +599,7 @@
     </section>
 
     <!-- =====================================================================
-         Slide 3 — Architecture Overview (Mermaid)
+         Slide 3 — Architecture Overview (Mermaid + CRITICAL Directives)
          ===================================================================== -->
     <section>
       <span class="eyebrow">Architecture</span>
@@ -619,7 +614,20 @@ flowchart LR
   E --&gt; F["Cross-tool diff"]
       </pre>
 
-      <p class="caption">Three CRITICAL directives executed in strict sequence; each gated by a binary pass/fail criterion.</p>
+      <div class="icon-row">
+        <div class="icon-row-item">
+          <i data-lucide="package"></i>
+          <span><strong>Directive 1</strong> &middot; Install Gosec</span>
+        </div>
+        <div class="icon-row-item">
+          <i data-lucide="play"></i>
+          <span><strong>Directive 2</strong> &middot; Execute Gosec scan</span>
+        </div>
+        <div class="icon-row-item">
+          <i data-lucide="refresh-ccw"></i>
+          <span><strong>Directive 3</strong> &middot; Normalize findings to single-line JSON</span>
+        </div>
+      </div>
     </section>
 
     <!-- =====================================================================
@@ -640,23 +648,32 @@ flowchart LR
       <span class="eyebrow">Scope</span>
       <h2>The blitzy-RudderStack Monorepo</h2>
 
-      <table class="styled">
-        <thead>
-          <tr><th>Metric</th><th>Value</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Module</td><td><code>github.com/rudderlabs/rudder-server</code></td></tr>
-          <tr><td>Go directive</td><td><code>1.26.1</code></td></tr>
-          <tr><td>Source files</td><td>~1,263 <code>.go</code> files</td></tr>
-          <tr><td>Rule set</td><td>Gosec defaults &middot; OWASP Top 10</td></tr>
-          <tr><td>Scope spec</td><td><code>./...</code> (full module recursion)</td></tr>
-        </tbody>
-      </table>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="file-code"></i></div>
+          <div class="kpi-value">~1,263</div>
+          <div class="kpi-label">Go Files</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="code"></i></div>
+          <div class="kpi-value">1.26.1</div>
+          <div class="kpi-label">Go Directive</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="shield-check"></i></div>
+          <div class="kpi-value">50+</div>
+          <div class="kpi-label">Built-In Rules</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="folder-tree"></i></div>
+          <div class="kpi-value"><code>./...</code></div>
+          <div class="kpi-label">Module Recursion</div>
+        </div>
+      </div>
 
       <ul>
-        <li>Read-only analysis &mdash; no source files were modified.</li>
-        <li>Built-in 50+ rules &mdash; no custom config, no exclude filters.</li>
-        <li>Honors pre-existing <code>#nosec</code> annotations.</li>
+        <li>Read-only scan of <code>github.com/rudderlabs/rudder-server</code>.</li>
+        <li>Defaults only; <code>#nosec</code> annotations honored.</li>
       </ul>
     </section>
 
@@ -725,34 +742,51 @@ flowchart LR
     </section>
 
     <!-- =====================================================================
-         Slide 9 — Normalization Contract (Mermaid + Table)
+         Slide 9 — Normalization Contract (Field Mapping + Output Shape)
          ===================================================================== -->
     <section>
       <span class="eyebrow">Contract</span>
       <h2>Five-Field JSON Contract</h2>
 
       <div class="two-col">
-        <pre class="mermaid">
+        <table class="styled">
+          <thead>
+            <tr><th>Field</th><th>Source</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>file</code></td><td>SARIF location</td></tr>
+            <tr><td><code>line</code></td><td>region.startLine</td></tr>
+            <tr><td><code>severity</code></td><td>level translated</td></tr>
+            <tr><td><code>cwe</code></td><td>metadata or fallback</td></tr>
+            <tr><td><code>description</code></td><td>message &le;200 chars</td></tr>
+          </tbody>
+        </table>
+
+        <div>
+          <pre class="mermaid">
 flowchart LR
   A["SARIF finding"] --&gt; B{"Rule has CWE?"}
   B --&gt;|yes| C["CWE-N"]
   B --&gt;|no| D{"In fallback table?"}
   D --&gt;|yes| C
   D --&gt;|no| E["CWE-Unknown"]
-        </pre>
+          </pre>
 
-        <table class="styled">
-          <thead>
-            <tr><th>SARIF level</th><th>Output severity</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><code>error</code></td><td>critical</td></tr>
-            <tr><td><code>warning</code></td><td>high</td></tr>
-            <tr><td><code>note</code></td><td>medium</td></tr>
-            <tr><td><code>info</code></td><td>low</td></tr>
-          </tbody>
-        </table>
+          <table class="styled">
+            <thead>
+              <tr><th>Level</th><th>Severity</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>error</code></td><td>critical</td></tr>
+              <tr><td><code>warning</code></td><td>high</td></tr>
+              <tr><td><code>note</code></td><td>medium</td></tr>
+              <tr><td><code>info</code></td><td>low</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      <p class="caption">Shape: <code>[{"file":"...","line":N,"severity":"...","cwe":"CWE-N","description":"..."}]</code></p>
     </section>
 
     <!-- =====================================================================
@@ -816,7 +850,7 @@ flowchart LR
          ===================================================================== -->
     <section>
       <span class="eyebrow">Risk</span>
-      <h2>Residual Risk and How It Is Handled</h2>
+      <h2>Residual Risk and Mitigation</h2>
 
       <table class="styled">
         <thead>
@@ -824,28 +858,23 @@ flowchart LR
         </thead>
         <tbody>
           <tr>
-            <td>New Gosec rule lacks CWE metadata</td>
-            <td>Embedded fallback table; flagged as <code>CWE-Unknown</code></td>
+            <td>Missing CWE metadata</td>
+            <td>Fallback table; <code>CWE-Unknown</code></td>
           </tr>
           <tr>
-            <td>False positives from default rule set</td>
-            <td><code>#nosec</code> annotations honored in source</td>
+            <td>False positives</td>
+            <td><code>#nosec</code> honored</td>
           </tr>
           <tr>
             <td>SARIF schema drift</td>
-            <td>Pinned to SARIF 2.1.0 (Gosec contract)</td>
+            <td>Pinned to 2.1.0</td>
           </tr>
           <tr>
             <td>Tool version drift</td>
-            <td>Gosec version captured in <code>decision-log.md</code></td>
+            <td>Captured in <code>decision-log.md</code></td>
           </tr>
         </tbody>
       </table>
-
-      <ul>
-        <li>Multi-config comparison surfaces gaps no single scanner catches.</li>
-        <li>This config exercises Gosec defaults to preserve attribution fidelity.</li>
-      </ul>
     </section>
 
     <!-- =====================================================================
@@ -891,7 +920,7 @@ flowchart LR
          Slide 16 — Closing Slide
          ===================================================================== -->
     <section class="slide-closing">
-      <div class="hero-icon" aria-hidden="true" style="color: var(--blitzy-accent-teal);">
+      <div class="hero-icon" aria-hidden="true">
         <i data-lucide="check-circle-2"></i>
       </div>
       <span class="eyebrow">Wrap-Up</span>
@@ -982,10 +1011,7 @@ flowchart LR
   }
 
   /* =========================================================================
-     Cache original Mermaid source so we can reset and re-render diagrams
-     once their containing slide is visible and has real layout dimensions.
-     Mermaid otherwise renders hidden slides with NaN container width,
-     producing truncated node labels.
+     Mermaid source cache.
      ========================================================================= */
   function cacheMermaidSources() {
     const nodes = document.querySelectorAll('.mermaid');
@@ -1003,9 +1029,7 @@ flowchart LR
   }
 
   /* =========================================================================
-     Render Mermaid diagrams in the currently visible slide.
-     Idempotent — diagrams already marked data-processed are skipped by
-     mermaid.run(), so this is safe to call repeatedly.
+     Mermaid render — current slide.
      ========================================================================= */
   function renderMermaidInCurrentSlide() {
     if (!window.mermaid || typeof window.mermaid.run !== 'function') return;
@@ -1017,28 +1041,25 @@ flowchart LR
     try {
       window.mermaid.run({ nodes: diagrams, suppressErrors: true });
     } catch (e) {
-      /* Ignore — mermaid may rethrow if a diagram is already in flight. */
+      /* swallow */
     }
   }
 
   /* =========================================================================
-     Render Lucide icons across the whole deck.
-     Safe to call repeatedly — createIcons only converts unconverted nodes.
+     Lucide icon render.
      ========================================================================= */
   function renderLucideIcons() {
     if (window.lucide && typeof window.lucide.createIcons === 'function') {
       try {
         window.lucide.createIcons();
       } catch (e) {
-        /* Ignore. */
+        /* swallow */
       }
     }
   }
 
   /* =========================================================================
-     Wait for web fonts to finish loading before rendering Mermaid.
-     Mermaid measures label widths during layout; if fonts swap in after
-     layout, label text overflows its allocated foreignObject box.
+     Font readiness.
      ========================================================================= */
   function waitForFonts() {
     if (document.fonts && typeof document.fonts.ready !== 'undefined') {
@@ -1053,8 +1074,6 @@ flowchart LR
     populateKPIs();
     return waitForFonts();
   }).then(function () {
-    /* Render Mermaid only after fonts are loaded so label widths are
-       measured with the final glyph metrics. */
     renderMermaidInCurrentSlide();
     deck.on('slidechanged', function () {
       renderLucideIcons();
