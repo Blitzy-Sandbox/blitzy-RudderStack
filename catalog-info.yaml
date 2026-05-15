@@ -6,11 +6,13 @@ metadata:
     sync, idempotent operations across 4 merged sprints
   tags:
   - audit
+  - data-pipeline
   - documentation
   - go
   - infrastructure
   - new-feature
   - refactor
+  - security
   labels:
     blitzy.com/language: go
   annotations:
