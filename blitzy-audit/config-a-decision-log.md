@@ -195,6 +195,7 @@ This section records every place where literal reading of the user input was mod
 | **CSS embedding for executive deck.** | The Executive Presentation rule references `blitzy-deck/references/blitzy-reveal-theme.css`. | That reference file does NOT exist in this repository. To keep the deliverable self-contained per the same rule, the Blitzy theme CSS is embedded inline in the HTML. (See Decision D-006.) |
 | **Folder placement.** | User input does not specify a location for supplementary artifacts. | Artifacts placed under a NEW `blitzy-audit/` folder to isolate them from the existing `blitzy/documentation/` content (which describes a separate program). (See Decision D-004.) |
 | **Lens catalog scope.** | User input does not enumerate analysis lenses. | This audit derives a 10-lens catalog (section 1.4) from CWE Top 25 prevalence and from the security-relevant surface of `rudder-server`. The catalog is reproducible and recorded here. |
+| **Trailing-newline policy for the JSON artifact.** | User Directive 2 simultaneously asserts (a) "minified to a single line, no pretty-printing, no newlines" and (b) the pass/fail probe `cat findings-config-a.json \| wc -l` returns `1`. Under POSIX/GNU `wc -l` semantics (which counts newline characters), these two assertions are mutually inconsistent: a file with literally zero newline bytes returns `wc -l = 0`. The AAP §0.3.4 author's note "no trailing newline so that `wc -l` returns `1`" carried forward this misconception. | This audit honors the user's primary pass/fail probe (`wc -l = 1`) as the authoritative test, reading "no newlines" as "no internal newlines within the JSON content" (i.e., the JSON is minified to a single line with no pretty-printing or whitespace breaks). The file consequently consists of a single line of minified JSON terminated by exactly one trailing `\n` byte, yielding `wc -l = 1` while preserving zero internal newlines in the JSON content itself. The AAP §0.3.4 "Empty result writes literal `[]` (two bytes)" guidance is preserved as an aspirational rule for the (non-applicable) empty case; in the non-empty case delivered here, the trailing newline is required to satisfy the user's probe. The byte-boundary probe (section 9, row 7) was updated to verify that the JSON content's first byte is `[` and its last non-newline byte is `]`, accommodating the trailing newline. |
 
 ---
 
@@ -221,13 +222,13 @@ The literal verification commands and their expected results, mirroring user Dir
 
 | Probe | Expected Result |
 |---|---|
-| `cat findings-config-a.json \| wc -l` | `1` (single-line output; the file has no trailing newline). |
+| `cat findings-config-a.json \| wc -l` | `1` (the file consists of one minified single-line JSON array terminated by a single trailing `\n`; POSIX `wc -l` counts newline characters, so this yields `1`). |
 | `python3 -c "import json; d = json.load(open('findings-config-a.json')); print(len(d))"` | `20`. |
 | `python3 -c "import json; d = json.load(open('findings-config-a.json')); assert all(set(r) == {'file','line','severity','cwe','description'} for r in d); assert all(1 <= len(r['description']) <= 200 for r in d); print('OK')"` | `OK`. |
 | `python3 -c "import json,re; d = json.load(open('findings-config-a.json')); assert all(re.fullmatch(r'CWE-\\d+', r['cwe']) for r in d); print('CWE-FMT-OK')"` | `CWE-FMT-OK`. |
 | `python3 -c "import json; d = json.load(open('findings-config-a.json')); assert all(isinstance(r['line'], int) and r['line'] >= 1 for r in d); print('LINE-OK')"` | `LINE-OK`. |
 | `python3 -c "import json; d = json.load(open('findings-config-a.json')); allowed = {'critical','high','medium','low'}; assert all(r['severity'] in allowed for r in d); print('SEV-OK')"` | `SEV-OK`. |
-| `head -c 1 findings-config-a.json` followed by `tail -c 1 findings-config-a.json` | First byte `[`, last byte `]`. |
+| `head -c 1 findings-config-a.json` followed by `tail -c 2 findings-config-a.json \| head -c 1` | First byte `[`; last byte before the trailing `\n` is `]`. (Equivalent Python: `raw = open('findings-config-a.json','rb').read(); assert raw[:1] == b'[' and raw.rstrip(b'\n')[-1:] == b']'`.) |
 | `test -f blitzy-audit/config-a-decision-log.md && echo PRESENT` | `PRESENT`. |
 | `test -f blitzy-audit/config-a-executive-summary.html && echo PRESENT` | `PRESENT`. |
 
