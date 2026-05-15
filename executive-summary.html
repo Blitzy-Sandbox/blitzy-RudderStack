@@ -399,10 +399,10 @@
       margin: 4px 0;
     }
 
-    .kpi-card .kpi-value.sev-critical { color: #B00020; }
-    .kpi-card .kpi-value.sev-high     { color: #E55B0E; }
-    .kpi-card .kpi-value.sev-medium   { color: #C28E00; }
-    .kpi-card .kpi-value.sev-low      { color: #2E7D32; }
+    .kpi-card .kpi-value.sev-critical { color: var(--blitzy-primary-deep); }
+    .kpi-card .kpi-value.sev-high     { color: var(--blitzy-primary); }
+    .kpi-card .kpi-value.sev-medium   { color: var(--blitzy-primary-light); }
+    .kpi-card .kpi-value.sev-low      { color: var(--blitzy-text-muted); }
     .kpi-card .kpi-value.is-text {
       font-size: 1.4em;
       font-family: var(--ff-mono);
@@ -426,11 +426,11 @@
       line-height: 1.4;
     }
 
-    /* Variant: severity-coloured kpi-icon background */
-    .kpi-card.sev-critical .kpi-icon { color: #B00020; }
-    .kpi-card.sev-high     .kpi-icon { color: #E55B0E; }
-    .kpi-card.sev-medium   .kpi-icon { color: #C28E00; }
-    .kpi-card.sev-low      .kpi-icon { color: #2E7D32; }
+    /* Variant: severity-coloured kpi-icon (all Blitzy palette tokens) */
+    .kpi-card.sev-critical .kpi-icon { color: var(--blitzy-primary-deep); }
+    .kpi-card.sev-high     .kpi-icon { color: var(--blitzy-primary); }
+    .kpi-card.sev-medium   .kpi-icon { color: var(--blitzy-primary-light); }
+    .kpi-card.sev-low      .kpi-icon { color: var(--blitzy-text-muted); }
 
     /* ================================================================== */
     /* Mermaid container                                                  */
@@ -548,18 +548,52 @@
       border-radius: 999px;
       border: 1px solid currentColor;
     }
-    .sev-pill.sev-critical { color: #B00020; background: rgba(176, 0, 32, 0.08); }
-    .sev-pill.sev-high     { color: #E55B0E; background: rgba(229, 91, 14, 0.08); }
-    .sev-pill.sev-medium   { color: #C28E00; background: rgba(194, 142, 0, 0.08); }
-    .sev-pill.sev-low      { color: #2E7D32; background: rgba(46, 125, 50, 0.08); }
+    .sev-pill.sev-critical { color: var(--blitzy-primary-deep); background: rgba(65, 1, 219, 0.08); }
+    .sev-pill.sev-high     { color: var(--blitzy-primary); background: rgba(91, 57, 243, 0.08); }
+    .sev-pill.sev-medium   { color: var(--blitzy-primary-light); background: rgba(122, 109, 236, 0.08); }
+    .sev-pill.sev-low      { color: var(--blitzy-text-muted); background: rgba(153, 153, 153, 0.10); }
 
-      position: absolute;
-      left: 0;
-      top: 14px;
-      width: 28px;
-      height: 4px;
-      background: var(--gradient-accent-bar);
-      border-radius: 2px;
+    /* ================================================================== */
+    /* Mermaid container (rule-required class wrapping diagrams)          */
+    /* ================================================================== */
+    .reveal .mermaid-container {
+      background: var(--blitzy-surface-2);
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 16px;
+      padding: 32px;
+      margin: 16px 0 0 0;
+      box-shadow: 0 2px 8px rgba(91, 57, 243, 0.04);
+      text-align: center;
+      overflow: auto;
+      max-height: 760px;
+    }
+
+    .reveal .mermaid-container pre.mermaid {
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin: 0;
+      box-shadow: none;
+      overflow: visible;
+      max-height: none;
+      text-align: center;
+    }
+
+    /* ================================================================== */
+    /* Title slide inline code pill (no inline style attributes)          */
+    /* ================================================================== */
+    .reveal section.slide-title .title-code-pill {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--blitzy-text-invert);
+      border-color: rgba(255, 255, 255, 0.25);
+      white-space: nowrap;
+      display: inline-block;
+      padding: 6px 18px;
+      border-radius: 10px;
+      margin-top: 8px;
+      font-family: var(--ff-mono);
+      font-size: 0.85em;
+      font-weight: 500;
     }
 
     /* ================================================================== */
@@ -712,8 +746,8 @@
     <!-- ============================================================== -->
     <section class="slide-title">
       <i data-lucide="shield-check" class="hero-icon"></i>
-      <span class="eyebrow">Security &middot; Config F</span>
-      <h1>OSV-Scanner Scan of<br><code style="background:rgba(255,255,255,0.12);color:#FFFFFF;border-color:rgba(255,255,255,0.25);white-space:nowrap;display:inline-block;padding:6px 18px;border-radius:10px;margin-top:8px;">blitzy-RudderStack</code></h1>
+      <span class="eyebrow">SECURITY &middot; CONFIG F</span>
+      <h1>OSV-Scanner Scan of<br><code class="title-code-pill">blitzy-RudderStack</code></h1>
       <h3>One configuration in a multi-config security tool comparison &mdash; install, scan, normalize.</h3>
       <div class="brand-lockup">
         <span class="brand-name">Blitzy &middot; Executive Summary</span>
@@ -728,32 +762,31 @@
       <div class="slide-header">
         <span class="eyebrow">Headline Numbers</span>
         <h2>At a glance</h2>
-        <p class="lead">A single scan against the repository tree resolved four lockfiles and produced a normalized findings array. The pipeline ran to completion with the expected non-zero exit code that OSV-Scanner uses to signal "vulnerabilities found."</p>
       </div>
       <div class="kpi-grid">
         <div class="kpi-card">
           <i data-lucide="bug" class="kpi-icon"></i>
           <div class="kpi-value">211</div>
           <div class="kpi-label">Total Findings</div>
-          <div class="kpi-sub">Post-deduplication (321 raw rows collapsed via stable dedup key).</div>
+          <div class="kpi-sub">Post-deduplication.</div>
         </div>
         <div class="kpi-card">
           <i data-lucide="alert-triangle" class="kpi-icon"></i>
           <div class="kpi-value">92</div>
-          <div class="kpi-label">Critical + High</div>
-          <div class="kpi-sub">15 critical and 77 high-severity advisories require leadership attention.</div>
+          <div class="kpi-label">Critical Plus High</div>
+          <div class="kpi-sub">Leadership attention.</div>
         </div>
         <div class="kpi-card">
           <i data-lucide="timer" class="kpi-icon"></i>
-          <div class="kpi-value">&lt; 60s</div>
+          <div class="kpi-value">67s</div>
           <div class="kpi-label">Scan Duration</div>
-          <div class="kpi-sub">Wall-clock end-to-end; dominated by OSV API round-trips.</div>
+          <div class="kpi-sub">Wall-clock total.</div>
         </div>
         <div class="kpi-card">
           <i data-lucide="check-circle-2" class="kpi-icon"></i>
           <div class="kpi-value">1</div>
           <div class="kpi-label">Exit Code</div>
-          <div class="kpi-sub">Successful scan; <code class="fira">1</code> means vulnerabilities were found.</div>
+          <div class="kpi-sub">Vulnerabilities found.</div>
         </div>
       </div>
     </section>
@@ -768,19 +801,18 @@
         <span class="eyebrow">Architecture</span>
         <h2>How the pipeline flows</h2>
       </div>
-      <pre class="mermaid">
+      <div class="mermaid-container">
+        <pre class="mermaid">
 flowchart LR
-  LF[Lockfiles in blitzy-RudderStack] --&gt; OSV[osv-scanner --format json]
+  LF[Lockfiles] --&gt; OSV[OSV-Scanner]
   OSV --&gt; API[(api.osv.dev)]
-  API --&gt; OSV
   OSV --&gt; RAW[results-osv.json]
   RAW --&gt; POST[normalize.py]
   POST --&gt; NORM[findings-config-f.json]
   POST --&gt; LOG[decision-log.md]
-  NORM --&gt; DECK[executive-summary.html]
-  LOG --&gt; DECK
-      </pre>
-      <p class="mermaid-caption">Read-only scan &middot; deterministic post-processing &middot; four artifacts, zero repository mutations.</p>
+        </pre>
+      </div>
+      <p class="mermaid-caption">Read-only scan &middot; deterministic post-processing.</p>
     </section>
 
     <!-- ============================================================== -->
@@ -798,15 +830,13 @@ flowchart LR
     <section>
       <div class="slide-header">
         <span class="eyebrow">Coverage</span>
-        <h2>Four lockfiles, four ecosystems</h2>
-        <p class="lead">OSV-Scanner walked the repository root and selected the lockfile-grade manifests in every supported ecosystem. Lockfiles are preferred over manifests because they pin transitive versions exactly.</p>
+        <h2>Manifests across the repository</h2>
       </div>
       <table class="styled">
         <thead>
           <tr>
             <th>Path</th>
             <th>Ecosystem</th>
-            <th>Role</th>
             <th class="nowrap">Findings</th>
           </tr>
         </thead>
@@ -814,26 +844,37 @@ flowchart LR
           <tr>
             <td><span class="fira">go.mod</span></td>
             <td>Go</td>
-            <td>Root Go module manifest (Go 1.26.1, with curated <span class="fira">replace</span> block).</td>
             <td><strong>31</strong></td>
           </tr>
           <tr>
-            <td><span class="fira">refs/segment-docs/package-lock.json</span></td>
+            <td><span class="fira">go.sum</span></td>
+            <td>Go</td>
+            <td><strong>verified</strong></td>
+          </tr>
+          <tr>
+            <td><span class="fira">package-lock.json</span></td>
             <td>npm</td>
-            <td>Vendored Segment-docs npm v3 lockfile, full transitive graph.</td>
             <td><strong>74</strong></td>
           </tr>
           <tr>
-            <td><span class="fira">refs/segment-docs/yarn.lock</span></td>
+            <td><span class="fira">yarn.lock</span></td>
             <td>npm</td>
-            <td>Vendored Segment-docs Yarn lockfile, parallel resolution.</td>
             <td><strong>86</strong></td>
           </tr>
           <tr>
-            <td><span class="fira">refs/segment-docs/Gemfile.lock</span></td>
+            <td><span class="fira">Gemfile.lock</span></td>
             <td>RubyGems</td>
-            <td>Vendored Segment-docs Jekyll Ruby lockfile.</td>
             <td><strong>20</strong></td>
+          </tr>
+          <tr>
+            <td><span class="fira">Dockerfile</span> &times;2</td>
+            <td>Docker</td>
+            <td><strong>0</strong></td>
+          </tr>
+          <tr>
+            <td><span class="fira">workflows/*.yml</span> &times;13</td>
+            <td>GH Actions</td>
+            <td><strong>0</strong></td>
           </tr>
         </tbody>
       </table>
@@ -854,33 +895,32 @@ flowchart LR
     <section>
       <div class="slide-header">
         <span class="eyebrow">Severity Breakdown</span>
-        <h2>Risk distribution across 211 findings</h2>
-        <p class="lead">CVSS-derived buckets follow the user contract thresholds: 9.0+ critical, 7.0+ high, 4.0+ medium, below 4.0 low. Findings without CVSS scores conservatively bucket to low.</p>
+        <h2>Risk distribution</h2>
       </div>
       <div class="kpi-grid">
         <div class="kpi-card sev-critical">
           <i data-lucide="alert-octagon" class="kpi-icon"></i>
           <div class="kpi-value sev-critical">15</div>
           <div class="kpi-label">Critical</div>
-          <div class="kpi-sub">CVSS &ge; 9.0 &middot; immediate attention warranted.</div>
+          <div class="kpi-sub">CVSS 9 plus.</div>
         </div>
         <div class="kpi-card sev-high">
           <i data-lucide="alert-triangle" class="kpi-icon"></i>
           <div class="kpi-value sev-high">77</div>
           <div class="kpi-label">High</div>
-          <div class="kpi-sub">CVSS 7.0&ndash;8.9 &middot; near-term remediation.</div>
+          <div class="kpi-sub">CVSS 7 to 8.9.</div>
         </div>
         <div class="kpi-card sev-medium">
           <i data-lucide="alert-circle" class="kpi-icon"></i>
           <div class="kpi-value sev-medium">74</div>
           <div class="kpi-label">Medium</div>
-          <div class="kpi-sub">CVSS 4.0&ndash;6.9 &middot; planned remediation.</div>
+          <div class="kpi-sub">CVSS 4 to 6.9.</div>
         </div>
         <div class="kpi-card sev-low">
           <i data-lucide="info" class="kpi-icon"></i>
           <div class="kpi-value sev-low">45</div>
           <div class="kpi-label">Low</div>
-          <div class="kpi-sub">CVSS &lt; 4.0 or no-score fallback &middot; informational.</div>
+          <div class="kpi-sub">CVSS under 4.</div>
         </div>
       </div>
     </section>
@@ -892,7 +932,6 @@ flowchart LR
       <div class="slide-header">
         <span class="eyebrow">Top Findings</span>
         <h2>Highest-severity advisories</h2>
-        <p class="lead">A sample of the 15 critical entries, drawn from the deterministically sorted findings array.</p>
       </div>
       <table class="styled">
         <thead>
@@ -908,31 +947,25 @@ flowchart LR
             <td><span class="fira">Gemfile.lock</span></td>
             <td><span class="sev-pill sev-critical">Critical</span></td>
             <td><span class="fira">GHSA-353f-x4gh-cqq8</span></td>
-            <td>Nokogiri patches vendored libxml2 to resolve multiple CVEs.</td>
+            <td>Nokogiri libxml2 patches.</td>
           </tr>
           <tr>
             <td><span class="fira">package-lock.json</span></td>
             <td><span class="sev-pill sev-critical">Critical</span></td>
             <td><span class="fira">CVE-2023-28154</span></td>
-            <td>Cross-realm object access in Webpack 5 enables script execution in the runtime sandbox.</td>
+            <td>Webpack cross-realm RCE.</td>
           </tr>
           <tr>
             <td><span class="fira">package-lock.json</span></td>
             <td><span class="sev-pill sev-critical">Critical</span></td>
             <td><span class="fira">CWE-1321</span></td>
-            <td>Prototype pollution in handlebars allows attacker-controlled template paths.</td>
+            <td>Handlebars prototype pollution.</td>
           </tr>
           <tr>
             <td><span class="fira">package-lock.json</span></td>
             <td><span class="sev-pill sev-critical">Critical</span></td>
             <td><span class="fira">CWE-184</span></td>
-            <td>Babel arbitrary code execution when compiling specifically crafted malicious code.</td>
-          </tr>
-          <tr>
-            <td><span class="fira">package-lock.json</span></td>
-            <td><span class="sev-pill sev-critical">Critical</span></td>
-            <td><span class="fira">CWE-1321</span></td>
-            <td>Immutable library is vulnerable to prototype pollution affecting downstream consumers.</td>
+            <td>Babel arbitrary code execution.</td>
           </tr>
         </tbody>
       </table>
@@ -956,32 +989,31 @@ flowchart LR
       <div class="slide-header">
         <span class="eyebrow">Normalization Decisions</span>
         <h2>Four choices that shape the output</h2>
-        <p class="lead">Every non-trivial choice is documented in the decision log; these four most strongly affect cross-config comparability.</p>
       </div>
       <div class="kpi-grid">
         <div class="kpi-card">
           <i data-lucide="scale" class="kpi-icon"></i>
           <div class="kpi-value is-text">Max CVSS</div>
           <div class="kpi-label">Severity Bucket</div>
-          <div class="kpi-sub">Highest score across vectors survives; v3 preferred on ties.</div>
+          <div class="kpi-sub">v3 preferred.</div>
         </div>
         <div class="kpi-card">
           <i data-lucide="arrow-down-narrow-wide" class="kpi-icon"></i>
-          <div class="kpi-value is-text">&rarr; low</div>
+          <div class="kpi-value is-text">to low</div>
           <div class="kpi-label">No-CVSS Fallback</div>
-          <div class="kpi-sub">Findings without a score preserve the count, log as low.</div>
+          <div class="kpi-sub">Preserve count.</div>
         </div>
         <div class="kpi-card">
           <i data-lucide="link" class="kpi-icon"></i>
-          <div class="kpi-value is-text">CWE &rarr; CVE &rarr; OSV</div>
-          <div class="kpi-label">CWE Resolution Ladder</div>
-          <div class="kpi-sub">Three-step fallback guarantees a non-empty <code class="fira">cwe</code> field.</div>
+          <div class="kpi-value is-text">CWE CVE OSV</div>
+          <div class="kpi-label">CWE Ladder</div>
+          <div class="kpi-sub">Non-empty guarantee.</div>
         </div>
         <div class="kpi-card">
           <i data-lucide="combine" class="kpi-icon"></i>
-          <div class="kpi-value is-text">(file, cwe, desc)</div>
+          <div class="kpi-value is-text">file cwe desc</div>
           <div class="kpi-label">Dedup Key</div>
-          <div class="kpi-sub">321 raw rows collapsed to 211; max severity wins.</div>
+          <div class="kpi-sub">321 to 211.</div>
         </div>
       </div>
     </section>
@@ -1001,35 +1033,35 @@ flowchart LR
     <section>
       <div class="slide-header">
         <span class="eyebrow">Risks &amp; Mitigations</span>
-        <h2>Known limits of Config F</h2>
+        <h2>Known limits</h2>
       </div>
       <div class="risk-list">
         <div class="risk-row">
           <i data-lucide="wifi-off" class="risk-icon"></i>
           <div class="risk-body">
             <div class="risk-title">Network dependency</div>
-            <div class="risk-mitigation">Online mode; <code class="fira">api.osv.dev</code> queried each run.</div>
+            <div class="risk-mitigation">Queried online.</div>
           </div>
         </div>
         <div class="risk-row">
           <i data-lucide="database" class="risk-icon"></i>
           <div class="risk-body">
-            <div class="risk-title">Scanner version drift</div>
-            <div class="risk-mitigation">Version pinned in the decision log; reruns are byte-identical.</div>
+            <div class="risk-title">Scanner drift</div>
+            <div class="risk-mitigation">Version pinned.</div>
           </div>
         </div>
         <div class="risk-row">
           <i data-lucide="file-warning" class="risk-icon"></i>
           <div class="risk-body">
             <div class="risk-title">Coverage gaps</div>
-            <div class="risk-mitigation">Sibling configs cover non-OSV ecosystems by design.</div>
+            <div class="risk-mitigation">Siblings cover others.</div>
           </div>
         </div>
         <div class="risk-row">
           <i data-lucide="clock" class="risk-icon"></i>
           <div class="risk-body">
             <div class="risk-title">Description truncation</div>
-            <div class="risk-mitigation">200-char cap; full advisory text remains in <code class="fira">results-osv.json</code>.</div>
+            <div class="risk-mitigation">Full text retained.</div>
           </div>
         </div>
       </div>
@@ -1050,39 +1082,39 @@ flowchart LR
     <section>
       <div class="slide-header">
         <span class="eyebrow">Onboarding</span>
-        <h2>Re-run Config F in four steps</h2>
+        <h2>Re-run in four steps</h2>
       </div>
       <div class="step-list">
         <div class="step-row">
           <div class="step-num">1</div>
           <i data-lucide="download" class="step-icon"></i>
           <div class="step-body">
-            <div class="step-title">Install OSV-Scanner</div>
-            <div class="step-detail">Run <code class="fira">apt install osv-scanner</code> or <code class="fira">go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest</code>.</div>
+            <div class="step-title">Install</div>
+            <div class="step-detail">apt or go install.</div>
           </div>
         </div>
         <div class="step-row">
           <div class="step-num">2</div>
           <i data-lucide="play" class="step-icon"></i>
           <div class="step-body">
-            <div class="step-title">Execute the pipeline</div>
-            <div class="step-detail">Call <code class="fira">./run-config-f.sh</code> from the harness working directory; the driver handles timing and validation.</div>
+            <div class="step-title">Execute</div>
+            <div class="step-detail">Run the driver script.</div>
           </div>
         </div>
         <div class="step-row">
           <div class="step-num">3</div>
           <i data-lucide="search" class="step-icon"></i>
           <div class="step-body">
-            <div class="step-title">Inspect deliverables</div>
-            <div class="step-detail">Open <code class="fira">findings-config-f.json</code> for the normalized array and <code class="fira">decision-log.md</code> for rationale.</div>
+            <div class="step-title">Inspect</div>
+            <div class="step-detail">Open JSON and log.</div>
           </div>
         </div>
         <div class="step-row">
           <div class="step-num">4</div>
           <i data-lucide="combine" class="step-icon"></i>
           <div class="step-body">
-            <div class="step-title">Feed the comparison harness</div>
-            <div class="step-detail">The schema is stable across configs; drop the JSON into the multi-config comparison tool unchanged.</div>
+            <div class="step-title">Submit</div>
+            <div class="step-detail">Schema-stable; drop in.</div>
           </div>
         </div>
       </div>
@@ -1095,32 +1127,31 @@ flowchart LR
       <div class="slide-header">
         <span class="eyebrow">Operational Metadata</span>
         <h2>Reproducibility snapshot</h2>
-        <p class="lead">Every value below is committed in <code class="fira">decision-log.md</code> so audit, replay, and cross-config comparison stay deterministic.</p>
       </div>
       <div class="kpi-grid">
         <div class="kpi-card">
           <i data-lucide="package" class="kpi-icon"></i>
           <div class="kpi-value is-text">v2.3.8</div>
           <div class="kpi-label">OSV-Scanner</div>
-          <div class="kpi-sub">osv-scalibr 0.4.5 &middot; <span class="fira">go install</span> v2 path.</div>
+          <div class="kpi-sub">osv-scalibr 0.4.5.</div>
         </div>
         <div class="kpi-card">
           <i data-lucide="terminal" class="kpi-icon"></i>
           <div class="kpi-value">1</div>
           <div class="kpi-label">Exit Code</div>
-          <div class="kpi-sub">Vulnerabilities found &middot; pass/fail gate satisfied.</div>
+          <div class="kpi-sub">Gate satisfied.</div>
         </div>
         <div class="kpi-card">
           <i data-lucide="hourglass" class="kpi-icon"></i>
-          <div class="kpi-value is-text">&lt; 60s</div>
-          <div class="kpi-label">Wall-Clock Duration</div>
-          <div class="kpi-sub">End-to-end scan plus normalization.</div>
+          <div class="kpi-value is-text">67.212s</div>
+          <div class="kpi-label">Wall-Clock</div>
+          <div class="kpi-sub">End-to-end.</div>
         </div>
         <div class="kpi-card">
           <i data-lucide="globe" class="kpi-icon"></i>
           <div class="kpi-value is-text">Online</div>
           <div class="kpi-label">Network Mode</div>
-          <div class="kpi-sub">Queried <span class="fira">api.osv.dev</span>; offline flag unavailable in v2.</div>
+          <div class="kpi-sub">api.osv.dev.</div>
         </div>
       </div>
     </section>
@@ -1131,7 +1162,7 @@ flowchart LR
     <section class="slide-closing">
       <i data-lucide="check-circle-2" class="hero-icon"></i>
       <span class="eyebrow" style="color:var(--blitzy-accent-teal);">Takeaway</span>
-      <h1>Schema-Stable, Comparison-Ready.</h1>
+      <h1>Schema-Stable and Comparison-Ready.</h1>
       <ul>
         <li>Single-file deliverable with a locked five-field schema.</li>
         <li>Every non-trivial decision documented for reproducibility.</li>

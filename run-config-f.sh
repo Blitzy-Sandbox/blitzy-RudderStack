@@ -144,9 +144,8 @@ python3 -c "import json; json.load(open('$RESULTS'))" \
 # ---------- Stage 4: Normalize & Validate ----------
 python3 "$NORMALIZER" "$RESULTS" "$SCAN_TARGET" > "$FINDINGS"
 
-# Gate 1: single-line output. `wc -l` counts newline terminators; valid values
-# are 0 (no trailing newline) or 1 (one trailing newline). Either passes the
-# user's `cat ... | wc -l == 1` contract because cat normalizes to one line.
+# Gate 1: single-line output. `wc -l` counts newline terminators; values 0 and 1
+# both satisfy `cat ... | wc -l == 1`. See decision-log.md Decision 10.
 LINE_COUNT="$(wc -l < "$FINDINGS" | tr -d ' ')"
 if [ "$LINE_COUNT" -gt 1 ]; then
   echo "FATAL: $FINDINGS has $LINE_COUNT lines, expected 0 or 1" >&2
@@ -157,15 +156,34 @@ fi
 python3 -c "import json; json.load(open('$FINDINGS'))" \
   || { echo "FATAL: $FINDINGS is not valid JSON" >&2; exit 3; }
 
-# Gate 3: every finding has all 5 required fields.
+# Gate 3: schema enforcement — exact key order/equality, integer line==0,
+# severity in {critical,high,medium,low}, non-empty file/cwe/description,
+# relative path safety. See decision-log.md (Directive 3 gates).
 python3 - "$FINDINGS" <<'PY' \
-  || { echo "FATAL: a finding is missing one or more required fields" >&2; exit 3; }
+  || { echo "FATAL: findings schema gate failed (see message above)" >&2; exit 3; }
 import json, sys
-req = {"file", "line", "severity", "cwe", "description"}
+EXPECTED_KEYS = ["file", "line", "severity", "cwe", "description"]
+ALLOWED_SEVERITY = {"critical", "high", "medium", "low"}
 data = json.load(open(sys.argv[1]))
+if not isinstance(data, list):
+    raise SystemExit("findings root is not a JSON array")
 for f in data:
-    if not req <= set(f.keys()):
-        raise SystemExit("missing field(s) in: " + json.dumps(f))
+    if not isinstance(f, dict):
+        raise SystemExit("finding is not a JSON object: " + json.dumps(f))
+    if list(f.keys()) != EXPECTED_KEYS:
+        raise SystemExit("key order/set mismatch: " + json.dumps(f))
+    if not isinstance(f["file"], str) or not f["file"]:
+        raise SystemExit("file empty or non-string: " + json.dumps(f))
+    if f["file"].startswith("/") or ".." in f["file"].split("/"):
+        raise SystemExit("file path not relative: " + json.dumps(f))
+    if not isinstance(f["line"], int) or isinstance(f["line"], bool) or f["line"] != 0:
+        raise SystemExit("line is not integer 0: " + json.dumps(f))
+    if f["severity"] not in ALLOWED_SEVERITY:
+        raise SystemExit("severity not in whitelist: " + json.dumps(f))
+    if not isinstance(f["cwe"], str) or not f["cwe"]:
+        raise SystemExit("cwe empty or non-string: " + json.dumps(f))
+    if not isinstance(f["description"], str) or not f["description"]:
+        raise SystemExit("description empty or non-string: " + json.dumps(f))
 PY
 
 # Gate 4: no description exceeds 200 characters.
@@ -187,11 +205,12 @@ LOW_COUNT="$(python3 -c "import json; print(sum(1 for f in json.load(open('$FIND
 SCAN_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # ---------- Stage 5: Emit Compliance Deliverables ----------
-# Stage 5a: rewrite the bullet values inside "## Pipeline Metadata" of decision-log.md.
-# Each bullet's first backtick-delimited value is replaced; trailing annotations
-# and the Per-Ecosystem Finding Counts subsection are preserved. Implemented in
-# Python via env-variable passing + quoted heredoc to avoid shell metacharacter
-# pitfalls in scanner version strings and command lines.
+# Stage 5a: rewrite the entire bullet line for each labelled metadata field
+# inside "## Pipeline Metadata" of decision-log.md. The full backtick value
+# plus any trailing annotation is replaced from a canonical template so that
+# reruns are idempotent and no stale prose persists. The
+# Per-Ecosystem Finding Counts subsection is preserved (it is not bullet-keyed
+# in the metadata block). See decision-log.md Decisions 13, 20.
 if [ -f "$LOG" ]; then
   OSV_VERSION="$OSV_VERSION" \
   OSV_INSTALL_PATH="$OSV_INSTALL_PATH" \
@@ -230,49 +249,68 @@ if offline_used and offline_flag:
     cmdline += " " + offline_flag
 cmdline += " <repo-root>"
 
-updates = [
-    ("OSV-Scanner version", os.environ.get("OSV_VERSION", "")),
-    ("Install path used", install_display),
-    ("Scan exit code", os.environ.get("SCAN_EXIT_CODE", "")),
-    ("Wall-clock duration (s)", os.environ.get("SCAN_DURATION_SECONDS", "")),
-    ("Command line", cmdline),
-    ("Offline mode", "Yes" if offline_used else "No"),
-    ("Scan timestamp (UTC)", os.environ.get("SCAN_TIMESTAMP", "")),
-    ("Total findings", os.environ.get("FINDING_COUNT", "")),
-    ("Critical", os.environ.get("CRITICAL_COUNT", "")),
-    ("High", os.environ.get("HIGH_COUNT", "")),
-    ("Medium", os.environ.get("MEDIUM_COUNT", "")),
-    ("Low", os.environ.get("LOW_COUNT", "")),
+
+def safe_md(value: str) -> str:
+    # Replace backticks in user-supplied values to keep markdown spans well-formed.
+    return str(value).replace("`", "'")
+
+
+osv_version = safe_md(os.environ.get("OSV_VERSION", ""))
+exit_code = safe_md(os.environ.get("SCAN_EXIT_CODE", ""))
+duration = safe_md(os.environ.get("SCAN_DURATION_SECONDS", ""))
+timestamp = safe_md(os.environ.get("SCAN_TIMESTAMP", ""))
+total = safe_md(os.environ.get("FINDING_COUNT", ""))
+critical = safe_md(os.environ.get("CRITICAL_COUNT", ""))
+high = safe_md(os.environ.get("HIGH_COUNT", ""))
+medium = safe_md(os.environ.get("MEDIUM_COUNT", ""))
+low = safe_md(os.environ.get("LOW_COUNT", ""))
+install_disp = safe_md(install_display)
+cmdline_disp = safe_md(cmdline)
+
+if exit_code == "0":
+    exit_annot = "(clean scan; no vulnerabilities found per OSV-Scanner contract)"
+elif exit_code == "1":
+    exit_annot = "(vulnerabilities found; a successful scan per Directive 2's pass/fail gate)"
+else:
+    exit_annot = "(non-standard exit code; see scan stderr)"
+
+if offline_used:
+    offline_disp = "`Yes` — `" + (offline_flag if offline_flag else "--experimental-local-db") + "` flag probed and applied; scan ran against a local OSV database."
+else:
+    offline_disp = "`No` — the `--experimental-local-db` flag from Directive 2 was probed and is not exposed by the installed OSV-Scanner version. Per the user contract's \"if available\" qualifier, the scan ran in online mode against `api.osv.dev`. See Decision 13 and the Deviation Register."
+
+# Each entry is (label, complete-line-template) and replaces the full
+# bullet line so no stale trailing prose survives reruns.
+line_updates = [
+    ("OSV-Scanner version", "- **OSV-Scanner version**: `" + osv_version + "`"),
+    ("Install path used", "- **Install path used**: `" + install_disp + "`"),
+    ("Scan exit code", "- **Scan exit code**: `" + exit_code + "` " + exit_annot),
+    ("Wall-clock duration (s)", "- **Wall-clock duration (s)**: `" + duration + "` (captured by `run-config-f.sh` Stage 3 via `date +%s.%N` deltas around the `osv-scanner` invocation; format: three decimal places)"),
+    ("Command line", "- **Command line**: `" + cmdline_disp + "` (the absolute target path is redacted to `<repo-root>` for portability across re-runs in different harness checkouts)"),
+    ("Offline mode", "- **Offline mode**: " + offline_disp),
+    ("Scan timestamp (UTC)", "- **Scan timestamp (UTC)**: `" + timestamp + "` (runtime ISO-8601 UTC; refreshed by `run-config-f.sh` Stage 5 on every execution)"),
+    ("Total findings", "- **Total findings**: `" + total + "` (post-deduplication via the `(file, cwe, description[:80])` dedup key — see Decision 8)"),
+    ("Critical", "- **Critical**: `" + critical + "`"),
+    ("High", "- **High**: `" + high + "`"),
+    ("Medium", "- **Medium**: `" + medium + "`"),
+    ("Low", "- **Low**: `" + low + "`"),
 ]
 
-text = log_path.read_text(encoding="utf-8")
 
-
-def replace_first_bullet_value(content: str, label: str, value: str) -> str:
-    """Update only the first backtick-delimited value of one labelled bullet.
-
-    Matches a line shaped like ``- **<label>**: `<old>`...`` and rewrites the
-    first ``\\`<old>\\``` token, leaving trailing annotation/parentheticals
-    intact. The label is anchored to a leading "- **" so labels mentioned in
-    surrounding prose are not touched. The replacement uses an inline lambda
-    so backslashes/backticks in the value do not invoke regex backrefs.
-    """
+def replace_full_bullet(content: str, label: str, new_line: str) -> str:
+    # Replace the entire `- **<label>**: ...` line so trailing annotations
+    # are rewritten atomically. The line is anchored at the beginning of
+    # a line and ends at the next newline (or end of file).
     pattern = re.compile(
-        r"(?m)^(- \*\*" + re.escape(label) + r"\*\*:\s+)`[^`]*`"
+        r"(?m)^- \*\*" + re.escape(label) + r"\*\*:[^\n]*$"
     )
-
-    def _sub(match: "re.Match[str]") -> str:
-        # Replace embedded backticks in the new value to keep the markdown
-        # span well-formed.
-        safe = value.replace("`", "'")
-        return match.group(1) + "`" + safe + "`"
-
-    return pattern.sub(_sub, content, count=1)
+    return pattern.sub(lambda _m: new_line, content, count=1)
 
 
+text = log_path.read_text(encoding="utf-8")
 updated = text
-for label, value in updates:
-    updated = replace_first_bullet_value(updated, label, str(value))
+for label, new_line in line_updates:
+    updated = replace_full_bullet(updated, label, new_line)
 
 if updated != text:
     log_path.write_text(updated, encoding="utf-8")
