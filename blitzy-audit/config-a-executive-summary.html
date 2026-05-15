@@ -559,8 +559,17 @@
       border-radius: 3px;
     }
 
+    /* CWE table — Slide 8.
+       Compact row sizing so all 15 CWE entries fit within the
+       canonical 1080px reveal.js viewport. Padding, font size, and
+       line-height are tuned together to keep each row ≤ ~44px,
+       leaving the table + header ≤ ~710px which sits inside the
+       ~920px content area of a 1080px content slide.
+       (Checkpoint 3 Issue 1) */
     .audit-table.audit-table-cwe tbody td {
-      font-size: 18px;
+      font-size: 17px;
+      padding: 9px 20px;
+      line-height: 1.35;
     }
 
     .audit-table.audit-table-cwe td.cwe-id {
@@ -577,17 +586,19 @@
       color: var(--blitzy-primary);
       text-align: center;
       width: 100px;
-      font-size: 22px;
+      font-size: 20px;
+      line-height: 1.1;
     }
 
     .audit-table.audit-table-cwe td.cwe-bar-cell {
       width: 280px;
+      vertical-align: middle;
     }
 
     .cwe-bar {
-      height: 14px;
+      height: 12px;
       background: var(--gradient-accent-bar);
-      border-radius: 7px;
+      border-radius: 6px;
       display: block;
       box-shadow: inset 0 0 0 1px var(--blitzy-border-soft);
     }
@@ -669,6 +680,30 @@
       align-items: center;
     }
 
+    /* Workaround for the Mermaid v11.4.0 foreignObject sub-pixel
+       measurement quirk where the inner XHTML rendering reports a
+       width ~5-8px wider than the foreignObject container that
+       Mermaid sized from its own text measurement, causing the
+       right-most glyph to be clipped against the node border.
+       Allowing the foreignObject to render content beyond its bounds
+       lets the trailing characters draw into the rect's natural
+       internal padding zone without altering Mermaid's geometry or
+       breaking the multi-line `<br/>` labels.
+
+       Padding is applied to .nodeLabel only — NOT .edgeLabel —
+       because Mermaid renders 0-width edgeLabel placeholders for
+       unlabeled edges, and any padding on those would make their
+       background fill visible as small ghost rectangles on the
+       canvas. .nodeLabel is always non-empty when present.
+       (Checkpoint 3 Issue 2) */
+    .reveal pre.mermaid foreignObject {
+      overflow: visible;
+    }
+
+    .reveal pre.mermaid foreignObject .nodeLabel {
+      padding-right: 8px;
+    }
+
     /* =========================================================
        References Footer (slide 15)
        ========================================================= */
@@ -703,6 +738,8 @@
 
     /* =========================================================
        Reveal controls/progress styling (subtle Blitzy color)
+       Framework chrome overrides keep every reveal.js default UI
+       element on the Blitzy palette (see Checkpoint 3 Issue 3).
        ========================================================= */
     .reveal .controls {
       color: var(--blitzy-primary);
@@ -710,11 +747,31 @@
 
     .reveal .progress {
       color: var(--blitzy-primary);
-      background: rgba(212, 212, 212, 0.4);
+      background: rgba(217, 217, 217, 0.4); /* derived from --blitzy-border #D9D9D9 */
     }
 
     .reveal .progress span {
       background: var(--gradient-accent-bar);
+    }
+
+    /* Speaker-notes panel (hidden by default; styled for consistency
+       when reveal.js is launched with ?showNotes / 'S' shortcut). */
+    .reveal .speaker-notes {
+      color: var(--blitzy-text);
+      background: var(--blitzy-surface-0);
+      font-family: var(--ff-body);
+    }
+
+    /* Pause overlay resume button (only visible while paused). */
+    .reveal .resume-button {
+      color: var(--blitzy-text-muted);
+      border-color: var(--blitzy-text-muted);
+      font-family: var(--ff-body);
+    }
+
+    .reveal .resume-button:hover {
+      color: var(--blitzy-primary);
+      border-color: var(--blitzy-primary);
     }
 
     /* =========================================================
