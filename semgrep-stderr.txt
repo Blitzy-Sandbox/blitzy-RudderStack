@@ -1,38 +1,41 @@
+               
+               
 ┌─────────────┐
 │ Scan Status │
 └─────────────┘
-  Scanning 4763 files tracked by git with 709 Code rules:
-
-  Language      Rules   Files          Origin      Rules
- ─────────────────────────────        ───────────────────
-  <multilang>      62    3175          Community     709
-  go               50     761
-  yaml             19     183
-  json              3     127
-  html              1      72
-  js               78      46
-  bash              1       6
-  php              22       5
-  dockerfile        4       5
-  ruby             52       4
-  python          194       2
-
-
-
+  Scanning 4764 files tracked by git with 709 Code rules:
+                                                                                                                        
+  Language      Rules   Files          Origin      Rules                                                                
+ ─────────────────────────────        ───────────────────                                                               
+  <multilang>      62    3176          Community     709                                                                
+  go               50     761                                                                                           
+  yaml             19     183                                                                                           
+  json              3     127                                                                                           
+  html              1      72                                                                                           
+  js               78      46                                                                                           
+  bash              1       6                                                                                           
+  php              22       5                                                                                           
+  dockerfile        4       5                                                                                           
+  ruby             52       4                                                                                           
+  python          194       2                                                                                           
+                                                                                                                        
+                
+                
 ┌──────────────┐
 │ Scan Summary │
 └──────────────┘
- Scan completed successfully.
+✅ Scan completed successfully.
  • Findings: 216 (216 blocking)
  • Rules run: 486
- • Targets scanned: 4763
+ • Targets scanned: 4764
  • Parsed lines: ~99.9%
- • Scan skipped:
+ • Scan skipped: 
+   ◦ Matching --exclude patterns: 4
    ◦ Files larger than  files 1.0 MB: 36
    ◦ Files matching .semgrepignore patterns: 1440
  • Scan was limited to files tracked by git
  • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
-Ran 486 rules on 4763 files: 216 findings.
+Ran 486 rules on 4764 files: 216 findings.
 
- Too many findings? Try Semgrep Pro for more powerful queries and less noise.
+📢 Too many findings? Try Semgrep Pro for more powerful queries and less noise.
    See https://sg.run/false-positives.

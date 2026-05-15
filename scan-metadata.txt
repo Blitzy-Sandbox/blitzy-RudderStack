@@ -3,13 +3,13 @@ rule_pack_security_audit_sha256=fdc7027973176abe71f6b1fc8739ef88a4c411735c380cfc
 rule_pack_secrets_sha256=fbbe6809214065a2efec7264cd1c9ca16be9b3e7665dfa790e0bdfd08a6d7a16
 rule_pack_owasp_top_ten_sha256=d866bd809983001afdfa81014b86404d704c0604b22c378ed37608e69525e040
 rule_pack_acquisition_utc=2026-05-15T03:10:06Z
-scan_command=semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off .
-scan_start_utc=2026-05-15T05:07:59Z
-scan_end_utc=2026-05-15T05:08:34Z
+scan_command=semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off --exclude=local-rules --exclude=findings-config-b.json .
+scan_start_utc=2026-05-15T07:47:25Z
+scan_end_utc=2026-05-15T07:48:02Z
 exit_code=0
-duration_seconds=35.30
-files_scanned=4763
-files_skipped=1476
+duration_seconds=37.30
+files_scanned=4764
+files_skipped=1480
 parse_errors=34
 timeouts=1
 findings_total=216
