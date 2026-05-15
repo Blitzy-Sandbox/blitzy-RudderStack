@@ -1,71 +1,60 @@
-# Blitzy Project Guide — RudderStack Sprint Groups 3–10 Implementation
-
----
+# Blitzy Project Guide — Config B: Semgrep OSS Scan of blitzy-RudderStack
 
 ## 1. Executive Summary
 
 ### 1.1 Project Overview
 
-This project implements five remaining sprint groups (25 epics, E-010 through E-039) across the RudderStack `rudder-server` Go monorepo, targeting feature parity with Segment across five critical dimensions: destination connectors, functions/transformations, protocols enforcement, identity resolution, and operational tooling. The implementation adds 4 new stream destination producers, a complete Functions runtime framework with CRUD API, JSON Schema draft-07 validation with three-mode enforcement, a real-time identity graph with Profiles API, and per-destination monitoring with alerting and performance profiling. All changes maintain backward compatibility with the existing 6-stage Processor pipeline, Router delivery, and warehouse upload state machine.
+**Config B** of a multi-config security-tool comparison: a hermetic, offline, telemetry-free Semgrep Community Edition scan of the `blitzy-RudderStack` codebase (the Go-dominant rudder-server v1.68.1 enhancement tree — 1,263 Go + 187 YAML + 48 JS + 6 shell + 2 Python files across 40 top-level directories). Three rule packs (`p/security-audit`, `p/secrets`, `p/owasp-top-ten`) are pre-cached locally; the scan runs with `--metrics=off` and zero outbound network. The directive deliverable is a single minified `findings-config-b.json` conforming to a precisely specified five-field schema (`file`, `line`, `severity`, `cwe`, `description`). Two rule-mandated companion files complete the package: `decision-log.md` (Explainability) and `executive-summary.html` (Executive Presentation). No source-tree files are modified.
 
 ### 1.2 Completion Status
 
 ```mermaid
-pie title Project Completion (83.1%)
-    "Completed (AI)" : 402
-    "Remaining" : 82
+pie title Config B Completion (AAP-scoped hours) — 95.5%
+    "Completed Work (42h)" : 42
+    "Remaining Work (2h)" : 2
 ```
 
 | Metric | Value |
 |---|---|
-| **Total Project Hours** | **484** |
-| **Completed Hours (AI)** | **402** |
-| **Remaining Hours** | **82** |
-| **Completion Percentage** | **83.1%** |
+| **Total Hours** | 44 |
+| **Completed Hours (AI)** | 42 |
+| **Completed Hours (Manual)** | 0 |
+| **Remaining Hours** | 2 |
+| **Percent Complete** | **95.5%** |
 
-**Calculation:** 402 completed hours / (402 + 82 remaining hours) = 402 / 484 = **83.1% complete**
+Pie-chart palette: Completed = Dark Blue `#5B39F3`, Remaining = White `#FFFFFF`.
 
 ### 1.3 Key Accomplishments
 
-- ✅ **25 epics implemented** across 5 sprint groups (23 fully completed, 2 partially completed)
-- ✅ **Clean compilation**: `go build ./...` passes with zero errors and zero warnings
-- ✅ **859 test functions** with 749 sub-test cases — all passing across 7+ test suites
-- ✅ **Zero lint issues**: `golangci-lint` clean across all new and modified packages
-- ✅ **4 new stream destinations**: Amazon MSK, Azure Event Hub Extended, Apache Pulsar, Redis Streams
-- ✅ **Complete Functions framework**: Runtime engine, Source/Destination/Insert Functions, CRUD API, secrets management
-- ✅ **Full Protocols enforcement**: JSON Schema draft-07, anomaly detection, Block/Omit/Allow modes, forward-blocked-events
-- ✅ **Real-time identity graph**: Graph service, Profiles REST + gRPC API, Redis caching, 17 external ID types, CDC sync
-- ✅ **Operational tooling**: Monitoring dashboard, alerting engine with Slack/email, advanced replay, pipeline profiling
-- ✅ **16 database migration files** for functions, protocols, identity, and alerting tables
-- ✅ **70 payload parity fixtures** covering stream, cloud, and warehouse destinations
-- ✅ **215 commits** with 96,983 lines added across 279 files
+- ✅ All three CRITICAL directive Pass/Fail clauses satisfied — dry-run exits 0 hermetically; SARIF is valid JSON with a `runs` array containing 216 results; `findings-config-b.json` meets all four sub-criteria (`wc -l == 1`, parseable JSON, 5/5 fields populated, max description = 200 chars)
+- ✅ Hermeticity verified via two independent methods: `unshare --net --user` network namespace AND `HTTPS_PROXY=http://127.0.0.1:1` — both exit 0 with no DNS or HTTPS calls
+- ✅ Reproducibility proven — byte-identical SHA-256 `0c53063d0f551083dc96021377c0a0ff24bb44e4742a7020bcba802f3d64f561` for `findings-config-b.json` across three independent end-to-end pipeline reruns (committed state + canonical re-run + offline re-run)
+- ✅ Semgrep Community Edition `1.163.0` installed via PEP 668-compliant venv at `/tmp/semgrep-config-b/.semgrep-venv/`; rule packs (1.95 MB total) cached inside the repository at `./local-rules/` so a fresh checkout is self-sufficient (Decision D-12)
+- ✅ 216 findings normalized: 15 critical + 201 high; 12 distinct CWEs led by CWE-89 (162 SQL-injection rules), CWE-79 (23 XSS), CWE-338 (8 weak PRNG), CWE-798 (6 hardcoded credentials), CWE-327 (4 weak crypto)
+- ✅ Explainability rule satisfied — `decision-log.md` (274 lines, 51 KB): scan-metadata frontmatter, 12 non-trivial decisions (D-01 through D-12), bidirectional traceability matrix with 100% coverage, CWE inference audit, 7 documented deviations (D1–D7) including the Semgrep CLI `--dry-run` → `--dryrun` rename
+- ✅ Executive Presentation rule satisfied — `executive-summary.html` (32.6 KB, 1,180 lines): single self-contained HTML5 file, 15 reveal.js slides (1 title + 4 dividers + 9 content + 1 closing), CDN-pinned reveal.js 5.1.0 + Mermaid 11.4.0 + Lucide 0.460.0, full Blitzy theme inlined (21 CSS custom properties, 6 brand colors), 1 Mermaid pipeline diagram, 9 KPI cards, 4 styled tables, 23 Lucide icons, zero emoji, zero fenced code blocks; browser-rendered verification confirmed all visuals render correctly
+- ✅ Idempotency invariant (AAP §0.8.1) preserved — no timestamps or hostnames embedded in the findings JSON; runtime metadata lives in `decision-log.md` / `scan-metadata.txt` only
+- ✅ Zero source-tree modifications — `git diff` outside the 10 deliverables returns empty
 
 ### 1.4 Critical Unresolved Issues
 
 | Issue | Impact | Owner | ETA |
 |---|---|---|---|
-| Cloud connector Transformer-side implementation (E-011/E-012) | 40 cloud destinations need Transformer service extensions for full parity — rudder-server side config/fixtures complete | Human Developer | 3–4 weeks |
-| Functions runtime JavaScript sandbox | Currently delegates to Transformer HTTP — production needs V8 isolate or Deno sandbox for secure execution | Human Developer | 2 weeks |
-| Identity graph not yet validated under production load | Sub-200ms target requires performance testing with realistic data volumes | Human Developer | 1 week |
-| Feature toggles default to disabled | All new features (Functions, Identity, Monitoring, Alerting) are disabled by default in config.yaml — requires production enablement | Human Developer | 1 day |
+| _None_ — all gates pass; no compilation failures, no failing tests, no blocked validations | n/a | n/a | n/a |
 
 ### 1.5 Access Issues
 
 | System/Resource | Type of Access | Issue Description | Resolution Status | Owner |
 |---|---|---|---|---|
-| AWS ECR Registry | Docker Registry | CI workflows reference AWS ECR for container images; repository secrets not available in sandbox | Unresolved — requires production AWS credentials | DevOps |
-| RudderStack Config Backend | API | `WORKSPACE_TOKEN` placeholder in docker.env — needed for live workspace config | Unresolved — requires workspace provisioning | Platform Team |
-| Redis (Production) | Infrastructure | Redis added to docker-compose.yml under `identity` profile; production Redis cluster not provisioned | Unresolved — requires infrastructure provisioning | DevOps |
+| _No access issues identified_ — all rule packs were fetched successfully during one-time setup; Semgrep CLI installs from PyPI; no commercial credentials required | n/a | n/a | n/a | n/a |
 
 ### 1.6 Recommended Next Steps
 
-1. **[High]** Provision production infrastructure: PostgreSQL with migration execution, Redis cluster for identity caching, Transformer service with Functions support
-2. **[High]** Run end-to-end integration tests with live Docker services (`docker compose --profile identity up -d`)
-3. **[High]** Execute database migrations for functions, protocols, identity, and alerting tables on production PostgreSQL
-4. **[Medium]** Implement JavaScript sandbox (V8/Deno) for Functions runtime or extend Transformer service with Functions endpoints
-5. **[Medium]** Enable feature toggles in production config and validate each sprint's features incrementally
-
----
+1. **[High]** Human reviewer sign-off on the 216 findings — validate they represent genuine signals (not false positives from rule-pack patterns) before passing the JSON to the parent multi-config comparison workstream. Recommended sample: at minimum the 15 critical findings + the top-density file (`warehouse/integrations/snowflake/snowflake.go`, 21 findings).
+2. **[Medium]** Independent reproducibility check — clone the branch on a clean host and rerun `python3 normalize-sarif.py results-semgrep.sarif findings-config-b.json`; confirm the SHA-256 still matches `0c53063d0f551083dc96021377c0a0ff24bb44e4742a7020bcba802f3d64f561`.
+3. **[Medium]** Hand off `findings-config-b.json` to the multi-config comparison parent workstream (separate ticket / branch per AAP §0.3.2; **out of scope for Config B**).
+4. **[Low]** Document a future-Semgrep upgrade procedure: when the upstream `--dryrun` ↔ `--dry-run` rename stabilizes again, retire Deviation D7 and reinstate the verbatim AAP §0.1.2.1 dry-run command.
+5. **[Low]** Optional baseline persistence — capture the 216-record SHA-256 as a fingerprint for future drift detection across reruns.
 
 ## 2. Project Hours Breakdown
 
@@ -73,455 +62,384 @@ pie title Project Completion (83.1%)
 
 | Component | Hours | Description |
 |---|---|---|
-| E-010: Destination Priority Ranking | 4 | Design document with top-50 missing connector analysis and coverage metrics |
-| E-011/E-012: Cloud Connector Server-Side | 20 | Backend-config support, 40+ payload parity fixtures, test infrastructure for cloud destinations |
-| E-013: Payload Parity Validation | 18 | 70 payload reference fixtures + integration test suite for field-by-field comparison |
-| E-014: Stream Destinations | 18 | 4 new stream producers (MSK, Azure EH, Pulsar, Redis Streams) + factory registration + tests |
-| E-015: Source Functions | 16 | Runtime engine, Source Functions onRequest handler, Gateway webhook endpoint, auth middleware |
-| E-016: Destination Functions | 14 | 8 typed event handlers (onTrack through onBatch), processor adapter wiring |
-| E-017: Insert Functions | 14 | Pipeline channel insertion, processor integration, insert function execution logic |
-| E-018: Functions CRUD API | 18 | Management API handler, PostgreSQL storage repository, chi routes, 2 migration files |
-| E-019: Secrets Management | 10 | Per-function encrypted secrets storage with AES-GCM encryption |
-| E-020: JSON Schema draft-07 | 14 | Validation engine using santhosh-tekuri/jsonschema/v5, common schema definition |
-| E-021: Anomaly Detection | 12 | Detector engine for unexpected events/properties, frequency tracker with time windows |
-| E-022: Enforcement Modes | 14 | Block/Omit/Allow modes, trackingplan.go refactor, backend-config EnforcementMode types |
-| E-023: Forward Blocked Events | 8 | Server-to-server forwarder for blocked events to alternative source |
-| E-024: Tracking Plan Management API | 18 | CRUD handler with versioning, PostgreSQL storage, chi routes, 2 migration files |
-| E-025: Consent Integration | 8 | Consent-enforcement binding in processor/consent.go with violation logging |
-| E-026: Identity Graph | 28 | Real-time graph service, resolution engine (3 strategies), PostgreSQL storage, warehouse refactor, 3 migration files |
-| E-027: Profiles API | 24 | REST API (15 endpoints), gRPC server (5 RPCs), Redis-backed cache, proto definitions |
-| E-028: External IDs | 10 | 17 external identifier types with extraction from events and context.externalIds |
-| E-029: Profile Sync | 12 | CDC-based syncer, gateway sender, destination adapters |
-| E-030: Resolution Settings | 12 | Configurable blocked values, weekly/monthly/total limits, priority ranking |
-| E-036: Delivery Dashboard | 18 | Prometheus metrics, dashboard service, router instrumentation (success/failure/latency/throughput) |
-| E-037: Alerting | 20 | Rules engine, webhook/email/Slack channels, threshold evaluation, Slack + email alert providers |
-| E-038: Advanced Replay | 12 | Source/date-range/destination filters, dry-run mode, archiver integration |
-| E-039: Capacity Planning | 14 | Per-stage pipeline profiler, capacity report generator targeting 50K events/sec |
-| Cross-cutting: Infrastructure | 16 | go.mod, Docker (Redis), CI workflow, Makefile targets, OpenAPI spec, Dockerfile |
-| Cross-cutting: Validation & QA | 18 | 215 commits across multiple QA rounds, compilation fixes, lint resolution |
-| Cross-cutting: Integration Wiring | 12 | Gateway endpoint mounting, Runner lifecycle, main.go imports, backend-config pub/sub |
-| **Total Completed** | **402** | |
+| Directive 1 — Tool provisioning | 1.0 | PEP 668-compliant Python 3.13.7 venv at `/tmp/semgrep-config-b/.semgrep-venv/`; `pip install` resolved Semgrep to **1.163.0** (highest 1.x available; AAP §0.4.1 permits "highest available 1.x release"); deviation D4 documents version drift from the AAP-quoted 1.144.0 |
+| Directive 1 — Rule pack acquisition | 1.5 | Three YAML bundles curl-fetched from `https://semgrep.dev/c/p/<slug>` and persisted under `local-rules/`: `security-audit.yaml` (462 KB, SHA-256 `fdc7027...`), `secrets.yaml` (86 KB, SHA-256 `fbbe680...`), `owasp-top-ten.yaml` (1.38 MB, SHA-256 `d866bd8...`); canonicalization of user-named `p/owasp` → registry slug `p/owasp-top-ten` documented as Deviation D1 |
+| Directive 1 — Dry-run hermeticity gate | 1.5 | `semgrep scan --metrics=off --config=./local-rules --dryrun` exits 0 (gate passed); verified hermetic via `unshare --net --user --map-root-user` AND `HTTPS_PROXY=http://127.0.0.1:1`; Deviation D7 documents the upstream `--dry-run` → `--dryrun` CLI rename with three alternatives evaluated (downgrade, `--validate`, renamed flag — chosen) |
+| Directive 2 — Scan execution + metadata | 1.5 | `semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off --exclude=local-rules --exclude=findings-config-b.json .` ran in **37.30s wall-clock**; exit code **0**; **4,764 files scanned** (12 languages, dominated by go=761, multilang=3,176, yaml=183); 486 rules ran; 1,480 files skipped (36 oversized + 1,440 `.semgrepignore` + 4 `--exclude`); 34 parse errors; 1 timeout; full metadata captured to `scan-metadata.txt` (24 keys) |
+| Directive 2 — SARIF validity gate | 0.5 | `results-semgrep.sarif` (1.46 MB, SARIF 2.1.0) parses as valid JSON; `runs` is a list of 1 run; 216 results; 709 rules in driver; `driver.semanticVersion = 1.163.0` cross-references metadata |
+| Directive 3 — `normalize-sarif.py` implementation | 6.0 | 431 lines / 15.6 KB Python (stdlib only): SARIF loader, severity lookup table (error→critical, warning→high, note→medium, info→low + absent-`level` fallback to rule's `defaultConfiguration.level` per Decision D-06), 4-step CWE extraction cascade (Decision D-07: rule.properties.cwe → tags `cwe:CWE-N` → result.properties → description-inference → `CWE-Other` sentinel), description whitespace-collapse + 200-char truncation (Decision D-08), single-line `json.dumps(separators=(',',':'), ensure_ascii=False)`, zero-finding fallback to literal `[]`, post-condition assertions (single-line, parseability, 5-key set, max-200-chars) |
+| Directive 3 — `findings-config-b.json` deliverable | 0.5 | 62,303-byte single-line JSON array (62 KB); **216 records**; SHA-256 `0c53063d0f551083dc96021377c0a0ff24bb44e4742a7020bcba802f3d64f561`; severity distribution 15 critical / 201 high; 12 distinct CWEs (CWE-89 ×162, CWE-79 ×23, CWE-338 ×8, CWE-798 ×6, CWE-327 ×4, plus CWE-250, CWE-269, CWE-287, CWE-300, CWE-328, CWE-400, CWE-78) |
+| Rule 1 — `decision-log.md` (Explainability) | 9.5 | 274 lines / 51 KB Markdown; 7 numbered sections: §1 frontmatter (24-line scan-metadata block), §2 executive summary, §3 decisions table (12 rows D-01 through D-12 with what/alternatives/why/risks columns), §4 bidirectional traceability matrix (§4.1 forward: 5 rows; §4.2 reverse: 9 rows covering all scoped artifacts; §4.3 supporting evidence), §5 CWE inference audit, §6 deviation log (7 deviations D1–D7), §7 decisions inventory cross-reference |
+| Rule 2 — `executive-summary.html` (Reveal.js) | 11.5 | Single self-contained 32-KB / 1,180-line HTML5 file; **15 slides** within the 12–18 band: 1 Title + 4 Section Dividers + 9 Content + 1 Closing; CDN-pinned reveal.js@5.1.0 + mermaid@11.4.0 + lucide@0.460.0; full Blitzy theme inlined (21 required CSS custom properties — `--blitzy-primary`, `--blitzy-primary-dark`, `--blitzy-primary-navy`, `--blitzy-primary-light`, `--blitzy-primary-deep`, `--blitzy-accent-teal`, all gradients, typography tokens — and all 6 required colors); 1 Mermaid pipeline flowchart (17 nodes), 9 KPI cards, 4 styled tables, 23 Lucide icons; zero emoji codepoints; zero fenced code blocks; reveal.js configured with `hash: true / transition: 'slide' / controlsTutorial: false / width: 1920 / height: 1080`; Mermaid initialized `startOnLoad: false` and `mermaid.run()` invoked on `ready` and `slidechanged` events; `lucide.createIcons()` invoked likewise; browser-verified rendering at 1920×1080, 1280×800, and 768×1024 |
+| QA & validation iteration | 7.5 | 6 QA checkpoint rounds across 12 Config B commits: Checkpoint 1 (15/15 findings resolved, commit a2c61af), Checkpoint 2 FINAL (8/8 resolved, commit 9d632d2), Checkpoint 4 MAJOR (D7 deviation promotion, commit 196c281), Checkpoint 6 (§5 CWE accuracy + D1 URL + slide 14 onboarding, commit c5b8979), plus interim rule-pack validation commits (46ec08f, 59da565) — all production-readiness gates 1–7 pass cleanly |
+| Path-to-production acceptance | 1.0 | End-to-end pipeline rerun (scan + normalize) confirms byte-identical findings JSON; full file manifest verified at HEAD; `git status` clean except intentionally untracked verification screenshots (`blitzy/screenshots/`) |
+| **TOTAL COMPLETED** | **42.0** | |
 
 ### 2.2 Remaining Work Detail
 
 | Category | Hours | Priority |
 |---|---|---|
-| Cloud Connector Transformer Extensions (E-011/E-012) | 24 | Medium |
-| Functions JavaScript Sandbox Implementation | 12 | High |
-| End-to-End Integration Testing (all sprints) | 8 | High |
-| Identity Graph Performance Tuning (sub-200ms at scale) | 6 | Medium |
-| Load Testing at 50K events/sec Target | 8 | Medium |
-| Production Security Audit | 6 | High |
-| Database Migration Execution & Validation | 3 | High |
-| Production Environment Configuration | 4 | Medium |
-| CI/CD Pipeline Verification | 3 | Medium |
-| Production Monitoring Setup (Prometheus/Grafana) | 4 | Medium |
-| Live Alerting Channel Testing | 2 | Low |
-| Documentation Review | 2 | Low |
-| **Total Remaining** | **82** | |
+| Human reviewer sign-off on the 216 findings before downstream consumption by the multi-config comparison parent workstream (validate signal vs. false-positive rate; minimum review scope: the 15 critical findings + the top-density file `warehouse/integrations/snowflake/snowflake.go`) | 1.0 | High |
+| Independent reproducibility verification on a fresh checkout / clean host (rerun `python3 normalize-sarif.py results-semgrep.sarif findings-config-b.json`; confirm SHA-256 `0c53063d...` byte-equality) | 0.5 | Medium |
+| Hand-off documentation to multi-config comparison parent workstream (out-of-scope per AAP §0.3.2 but path-to-consumer) | 0.5 | Medium |
+| **TOTAL REMAINING** | **2.0** | |
 
-### 2.3 Hours Verification
+### 2.3 Hours Reconciliation
 
-- **Section 2.1 Total (Completed):** 402 hours
-- **Section 2.2 Total (Remaining):** 82 hours
-- **Sum (2.1 + 2.2):** 402 + 82 = **484 hours** = Total Project Hours in Section 1.2 ✓
-- **Completion:** 402 / 484 = **83.1%** ✓
-
----
+- Completed (Section 2.1): **42.0 h**
+- Remaining (Section 2.2): **2.0 h**
+- Total project (Section 1.2): **44.0 h** ✓ matches
+- Completion percentage: 42 / 44 = **95.5%** ✓ matches Section 1.2 and Section 7
 
 ## 3. Test Results
 
-| Test Category | Framework | Total Tests | Passed | Failed | Coverage % | Notes |
+All "tests" below originate from Blitzy's autonomous validation logs for this configuration. The work product is not application code — there are no unit/integration tests in the traditional sense. The Pass/Fail clauses in the three directives, the rule mandates, and the production-readiness gates collectively constitute the test surface.
+
+| Test Category | Framework / Mechanism | Total | Passed | Failed | Coverage % | Notes |
 |---|---|---|---|---|---|---|
-| Functions Runtime | Go testing / testify | 188 | 188 | 0 | — | engine, source, destination, insert, errors, api, secrets, storage |
-| Protocols & Schema | Go testing / testify | 148 | 148 | 0 | — | validator, common_schema, api handler, storage repository |
-| Identity Resolution | Go testing / testify | 240 | 240 | 0 | — | graph, resolver, externalids, profiles, cache, settings, storage, sync |
-| Processor (New Packages) | Go testing / testify | 156 | 156 | 0 | — | anomalydetection (detector, tracker), enforcement (modes, forwarder) |
-| Operational Tooling | Go testing / testify | 68 | 68 | 0 | — | monitoring, alerting (engine, channels, rules), profiling, alert (slack, email) |
-| Stream Destinations | Go testing / gomock | 29 | 29 | 0 | — | amazonmsk, azureeventhub, pulsar, redisstream + factory tests |
-| Processor Core | Go testing / Ginkgo | Pass | Pass | 0 | — | Full processor suite (269.7s) including new pipeline stages |
-| Gateway | Go testing | Pass | Pass | 0 | — | Endpoint tests including Source Functions webhook |
-| App Handlers | Go testing | Pass | Pass | 0 | — | embeddedAppHandler (23.1s) with Functions/Identity wiring |
-| Integration (Scaffolded) | Go testing | 3 | 3 | 0 | — | destination_parity, functions, identity (require Docker services) |
-| Static Analysis | golangci-lint | — | Pass | 0 | — | 0 issues across processor/ and app/ |
-| Build | go build | — | Pass | 0 | — | `go build ./...` CLEAN (0 errors, 0 warnings) |
-
-**Total: 859+ test functions with 749 sub-test cases — all passing**
-
-> All test results originate from Blitzy's autonomous validation execution logs for this project.
-
----
+| Directive 1 Pass/Fail — dry-run hermeticity | `semgrep scan --metrics=off --config=./local-rules --dryrun` + exit-code check | 1 | 1 | 0 | 100% | Exit 0 also reproduced under `unshare --net --user` and `HTTPS_PROXY=http://127.0.0.1:1` (defense-in-depth) |
+| Directive 2 Pass/Fail — SARIF validity | `python3 -c "import json; d=json.load(open('results-semgrep.sarif')); assert isinstance(d.get('runs'), list)"` | 1 | 1 | 0 | 100% | 1.46 MB SARIF 2.1.0; 1 run; 216 results; 709 rules in driver |
+| Directive 3 Pass/Fail — `findings-config-b.json` | `wc -l == 1` + `python3 -m json.tool` + 5-key-set assertion + max-200-char assertion | 4 | 4 | 0 | 100% | All 216 records pass all 4 sub-criteria |
+| Severity & CWE vocabulary closed | Python script: set membership + regex `^CWE-\d+$` | 2 | 2 | 0 | 100% | Severities ⊂ {critical, high, medium, low}; all 216 CWE values match `CWE-<digits>` |
+| Explainability rule (decision-log.md) | Structural checks: section count, decisions table, traceability matrix, deviation log | 7 | 7 | 0 | 100% | 12 decisions × 4 columns; 5+9+supporting traceability rows; 7 deviations |
+| Executive Presentation rule | HTML parser + regex compliance checks | 15 | 15 | 0 | 100% | Slides count (15), CDN versions (3/3), CSS properties (21+/21), colors (6/6), reveal config (5/5), Mermaid init (2/2), Lucide init (1/1), emoji (0/0 ban), fenced code (0/0 ban), non-text visual per slide (15/15) |
+| Reproducibility (AAP §0.8.1 idempotency) | SHA-256 byte-equality across normalizer reruns | 1 | 1 | 0 | 100% | Hash `0c53063d0f551083dc96021377c0a0ff24bb44e4742a7020bcba802f3d64f561` matches across committed state + re-run during validation |
+| HTML5 well-formedness | Python `html.parser` unmatched-tag count | 1 | 1 | 0 | 100% | 0 unmatched closing tags |
+| Python script syntax | `python3 -m py_compile normalize-sarif.py` | 1 | 1 | 0 | 100% | Clean compile |
+| Branch cleanliness | `git diff` excluding deliverables | 1 | 1 | 0 | 100% | Zero source-tree modifications |
+| **TOTAL** | | **34** | **34** | **0** | **100%** | All gates pass; production-ready |
 
 ## 4. Runtime Validation & UI Verification
 
-### Build Validation
-- ✅ `go build ./...` — Clean compilation with zero errors and zero warnings
-- ✅ All 279 changed files compile successfully
-- ✅ New dependencies (`santhosh-tekuri/jsonschema/v5`) resolve correctly
+### Runtime Validation
+- ✅ **Semgrep CLI** (`1.163.0` in `/tmp/semgrep-config-b/.semgrep-venv/`): runs end-to-end; dry-run exits 0; scan exits 0 in 37.30 s; 4,764 files processed; 216 findings emitted
+- ✅ **`normalize-sarif.py`**: runs end-to-end; exit 0; writes 216 records; honors all post-condition assertions; idempotent (SHA-256 stable across reruns)
+- ✅ **Pipeline reproducibility**: full re-execution (scan + normalize) yields identical `findings-config-b.json` (SHA-256 verified)
+- ✅ **Hermeticity (defense-in-depth)**: dry-run exits 0 under `unshare --net --user --map-root-user` (no DNS, no HTTPS) AND under `HTTPS_PROXY=http://127.0.0.1:1` (proxy refusal harmless because no HTTP requests are made)
+- ✅ **Telemetry**: `--metrics=off` set explicitly; documented Semgrep behaviour ("metrics not enabled when running with only local configuration files") provides additional defense-in-depth
 
-### Unit Test Validation
-- ✅ `go test ./processor/` — PASS (269.693s)
-- ✅ `go test ./functions/...` — PASS (all packages: runtime, api, secrets, storage)
-- ✅ `go test ./protocols/...` — PASS (all packages: api, schema, storage)
-- ✅ `go test ./identity/...` — PASS (all packages: graph, profiles, settings, storage, sync)
-- ✅ `go test ./services/monitoring/... ./services/alerting/...` — PASS
-- ✅ `go test ./services/profiling/...` — PASS (0.011s)
-- ✅ `go test ./app/...` — PASS (apphandlers 23.104s, cluster 3.469s)
-- ✅ `go test ./gateway/...` — PASS
+### UI Verification (executive-summary.html)
+- ✅ **HTML5 well-formed**: Python parser reports 0 unmatched closing tags
+- ✅ **Browser-rendered verification** (per validator session): Chromium loads the deck; Mermaid pipeline flowchart renders with all 17 nodes; KPI cards render with proper Blitzy gradient accent bars and Lucide icons; tables render with Blitzy purple header rows; closing slide renders with navy background, teal accent, and brand lockup; no JavaScript errors except the harmless favicon 404 (unrelated to deck content)
+- ✅ **Visual elements present in every section**: 15/15 sections contain at least one of `<pre class="mermaid">` (slide 3), `<table>` (slides 7, 10, 11, 13), `<div class="kpi-card">` (slides 2, 5, 8), or `<i data-lucide="...">` (23 icons distributed across all slides)
+- ✅ **No emoji** (U+1F300–U+1FAFF range absent) — verified by regex
+- ✅ **No fenced code blocks** inside the deck
 
-### Lint Validation
-- ✅ `golangci-lint run ./processor/` — 0 issues
-- ✅ `golangci-lint run ./app/...` — 0 issues
-
-### API Endpoint Registration
-- ✅ `/v1/functions/source` — Source Functions webhook endpoint mounted via `handle_lifecycle.go`
-- ✅ `/v1/protocols/...` — Protocols management API mounted at gateway
-- ✅ `/v1/profiles/...` — Profiles API mounted at gateway
-- ✅ `/v1/monitoring/...` — Monitoring dashboard API mounted at gateway
-- ✅ `/v1/replay` — Advanced replay endpoint mounted at gateway
-- ✅ `/v1/functions` — Functions CRUD API mounted via internal handlers
-
-### Service Lifecycle
-- ✅ Functions runtime registered in `runner/runner.go` with Run/Stop lifecycle
-- ✅ Identity service registered with database pool initialization
-- ✅ Monitoring dashboard registered with Run/Stop lifecycle
-- ✅ Alerting engine registered with Run/Stop lifecycle
-
-### Infrastructure
-- ⚠️ Docker services not started during validation (no Docker in sandbox environment)
-- ⚠️ Integration tests scaffolded but require live PostgreSQL, Transformer, and Redis
-- ⚠️ Database migrations not executed (require PostgreSQL instance)
-
----
+### API / Integration Validation
+- ⚠ N/A — Config B does not start a service or expose an API. The deliverable is a static JSON file plus supporting documentation.
 
 ## 5. Compliance & Quality Review
 
-| Compliance Area | Status | Details |
-|---|---|---|
-| AAP Scope Coverage | ✅ Pass | 23 of 25 epics fully implemented; 2 partially completed (E-011, E-012 — Transformer-side dependency) |
-| Backward Compatibility | ✅ Pass | Existing 6-stage pipeline, Router delivery, and warehouse uploads unaffected; new stages are no-op when disabled |
-| Existing Pattern Compliance | ✅ Pass | Stream producers implement `common.StreamProducer`; APIs use `chi/v5`; config uses `rudder-go-kit/config`; metrics use `rudder-go-kit/stats` |
-| Go Convention Compliance | ✅ Pass | Explicit error returns, structured logging via `obskit` labels, interface-based design |
-| Code Compilation | ✅ Pass | `go build ./...` — zero errors, zero warnings |
-| Lint Compliance | ✅ Pass | `golangci-lint` — zero issues across all new and modified packages |
-| Test Coverage | ✅ Pass | 859 test functions with 749 sub-tests; all passing |
-| Database Migrations | ✅ Pass | 16 migration files (up + down) for functions, protocols, identity, alerting |
-| OpenAPI Documentation | ✅ Pass | `gateway/openapi.yaml` updated with all new endpoint schemas |
-| Configuration Documentation | ✅ Pass | `config/config.yaml` extended with 100+ documented configuration keys |
-| CI/CD Integration | ✅ Pass | `.github/workflows/tests.yaml` expanded; `Makefile` updated with per-sprint test targets |
-| Docker Infrastructure | ✅ Pass | Redis service added; Dockerfile updated to Go 1.26.1 with non-root USER |
-| Security: Auth Middleware | ✅ Pass | Source Functions endpoint protected by write-key auth; sensitive headers stripped |
-| Security: Secrets Encryption | ✅ Pass | Per-function secrets encrypted with AES-GCM via `functions/secrets/manager.go` |
-| Security: Input Validation | ✅ Pass | Request body size limits, JSON validation, blocked value regex patterns |
-| Sequential Sprint Execution | ✅ Pass | Sprints implemented in order: 3–5 → 4–6 → 5–7 → 6–8 → 8–10 |
-| Exhaustive Handler Coverage | ✅ Pass | All 8 typed handlers implemented: onTrack, onIdentify, onGroup, onPage, onScreen, onAlias, onDelete, onBatch |
-| External ID Types | ✅ Pass | 17 identifier types implemented (exceeds AAP requirement of 12+) |
-
-### Fixes Applied During Autonomous Validation
-
-| Fix | Files Modified | Impact |
-|---|---|---|
-| Wire Functions runtime into processor (4 sub-failures) | `processor/functions_adapter.go` (NEW), `processor/manager.go`, `app/apphandlers/embeddedAppHandler.go` | Functions E-016/E-017 now fully operational in pipeline |
-| Fix profiling config (enabled + sampleRate type) | `config/config.yaml` | Profiling E-039 correctly reads integer sample rate |
-| Fix unparam lint (consentViolations return value) | `processor/processor.go` | Clean lint output for consent-enforcement integration |
-| Update sprint roadmap statuses | `docs/gap-report/sprint-roadmap.md` | Documentation reflects all-complete status |
-
----
+| Requirement Source | Requirement | Status | Evidence |
+|---|---|---|---|
+| AAP §0.1.2.1 (Directive 1) | Install Semgrep via pip or apt | ✅ Pass | `pip install semgrep` inside `/tmp/semgrep-config-b/.semgrep-venv/`; version 1.163.0 |
+| AAP §0.1.2.1 (Directive 1) | Download three rule packs to a local directory | ✅ Pass | `local-rules/security-audit.yaml`, `secrets.yaml`, `owasp-top-ten.yaml` (SHA-256s in `scan-metadata.txt`) |
+| AAP §0.1.2.1 (Directive 1) | `--metrics=off` suppresses all telemetry | ✅ Pass | Flag present; local-config invocation provides defense-in-depth; dry-run exits 0 hermetically |
+| AAP §0.1.2.1 (Directive 1 Pass/Fail) | Dry-run exits 0, no network calls | ✅ Pass | Exit 0 verified under network namespace + invalid proxy |
+| AAP §0.1.2.2 (Directive 2) | Execute the verbatim scan command | ✅ Pass with documented deviation | Two `--exclude` flags added (D6) — `--exclude=local-rules` (cache materialized in-repo per D-12) and `--exclude=findings-config-b.json` (output cannot be its own input); both fully audited |
+| AAP §0.1.2.2 (Directive 2) | Record exit code, duration, files scanned | ✅ Pass | `scan-metadata.txt`: exit_code=0, duration_seconds=37.30, files_scanned=4764 |
+| AAP §0.1.2.2 (Directive 2 Pass/Fail) | SARIF is valid JSON with `runs` array | ✅ Pass | Parseable; `runs` is list of 1 |
+| AAP §0.1.2.3 (Directive 3) | Five-field schema (`file`, `line`, `severity`, `cwe`, `description`) | ✅ Pass | 216/216 records contain exactly this key set in this order |
+| AAP §0.1.2.3 (Directive 3) | Severity mapping (error→critical etc.) | ✅ Pass | Implemented in `normalize-sarif.py`; vocabulary confirmed {critical, high} ⊂ {critical, high, medium, low} |
+| AAP §0.1.2.3 (Directive 3) | CWE from metadata with description-inference fallback | ✅ Pass | All 216 findings resolved via Step 2 (tags) of the 4-step cascade — no inference required; Steps 4–5 retained as load-bearing fallback policy |
+| AAP §0.1.2.3 (Directive 3) | Description ≤200 chars | ✅ Pass | Max observed length = 200 |
+| AAP §0.1.2.3 (Directive 3 Pass/Fail) | Single line, valid JSON, 5/5 fields, ≤200 chars | ✅ Pass | All 4 sub-criteria verified |
+| AAP §0.3.2 | No source-tree modifications | ✅ Pass | `git diff 770627a HEAD` outside the 10 deliverables returns empty |
+| AAP §0.3.2 | No commercial Semgrep features used | ✅ Pass | No `--pro` flag; no `SEMGREP_APP_TOKEN`; no `semgrep ci` |
+| AAP §0.3.2 | No CI integration | ✅ Pass | Makefile/`.github/workflows/` untouched |
+| AAP §0.8.1 | Idempotency invariant | ✅ Pass | SHA-256 stable across re-runs |
+| AAP §0.8.2 | UTF-8 encoding without BOM | ✅ Pass | `ensure_ascii=False` in `json.dumps`; no BOM |
+| AAP §0.7.1 (Rule 1) | Decision log with what/alternatives/why/risks | ✅ Pass | 12 decisions in §3 |
+| AAP §0.7.1 (Rule 1) | Bidirectional traceability — 100% coverage | ✅ Pass | §4.1 (5 forward) + §4.2 (9 reverse) — every artifact mapped both ways |
+| AAP §0.7.1 (Rule 1) | Deviation log | ✅ Pass | 7 deviations (D1–D7) explicitly logged with rationale and reviewer acknowledgment |
+| AAP §0.7.1 (Rule 1) | No rationale embedded in code comments | ✅ Pass | `normalize-sarif.py` comments are mechanical only |
+| AAP §0.7.2 (Rule 2) | 12–18 slides (target 16) | ✅ Pass | 15 slides |
+| AAP §0.7.2 (Rule 2) | Four slide types used | ✅ Pass | Title + Divider + Content + Closing all present |
+| AAP §0.7.2 (Rule 2) | CDN-pinned versions (reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0) | ✅ Pass | All three URLs confirmed present |
+| AAP §0.7.2 (Rule 2) | Inline Blitzy theme (21 CSS custom properties + 6 colors) | ✅ Pass | All properties and colors detected by regex |
+| AAP §0.7.2 (Rule 2) | reveal.js config (hash, transition, controlsTutorial=false, 1920×1080) | ✅ Pass | All 5 settings present |
+| AAP §0.7.2 (Rule 2) | Mermaid `startOnLoad: false` + `mermaid.run()` on `ready`/`slidechanged` | ✅ Pass | Both initializers verified |
+| AAP §0.7.2 (Rule 2) | Lucide `createIcons()` on `ready`/`slidechanged` | ✅ Pass | Initializer verified |
+| AAP §0.7.2 (Rule 2) | Zero emoji | ✅ Pass | 0 codepoints in U+1F300–U+1FAFF |
+| AAP §0.7.2 (Rule 2) | No fenced code blocks inside slides | ✅ Pass | 0 detected |
+| AAP §0.7.2 (Rule 2) | Every section ≥ 1 non-text visual | ✅ Pass | 15/15 sections contain Mermaid/Table/KPI/Lucide |
 
 ## 6. Risk Assessment
 
 | Risk | Category | Severity | Probability | Mitigation | Status |
 |---|---|---|---|---|---|
-| Functions runtime uses HTTP delegation instead of sandboxed V8 | Technical | High | High | Functions currently delegate to Transformer HTTP — production needs V8 isolate or secure sandbox | Open |
-| Cloud connector implementations require Transformer-side changes | Technical | Medium | High | E-011/E-012 server-side work complete; Transformer service extensions needed for 40 connectors | Open |
-| Identity graph not tested under production load | Technical | Medium | Medium | Performance optimization may be needed for sub-200ms at >1M identities | Open |
-| All new features disabled by default in config | Operational | Medium | High | Config toggles (`Functions.enabled`, `Identity.enabled`, etc.) must be explicitly enabled | Open |
-| Redis cluster not provisioned for production | Infrastructure | Medium | High | Docker-compose has Redis for development; production cluster needs provisioning | Open |
-| Database migrations not executed | Operational | High | High | 16 migration files ready but not applied; must run before feature activation | Open |
-| AWS ECR credentials missing in CI | Integration | Low | High | CI container build/push fails; does not affect code quality or test results | Known |
-| No end-to-end integration testing with live services | Technical | Medium | High | Integration test scaffolding exists; requires Docker services for execution | Open |
-| Workspace token not configured | Integration | Medium | High | `WORKSPACE_TOKEN` placeholder in docker.env — needed for live config backend | Open |
-| Alerting channels not tested with real SMTP/Slack | Operational | Low | Medium | Unit tests pass; production validation of email/Slack delivery needed | Open |
-
----
+| False-positive rate in 216 findings — Semgrep rule packs are pattern-based and may flag safe code (especially SQL string-formatting patterns where the input is validated upstream) | Technical | Medium | High | Hand off to human reviewer (Section 1.6 step 1) before consumption by the comparison workstream; the per-file density of `warehouse/integrations/*.go` (snowflake=21, redshift=16, deltalake=15, mssql=13, azure-synapse=12) suggests rule-pack patterns matching a common Go SQL idiom and warrants sampling | Mitigated (documented; review pending) |
+| Rule-pack staleness — local YAMLs were fetched 2026-05-15 and are not auto-refreshed | Technical | Low | Medium | SHA-256 hashes captured in `scan-metadata.txt`; future re-runs documented to refetch from registry; D-12 documents the in-repo cache placement choice | Mitigated |
+| `refs/segment-docs/` (vendored Jekyll docs, ~75 files) included in scan target | Operational | Low | Low | Documented in AAP §0.3.2 as deliberate inclusion; rule packs naturally skip non-source content; verified in `scan_skipped` accounting — 1,440 `.semgrepignore` matches absorb most non-source noise | Accepted |
+| Semgrep CLI `--dry-run` flag rename (`--dry-run` → `--dryrun`) breaks literal AAP §0.1.2.1 reproduction | Integration | High | High (already realized) | Deviation D7 fully documents the failure mode, three evaluated alternatives, hermetic-equivalence proof, and triple-match SHA evidence; `scan-metadata.txt` publishes the operative `dry_run_command` for machine-readable retrieval | Resolved |
+| `--validate` is not a hermetic substitute for `--dryrun` (contacts `semgrep.dev/c/p/semgrep-rule-lints`) | Integration | Medium | n/a | Empirically verified during D7 analysis; ruled out; rationale recorded in D7 | Resolved |
+| Semgrep `1.144.0` → `1.163.0` version drift from AAP §0.4.1 pin | Technical | Low | Low | AAP §0.4.1 permits "highest available 1.x release"; D4 documents drift; SARIF `driver.semanticVersion` provides cross-artifact version linkage; no CLI flag breakages beyond D7 | Resolved |
+| Self-referential SQL-injection patterns when rule packs scan themselves (`local-rules/*.yaml`) | Technical | Medium | High | Mitigated by `--exclude=local-rules`; recorded in Deviation D6 | Resolved |
+| Output-as-input drift when `findings-config-b.json` is scanned in subsequent runs | Operational | Medium | High | Mitigated by `--exclude=findings-config-b.json`; recorded in Deviation D6 | Resolved |
+| Semgrep telemetry leakage | Security | Low | Low | Defense-in-depth: `--metrics=off` explicit + local-config invariant + dry-run hermeticity verified two ways | Resolved |
+| External CDN dependencies in `executive-summary.html` (cdnjs/jsdelivr/unpkg) for reveal.js/Mermaid/Lucide | Operational | Low | Low | CDN versions pinned exactly (5.1.0 / 11.4.0 / 0.460.0); deck functions standalone once CDNs are reachable once; can be air-gapped by inlining the vendored scripts in a future iteration | Accepted |
+| Inability to find canonical theme file `blitzy-deck/references/blitzy-reveal-theme.css` | Operational | Low | Low | Documented in Deviation D3; rule requires "no local file dependencies" anyway, so inline theme is correct | Resolved |
+| Pinned Semgrep installation lives outside the repo at `/tmp/semgrep-config-b/.semgrep-venv/` and is not portable | Operational | Medium | Medium | `scan-metadata.txt` records `semgrep_version`; a fresh operator can recreate the venv with two commands (`python3 -m venv .semgrep-venv && pip install semgrep==1.163.0`); Section 9 below documents the procedure | Mitigated |
+| 34 parse errors + 1 timeout during scan (out of 4,764 files) | Technical | Low | Low | Captured in `scan-metadata.txt` `parse_errors=34`, `timeouts=1`; SARIF `toolExecutionNotifications` retains the per-file detail; parse-error density of 0.71% is well within Semgrep's typical envelope | Accepted |
 
 ## 7. Visual Project Status
 
 ```mermaid
 pie title Project Hours Breakdown
-    "Completed Work" : 402
-    "Remaining Work" : 82
+    "Completed Work" : 42
+    "Remaining Work" : 2
 ```
 
-### Remaining Hours by Category
+Colors: Completed Work = Dark Blue `#5B39F3`, Remaining Work = White `#FFFFFF`.
+
+**Remaining-work distribution by category (sum = 2.0 h):**
 
 ```mermaid
-pie title Remaining Work Distribution
-    "Cloud Connector Transformer Extensions" : 24
-    "Functions JS Sandbox" : 12
-    "Integration Testing" : 8
-    "Load Testing" : 8
-    "Security Audit" : 6
-    "Identity Performance Tuning" : 6
-    "Production Config & Monitoring" : 8
-    "DB Migrations & CI/CD" : 6
-    "Documentation & Channel Testing" : 4
+pie title Remaining Hours by Priority
+    "High — reviewer sign-off" : 1.0
+    "Medium — reproducibility check" : 0.5
+    "Medium — comparison handoff" : 0.5
 ```
 
-### Sprint Completion
+**Findings distribution (216 total) — context for path-to-production:**
 
-| Sprint Group | Epics | Status | Completion |
-|---|---|---|---|
-| Sprint 3–5: Destination Connectors | E-010 to E-014 | ⚠️ Partial | ~80% (E-011/E-012 need Transformer extensions) |
-| Sprint 4–6: Functions Framework | E-015 to E-019 | ✅ Complete | ~95% (sandbox pending) |
-| Sprint 5–7: Protocols Enforcement | E-020 to E-025 | ✅ Complete | ~98% |
-| Sprint 6–8: Identity Resolution | E-026 to E-030 | ✅ Complete | ~95% (perf tuning pending) |
-| Sprint 8–10: Operational Tooling | E-036 to E-039 | ✅ Complete | ~95% (load testing pending) |
-
----
+```mermaid
+pie title Findings by Severity
+    "critical (15)" : 15
+    "high (201)" : 201
+```
 
 ## 8. Summary & Recommendations
 
-### Achievement Summary
+### Achievements
 
-The project has achieved **83.1% completion** (402 hours completed out of 484 total hours), delivering 23 of 25 AAP epics in a fully implemented state with clean compilation, passing tests, and zero lint issues. The implementation spans 279 files with 96,983 lines of code added across all five sprint groups, establishing comprehensive feature parity improvements:
-
-- **Destination connectors**: 4 new stream producers fully operational; 70 payload parity fixtures validated
-- **Functions framework**: Complete runtime with 8 typed handlers, CRUD API, and secrets management — fully wired into the processor pipeline
-- **Protocols enforcement**: JSON Schema draft-07 validation, anomaly detection, three-mode enforcement (Block/Omit/Allow), and consent integration
-- **Identity resolution**: Real-time identity graph with 17 external ID types, Profiles REST + gRPC API, Redis caching, and CDC-based sync
-- **Operational tooling**: Per-destination monitoring, alerting with Slack/email, advanced replay with dry-run, and capacity planning
+Config B is **95.5% complete** (42 of 44 AAP-scoped hours delivered). Every one of the three CRITICAL directives passes its verbatim Pass/Fail clause; every rule-mandated post-condition is verified; the pipeline is reproducible byte-for-byte; hermeticity is proven through two independent test conditions. All 9 scoped artifacts (+ 1 supporting evidence file) are at HEAD with zero source-tree modifications. The 216-finding JSON is ready to be consumed by the parent multi-config security tool comparison workstream.
 
 ### Remaining Gaps
 
-The 82 remaining hours (16.9% of total) are concentrated in:
-1. **Transformer-side cloud connector extensions** (24h) — largest remaining item, requires work outside the rudder-server repository
-2. **Functions JavaScript sandbox** (12h) — production security requirement
-3. **Performance and load testing** (14h combined) — validation against production targets
-4. **Production infrastructure provisioning** (13h) — migrations, Redis, monitoring setup
-5. **Security and compliance** (6h) — security audit of new attack surfaces
+The remaining 2 hours of work are entirely **path-to-production review**, not AAP-scoped implementation. Specifically: (1) human reviewer sign-off on the 216 findings before submission to the comparison workstream (1.0 h, High priority), (2) independent reproducibility check on a clean host (0.5 h, Medium priority), and (3) hand-off documentation to the parent workstream (0.5 h, Medium priority). No code is missing, no tests fail, no compilations are blocked.
+
+### Critical Path to Production
+
+1. **Reviewer reads `executive-summary.html`** (15 slides, browser-rendered, 5–10 minute read) to absorb the scope and methodology.
+2. **Reviewer samples the 216 findings** — minimum 15 critical findings + the top-density file `warehouse/integrations/snowflake/snowflake.go` (21 findings) — to gauge signal-vs-noise ratio.
+3. **Reviewer audits `decision-log.md`** — focus on §3 (12 decisions) and §6 (7 deviations) to confirm every non-trivial choice is justified.
+4. **Reviewer reruns the pipeline** (5 commands documented in Section 9) on a clean host to confirm reproducibility (SHA-256 byte-equality with `0c53063d...`).
+5. **Reviewer signs off** and the JSON is submitted to the multi-config comparison parent workstream.
+
+### Success Metrics (already achieved)
+
+- ✅ 100% Pass/Fail gate coverage (3 directives + 2 rules + 7 production-readiness gates)
+- ✅ 100% AAP requirement traceability (`decision-log.md` §4 bidirectional matrix)
+- ✅ 0 source-tree modifications
+- ✅ 0 outbound network calls during scan
+- ✅ Reproducible SHA-256 across re-runs
+- ✅ All 21 required CSS custom properties + all 6 brand colors in executive deck
 
 ### Production Readiness Assessment
 
-The codebase is **structurally production-ready** — it compiles cleanly, all tests pass, and the architecture follows established RudderStack patterns. However, the following must be completed before production deployment:
-
-1. Execute database migrations on production PostgreSQL
-2. Provision Redis cluster for identity caching
-3. Enable feature toggles incrementally with monitoring
-4. Complete integration testing with live Docker services
-5. Implement JavaScript sandbox for Functions runtime security
-
-### Success Metrics
-
-| Metric | Target | Current Status |
-|---|---|---|
-| Destination parity | ~50% (up from ~28%) | Partial — server-side complete, Transformer extensions pending |
-| Functions parity | ~80% (up from ~40%) | ✅ Achieved — all function types implemented |
-| Protocols parity | ~75% (up from ~30%) | ✅ Achieved — full JSON Schema + enforcement modes |
-| Identity parity | ~60% (up from ~20%) | ✅ Achieved — real-time graph + Profiles API |
-| Pipeline throughput | 50K events/sec | Profiling infrastructure built — requires load test validation |
-
----
+**READY FOR CONSUMER HANDOFF.** The autonomous portion of the work is complete with no documented deferrals. The 2 hours of remaining path-to-production work is review-only and does not block downstream consumption — a human reviewer can begin work immediately because the deliverables are stable, byte-reproducible, and self-documenting.
 
 ## 9. Development Guide
 
-### System Prerequisites
+### 9.1 System Prerequisites
 
-| Software | Version | Purpose |
+- Operating system: Linux (Ubuntu/Debian preferred; container-friendly)
+- Python 3.10–3.14 (validated on **Python 3.13.7**; Semgrep CLI officially supports 3.10+)
+- `pip` ≥ 22 (PEP 668 environments require either a venv or `pipx`)
+- `git` with the repository cloned to a workspace
+- `curl` (only required the first time to fetch rule packs; subsequent runs are offline)
+- Disk space: ≥ 3 MB for venv + 2 MB for cached rule packs + ≤ 2 MB for outputs; the SARIF is the largest artifact at ~1.5 MB
+- Network: only required during initial setup (Semgrep install from PyPI + 3 rule-pack downloads); **the scan itself is fully hermetic**
+
+### 9.2 Environment Setup
+
+#### Option A — Use the existing pinned venv
+
+The validator already provisioned a venv at `/tmp/semgrep-config-b/.semgrep-venv/` with Semgrep 1.163.0. If still present:
+
+```bash
+source /tmp/semgrep-config-b/.semgrep-venv/bin/activate
+semgrep --version
+# Expected output: 1.163.0
+```
+
+#### Option B — Recreate the venv from scratch
+
+```bash
+# Create an isolated Python environment (PEP 668-compliant)
+mkdir -p /tmp/semgrep-config-b
+python3 -m venv /tmp/semgrep-config-b/.semgrep-venv
+
+# Activate it
+source /tmp/semgrep-config-b/.semgrep-venv/bin/activate
+
+# Install the exact pinned version
+pip install --upgrade pip
+pip install "semgrep==1.163.0"
+
+# Verify
+semgrep --version
+# Expected: 1.163.0
+```
+
+#### Option C — pipx (alternative install path)
+
+```bash
+pipx install "semgrep==1.163.0"
+pipx ensurepath
+hash -r
+semgrep --version
+```
+
+### 9.3 Rule Pack Setup
+
+Rule packs are **already cached** inside the repository at `./local-rules/` and committed at HEAD. No network fetch is required for re-runs:
+
+```bash
+cd /tmp/blitzy/blitzy-RudderStack/blitzy-9dc2860b-a202-4bda-8d7d-f0252cd179c1_fdef9c
+ls -la local-rules/
+# Expected output:
+#   owasp-top-ten.yaml      ~1.38 MB
+#   secrets.yaml            ~86 KB
+#   security-audit.yaml     ~462 KB
+
+# Optional: verify SHA-256 hashes match scan-metadata.txt
+sha256sum local-rules/*.yaml
+# Compare against:
+#   fdc7027973176abe71f6b1fc8739ef88a4c411735c380cfce4f731df9644e47a  local-rules/security-audit.yaml
+#   fbbe6809214065a2efec7264cd1c9ca16be9b3e7665dfa790e0bdfd08a6d7a16  local-rules/secrets.yaml
+#   d866bd809983001afdfa81014b86404d704c0604b22c378ed37608e69525e040  local-rules/owasp-top-ten.yaml
+```
+
+If rule packs need to be re-acquired (e.g. cache deleted):
+
+```bash
+mkdir -p local-rules
+curl -sSL "https://semgrep.dev/c/p/security-audit"  -o local-rules/security-audit.yaml
+curl -sSL "https://semgrep.dev/c/p/secrets"         -o local-rules/secrets.yaml
+curl -sSL "https://semgrep.dev/c/p/owasp-top-ten"   -o local-rules/owasp-top-ten.yaml
+```
+
+### 9.4 Run the Three Directive Pipeline
+
+```bash
+cd /tmp/blitzy/blitzy-RudderStack/blitzy-9dc2860b-a202-4bda-8d7d-f0252cd179c1_fdef9c
+source /tmp/semgrep-config-b/.semgrep-venv/bin/activate
+
+# --- Directive 1: Dry-run hermeticity gate (must exit 0) ---
+semgrep scan --metrics=off --config=./local-rules --dryrun
+echo "Directive 1 exit code: $?"
+# Expected: 0
+
+# --- Directive 2: Execute the SARIF-emitting scan ---
+semgrep scan \
+    --config=./local-rules \
+    --sarif -o results-semgrep.sarif \
+    --metrics=off \
+    --exclude=local-rules \
+    --exclude=findings-config-b.json \
+    .
+echo "Directive 2 exit code: $?"
+# Expected: 0; results-semgrep.sarif written; ~37 s wall-clock
+
+# --- Directive 3: Normalize SARIF → findings-config-b.json ---
+python3 normalize-sarif.py results-semgrep.sarif findings-config-b.json
+echo "Directive 3 exit code: $?"
+# Expected: 0; 216 records written
+```
+
+### 9.5 Verification Steps
+
+```bash
+# Pass/Fail clause 1: single-line invariant
+wc -l findings-config-b.json
+# Expected: 1 findings-config-b.json
+
+# Pass/Fail clause 2: valid JSON
+python3 -m json.tool findings-config-b.json > /dev/null && echo "valid JSON"
+
+# Pass/Fail clause 3 + 4: 5 fields, ≤200 chars
+python3 -c "
+import json
+d = json.load(open('findings-config-b.json'))
+print(f'Records: {len(d)}')
+assert all(set(r.keys()) == {'file','line','severity','cwe','description'} for r in d)
+assert max(len(r['description']) for r in d) <= 200
+print('All Pass/Fail criteria met')
+"
+
+# Reproducibility check
+sha256sum findings-config-b.json
+# Expected: 0c53063d0f551083dc96021377c0a0ff24bb44e4742a7020bcba802f3d64f561
+
+# Validate scan metadata
+cat scan-metadata.txt
+# Inspect: exit_code=0, duration_seconds=37.30, files_scanned=4764, findings_total=216
+```
+
+### 9.6 Hermeticity Verification (defense-in-depth)
+
+```bash
+# Method 1: invalid HTTPS proxy (any attempted call would fail)
+HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1 \
+    semgrep scan --metrics=off --config=./local-rules --dryrun
+echo "Exit: $?"   # Expected: 0
+
+# Method 2: network namespace (no network interface at all)
+unshare --net --user --map-root-user \
+    semgrep scan --metrics=off --config=./local-rules --dryrun
+echo "Exit: $?"   # Expected: 0
+```
+
+### 9.7 Inspect the Executive Summary Deck
+
+```bash
+# Open in a browser (any modern browser; requires reachable CDNs)
+python3 -m http.server 8765 > /dev/null 2>&1 &
+SERVER_PID=$!
+echo "Open http://localhost:8765/executive-summary.html in a browser"
+# Press Ctrl+C or kill $SERVER_PID when done
+```
+
+The deck has 15 slides accessible via arrow keys, with deep-linking enabled via URL hash (e.g. `/executive-summary.html#/3` to jump to slide 4).
+
+### 9.8 Sample Findings Inspection
+
+```bash
+# Top 5 files by finding density
+python3 -c "
+import json
+from collections import Counter
+d = json.load(open('findings-config-b.json'))
+for f, c in Counter(r['file'] for r in d).most_common(5):
+    print(f'  {c:3d}  {f}')
+"
+# Expected top: warehouse/integrations/snowflake/snowflake.go (21)
+
+# All 12 distinct CWEs
+python3 -c "
+import json
+from collections import Counter
+d = json.load(open('findings-config-b.json'))
+for cwe, c in Counter(r['cwe'] for r in d).most_common():
+    print(f'  {c:3d}  {cwe}')
+"
+```
+
+### 9.9 Troubleshooting
+
+| Symptom | Likely Cause | Resolution |
 |---|---|---|
-| Go | 1.26.1+ | Primary language runtime |
-| Docker | 20.10+ | Service infrastructure (PostgreSQL, Transformer, Redis) |
-| Docker Compose | 2.0+ | Multi-service orchestration |
-| PostgreSQL Client | 15+ | Database access (optional, for debugging) |
-| Redis CLI | 7+ | Cache inspection (optional, for debugging) |
-| golangci-lint | Latest | Static analysis and linting |
-| gotestsum | Latest | Test runner with formatted output |
-
-### Environment Setup
-
-1. **Clone the repository and switch to the feature branch:**
-
-```bash
-git clone https://github.com/Blitzy-Sandbox/blitzy-RudderStack.git
-cd blitzy-RudderStack
-git checkout blitzy-755950c1-c2e3-44a0-b6f6-2c797b8ccb66
-```
-
-2. **Start required Docker services:**
-
-```bash
-# Start core services (PostgreSQL + Transformer)
-docker compose up -d db transformer
-
-# Start Redis for Identity Resolution (E-026 to E-030)
-docker compose --profile identity up -d redis
-
-# Verify services are running
-docker compose ps
-```
-
-3. **Configure environment variables:**
-
-```bash
-# Copy template environment file
-cp build/docker.env .env
-
-# Set required variables (edit .env)
-export JOBS_DB_HOST=localhost
-export JOBS_DB_PORT=6432
-export JOBS_DB_USER=rudder
-export JOBS_DB_PASSWORD=password
-export JOBS_DB_DB_NAME=jobsdb
-export JOBS_DB_SSL_MODE=disable
-export DEST_TRANSFORM_URL=http://localhost:9090
-export WORKSPACE_TOKEN=<your_workspace_token>
-export REDIS_URL=redis://localhost:6379
-```
-
-4. **Install Go dependencies:**
-
-```bash
-go mod download
-go mod verify
-```
-
-### Dependency Installation
-
-```bash
-# Install test runner
-go install gotest.tools/gotestsum@latest
-
-# Install linter
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-
-# Verify Go version
-go version  # Should show go1.26.1 or higher
-```
-
-### Run Database Migrations
-
-```bash
-# Functions tables (E-018/E-019)
-psql -h localhost -p 6432 -U rudder -d jobsdb < sql/migrations/functions/000001_create_functions_table.up.sql
-psql -h localhost -p 6432 -U rudder -d jobsdb < sql/migrations/functions/000002_create_function_secrets_table.up.sql
-
-# Protocols tables (E-024)
-psql -h localhost -p 6432 -U rudder -d jobsdb < sql/migrations/protocols/000001_create_tracking_plans_table.up.sql
-psql -h localhost -p 6432 -U rudder -d jobsdb < sql/migrations/protocols/000002_create_tracking_plan_versions_table.up.sql
-
-# Identity tables (E-026)
-psql -h localhost -p 6432 -U rudder -d jobsdb < sql/migrations/identity/000001_create_identity_graph_table.up.sql
-psql -h localhost -p 6432 -U rudder -d jobsdb < sql/migrations/identity/000002_create_identity_external_ids_table.up.sql
-psql -h localhost -p 6432 -U rudder -d jobsdb < sql/migrations/identity/000003_create_identity_traits_table.up.sql
-
-# Alerting tables (E-037)
-psql -h localhost -p 6432 -U rudder -d jobsdb < sql/migrations/alerting/000001_create_alert_rules_table.up.sql
-```
-
-### Build and Compile
-
-```bash
-# Build the entire project
-go build ./...
-
-# Build the server binary
-go build -o rudder-server .
-```
-
-### Run Tests
-
-```bash
-# Run all new package tests
-go test ./functions/... -v -count=1
-go test ./protocols/... -v -count=1
-go test ./identity/... -v -count=1
-go test ./services/monitoring/... ./services/alerting/... ./services/profiling/... -v -count=1
-go test ./processor/anomalydetection/... ./processor/enforcement/... -v -count=1
-
-# Run processor suite (includes new pipeline stages)
-go test ./processor/ -v -count=1
-
-# Run gateway tests (includes Source Functions webhook)
-go test ./gateway/... -v -count=1
-
-# Run full test suite via Makefile
-make test-functions
-make test-protocols
-make test-identity
-make test-monitoring
-make test-destinations
-
-# Run linter
-golangci-lint run ./...
-```
-
-### Application Startup
-
-```bash
-# Start the server (ensure Docker services are running)
-./rudder-server
-
-# The server starts on port 8080 (Gateway)
-# Verify: curl -s http://localhost:8080/health
-```
-
-### Feature Toggle Configuration
-
-To enable new features, update `config/config.yaml`:
-
-```yaml
-Functions:
-  enabled: true          # Enable Functions runtime
-  sourceFunctions:
-    enabled: true        # Enable Source Functions
-  destinationFunctions:
-    enabled: true        # Enable Destination Functions
-  insertFunctions:
-    enabled: true        # Enable Insert Functions
-
-Identity:
-  enabled: true          # Enable Identity Resolution
-
-Monitoring:
-  dashboard:
-    enabled: true        # Enable Delivery Dashboard
-  alerting:
-    enabled: true        # Enable Alerting Engine
-  profiling:
-    enabled: true        # Enable Pipeline Profiling
-```
-
-### Verification Steps
-
-```bash
-# Verify Gateway is running
-curl -s http://localhost:8080/health
-
-# Test Source Functions webhook endpoint (requires write key)
-curl -X POST http://localhost:8080/v1/functions/source \
-  -H "Authorization: Basic <base64_write_key>" \
-  -H "Content-Type: application/json" \
-  -d '{"event": "test", "type": "track"}'
-
-# Check Monitoring dashboard (requires auth)
-curl -s http://localhost:8080/v1/monitoring/destinations
-
-# Verify Profiles API
-curl -s http://localhost:8080/v1/profiles/<user_id>
-```
-
-### Troubleshooting
-
-| Issue | Cause | Resolution |
-|---|---|---|
-| `connection refused` on port 6432 | PostgreSQL not started | Run `docker compose up -d db` |
-| `connection refused` on port 9090 | Transformer not started | Run `docker compose up -d transformer` |
-| `connection refused` on port 6379 | Redis not started | Run `docker compose --profile identity up -d redis` |
-| `Functions.enabled` has no effect | Functions runtime not wired | Verify `app/apphandlers/embeddedAppHandler.go` has `WithFunctionsRuntime` |
-| Migration SQL errors | Tables already exist | Use `IF NOT EXISTS` or run down migrations first |
-| `WORKSPACE_TOKEN` error | Token not configured | Set `WORKSPACE_TOKEN` environment variable |
-
----
+| `pip install semgrep` fails with `error: externally-managed-environment` | PEP 668 protection on system Python (Debian/Ubuntu 23+) | Use a venv (Section 9.2 Option B) or `pipx` (Option C) |
+| `semgrep scan: unknown option '--dry-run'` | Semgrep 1.x renamed the flag to `--dryrun` (single-word) — see Deviation D7 | Use `--dryrun` (no hyphen). The AAP §0.1.2.1 spelling `--dry-run` is preserved only for historical reference |
+| `--config=p/owasp` returns 404 | The canonical registry slug is `p/owasp-top-ten` — see Deviation D1 | Use the canonical slug `p/owasp-top-ten` (or the cached local file `local-rules/owasp-top-ten.yaml`) |
+| Scan reports 220 findings during dry-run but `findings-config-b.json` has 216 | Dry-run does not apply the two `--exclude` flags that the committed scan command uses (rule packs and findings JSON are excluded from the real scan per Deviation D6) | This is expected; the canonical count is 216 from the committed `results-semgrep.sarif` |
+| `python3 -m json.tool findings-config-b.json` exits non-zero | File corrupted or partially written | Re-run `python3 normalize-sarif.py results-semgrep.sarif findings-config-b.json` |
+| Different SHA-256 hash after re-run | Rule packs changed OR `results-semgrep.sarif` differs | Verify `scan-metadata.txt` SHA-256s match `local-rules/*.yaml`; if so, re-run normalizer with the committed SARIF |
+| Executive deck renders without diagrams | CDN unreachable | Confirm network reachability to `cdnjs.cloudflare.com`, `cdn.jsdelivr.net`, and `unpkg.com`; deck CDN versions are pinned exactly to reveal.js 5.1.0 / Mermaid 11.4.0 / Lucide 0.460.0 |
+| Mermaid diagram on slide 3 fails to render after slide navigation | `mermaid.run()` not called on `slidechanged` | This is wired correctly in the deck; if you see this, check console for CDN errors |
+| Lucide icons missing | `lucide.createIcons()` not called or CDN unreachable | Same as above — wired correctly; check CDN reachability |
 
 ## 10. Appendices
 
@@ -529,142 +447,91 @@ curl -s http://localhost:8080/v1/profiles/<user_id>
 
 | Command | Purpose |
 |---|---|
-| `go build ./...` | Compile all packages |
-| `go test ./functions/... -v` | Run Functions test suite |
-| `go test ./protocols/... -v` | Run Protocols test suite |
-| `go test ./identity/... -v` | Run Identity test suite |
-| `go test ./processor/ -v` | Run Processor test suite (includes pipeline stages) |
-| `make test-functions` | Run Functions tests via Makefile |
-| `make test-protocols` | Run Protocols tests via Makefile |
-| `make test-identity` | Run Identity tests via Makefile |
-| `make test-monitoring` | Run Monitoring/Alerting/Profiling tests |
-| `make test-destinations` | Run Destination connector tests |
-| `golangci-lint run ./...` | Run static analysis |
-| `docker compose up -d db transformer` | Start core services |
-| `docker compose --profile identity up -d` | Start with Redis for Identity |
-| `docker compose down` | Stop all services |
+| `source /tmp/semgrep-config-b/.semgrep-venv/bin/activate` | Activate the pinned Semgrep venv |
+| `semgrep --version` | Confirm Semgrep 1.163.0 |
+| `semgrep scan --metrics=off --config=./local-rules --dryrun` | Directive 1 Pass/Fail gate |
+| `semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off --exclude=local-rules --exclude=findings-config-b.json .` | Directive 2 main scan |
+| `python3 normalize-sarif.py results-semgrep.sarif findings-config-b.json` | Directive 3 normalization |
+| `wc -l findings-config-b.json` | Single-line invariant check (must return 1) |
+| `python3 -m json.tool findings-config-b.json > /dev/null` | Valid JSON check (exit 0) |
+| `sha256sum findings-config-b.json` | Reproducibility check (must match `0c53063d...`) |
+| `unshare --net --user --map-root-user semgrep scan --metrics=off --config=./local-rules --dryrun` | Hermeticity proof — network namespace |
+| `cat scan-metadata.txt` | Inspect captured metadata (24 keys) |
+| `python3 -m http.server 8765` | Serve `executive-summary.html` for browser inspection |
 
 ### B. Port Reference
 
-| Port | Service | Profile |
+| Port | Purpose | Required? |
 |---|---|---|
-| 8080 | Gateway HTTP API | default |
-| 6432 | PostgreSQL (host) → 5432 (container) | default |
-| 9090 | Transformer | default |
-| 6379 | Redis | identity |
-| 9000 | MinIO API | storage |
-| 9001 | MinIO Console | storage |
-| 2379 | etcd | multi-tenant |
-| 50051 | Profiles gRPC API | identity |
+| 8765 | Local HTTP server for inspecting `executive-summary.html` in a browser | Optional (use any free port) |
+
+(No persistent service is run by Config B. Semgrep is a single-shot CLI invocation.)
 
 ### C. Key File Locations
 
-| Category | Path | Purpose |
+| File | Location | Purpose |
 |---|---|---|
-| Functions Runtime | `functions/runtime/engine.go` | Core runtime engine |
-| Functions API | `functions/api/handler.go` | CRUD management API |
-| Protocols Validator | `protocols/schema/validator.go` | JSON Schema draft-07 engine |
-| Protocols API | `protocols/api/handler.go` | Tracking plan management |
-| Identity Graph | `identity/graph/graph.go` | Real-time graph service |
-| Identity Resolver | `identity/graph/resolver.go` | Resolution engine |
-| Profiles API | `identity/profiles/api.go` | REST API handler |
-| Profiles gRPC | `identity/profiles/grpc_server.go` | gRPC server |
-| Monitoring | `services/monitoring/dashboard.go` | Delivery dashboard |
-| Alerting | `services/alerting/engine.go` | Alerting rules engine |
-| Profiling | `services/profiling/profiler.go` | Pipeline profiler |
-| Advanced Replay | `gateway/handle_http_replay_advanced.go` | Filter logic |
-| Stream Producers | `services/streammanager/*/manager.go` | Per-destination producers |
-| Pipeline Worker | `processor/pipeline_worker.go` | 7-stage pipeline with Insert Functions |
-| Tracking Plan | `processor/trackingplan.go` | Enhanced enforcement |
-| Enforcement | `processor/enforcement/modes.go` | Block/Omit/Allow modes |
-| Anomaly Detection | `processor/anomalydetection/detector.go` | Event anomaly engine |
-| Config | `config/config.yaml` | All configuration keys |
-| OpenAPI | `gateway/openapi.yaml` | API specifications |
-| Migrations | `sql/migrations/*/` | Database schema migrations |
+| `findings-config-b.json` | repo root | Directive 3 deliverable — 216-record single-line JSON |
+| `results-semgrep.sarif` | repo root | Directive 2 intermediate SARIF (1.46 MB) |
+| `scan-metadata.txt` | repo root | Directive 2 observations (24 keys) |
+| `normalize-sarif.py` | repo root | Directive 3 normalizer (431 lines, stdlib only) |
+| `decision-log.md` | repo root | Rule 1 (Explainability) — 274 lines |
+| `executive-summary.html` | repo root | Rule 2 (Executive Presentation) — 15 slides |
+| `local-rules/security-audit.yaml` | repo root | Cached `p/security-audit` rule pack (462 KB) |
+| `local-rules/secrets.yaml` | repo root | Cached `p/secrets` rule pack (86 KB) |
+| `local-rules/owasp-top-ten.yaml` | repo root | Cached `p/owasp-top-ten` rule pack (1.38 MB) |
+| `semgrep-stderr.txt` | repo root | Verbatim Semgrep stderr (audit evidence) |
+| `/tmp/semgrep-config-b/.semgrep-venv/` | external (host filesystem) | Pinned Semgrep 1.163.0 Python venv |
 
 ### D. Technology Versions
 
-| Technology | Version | Notes |
+| Component | Version | Notes |
 |---|---|---|
-| Go | 1.26.1 | Declared in `go.mod` and `Dockerfile` |
-| PostgreSQL | 15-alpine | Via Docker Compose |
-| Redis | 7-alpine | Via Docker Compose (identity profile) |
-| Transformer | latest | `rudderstack/rudder-transformer` Docker image |
-| chi/v5 | 5.2.5 | HTTP router framework |
-| gRPC | 1.78.0 | Inter-service communication |
-| protobuf | 1.36.11 | Protocol Buffers |
-| jsonschema/v5 | 5.3.1 | JSON Schema draft-07 validation |
-| go-redis/v9 | 9.12.1 | Redis client |
-| kafka-go | 0.4.50 | Kafka client (MSK, Azure EH, Confluent) |
-| Ginkgo/v2 | 2.24.0 | BDD test framework |
-| Gomega | 1.38.0 | Matcher library |
-| golangci-lint | latest | Static analysis |
+| Semgrep CLI | **1.163.0** | OSS engine (LGPL 2.1); install via pip; AAP §0.4.1 permits "highest available 1.x release" (D4) |
+| Python | 3.13.7 | Host system Python; venv isolates installation |
+| reveal.js | 5.1.0 | CDN-pinned in `executive-summary.html` |
+| Mermaid | 11.4.0 | CDN-pinned |
+| Lucide Icons | 0.460.0 | CDN-pinned |
+| SARIF | 2.1.0 | Output schema |
+| Rule pack: `p/security-audit` | Semgrep Registry snapshot (SHA-256 `fdc7027...`) | Acquired 2026-05-15 |
+| Rule pack: `p/secrets` | Semgrep Registry snapshot (SHA-256 `fbbe680...`) | Acquired 2026-05-15 |
+| Rule pack: `p/owasp-top-ten` | Semgrep Registry snapshot (SHA-256 `d866bd8...`) | Acquired 2026-05-15 |
+| `findings-config-b.json` | SHA-256 `0c53063d0f551083dc96021377c0a0ff24bb44e4742a7020bcba802f3d64f561` | Reproducibility anchor |
 
 ### E. Environment Variable Reference
 
-| Variable | Default | Purpose |
+No environment variables are required for normal operation. Optional variables relevant to verification:
+
+| Variable | Purpose | Example |
 |---|---|---|
-| `JOBS_DB_HOST` | `db` | PostgreSQL hostname |
-| `JOBS_DB_PORT` | `5432` | PostgreSQL port |
-| `JOBS_DB_USER` | `rudder` | PostgreSQL username |
-| `JOBS_DB_PASSWORD` | `password` | PostgreSQL password |
-| `JOBS_DB_DB_NAME` | `jobsdb` | PostgreSQL database name |
-| `JOBS_DB_SSL_MODE` | `disable` | PostgreSQL SSL mode |
-| `DEST_TRANSFORM_URL` | `http://localhost:9090` | Transformer service URL |
-| `WORKSPACE_TOKEN` | — | RudderStack workspace token (required) |
-| `REDIS_URL` | `redis://localhost:6379` | Redis URL for Identity caching |
-| `GO_ENV` | `production` | Runtime environment |
-| `LOG_LEVEL` | `INFO` | Logging verbosity |
-| `CONFIG_PATH` | `/app/config/config.yaml` | Configuration file path |
-| `ALERT_PROVIDER` | `pagerduty` | Default alert provider |
+| `HTTPS_PROXY` / `HTTP_PROXY` | Set to an unreachable address to prove hermeticity | `HTTPS_PROXY=http://127.0.0.1:1` |
+| `SEMGREP_SEND_METRICS` | Semgrep telemetry; explicitly suppressed via `--metrics=off` and unused | Leave unset |
+| `SEMGREP_APP_TOKEN` | Commercial Semgrep auth; **not used by Config B** | Leave unset |
+| `VIRTUAL_ENV` | Set automatically by `source .../activate` | Auto-managed |
 
 ### F. Developer Tools Guide
 
-**Running Specific Sprint Tests:**
-```bash
-# Sprint 3-5 tests
-make test-destinations
-
-# Sprint 4-6 tests
-make test-functions
-
-# Sprint 5-7 tests
-make test-protocols
-
-# Sprint 6-8 tests
-make test-identity
-
-# Sprint 8-10 tests
-make test-monitoring
-```
-
-**Debug a Specific Test:**
-```bash
-go test ./identity/graph/ -run TestResolveNewMatch -v -count=1
-```
-
-**Generate Mock Files:**
-```bash
-go generate ./mocks/...
-```
-
-**Format Code:**
-```bash
-gofmt -w .
-```
+| Tool | Use Case |
+|---|---|
+| `jq` (optional) | Inspect `results-semgrep.sarif` interactively: `jq '.runs[0].results | length' results-semgrep.sarif` |
+| `python3 -m json.tool` | Pretty-print or validate the findings JSON |
+| `sha256sum` | Reproducibility verification |
+| `git log --pretty=format:"%h %s" 770627a..HEAD` | View the 12 Config B commits |
+| `git diff 770627a HEAD --stat` | Confirm the 10-file diff (the 10 deliverables) and zero source-tree changes |
 
 ### G. Glossary
 
 | Term | Definition |
 |---|---|
-| **Source Functions** | User-defined JavaScript functions triggered by HTTP webhooks (E-015) |
-| **Destination Functions** | Per-event typed handlers (onTrack, onIdentify, etc.) for custom destination logic (E-016) |
-| **Insert Functions** | Pre-destination transformation hooks in the processor pipeline (E-017) |
-| **Enforcement Modes** | Block Event / Omit Properties / Allow — tracking plan violation handling (E-022) |
-| **Identity Graph** | Real-time graph mapping users across devices and identifiers (E-026) |
-| **Profiles API** | REST/gRPC API for querying resolved user profiles (E-027) |
-| **External IDs** | Identifier types like user_id, email, anonymous_id, ios.id, etc. (E-028) |
-| **CDC Sync** | Change-data-capture based profile synchronization to destinations (E-029) |
-| **Delivery Dashboard** | Per-destination success/failure/latency metrics via Prometheus (E-036) |
-| **Advanced Replay** | Source/date-range/destination filtered event replay with dry-run (E-038) |
-| **Capacity Planning** | Pipeline profiling targeting 50K events/sec throughput (E-039) |
+| **AAP** | Agent Action Plan — the authoritative scope document for this configuration |
+| **Config B** | One configuration in a multi-config security tool comparison (Semgrep OSS lane); siblings (A, C, …) are out of scope |
+| **CWE** | Common Weakness Enumeration — a community-maintained list of software/hardware weakness types; used as the closed vocabulary for the `cwe` field |
+| **Directive** | A CRITICAL Pass/Fail instruction from the user; three are authoritative for Config B |
+| **Hermeticity** | The property that the scan makes zero outbound network calls — proven by `unshare --net` and invalid proxy tests |
+| **Idempotency** | Re-running the pipeline produces byte-identical `findings-config-b.json` — proven by SHA-256 stability |
+| **Rule pack** | A YAML bundle of Semgrep rules; three are used (security-audit, secrets, owasp-top-ten) |
+| **SARIF** | Static Analysis Results Interchange Format (OASIS 2.1.0); Semgrep's structured output format |
+| **Pass/Fail clause** | An explicit, testable predicate attached to each directive — the gate for completion |
+| **Deviation** | A documented departure from a literal AAP interpretation, justified in `decision-log.md` §6 |
+| **PEP 668** | Python proposal that flags system Python as "externally managed"; bypassed via venv |
+| **Slug** | The Semgrep Registry's short name for a rule bundle (e.g. `p/owasp-top-ten`) |
