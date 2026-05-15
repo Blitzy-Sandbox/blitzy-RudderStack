@@ -19,5 +19,6 @@ findings_medium=0
 findings_low=0
 cwe_in_tags_coverage=216/216
 dry_run_exit_code=0
+dry_run_command=semgrep scan --metrics=off --config=./local-rules --dryrun
 network_calls_during_scan=0
 stderr_capture_file=semgrep-stderr.txt
