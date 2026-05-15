@@ -632,10 +632,7 @@
       font-size: 16px;
     }
 
-    /* Mermaid SVGs default to max-width: 512px via inline style; override
-       so they fill the slide canvas. Also cap the height so vertical
-       flowcharts and large pie charts don't extend past the slide
-       canvas (1920x1080 with 80px top/bottom padding and a ~140px title). */
+    /* Mermaid SVG sizing — slide-canvas bounds. */
     .reveal pre.mermaid svg,
     .reveal pre.mermaid > svg,
     .reveal .mermaid-wrap svg {
@@ -647,8 +644,7 @@
       margin: 0 auto;
     }
 
-    /* Vertical flowcharts (TB orientation) and pie charts need explicit
-       width caps as well so they don't stretch to full slide width. */
+    /* Per-orientation Mermaid SVG caps. */
     .reveal .mermaid-wrap.mermaid-tall svg {
       max-height: 720px !important;
       max-width: 1200px !important;
@@ -759,7 +755,7 @@
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">01 &middot; HEADLINE FINDINGS</div>
-        <h2 class="slide-title-heading">Twenty findings. One critical. Six high.</h2>
+        <h2 class="slide-title-heading">Twenty Findings. One Critical. Six High.</h2>
         <div class="kpi-grid">
           <div class="kpi-card">
             <i data-lucide="bar-chart-3" class="kpi-icon"></i>
@@ -797,7 +793,7 @@
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">02 &middot; WHAT IS RUDDER-SERVER</div>
-        <h2 class="slide-title-heading">A Customer Data Platform pipeline</h2>
+        <h2 class="slide-title-heading">A Customer Data Platform Pipeline</h2>
         <div class="mermaid-wrap mermaid-wide">
 <pre class="mermaid">
 graph LR
@@ -807,7 +803,7 @@ graph LR
   D --> E[Router<br/>egress workers]
   E --> F[Destinations<br/>~200 connectors]
   D --> G[Warehouse Loaders]
-  G --> H[(Data Warehouses<br/>BQ &middot; Snowflake &middot; Redshift)]
+  G --> H[(Data Warehouses<br/>BQ · Snowflake · Redshift)]
 </pre>
         </div>
         <p class="slide-caption">Three deployment modes &mdash; Embedded, Gateway, Processor &mdash; share the same monorepo.</p>
@@ -820,7 +816,7 @@ graph LR
       <section class="slide-divider">
         <i data-lucide="target" class="hero-icon"></i>
         <div class="eyebrow">SCOPE</div>
-        <h2 class="divider-heading">What we audited</h2>
+        <h2 class="divider-heading">What We Audited</h2>
         <p class="divider-subheading">Eleven security-relevant domains across the monorepo</p>
       </section>
 
@@ -831,7 +827,7 @@ graph LR
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">03 &middot; COVERAGE</div>
-        <h2 class="slide-title-heading">Every security-relevant surface</h2>
+        <h2 class="slide-title-heading">Every Security-Relevant Surface</h2>
         <table class="audit-table">
           <thead>
             <tr>
@@ -908,16 +904,16 @@ graph LR
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">04 &middot; METHODOLOGY</div>
-        <h2 class="slide-title-heading">Inventory &rarr; Lens &times; Domain matrix &rarr; CWE &rarr; JSON</h2>
+        <h2 class="slide-title-heading">Inventory &rarr; Lens &times; Domain Matrix &rarr; CWE &rarr; JSON</h2>
         <div class="mermaid-wrap mermaid-tall">
 <pre class="mermaid">
 flowchart TB
-  A[Repository Inventory<br/>766 Go src &middot; 184 YAML &middot; 100 SQL] --> B[10 Analysis Lenses &times; 11 Domains]
+  A[Repository Inventory<br/>766 Go src · 184 YAML · 100 SQL] --> B[10 Analysis Lenses × 11 Domains]
   B --> C{Evidence sufficient?}
   C -- No --> D[Decision log<br/>Considered but not flagged]
   C -- Yes --> E[Assign leaf CWE]
-  E --> F[Severity rating<br/>critical &middot; high &middot; medium &middot; low]
-  F --> G[&le;200-char description]
+  E --> F[Severity rating<br/>critical · high · medium · low]
+  F --> G[≤200-char description]
   G --> H[findings-config-a.json<br/>minified JSON array]
 </pre>
         </div>
@@ -930,7 +926,7 @@ flowchart TB
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">05 &middot; DISTRIBUTION</div>
-        <h2 class="slide-title-heading">Severity profile</h2>
+        <h2 class="slide-title-heading">Severity Profile</h2>
         <div class="mermaid-wrap mermaid-pie">
 <pre class="mermaid">
 pie showData
@@ -951,7 +947,7 @@ pie showData
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">06 &middot; CWE PROFILE</div>
-        <h2 class="slide-title-heading">Top weakness classes observed</h2>
+        <h2 class="slide-title-heading">Top Weakness Classes Observed</h2>
         <table class="audit-table audit-table-cwe">
           <thead>
             <tr>
@@ -1063,7 +1059,7 @@ pie showData
       <section class="slide-divider">
         <i data-lucide="alert-triangle" class="hero-icon"></i>
         <div class="eyebrow">ELEVATED TIER</div>
-        <h2 class="divider-heading">Risk landscape</h2>
+        <h2 class="divider-heading">Risk Landscape</h2>
         <p class="divider-subheading">Four headline issues drive the elevated tier</p>
       </section>
 
@@ -1074,7 +1070,7 @@ pie showData
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">07 &middot; SPOTLIGHT</div>
-        <h2 class="slide-title-heading">Top issues to address first</h2>
+        <h2 class="slide-title-heading">Top Issues to Address First</h2>
         <div class="icon-row">
           <i data-lucide="terminal" class="icon-row-icon"></i>
           <div class="icon-row-content">
@@ -1100,7 +1096,7 @@ pie showData
           <i data-lucide="lock-keyhole-open" class="icon-row-icon"></i>
           <div class="icon-row-content">
             <span class="severity-tag severity-high">High</span>
-            Hardcoded TLS-disable (<code>InsecureSkipVerify:true</code>) in Google Sheets destination test path
+            TLS certificate validation is disabled in a destination test configuration path
           </div>
         </div>
         <p class="slide-caption-small">Full details and remediation pointers in the findings JSON and decision log.</p>
@@ -1113,7 +1109,7 @@ pie showData
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">08 &middot; LIMITATIONS</div>
-        <h2 class="slide-title-heading">Where this baseline is blind</h2>
+        <h2 class="slide-title-heading">Where This Baseline Is Blind</h2>
         <div class="icon-row">
           <i data-lucide="eye-off" class="icon-row-icon"></i>
           <div class="icon-row-content">
@@ -1148,12 +1144,12 @@ pie showData
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">09 &middot; STUDY CONTEXT</div>
-        <h2 class="slide-title-heading">Config A is one arm of a comparative study</h2>
+        <h2 class="slide-title-heading">Config A Is One Arm of a Comparative Study</h2>
         <div class="mermaid-wrap mermaid-wide">
 <pre class="mermaid">
 graph LR
-  A[Config A<br/>Bare Blitzy Baseline<br/>native agent only] --> B[Config B<br/>+ scanner-assisted<br/>Snyk &middot; Semgrep]
-  B --> C[Config C<br/>+ full scanner suite<br/>CodeQL &middot; govulncheck]
+  A[Config A<br/>Bare Blitzy Baseline<br/>native agent only] --> B[Config B<br/>+ scanner-assisted<br/>Snyk · Semgrep]
+  B --> C[Config C<br/>+ full scanner suite<br/>CodeQL · govulncheck]
   A --> D[Delta analysis]
   B --> D
   C --> D
@@ -1170,7 +1166,7 @@ graph LR
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">10 &middot; RISKS &amp; MITIGATIONS</div>
-        <h2 class="slide-title-heading">How we manage measurement risk</h2>
+        <h2 class="slide-title-heading">How We Manage Measurement Risk</h2>
         <table class="audit-table audit-table-risks">
           <thead>
             <tr>
@@ -1221,7 +1217,7 @@ graph LR
       <section class="content-slide">
         <div class="top-accent-bar"></div>
         <div class="eyebrow">11 &middot; NEXT STEPS</div>
-        <h2 class="slide-title-heading">Four steps to a full comparison report</h2>
+        <h2 class="slide-title-heading">Four Steps to a Full Comparison Report</h2>
         <div class="icon-row">
           <span class="step-number">01</span>
           <i data-lucide="play" class="icon-row-icon"></i>
@@ -1285,8 +1281,6 @@ graph LR
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 
   <script>
-    // Mermaid theme — Blitzy-aligned base theme.
-    // startOnLoad is false because Reveal manages the rendering lifecycle.
     mermaid.initialize({
       startOnLoad: false,
       theme: 'base',
@@ -1299,7 +1293,6 @@ graph LR
       }
     });
 
-    // Reveal.js core configuration — fixed 1920x1080 canvas with slide transitions.
     Reveal.initialize({
       hash: true,
       transition: 'slide',
@@ -1308,102 +1301,39 @@ graph LR
       height: 1080
     });
 
-    // Extract the raw Mermaid source from a <pre class="mermaid"> element,
-    // walking its child nodes so that <br> elements (which the browser
-    // converts from the literal <br/> source) are restored as the literal
-    // "<br/>" string Mermaid expects in node labels. This avoids the
-    // textContent-based loss of line breaks and the "Could not find a
-    // suitable point for the given distance" layout error that follows when
-    // labels collapse onto a single line.
-    function extractMermaidSource(pre) {
-      var src = '';
-      var nodes = pre.childNodes;
-      for (var i = 0; i < nodes.length; i++) {
-        var n = nodes[i];
-        if (n.nodeType === Node.TEXT_NODE) {
-          src += n.nodeValue;
-        } else if (n.nodeType === Node.ELEMENT_NODE && n.nodeName === 'BR') {
-          src += '<br/>';
-        } else if (n.nodeType === Node.ELEMENT_NODE) {
-          // Preserve any other inline elements as their text content.
-          src += n.textContent;
-        }
-      }
-      return src.trim();
-    }
-
-    // Render each Mermaid diagram individually so that a layout failure in
-    // one diagram does not abort the entire batch. Diagrams are cached in
-    // a closure-scoped array on first render so that re-runs (triggered by
-    // slidechanged) reuse the rendered SVG without re-parsing the source.
-    var mermaidRenderedCache = {};
-    var mermaidSourceCache = {};
-    var mermaidUidCounter = 0;
-
-    async function renderMermaidDiagrams() {
-      if (typeof mermaid === 'undefined' || !mermaid.render) return;
+    function normalizeMermaidSources() {
       var pres = document.querySelectorAll('.reveal pre.mermaid');
       for (var i = 0; i < pres.length; i++) {
         var pre = pres[i];
-        var uid = pre.getAttribute('data-mm-uid');
-        if (!uid) {
-          uid = 'mm-uid-' + (++mermaidUidCounter);
-          pre.setAttribute('data-mm-uid', uid);
-          mermaidSourceCache[uid] = extractMermaidSource(pre);
-        }
-        if (mermaidRenderedCache[uid]) {
-          // Ensure the rendered SVG is in place even after DOM changes.
-          if (pre.innerHTML !== mermaidRenderedCache[uid]) {
-            pre.innerHTML = mermaidRenderedCache[uid];
-          }
-          continue;
-        }
-        var src = mermaidSourceCache[uid];
-        if (!src) continue;
-        try {
-          var renderId = uid + '-render-' + Math.floor(Math.random() * 1e9).toString(36);
-          var result = await mermaid.render(renderId, src);
-          pre.innerHTML = result.svg;
-          mermaidRenderedCache[uid] = result.svg;
-          // Mermaid sometimes appends a helper bind callback; call it if present.
-          if (typeof result.bindFunctions === 'function') {
-            try { result.bindFunctions(pre); } catch (e) { /* non-fatal */ }
-          }
-        } catch (e) {
-          // A single diagram failure must not stop the rest from rendering.
-          if (typeof console !== 'undefined' && console.warn) {
-            console.warn('Mermaid render error for', uid, ':', e && (e.message || e.str || e));
+        if (pre.getAttribute('data-mm-normalized') === '1') continue;
+        if (pre.getAttribute('data-processed') === 'true') continue;
+        var src = '';
+        var nodes = pre.childNodes;
+        for (var j = 0; j < nodes.length; j++) {
+          var n = nodes[j];
+          if (n.nodeType === Node.TEXT_NODE) {
+            src += n.nodeValue;
+          } else if (n.nodeType === Node.ELEMENT_NODE && n.nodeName === 'BR') {
+            src += '<br/>';
+          } else if (n.nodeType === Node.ELEMENT_NODE) {
+            src += n.textContent;
           }
         }
+        pre.textContent = src;
+        pre.setAttribute('data-mm-normalized', '1');
       }
     }
 
-    // Render helper — re-rasterizes Lucide icons and (lazily) Mermaid diagrams.
-    // Called once on ready and on every slidechanged event so that icons and
-    // diagrams remain consistent when navigating backwards.
     async function renderVisuals() {
-      try {
-        if (typeof lucide !== 'undefined' && lucide.createIcons) {
-          lucide.createIcons();
-        }
-      } catch (e) {
-        // Lucide rendering errors should not block slide navigation.
-        if (typeof console !== 'undefined' && console.warn) {
-          console.warn('Lucide render error:', e);
-        }
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
       }
-      try {
-        await renderMermaidDiagrams();
-      } catch (e) {
-        // Mermaid rendering errors should not block slide navigation.
-        if (typeof console !== 'undefined' && console.warn) {
-          console.warn('Mermaid render batch error:', e);
-        }
+      if (typeof mermaid !== 'undefined' && mermaid.run) {
+        normalizeMermaidSources();
+        await mermaid.run({ querySelector: '.reveal pre.mermaid' });
       }
     }
 
-    // Bind to lifecycle events. The 'ready' event covers initial paint;
-    // 'slidechanged' covers all subsequent navigation including back-navigation.
     Reveal.on('ready', renderVisuals);
     Reveal.on('slidechanged', renderVisuals);
   </script>
