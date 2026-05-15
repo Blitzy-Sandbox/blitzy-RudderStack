@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Config F: OSV-Scanner Scan of blitzy-RudderStack &mdash; Executive Summary</title>
+  <meta name="description" content="Executive summary of Config F: an OSV-Scanner security scan of the blitzy-RudderStack repository, one configuration in a multi-config security tool comparison.">
+  <meta name="generator" content="reveal.js 5.1.0 (Blitzy executive deck)">
+
+  <!-- Google Fonts: Inter (body), Space Grotesk (display), Fira Code (mono/eyebrow) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- reveal.js 5.1.0 CSS (pinned per Executive Presentation rule) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" id="theme">
+
+  <style>
+    /* ================================================================== */
+    /* Blitzy brand tokens (verbatim from Executive Presentation rule)    */
+    /* ================================================================== */
+    :root {
+      --blitzy-primary: #5B39F3;
+      --blitzy-primary-dark: #2D1C77;
+      --blitzy-primary-navy: #1A105F;
+      --blitzy-primary-light: #7A6DEC;
+      --blitzy-primary-deep: #4101DB;
+      --blitzy-accent-teal: #94FAD5;
+      --blitzy-surface-0: #FFFFFF;
+      --blitzy-surface-1: #F4EFF6;
+      --blitzy-surface-2: #F2F0FE;
+      --blitzy-surface-3: #F5F5F5;
+      --blitzy-border: #D9D9D9;
+      --blitzy-border-soft: rgba(91, 57, 243, 0.18);
+      --blitzy-text: #333333;
+      --blitzy-text-muted: #999999;
+      --blitzy-text-invert: #FFFFFF;
+      --ff-body: 'Inter', system-ui, sans-serif;
+      --ff-display: 'Space Grotesk', 'Inter', sans-serif;
+      --ff-mono: 'Fira Code', 'Courier New', monospace;
+      --gradient-hero: linear-gradient(68deg, #7A6DEC 15.56%, #5B39F3 62.74%, #4101DB 84.44%);
+      --gradient-divider: linear-gradient(135deg, #2D1C77 0%, #5B39F3 100%);
+      --gradient-accent-bar: linear-gradient(90deg, #5B39F3 0%, #94FAD5 100%);
+    }
+
+    /* ================================================================== */
+    /* Global resets and reveal.js theme overrides                        */
+    /* ================================================================== */
+    html, body { background: var(--blitzy-surface-0); }
+
+    .reveal {
+      font-family: var(--ff-body);
+      color: var(--blitzy-text);
+      font-weight: 400;
+      font-size: 28px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .reveal .slides {
+      text-align: left;
+    }
+
+    .reveal .slides > section,
+    .reveal .slides > section > section {
+      padding: 60px 80px;
+      box-sizing: border-box;
+      height: 100%;
+    }
+
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      font-family: var(--ff-display);
+      color: var(--blitzy-text);
+      letter-spacing: -0.01em;
+      text-transform: none;
+      margin: 0 0 0.6em 0;
+      line-height: 1.15;
+      font-weight: 600;
+    }
+
+    .reveal h1 { font-size: 3.2em; }
+    .reveal h2 { font-size: 2.2em; }
+    .reveal h3 { font-size: 1.5em; font-weight: 500; }
+    .reveal h4 { font-size: 1.1em; color: var(--blitzy-text-muted); }
+
+    .reveal p { margin: 0 0 0.7em 0; line-height: 1.5; }
+
+    .reveal a { color: var(--blitzy-primary); text-decoration: none; }
+
+    .reveal code,
+    .reveal .fira {
+      font-family: var(--ff-mono);
+      font-size: 0.85em;
+      background: var(--blitzy-surface-2);
+      color: var(--blitzy-primary-dark);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--blitzy-border-soft);
+    }
+
+    .reveal ul, .reveal ol { margin: 0.2em 0 0.6em 1.4em; }
+    .reveal li { margin: 0.35em 0; line-height: 1.45; }
+
+    .reveal .controls { color: var(--blitzy-primary); }
+    .reveal .progress { color: var(--blitzy-primary); height: 4px; }
+
+    /* ================================================================== */
+    /* Slide type: TITLE (slide 1)                                        */
+    /* ================================================================== */
+    .reveal section.slide-title {
+      background: var(--gradient-hero);
+      color: var(--blitzy-text-invert);
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 100px 120px !important;
+    }
+
+    .reveal section.slide-title h1,
+    .reveal section.slide-title h2,
+    .reveal section.slide-title h3,
+    .reveal section.slide-title p {
+      color: var(--blitzy-text-invert);
+    }
+
+    .reveal section.slide-title h1 {
+      font-size: 3.6em;
+      font-weight: 700;
+      max-width: 1400px;
+      line-height: 1.05;
+      margin-bottom: 28px;
+    }
+
+    .reveal section.slide-title h3 {
+      font-family: var(--ff-display);
+      font-weight: 500;
+      font-size: 1.6em;
+      color: rgba(255, 255, 255, 0.92);
+      max-width: 1400px;
+      margin-bottom: 0;
+    }
+
+    .reveal section.slide-title .hero-icon {
+      width: 140px;
+      height: 140px;
+      stroke-width: 1.4;
+      color: var(--blitzy-accent-teal);
+      margin-bottom: 36px;
+      display: block;
+    }
+
+    .reveal section.slide-title .eyebrow {
+      color: var(--blitzy-accent-teal);
+    }
+
+    .reveal section.slide-title .brand-lockup {
+      position: absolute;
+      bottom: 60px;
+      left: 120px;
+      right: 120px;
+    }
+
+    /* ================================================================== */
+    /* Slide type: SECTION DIVIDER (slides 4, 6, 9, 11, 13)               */
+    /* ================================================================== */
+    .reveal section.slide-divider {
+      background: var(--gradient-divider);
+      color: var(--blitzy-text-invert);
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+
+    .reveal section.slide-divider h2 {
+      color: var(--blitzy-text-invert);
+      font-size: 4.4em;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      margin: 0;
+      max-width: 1500px;
+    }
+
+    .reveal section.slide-divider .hero-icon {
+      width: 180px;
+      height: 180px;
+      color: var(--blitzy-accent-teal);
+      stroke-width: 1.2;
+      margin-bottom: 48px;
+      display: block;
+    }
+
+    .reveal section.slide-divider .eyebrow {
+      color: var(--blitzy-accent-teal);
+      margin-bottom: 20px;
+    }
+
+    /* ================================================================== */
+    /* Slide type: CLOSING (slide 16)                                     */
+    /* ================================================================== */
+    .reveal section.slide-closing {
+      background: var(--blitzy-primary-navy);
+      color: var(--blitzy-text-invert);
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 100px 120px !important;
+    }
+
+    .reveal section.slide-closing h1,
+    .reveal section.slide-closing h2,
+    .reveal section.slide-closing h3,
+    .reveal section.slide-closing p,
+    .reveal section.slide-closing li {
+      color: var(--blitzy-text-invert);
+    }
+
+    .reveal section.slide-closing h1 {
+      font-size: 4em;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      max-width: 1500px;
+    }
+
+    .reveal section.slide-closing .hero-icon {
+      width: 96px;
+      height: 96px;
+      color: var(--blitzy-accent-teal);
+      margin-bottom: 24px;
+      display: block;
+    }
+
+    .reveal section.slide-closing ul {
+      list-style: none;
+      margin: 36px 0 0 0;
+      padding: 0;
+      max-width: 1300px;
+    }
+
+    .reveal section.slide-closing ul li {
+      font-size: 1.3em;
+      font-weight: 500;
+      margin: 18px 0;
+      padding-left: 50px;
+      position: relative;
+    }
+
+    .reveal section.slide-closing ul li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 14px;
+      width: 28px;
+      height: 4px;
+      background: var(--gradient-accent-bar);
+      border-radius: 2px;
+    }
+
+    .reveal section.slide-closing .accent-bar {
+      margin-top: 60px;
+    }
+
+    .reveal section.slide-closing .brand-lockup {
+      position: absolute;
+      bottom: 60px;
+      left: 120px;
+      right: 120px;
+    }
+
+    /* ================================================================== */
+    /* Eyebrow (Fira Code, uppercase)                                     */
+    /* ================================================================== */
+    .eyebrow {
+      font-family: var(--ff-mono);
+      font-weight: 500;
+      font-size: 0.65em;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--blitzy-primary);
+      margin-bottom: 16px;
+      display: inline-block;
+    }
+
+    /* ================================================================== */
+    /* Accent bar (4-8px gradient line)                                   */
+    /* ================================================================== */
+    .accent-bar {
+      width: 220px;
+      height: 6px;
+      background: var(--gradient-accent-bar);
+      border-radius: 4px;
+      display: block;
+    }
+
+    /* ================================================================== */
+    /* Brand lockup (bottom-of-slide brand block)                         */
+    /* ================================================================== */
+    .brand-lockup {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-family: var(--ff-mono);
+      font-size: 0.6em;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .brand-lockup .brand-name {
+      font-family: var(--ff-display);
+      font-weight: 700;
+      font-size: 1.5em;
+      letter-spacing: -0.01em;
+      text-transform: none;
+      color: var(--blitzy-text-invert);
+    }
+
+    .brand-lockup .brand-tag {
+      color: var(--blitzy-accent-teal);
+    }
+
+    /* ================================================================== */
+    /* Hero icon and icon row (for divider/closing/title)                 */
+    /* ================================================================== */
+    .hero-icon {
+      width: 120px;
+      height: 120px;
+      stroke-width: 1.4;
+      color: var(--blitzy-primary);
+    }
+
+    .icon-row {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .icon-row svg {
+      width: 56px;
+      height: 56px;
+      color: var(--blitzy-primary);
+      stroke-width: 1.6;
+    }
+
+    /* ================================================================== */
+    /* KPI grid + KPI card                                                */
+    /* ================================================================== */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-top: 36px;
+      width: 100%;
+    }
+
+    .kpi-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .kpi-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+    .kpi-card {
+      background: var(--blitzy-surface-0);
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 16px;
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(91, 57, 243, 0.06);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: var(--gradient-accent-bar);
+      opacity: 0.85;
+    }
+
+    .kpi-card .kpi-icon {
+      width: 40px;
+      height: 40px;
+      color: var(--blitzy-primary);
+      stroke-width: 1.7;
+      margin-bottom: 4px;
+    }
+
+    .kpi-card .kpi-value {
+      font-family: var(--ff-display);
+      font-size: 2.6em;
+      font-weight: 700;
+      color: var(--blitzy-primary);
+      line-height: 1;
+      margin: 4px 0;
+    }
+
+    .kpi-card .kpi-value.sev-critical { color: #B00020; }
+    .kpi-card .kpi-value.sev-high     { color: #E55B0E; }
+    .kpi-card .kpi-value.sev-medium   { color: #C28E00; }
+    .kpi-card .kpi-value.sev-low      { color: #2E7D32; }
+    .kpi-card .kpi-value.is-text {
+      font-size: 1.4em;
+      font-family: var(--ff-mono);
+      font-weight: 500;
+      word-break: break-word;
+    }
+
+    .kpi-card .kpi-label {
+      font-family: var(--ff-mono);
+      font-size: 0.55em;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--blitzy-text-muted);
+      font-weight: 500;
+    }
+
+    .kpi-card .kpi-sub {
+      font-size: 0.8em;
+      color: var(--blitzy-text-muted);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    /* Variant: severity-coloured kpi-icon background */
+    .kpi-card.sev-critical .kpi-icon { color: #B00020; }
+    .kpi-card.sev-high     .kpi-icon { color: #E55B0E; }
+    .kpi-card.sev-medium   .kpi-icon { color: #C28E00; }
+    .kpi-card.sev-low      .kpi-icon { color: #2E7D32; }
+
+    /* ================================================================== */
+    /* Mermaid container                                                  */
+    /* ================================================================== */
+    .reveal pre.mermaid {
+      background: var(--blitzy-surface-2);
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 16px;
+      padding: 32px;
+      margin: 16px 0 0 0;
+      box-shadow: 0 2px 8px rgba(91, 57, 243, 0.04);
+      text-align: center;
+      overflow: auto;
+      max-height: 720px;
+    }
+
+    .reveal pre.mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Override Mermaid's foreignObject inner-div max-width that clips longer node labels */
+    .reveal pre.mermaid foreignObject > div,
+    .reveal pre.mermaid foreignObject .nodeLabel,
+    .reveal pre.mermaid foreignObject .edgeLabel {
+      max-width: none !important;
+      overflow: visible !important;
+    }
+    .reveal pre.mermaid foreignObject {
+      overflow: visible !important;
+    }
+    .reveal pre.mermaid .nodeLabel,
+    .reveal pre.mermaid .edgeLabel,
+    .reveal pre.mermaid .label,
+    .reveal pre.mermaid .label span {
+      font-family: var(--ff-body) !important;
+      color: var(--blitzy-text) !important;
+      font-size: 16px;
+    }
+
+    .mermaid-caption {
+      font-family: var(--ff-mono);
+      font-size: 0.55em;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--blitzy-text-muted);
+      margin-top: 16px;
+      text-align: center;
+    }
+
+    /* ================================================================== */
+    /* Styled tables                                                      */
+    /* ================================================================== */
+    .reveal table.styled {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 28px 0 0 0;
+      font-size: 0.78em;
+      background: var(--blitzy-surface-0);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(91, 57, 243, 0.06);
+      border: 1px solid var(--blitzy-border-soft);
+    }
+
+    .reveal table.styled thead th {
+      background: var(--blitzy-primary);
+      color: var(--blitzy-text-invert);
+      font-family: var(--ff-mono);
+      font-weight: 500;
+      font-size: 0.78em;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 16px 22px;
+      text-align: left;
+      border: none;
+    }
+
+    .reveal table.styled tbody td {
+      padding: 14px 22px;
+      border: none;
+      border-bottom: 1px solid var(--blitzy-border-soft);
+      vertical-align: top;
+      line-height: 1.4;
+    }
+
+    .reveal table.styled tbody tr:nth-child(even) td {
+      background: var(--blitzy-surface-1);
+    }
+
+    .reveal table.styled tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .reveal table.styled td .fira {
+      font-family: var(--ff-mono);
+      font-size: 0.95em;
+      color: var(--blitzy-primary-dark);
+      background: var(--blitzy-surface-2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--blitzy-border-soft);
+    }
+
+    /* Severity pill in tables */
+    .sev-pill {
+      display: inline-block;
+      font-family: var(--ff-mono);
+      font-size: 0.75em;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+    }
+    .sev-pill.sev-critical { color: #B00020; background: rgba(176, 0, 32, 0.08); }
+    .sev-pill.sev-high     { color: #E55B0E; background: rgba(229, 91, 14, 0.08); }
+    .sev-pill.sev-medium   { color: #C28E00; background: rgba(194, 142, 0, 0.08); }
+    .sev-pill.sev-low      { color: #2E7D32; background: rgba(46, 125, 50, 0.08); }
+
+      position: absolute;
+      left: 0;
+      top: 14px;
+      width: 28px;
+      height: 4px;
+      background: var(--gradient-accent-bar);
+      border-radius: 2px;
+    }
+
+    /* ================================================================== */
+    /* Risk row (icon-on-left, text-on-right)                             */
+    /* ================================================================== */
+    .risk-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin-top: 32px;
+    }
+
+    .risk-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 22px;
+      padding: 22px 24px;
+      background: var(--blitzy-surface-0);
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 14px;
+      box-shadow: 0 1px 4px rgba(91, 57, 243, 0.04);
+    }
+
+    .risk-row .risk-icon {
+      width: 44px;
+      height: 44px;
+      color: var(--blitzy-primary);
+      stroke-width: 1.7;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    .risk-row .risk-body {
+      flex: 1;
+    }
+
+    .risk-row .risk-title {
+      font-family: var(--ff-display);
+      font-size: 1.05em;
+      font-weight: 600;
+      color: var(--blitzy-text);
+      margin-bottom: 4px;
+    }
+
+    .risk-row .risk-mitigation {
+      font-size: 0.78em;
+      color: var(--blitzy-text-muted);
+      line-height: 1.45;
+    }
+
+    /* ================================================================== */
+    /* Onboarding steps                                                   */
+    /* ================================================================== */
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      margin-top: 32px;
+    }
+
+    .step-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 22px;
+      padding: 22px 26px;
+      background: var(--blitzy-surface-0);
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 14px;
+      box-shadow: 0 1px 4px rgba(91, 57, 243, 0.04);
+    }
+
+    .step-row .step-num {
+      width: 48px;
+      height: 48px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: var(--gradient-hero);
+      color: var(--blitzy-text-invert);
+      font-family: var(--ff-display);
+      font-weight: 700;
+      font-size: 1.3em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .step-row .step-icon {
+      width: 36px;
+      height: 36px;
+      color: var(--blitzy-primary);
+      stroke-width: 1.7;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+
+    .step-row .step-body {
+      flex: 1;
+      padding-top: 4px;
+    }
+
+    .step-row .step-title {
+      font-family: var(--ff-display);
+      font-size: 1.05em;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .step-row .step-detail {
+      font-size: 0.78em;
+      color: var(--blitzy-text-muted);
+      line-height: 1.45;
+    }
+
+    /* ================================================================== */
+    /* Content slide hero header (eyebrow + heading + lead)               */
+    /* ================================================================== */
+    .slide-header {
+      margin-bottom: 12px;
+    }
+
+    .slide-header .eyebrow {
+      margin-bottom: 8px;
+    }
+
+    .slide-header .lead {
+      font-size: 0.85em;
+      color: var(--blitzy-text-muted);
+      max-width: 1500px;
+      line-height: 1.45;
+      margin-top: 6px;
+    }
+
+    /* ================================================================== */
+    /* Helpers                                                            */
+    /* ================================================================== */
+    .text-muted { color: var(--blitzy-text-muted); }
+    .text-primary { color: var(--blitzy-primary); }
+    .center { text-align: center; }
+    .nowrap { white-space: nowrap; }
+
+  </style>
+</head>
+<body>
+
+<div class="reveal">
+  <div class="slides">
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 1 — TITLE (slide-title)                                  -->
+    <!-- ============================================================== -->
+    <section class="slide-title">
+      <i data-lucide="shield-check" class="hero-icon"></i>
+      <span class="eyebrow">Security &middot; Config F</span>
+      <h1>OSV-Scanner Scan of<br><code style="background:rgba(255,255,255,0.12);color:#FFFFFF;border-color:rgba(255,255,255,0.25);white-space:nowrap;display:inline-block;padding:6px 18px;border-radius:10px;margin-top:8px;">blitzy-RudderStack</code></h1>
+      <h3>One configuration in a multi-config security tool comparison &mdash; install, scan, normalize.</h3>
+      <div class="brand-lockup">
+        <span class="brand-name">Blitzy &middot; Executive Summary</span>
+        <span><span class="brand-tag">Config F</span> &nbsp;&middot;&nbsp; OSV-Scanner v2.3.8 &nbsp;&middot;&nbsp; 2026-05-15</span>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 2 — Content: Headline KPIs                                -->
+    <!-- ============================================================== -->
+    <section>
+      <div class="slide-header">
+        <span class="eyebrow">Headline Numbers</span>
+        <h2>At a glance</h2>
+        <p class="lead">A single scan against the repository tree resolved four lockfiles and produced a normalized findings array. The pipeline ran to completion with the expected non-zero exit code that OSV-Scanner uses to signal "vulnerabilities found."</p>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <i data-lucide="bug" class="kpi-icon"></i>
+          <div class="kpi-value">211</div>
+          <div class="kpi-label">Total Findings</div>
+          <div class="kpi-sub">Post-deduplication (321 raw rows collapsed via stable dedup key).</div>
+        </div>
+        <div class="kpi-card">
+          <i data-lucide="alert-triangle" class="kpi-icon"></i>
+          <div class="kpi-value">92</div>
+          <div class="kpi-label">Critical + High</div>
+          <div class="kpi-sub">15 critical and 77 high-severity advisories require leadership attention.</div>
+        </div>
+        <div class="kpi-card">
+          <i data-lucide="timer" class="kpi-icon"></i>
+          <div class="kpi-value">&lt; 60s</div>
+          <div class="kpi-label">Scan Duration</div>
+          <div class="kpi-sub">Wall-clock end-to-end; dominated by OSV API round-trips.</div>
+        </div>
+        <div class="kpi-card">
+          <i data-lucide="check-circle-2" class="kpi-icon"></i>
+          <div class="kpi-value">1</div>
+          <div class="kpi-label">Exit Code</div>
+          <div class="kpi-sub">Successful scan; <code class="fira">1</code> means vulnerabilities were found.</div>
+        </div>
+      </div>
+    </section>
+
+
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 3 — Content: Architecture Overview (Mermaid)              -->
+    <!-- ============================================================== -->
+    <section>
+      <div class="slide-header">
+        <span class="eyebrow">Architecture</span>
+        <h2>How the pipeline flows</h2>
+      </div>
+      <pre class="mermaid">
+flowchart LR
+  LF[Lockfiles in blitzy-RudderStack] --&gt; OSV[osv-scanner --format json]
+  OSV --&gt; API[(api.osv.dev)]
+  API --&gt; OSV
+  OSV --&gt; RAW[results-osv.json]
+  RAW --&gt; POST[normalize.py]
+  POST --&gt; NORM[findings-config-f.json]
+  POST --&gt; LOG[decision-log.md]
+  NORM --&gt; DECK[executive-summary.html]
+  LOG --&gt; DECK
+      </pre>
+      <p class="mermaid-caption">Read-only scan &middot; deterministic post-processing &middot; four artifacts, zero repository mutations.</p>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 4 — Section divider                                       -->
+    <!-- ============================================================== -->
+    <section class="slide-divider">
+      <i data-lucide="folder-search" class="hero-icon"></i>
+      <span class="eyebrow">Part One</span>
+      <h2>What Was Scanned</h2>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 5 — Content: Scanned Manifests Table                      -->
+    <!-- ============================================================== -->
+    <section>
+      <div class="slide-header">
+        <span class="eyebrow">Coverage</span>
+        <h2>Four lockfiles, four ecosystems</h2>
+        <p class="lead">OSV-Scanner walked the repository root and selected the lockfile-grade manifests in every supported ecosystem. Lockfiles are preferred over manifests because they pin transitive versions exactly.</p>
+      </div>
+      <table class="styled">
+        <thead>
+          <tr>
+            <th>Path</th>
+            <th>Ecosystem</th>
+            <th>Role</th>
+            <th class="nowrap">Findings</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="fira">go.mod</span></td>
+            <td>Go</td>
+            <td>Root Go module manifest (Go 1.26.1, with curated <span class="fira">replace</span> block).</td>
+            <td><strong>31</strong></td>
+          </tr>
+          <tr>
+            <td><span class="fira">refs/segment-docs/package-lock.json</span></td>
+            <td>npm</td>
+            <td>Vendored Segment-docs npm v3 lockfile, full transitive graph.</td>
+            <td><strong>74</strong></td>
+          </tr>
+          <tr>
+            <td><span class="fira">refs/segment-docs/yarn.lock</span></td>
+            <td>npm</td>
+            <td>Vendored Segment-docs Yarn lockfile, parallel resolution.</td>
+            <td><strong>86</strong></td>
+          </tr>
+          <tr>
+            <td><span class="fira">refs/segment-docs/Gemfile.lock</span></td>
+            <td>RubyGems</td>
+            <td>Vendored Segment-docs Jekyll Ruby lockfile.</td>
+            <td><strong>20</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 6 — Section divider                                       -->
+    <!-- ============================================================== -->
+    <section class="slide-divider">
+      <i data-lucide="bug" class="hero-icon"></i>
+      <span class="eyebrow">Part Two</span>
+      <h2>What Was Found</h2>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 7 — Content: Severity Breakdown                           -->
+    <!-- ============================================================== -->
+    <section>
+      <div class="slide-header">
+        <span class="eyebrow">Severity Breakdown</span>
+        <h2>Risk distribution across 211 findings</h2>
+        <p class="lead">CVSS-derived buckets follow the user contract thresholds: 9.0+ critical, 7.0+ high, 4.0+ medium, below 4.0 low. Findings without CVSS scores conservatively bucket to low.</p>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card sev-critical">
+          <i data-lucide="alert-octagon" class="kpi-icon"></i>
+          <div class="kpi-value sev-critical">15</div>
+          <div class="kpi-label">Critical</div>
+          <div class="kpi-sub">CVSS &ge; 9.0 &middot; immediate attention warranted.</div>
+        </div>
+        <div class="kpi-card sev-high">
+          <i data-lucide="alert-triangle" class="kpi-icon"></i>
+          <div class="kpi-value sev-high">77</div>
+          <div class="kpi-label">High</div>
+          <div class="kpi-sub">CVSS 7.0&ndash;8.9 &middot; near-term remediation.</div>
+        </div>
+        <div class="kpi-card sev-medium">
+          <i data-lucide="alert-circle" class="kpi-icon"></i>
+          <div class="kpi-value sev-medium">74</div>
+          <div class="kpi-label">Medium</div>
+          <div class="kpi-sub">CVSS 4.0&ndash;6.9 &middot; planned remediation.</div>
+        </div>
+        <div class="kpi-card sev-low">
+          <i data-lucide="info" class="kpi-icon"></i>
+          <div class="kpi-value sev-low">45</div>
+          <div class="kpi-label">Low</div>
+          <div class="kpi-sub">CVSS &lt; 4.0 or no-score fallback &middot; informational.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 8 — Content: Top Findings Table                           -->
+    <!-- ============================================================== -->
+    <section>
+      <div class="slide-header">
+        <span class="eyebrow">Top Findings</span>
+        <h2>Highest-severity advisories</h2>
+        <p class="lead">A sample of the 15 critical entries, drawn from the deterministically sorted findings array.</p>
+      </div>
+      <table class="styled">
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Severity</th>
+            <th>Identifier</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="fira">Gemfile.lock</span></td>
+            <td><span class="sev-pill sev-critical">Critical</span></td>
+            <td><span class="fira">GHSA-353f-x4gh-cqq8</span></td>
+            <td>Nokogiri patches vendored libxml2 to resolve multiple CVEs.</td>
+          </tr>
+          <tr>
+            <td><span class="fira">package-lock.json</span></td>
+            <td><span class="sev-pill sev-critical">Critical</span></td>
+            <td><span class="fira">CVE-2023-28154</span></td>
+            <td>Cross-realm object access in Webpack 5 enables script execution in the runtime sandbox.</td>
+          </tr>
+          <tr>
+            <td><span class="fira">package-lock.json</span></td>
+            <td><span class="sev-pill sev-critical">Critical</span></td>
+            <td><span class="fira">CWE-1321</span></td>
+            <td>Prototype pollution in handlebars allows attacker-controlled template paths.</td>
+          </tr>
+          <tr>
+            <td><span class="fira">package-lock.json</span></td>
+            <td><span class="sev-pill sev-critical">Critical</span></td>
+            <td><span class="fira">CWE-184</span></td>
+            <td>Babel arbitrary code execution when compiling specifically crafted malicious code.</td>
+          </tr>
+          <tr>
+            <td><span class="fira">package-lock.json</span></td>
+            <td><span class="sev-pill sev-critical">Critical</span></td>
+            <td><span class="fira">CWE-1321</span></td>
+            <td>Immutable library is vulnerable to prototype pollution affecting downstream consumers.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 9 — Section divider                                       -->
+    <!-- ============================================================== -->
+    <section class="slide-divider">
+      <i data-lucide="git-branch" class="hero-icon"></i>
+      <span class="eyebrow">Part Three</span>
+      <h2>Why These Choices</h2>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 10 — Content: Key Decisions                               -->
+    <!-- ============================================================== -->
+    <section>
+      <div class="slide-header">
+        <span class="eyebrow">Normalization Decisions</span>
+        <h2>Four choices that shape the output</h2>
+        <p class="lead">Every non-trivial choice is documented in the decision log; these four most strongly affect cross-config comparability.</p>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <i data-lucide="scale" class="kpi-icon"></i>
+          <div class="kpi-value is-text">Max CVSS</div>
+          <div class="kpi-label">Severity Bucket</div>
+          <div class="kpi-sub">Highest score across vectors survives; v3 preferred on ties.</div>
+        </div>
+        <div class="kpi-card">
+          <i data-lucide="arrow-down-narrow-wide" class="kpi-icon"></i>
+          <div class="kpi-value is-text">&rarr; low</div>
+          <div class="kpi-label">No-CVSS Fallback</div>
+          <div class="kpi-sub">Findings without a score preserve the count, log as low.</div>
+        </div>
+        <div class="kpi-card">
+          <i data-lucide="link" class="kpi-icon"></i>
+          <div class="kpi-value is-text">CWE &rarr; CVE &rarr; OSV</div>
+          <div class="kpi-label">CWE Resolution Ladder</div>
+          <div class="kpi-sub">Three-step fallback guarantees a non-empty <code class="fira">cwe</code> field.</div>
+        </div>
+        <div class="kpi-card">
+          <i data-lucide="combine" class="kpi-icon"></i>
+          <div class="kpi-value is-text">(file, cwe, desc)</div>
+          <div class="kpi-label">Dedup Key</div>
+          <div class="kpi-sub">321 raw rows collapsed to 211; max severity wins.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 11 — Section divider                                      -->
+    <!-- ============================================================== -->
+    <section class="slide-divider">
+      <i data-lucide="shield-alert" class="hero-icon"></i>
+      <span class="eyebrow">Part Four</span>
+      <h2>What Risks Remain</h2>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 12 — Content: Risks &amp; Mitigations                    -->
+    <!-- ============================================================== -->
+    <section>
+      <div class="slide-header">
+        <span class="eyebrow">Risks &amp; Mitigations</span>
+        <h2>Known limits of Config F</h2>
+      </div>
+      <div class="risk-list">
+        <div class="risk-row">
+          <i data-lucide="wifi-off" class="risk-icon"></i>
+          <div class="risk-body">
+            <div class="risk-title">Network dependency</div>
+            <div class="risk-mitigation">Online mode; <code class="fira">api.osv.dev</code> queried each run.</div>
+          </div>
+        </div>
+        <div class="risk-row">
+          <i data-lucide="database" class="risk-icon"></i>
+          <div class="risk-body">
+            <div class="risk-title">Scanner version drift</div>
+            <div class="risk-mitigation">Version pinned in the decision log; reruns are byte-identical.</div>
+          </div>
+        </div>
+        <div class="risk-row">
+          <i data-lucide="file-warning" class="risk-icon"></i>
+          <div class="risk-body">
+            <div class="risk-title">Coverage gaps</div>
+            <div class="risk-mitigation">Sibling configs cover non-OSV ecosystems by design.</div>
+          </div>
+        </div>
+        <div class="risk-row">
+          <i data-lucide="clock" class="risk-icon"></i>
+          <div class="risk-body">
+            <div class="risk-title">Description truncation</div>
+            <div class="risk-mitigation">200-char cap; full advisory text remains in <code class="fira">results-osv.json</code>.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 13 — Section divider                                      -->
+    <!-- ============================================================== -->
+    <section class="slide-divider">
+      <i data-lucide="play-circle" class="hero-icon"></i>
+      <span class="eyebrow">Part Five</span>
+      <h2>How To Continue</h2>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 14 — Content: Onboarding                                  -->
+    <!-- ============================================================== -->
+    <section>
+      <div class="slide-header">
+        <span class="eyebrow">Onboarding</span>
+        <h2>Re-run Config F in four steps</h2>
+      </div>
+      <div class="step-list">
+        <div class="step-row">
+          <div class="step-num">1</div>
+          <i data-lucide="download" class="step-icon"></i>
+          <div class="step-body">
+            <div class="step-title">Install OSV-Scanner</div>
+            <div class="step-detail">Run <code class="fira">apt install osv-scanner</code> or <code class="fira">go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest</code>.</div>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">2</div>
+          <i data-lucide="play" class="step-icon"></i>
+          <div class="step-body">
+            <div class="step-title">Execute the pipeline</div>
+            <div class="step-detail">Call <code class="fira">./run-config-f.sh</code> from the harness working directory; the driver handles timing and validation.</div>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">3</div>
+          <i data-lucide="search" class="step-icon"></i>
+          <div class="step-body">
+            <div class="step-title">Inspect deliverables</div>
+            <div class="step-detail">Open <code class="fira">findings-config-f.json</code> for the normalized array and <code class="fira">decision-log.md</code> for rationale.</div>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">4</div>
+          <i data-lucide="combine" class="step-icon"></i>
+          <div class="step-body">
+            <div class="step-title">Feed the comparison harness</div>
+            <div class="step-detail">The schema is stable across configs; drop the JSON into the multi-config comparison tool unchanged.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 15 — Content: Operational Metadata                        -->
+    <!-- ============================================================== -->
+    <section>
+      <div class="slide-header">
+        <span class="eyebrow">Operational Metadata</span>
+        <h2>Reproducibility snapshot</h2>
+        <p class="lead">Every value below is committed in <code class="fira">decision-log.md</code> so audit, replay, and cross-config comparison stay deterministic.</p>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <i data-lucide="package" class="kpi-icon"></i>
+          <div class="kpi-value is-text">v2.3.8</div>
+          <div class="kpi-label">OSV-Scanner</div>
+          <div class="kpi-sub">osv-scalibr 0.4.5 &middot; <span class="fira">go install</span> v2 path.</div>
+        </div>
+        <div class="kpi-card">
+          <i data-lucide="terminal" class="kpi-icon"></i>
+          <div class="kpi-value">1</div>
+          <div class="kpi-label">Exit Code</div>
+          <div class="kpi-sub">Vulnerabilities found &middot; pass/fail gate satisfied.</div>
+        </div>
+        <div class="kpi-card">
+          <i data-lucide="hourglass" class="kpi-icon"></i>
+          <div class="kpi-value is-text">&lt; 60s</div>
+          <div class="kpi-label">Wall-Clock Duration</div>
+          <div class="kpi-sub">End-to-end scan plus normalization.</div>
+        </div>
+        <div class="kpi-card">
+          <i data-lucide="globe" class="kpi-icon"></i>
+          <div class="kpi-value is-text">Online</div>
+          <div class="kpi-label">Network Mode</div>
+          <div class="kpi-sub">Queried <span class="fira">api.osv.dev</span>; offline flag unavailable in v2.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SLIDE 16 — CLOSING                                              -->
+    <!-- ============================================================== -->
+    <section class="slide-closing">
+      <i data-lucide="check-circle-2" class="hero-icon"></i>
+      <span class="eyebrow" style="color:var(--blitzy-accent-teal);">Takeaway</span>
+      <h1>Schema-Stable, Comparison-Ready.</h1>
+      <ul>
+        <li>Single-file deliverable with a locked five-field schema.</li>
+        <li>Every non-trivial decision documented for reproducibility.</li>
+        <li>Ready to drop into the multi-config comparison harness.</li>
+      </ul>
+      <span class="accent-bar"></span>
+      <div class="brand-lockup">
+        <span class="brand-name">Blitzy &middot; Executive Summary</span>
+        <span><span class="brand-tag">Config F</span> &nbsp;&middot;&nbsp; OSV-Scanner v2.3.8 &nbsp;&middot;&nbsp; 211 findings &nbsp;&middot;&nbsp; 2026-05-15</span>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0 (CDN pinned)        -->
+<!-- ================================================================== -->
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+<script>
+  /* ------------------------------------------------------------------ */
+  /* Mermaid: startOnLoad false, render on reveal events                */
+  /* Theme variables match the Blitzy Mermaid spec in the rule          */
+  /* ------------------------------------------------------------------ */
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#F2F0FE',
+      primaryTextColor: '#333333',
+      primaryBorderColor: '#5B39F3',
+      lineColor: '#999999',
+      secondaryColor: '#F4EFF6',
+      tertiaryColor: '#F5F5F5',
+      fontFamily: 'Inter, system-ui, sans-serif'
+    },
+    flowchart: { htmlLabels: false, curve: 'basis', useMaxWidth: true, nodeSpacing: 50, rankSpacing: 60 }
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* reveal.js init with the exact config from the Executive            */
+  /* Presentation rule: hash, slide transition, no tutorial, 1920x1080. */
+  /* ------------------------------------------------------------------ */
+  Reveal.initialize({
+    hash: true,
+    transition: 'slide',
+    controlsTutorial: false,
+    width: 1920,
+    height: 1080,
+    margin: 0.04,
+    minScale: 0.2,
+    maxScale: 2.0,
+    center: false,
+    slideNumber: 'c/t',
+    showSlideNumber: 'all'
+  }).then(function () {
+    // After reveal.js is ready, render Mermaid diagrams and Lucide icons.
+    if (typeof mermaid !== 'undefined' && mermaid.run) {
+      mermaid.run().catch(function (e) { console.error('Mermaid render failed:', e); });
+    }
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
+    }
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* On every slide change, re-render Mermaid and Lucide so newly       */
+  /* visible diagrams/icons are populated.                              */
+  /* ------------------------------------------------------------------ */
+  Reveal.on('slidechanged', function () {
+    if (typeof mermaid !== 'undefined' && mermaid.run) {
+      // querySelector for un-rendered mermaid blocks to avoid double-rendering
+      var pending = document.querySelectorAll('pre.mermaid:not([data-processed="true"])');
+      if (pending.length > 0) {
+        mermaid.run({ nodes: pending }).catch(function (e) { console.error('Mermaid render failed:', e); });
+      }
+    }
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
+    }
+  });
+</script>
+
+</body>
+</html>
+
