@@ -2,789 +2,774 @@
 
 # 0. Agent Action Plan
 
-## 0.1 Intent Clarification
-
-### 0.1.1 Core Feature Objective
-
-Based on the prompt, the Blitzy platform understands that the new feature requirement is to **implement five remaining sprint groups across the RudderStack `rudder-server` Go monorepo**, closing critical feature parity gaps against Segment across five dimensions: destination connectors, functions/transformations, protocols enforcement, identity resolution, and operational tooling.
-
-The sprints to implement, in strict sequential order, are:
-
-- **Sprint 3–5: Destination Connector Expansion (E-010 to E-014)** — Prioritize, implement, and validate 40+ cloud destination connectors and additional stream destinations, achieving payload-level parity with Segment's output for all shared connectors. Current parity: ~28%, target: ~50%.
-- **Sprint 4–6: Transformation and Functions Framework (E-015 to E-019)** — Build a Segment-compatible Functions runtime supporting Source Functions (custom webhook ingestion via `onRequest`), Destination Functions (per-event typed handlers like `onTrack`, `onIdentify`), Insert Functions (pre-destination transformation hooks), a full CRUD management API, and per-function secrets/environment variable management. Current parity: ~40%, target: ~80%.
-- **Sprint 5–7: Protocols and Tracking Plan Enforcement (E-020 to E-025)** — Upgrade tracking plan validation to full JSON Schema draft-07 support, implement anomaly detection for unexpected events/properties, add configurable enforcement modes (Block/Omit/Allow per source per call type), build forward-blocked-events capability, expose a tracking plan management API with versioning, and integrate consent management with Protocols enforcement. Current parity: ~30%, target: ~75%.
-- **Sprint 6–8: Identity Resolution and Profiles (E-026 to E-030)** — Design and build a real-time identity graph that resolves identity as events flow through the pipeline (not batch-only during warehouse uploads), implement a Profiles REST API with sub-200ms response times, extend the identity model to support 12+ external identifier types, build profile sync to downstream destinations, and add configurable identity resolution settings (blocked values, limits, priority). Current parity: ~20%, target: ~60%.
-- **Sprint 8–10: Operational Tooling and Monitoring (E-036 to E-039)** — Implement per-destination event delivery monitoring with Prometheus metrics and HTTP API, configurable alerting for pipeline health conditions, advanced replay controls (source-level, date-range, destination-level, dry-run), and pipeline performance profiling with capacity planning reports targeting 50,000 events/sec throughput.
-
-Implicit requirements detected:
-
-- The external **Transformer service** (`rudder-transformer` on port 9090) must be extended for Functions runtime capabilities (E-015 through E-017) and enhanced Protocols validation (E-020, E-021), as the `rudder-server` delegates transformation and validation to this service
-- **Backend-config schema changes** are required for enforcement modes (E-022), tracking plan management (E-024), and selective sync configuration — all configuration flows through `backend-config/types.go`
-- **Database migrations** are needed for the identity graph (E-026), functions management (E-018), and tracking plan storage (E-024) — PostgreSQL is the primary persistence layer
-- **Docker infrastructure** must be started before testing, as integration tests depend on PostgreSQL, transformer, and MinIO containers defined in `docker-compose.yml`
-- Each sprint must be **fully completed and tested** before proceeding to the next, with all CI failures resolved except those caused by missing repository secrets (AWS ECR credentials)
-
-### 0.1.2 Special Instructions and Constraints
-
-- **Sequential sprint execution**: Complete each sprint fully before starting the next — sprints overlap in their numbering (e.g., Sprint 4–6 overlaps with Sprint 3–5) but must be implemented in the listed order
-- **Exhaustive scope coverage**: For every epic, implement ALL items listed in scope — do not skip any variant, endpoint, or sub-case mentioned in the epic description
-- **Design-only epics**: For epics marked "Design and prototype," deliver a design document and a minimal proof-of-concept only — do not implement production-grade service code
-- **Docker dependency**: If any step requires Docker, start it first — the project's `docker-compose.yml` defines PostgreSQL (port 6432→5432), Transformer (port 9090), MinIO (ports 9000/9001), and etcd (port 2379)
-- **Post-implementation testing**: Run all tests after implementation of each sprint using `make test` or `gotestsum` with appropriate flags
-- **CI failure resolution**: Fix all CI failures resolvable through code changes; skip failures caused by missing repository secrets (AWS ECR credentials)
-- **Backward compatibility**: All changes must maintain backward compatibility with existing pipeline behavior — the Processor's 6-stage pipeline, Router delivery, and warehouse upload state machine must continue functioning for existing destinations
-- **Follow existing patterns**: New connector implementations must follow the existing `common.StreamProducer` interface pattern in `services/streammanager/`, and new Router destinations must integrate through the existing `customdestinationmanager` factory
-
-### 0.1.3 Technical Interpretation
-
-These feature requirements translate to the following technical implementation strategy:
-
-- To **expand destination connectors** (E-010 to E-014), we will create new producer packages under `services/streammanager/` following the `common.StreamProducer` interface, register them in `services/streammanager/streammanager.go`'s `NewProducer` switch statement, add their names to `router/customdestinationmanager/customdestinationmanager.go`'s `ObjectStreamDestinations` array, implement payload mapping and authentication per destination API, and create comprehensive payload parity test fixtures comparing RudderStack output against Segment reference payloads
-- To **implement the Functions framework** (E-015 to E-019), we will create a new `functions/` top-level package containing the runtime engine with per-event typed handler dispatch, build a Source Functions HTTP endpoint in the Gateway (`gateway/handle_http_functions.go`), implement Insert Functions as a new pipeline stage between user transforms and destination transforms in `processor/pipeline_worker.go`, expose a Functions management REST API via `functions/api/`, and implement per-function encrypted secrets storage
-- To **enforce Protocols and tracking plans** (E-020 to E-025), we will extend `processor/trackingplan.go` with full JSON Schema draft-07 validation, replace the binary `propagateValidationErrors` toggle with three-mode enforcement (Block/Omit/Allow), implement anomaly detection in a new `processor/anomalydetection/` package, add a forward-blocked-events mechanism that reroutes blocked events to an alternative source, build a tracking plan management REST API, and integrate consent management (`processor/consent.go`) with Protocols enforcement decisions
-- To **build identity resolution** (E-026 to E-030), we will create a new `identity/` top-level service package that implements a real-time identity graph (extending beyond `warehouse/identity/identity.go`'s batch-only model), build a Profiles REST API with Redis-backed caching for sub-200ms responses, extend the identity model to support multiple external identifier types via `context.externalIds` event processing, implement profile sync using change-data-capture on the identity graph, and add configurable resolution settings (blocked values, identifier limits, priority ranking)
-- To **deliver operational tooling** (E-036 to E-039), we will extend the existing Prometheus metrics infrastructure with per-destination delivery dashboards, implement configurable alerting rules in a new `services/alerting/` package leveraging existing `services/alert/` and `services/alerta/` patterns, enhance `gateway/handle_http_replay.go` with source-level, date-range, and destination-level filtering plus dry-run mode, and build pipeline performance profiling tools measuring per-stage latencies across Gateway, Processor, Router, and warehouse upload paths
-
-## 0.2 Repository Scope Discovery
-
-### 0.2.1 Comprehensive File Analysis
-
-The RudderStack `rudder-server` repository is a production-grade Go monorepo (`go 1.26.0`, module `github.com/rudderlabs/rudder-server`) with approximately 40 top-level directories. The following analysis maps all files and folders requiring creation or modification across the five sprint groups.
-
-**Existing Modules Requiring Modification:**
-
-| File/Pattern | Current Purpose | Sprint | Modification Required |
-|---|---|---|---|
-| `services/streammanager/streammanager.go` | Stream producer factory — `NewProducer` switch dispatching to 13 stream destinations | 3–5 | Add `case` branches for new stream destination types |
-| `router/customdestinationmanager/customdestinationmanager.go` | Custom destination registry — `ObjectStreamDestinations` array (13 entries), `KVStoreDestinations` (1 entry) | 3–5 | Append new stream destination names to `ObjectStreamDestinations` |
-| `services/streammanager/common/*.go` | Shared `StreamProducer` interface and `Opts` type | 3–5 | No changes — interface is sufficient; new connectors implement it |
-| `processor/pipeline_worker.go` | 6-stage pipeline: preprocess → srcHydration → preTransform → userTransform → destTransform → store | 4–6 | Insert new Insert Functions stage between userTransform and destTransform channels |
-| `processor/processor.go` | Main Processor `Handle` — orchestrates pipeline, backend-config subscription, routing/storage | 4–6, 5–7 | Add Functions runtime integration, enhanced tracking plan enforcement with Block/Omit/Allow modes |
-| `processor/trackingplan.go` | Tracking plan validation — `validateEvents()`, `reportViolations()`, `TrackingPlanStatT` metrics | 5–7 | Upgrade to JSON Schema draft-07, add anomaly detection hooks, implement three enforcement modes, forward-blocked-events |
-| `processor/consent.go` | Consent-based destination filtering — OneTrust, Ketch, Generic CMP with OR/AND resolution | 5–7 | Integrate consent decisions with Protocols enforcement rules (E-025) |
-| `warehouse/identity/identity.go` | Batch identity resolution — `Identity` struct, `applyRule()`, `Resolve()` for warehouse uploads | 6–8 | Refactor as foundation for real-time graph; extend merge-rule model beyond two-property pairs |
-| `gateway/handle_http.go` | HTTP endpoint mount and middleware — public endpoints and shared middleware | 4–6, 8–10 | Add Source Functions webhook endpoint, advanced replay filter endpoints |
-| `gateway/handle_http_replay.go` | Replay handler — `webReplayHandler()` with `withWarehouseReplayTag` middleware | 8–10 | Add source-level, date-range, destination-level filtering and dry-run mode |
-| `gateway/handle_http_auth.go` | Auth middleware — write-key, webhook, source-ID, replay, destination auth | 4–6 | Add Source Functions auth handler |
-| `gateway/openapi.yaml` | OpenAPI specification for Gateway HTTP API | 4–6, 5–7, 6–8, 8–10 | Add new endpoint schemas for Functions, Protocols API, Profiles API, and advanced replay |
-| `backend-config/types.go` | Configuration schema — `SourceT`, `DestinationT`, `ConfigT`, tracking plan config, settings | 5–7, 6–8 | Add enforcement mode config fields, identity resolution settings schema, functions config |
-| `backend-config/backend-config.go` | Runtime configuration provider — workspace config fetching, pubsub publication | 5–7, 6–8 | Extend subscription topics for new config types |
-| `docker-compose.yml` | Local multi-service compose — PostgreSQL, Transformer, MinIO, etcd | All | May require additional services (e.g., Redis for identity graph caching) |
-| `Makefile` | Build, test, lint targets | All | Potentially add new test targets for Functions, Protocols, Identity suites |
-| `main.go` | Server entrypoint — config, logging, signals, memory monitoring, runner lifecycle | 4–6, 6–8 | Wire new services (Functions runtime, Identity service) into startup |
-| `runner/runner.go` | App type resolution, warehouse mode, feature flags | 4–6, 6–8 | Register new service components |
-| `services/alert/alertmanager.go` | Alert provider selection — PagerDuty, VictorOps | 8–10 | Extend with Slack and email notification channels |
-| `services/alerta/alerta.go` | Alerta client with retry/backoff | 8–10 | Reference pattern for new alerting rules engine |
-| `archiver/archiver.go` | Event archival with 10-day retention in gzipped JSONL | 8–10 | Integration point for advanced replay (source/date-range filtering) |
-| `config/config.yaml` | 200+ tunable pipeline parameters | All | Add new configuration keys for Functions, Protocols enforcement, Identity, alerting thresholds |
-| `router/handle.go` | Router Handle — job pickup, batching, throttling, delivery, retry/backoff | 8–10 | Add per-destination delivery metrics collection for monitoring dashboard |
-| `router/handle_observability.go` | Metrics aggregation, diagnostics emission | 8–10 | Extend with delivery dashboard metrics (success/failure rates, latency percentiles) |
-| `router/throttler/factory.go` | Throttler factory — Redis/in-memory GCRA algorithms | 8–10 | Reference for capacity planning metrics |
-
-**Integration Point Discovery:**
-
-| Integration Point | Location | Sprints Affected | Purpose |
-|---|---|---|---|
-| Stream destination factory | `services/streammanager/streammanager.go:24-58` | 3–5 | Register new stream producers via `NewProducer` switch |
-| Custom destination registry | `router/customdestinationmanager/customdestinationmanager.go:79-81` | 3–5 | Add destination names to `ObjectStreamDestinations`/`KVStoreDestinations` arrays |
-| Processor pipeline channels | `processor/pipeline_worker.go:32-37` | 4–6 | Insert Functions channel between stages 4 and 5 |
-| Transformer client interfaces | `processor/transformer/clients.go:20-42` | 4–6, 5–7 | Extend with Functions client interface |
-| User transformer | `processor/internal/transformer/user_transformer/user_transformer.go:54-67` | 4–6 | Reference for Functions runtime batch/event dispatch |
-| Destination transformer | `processor/internal/transformer/destination_transformer/destination_transformer.go:73-82` | 4–6 | Reference for Destination Functions integration |
-| Tracking plan validation | `processor/trackingplan.go:69-142` | 5–7 | Replace with enhanced JSON Schema validation + enforcement modes |
-| Consent filtering | `processor/consent.go:44-95` | 5–7 | Hook into Protocols enforcement decisions |
-| Identity resolution | `warehouse/identity/identity.go:78-206` | 6–8 | Extend `applyRule()` for real-time resolution |
-| Gateway replay | `gateway/handle_http_replay.go:19-89` | 8–10 | Extend with filter parameters |
-| Backend config types | `backend-config/types.go` | 5–7, 6–8 | Add new config types |
-| Services alert system | `services/alert/alertmanager.go` | 8–10 | Extend alerting channels |
-| Proto definitions | `proto/warehouse/`, `proto/common/` | 6–8 | Add Profiles API gRPC definitions |
-
-### 0.2.2 New File Requirements
-
-**Sprint 3–5: Destination Connector Expansion**
-
-New source files to create:
-- `services/streammanager/azureeventhub/` — Azure Event Hub extended producer (if not covered by existing Kafka variant)
-- `services/streammanager/*/` — Additional stream destination packages as identified in E-014
-- `router/testdata/destination_payloads/` — Payload parity test fixtures for field-by-field comparison
-- `docs/gap-report/payload-parity-results.md` — Payload parity validation results
-
-New test files:
-- `services/streammanager/*_test.go` — Unit tests for each new stream producer
-- `integration_test/destination_parity/` — Integration test suite for payload comparison across shared connectors
-
-**Sprint 4–6: Functions Framework**
-
-New source files to create:
-- `functions/runtime/engine.go` — Functions runtime engine with per-event typed handler dispatch
-- `functions/runtime/source_functions.go` — Source Functions `onRequest` handler execution
-- `functions/runtime/destination_functions.go` — Destination Functions typed handler execution (`onTrack`, `onIdentify`, etc.)
-- `functions/runtime/insert_functions.go` — Insert Functions pre-destination hooks
-- `functions/runtime/errors.go` — Typed error classes (`EventNotSupported`, `InvalidEventPayload`, `ValidationError`, `RetryError`, `DropEvent`)
-- `functions/api/handler.go` — Functions management REST API (CRUD, versioning, test invocation)
-- `functions/api/routes.go` — HTTP route registration for Functions API
-- `functions/storage/repository.go` — Functions persistence layer (PostgreSQL-backed)
-- `functions/secrets/manager.go` — Per-function encrypted secrets and environment variable storage
-- `gateway/handle_http_functions.go` — Source Functions webhook endpoint in Gateway
-- `sql/migrations/functions/` — Database migrations for functions tables
-
-New test files:
-- `functions/runtime/*_test.go` — Unit tests for each function type
-- `functions/api/*_test.go` — API endpoint tests
-- `functions/secrets/*_test.go` — Secrets management tests
-- `integration_test/functions/` — End-to-end functions integration tests
-
-**Sprint 5–7: Protocols and Tracking Plan Enforcement**
-
-New source files to create:
-- `processor/anomalydetection/detector.go` — Anomaly detection engine for unexpected events/properties
-- `processor/anomalydetection/tracker.go` — Event/property tracking over configurable time windows
-- `processor/enforcement/modes.go` — Three enforcement modes: Block, Omit, Allow
-- `processor/enforcement/forwarder.go` — Forward-blocked-events to alternative source
-- `protocols/api/handler.go` — Tracking plan management REST API (CRUD, versioning, CSV import/export)
-- `protocols/api/routes.go` — HTTP route registration for Protocols API
-- `protocols/storage/repository.go` — Tracking plan persistence with version history
-- `protocols/schema/validator.go` — JSON Schema draft-07 validation engine
-- `sql/migrations/protocols/` — Database migrations for tracking plan tables
-
-New test files:
-- `processor/anomalydetection/*_test.go` — Anomaly detection tests
-- `processor/enforcement/*_test.go` — Enforcement mode tests
-- `protocols/api/*_test.go` — Protocols API tests
-- `protocols/schema/*_test.go` — JSON Schema validation tests
-
-**Sprint 6–8: Identity Resolution and Profiles**
-
-New source files to create:
-- `identity/graph/graph.go` — Real-time identity graph service
-- `identity/graph/resolver.go` — Identity resolution engine (new/single/multi-match strategies)
-- `identity/graph/externalids.go` — External ID management (12+ identifier types)
-- `identity/profiles/api.go` — Profiles REST API (traits, events, external IDs, metadata)
-- `identity/profiles/cache.go` — Redis-backed profile cache for sub-200ms responses
-- `identity/sync/syncer.go` — Profile sync to downstream destinations via change-data-capture
-- `identity/settings/settings.go` — Configurable resolution rules (blocked values, limits, priority)
-- `identity/storage/repository.go` — Identity graph PostgreSQL persistence
-- `sql/migrations/identity/` — Database migrations for identity graph tables
-- `proto/identity/` — gRPC service definitions for Profiles API
-
-New test files:
-- `identity/graph/*_test.go` — Identity graph unit tests
-- `identity/profiles/*_test.go` — Profiles API tests
-- `identity/sync/*_test.go` — Profile sync tests
-- `integration_test/identity/` — End-to-end identity resolution integration tests
-
-**Sprint 8–10: Operational Tooling and Monitoring**
-
-New source files to create:
-- `services/monitoring/dashboard.go` — Per-destination delivery metrics aggregation
-- `services/monitoring/metrics.go` — Prometheus metric definitions for delivery monitoring
-- `services/alerting/engine.go` — Configurable alerting rules engine
-- `services/alerting/channels.go` — Notification channels: webhook, email, Slack
-- `services/alerting/rules.go` — Alert rule definitions (throughput, error rate, latency, queue depth)
-- `services/profiling/profiler.go` — Per-stage pipeline performance profiling
-- `services/profiling/capacity.go` — Capacity planning report generator (targeting 50K events/sec)
-- `gateway/handle_http_replay_advanced.go` — Advanced replay filter logic (source, date-range, destination, dry-run)
-
-New test files:
-- `services/monitoring/*_test.go` — Monitoring dashboard tests
-- `services/alerting/*_test.go` — Alerting engine tests
-- `services/profiling/*_test.go` — Profiling and capacity planning tests
-
-### 0.2.3 Web Search Research Conducted
-
-The following areas were researched based on existing gap analysis documentation in the repository:
-
-- **Destination connector patterns**: The `services/streammanager/` package already establishes a clear producer pattern (implement `common.StreamProducer` interface with `Produce`, `Close` methods). New connectors follow the same factory registration in `streammanager.go`
-- **Functions runtime architecture**: Segment uses AWS Lambda; the RudderStack implementation should extend the existing external Transformer service (port 9090) with per-event handler dispatch, as documented in `docs/gap-report/functions-parity.md`
-- **JSON Schema draft-07 validation**: Required for Protocols enhancement (E-020), supporting `required`, regex patterns, nested objects, enum values, and full type enforcement
-- **Real-time identity graph**: The gap report (`docs/gap-report/identity-parity.md`) recommends starting with an in-memory graph with PostgreSQL persistence, then optimizing for scale — this is the largest architectural change
-- **GCRA-based throttling**: Already implemented in `router/throttler/` — serves as a reference pattern for per-destination monitoring metrics
-
-## 0.3 Dependency Inventory
-
-### 0.3.1 Private and Public Packages
-
-The following table lists all key packages relevant to the five sprint implementations, sourced from `go.mod` and the repository's existing dependency manifests.
-
-| Registry | Package | Version | Purpose |
-|---|---|---|---|
-| Go Module | `go` | `1.26.0` | Language runtime — explicitly declared in `go.mod` |
-| Docker Hub | `postgres:15-alpine` | `15` | Primary database (JobsDB, identity, functions, protocols storage) |
-| Docker Hub | `rudderstack/rudder-transformer:latest` | `latest` | External transformation and validation service (port 9090) |
-| Docker Hub | `minio/minio` | `latest` | Object storage for archival/replay |
-| Docker Hub | `bitnami/etcd:3` | `3` | Cluster coordination (multi-tenant mode) |
-| Go Module | `github.com/go-chi/chi/v5` | `v5.2.5` | HTTP router framework for all REST APIs |
-| Go Module | `google.golang.org/grpc` | `v1.78.0` | gRPC framework for Profiles API and inter-service communication |
-| Go Module | `google.golang.org/protobuf` | `v1.36.11` | Protocol Buffers for gRPC service definitions |
-| Go Module | `github.com/segmentio/kafka-go` | `v0.4.50` | Kafka client for Kafka/Azure Event Hub/Confluent Cloud stream destinations |
-| Go Module | `github.com/confluentinc/confluent-kafka-go/v2` | `v2.13.0` | Confluent Kafka client for Confluent Cloud integration |
-| Go Module | `github.com/apache/pulsar-client-go` | `v0.18.0` | Apache Pulsar client for potential stream destination expansion |
-| Go Module | `github.com/redis/go-redis/v9` | `v9.12.1` | Redis client for identity graph caching and profile lookups |
-| Go Module | `cloud.google.com/go/bigquery` | `v1.72.0` | BigQuery SDK for BQ Stream destination and warehouse |
-| Go Module | `cloud.google.com/go/pubsub/v2` | `v2.3.0` | Google Pub/Sub SDK for stream destination |
-| Go Module | `cloud.google.com/go/storage` | `v1.60.0` | GCS for staging file storage |
-| Go Module | `github.com/aws/aws-sdk-go-v2` | `v1.41.1` | AWS SDK for Kinesis, Firehose, EventBridge, Lambda, Personalize, S3 |
-| Go Module | `github.com/sony/gobreaker` | `v1.0.0` | Circuit breaker for destination delivery protection |
-| Go Module | `github.com/tidwall/gjson` | `v1.18.0` | JSON path reading used throughout pipeline processing |
-| Go Module | `github.com/tidwall/sjson` | `v1.2.5` | JSON path mutation (used in replay handler for context injection) |
-| Go Module | `github.com/onsi/ginkgo/v2` | `v2.24.0` | BDD test framework used across all integration tests |
-| Go Module | `github.com/onsi/gomega` | `v1.38.0` | Matcher library for Ginkgo tests |
-| Go Module | `github.com/rudderlabs/rudder-go-kit` | `v0.72.3` | Internal kit: config, logger, stats, httputil, and more |
-| Go Module | `github.com/rudderlabs/rudder-observability-kit` | `v0.0.6` | Observability labels and helpers |
-| Go Module | `github.com/rudderlabs/rudder-schemas` | `v0.9.1` | Schema definitions and validation |
-| Go Module | `github.com/rudderlabs/rudder-transformer/go` | `v1.122.0` | Go client for Transformer service integration |
-| Go Module | `github.com/rudderlabs/sqlconnect-go` | `v1.20.3` | SQL connectivity for warehouse integrations |
-| Go Module | `github.com/rudderlabs/sql-tunnels` | `v0.1.7` | SSH tunneling for warehouse connections |
-| Go Module | `github.com/DATA-DOG/go-sqlmock` | `v1.5.2` | SQL mock for database unit tests |
-| Go Module | `github.com/rudderlabs/compose-test` | `v0.1.3` | Docker compose test helpers |
-
-### 0.3.2 Dependency Updates
-
-**New Dependencies Potentially Required:**
-
-| Package | Purpose | Sprint | Notes |
-|---|---|---|---|
-| JSON Schema validation library (e.g., `github.com/santhosh-tekuri/jsonschema/v5`) | Full JSON Schema draft-07 validation for Protocols E-020 | 5–7 | Required for `required`, regex patterns, nested objects, enum values, type enforcement |
-| V8 isolate or Deno runtime (e.g., `rogchap.com/v8go`) | JavaScript sandbox for Functions runtime (E-015, E-016, E-017) | 4–6 | Evaluate vs. extending existing Transformer service HTTP protocol |
-| Redis cluster configuration extensions | Identity graph caching for sub-200ms Profiles API (E-027) | 6–8 | Existing `redis/go-redis/v9` may suffice; configuration extensions needed |
-
-**Import Updates:**
-
-Files requiring import updates follow these patterns:
-- `services/streammanager/**/*.go` — New destination producer packages must import `common` and `backendconfig`
-- `functions/**/*.go` — New package imports for Functions runtime, API, storage, secrets
-- `protocols/**/*.go` — New package imports for Protocols API, schema validation, storage
-- `identity/**/*.go` — New package imports for Identity graph, Profiles API, sync, settings
-- `services/monitoring/**/*.go` — New package imports for metrics, alerting, profiling
-- `processor/*.go` — Updated imports for new enforcement modes, anomaly detection, Functions integration
-
-**External Reference Updates:**
-
-| File Pattern | Update Required |
-|---|---|
-| `go.mod` | Add new dependencies for JSON Schema validation, potentially V8 runtime |
-| `go.sum` | Auto-updated by `go mod tidy` after dependency additions |
-| `docker-compose.yml` | Potentially add Redis service for identity graph caching |
-| `config/config.yaml` | Add configuration keys for Functions, Protocols, Identity, Monitoring |
-| `gateway/openapi.yaml` | Add endpoint definitions for Functions API, Protocols API, Profiles API, advanced replay |
-| `Makefile` | Add test targets for new packages |
-| `.github/workflows/tests.yaml` | Update CI test matrix to include new integration test suites |
-| `Dockerfile` | Ensure new packages are included in multi-stage build |
-
-## 0.4 Integration Analysis
-
-### 0.4.1 Existing Code Touchpoints
-
-**Direct Modifications Required:**
-
-- **`services/streammanager/streammanager.go`** (lines 24–58): Add new `case` branches to the `NewProducer` switch statement for each new stream destination type identified in E-014. Currently handles 13 destination types; each new stream destination requires a new case that routes to its producer constructor.
-- **`router/customdestinationmanager/customdestinationmanager.go`** (line 79): Append new stream destination names to `ObjectStreamDestinations` array. This array drives the `CustomManagerT` routing logic that delegates to `streammanager.NewProducer` for stream-type destinations.
-- **`processor/pipeline_worker.go`** (lines 32–37): Add a new `insertfunctions` channel between the `usertransform` and `destinationtransform` channels. The current pipeline flows: preprocess → srcHydration → preTransform → userTransform → destTransform → store. Insert Functions (E-017) require inserting a per-destination transformation stage.
-- **`processor/processor.go`** (lines 78–79): Add new constants for `InsertFunctionTransformation` alongside existing `UserTransformation` and `DestTransformation`. Extend the pipeline processing logic to support Functions runtime integration and enhanced enforcement modes.
-- **`processor/trackingplan.go`** (lines 26–49, 69–142): Major refactor of `validateEvents()` to support full JSON Schema draft-07 validation, three enforcement modes replacing the binary `propagateValidationErrors` toggle, and forward-blocked-events routing. The `reportViolations()` function must be extended to handle Block/Omit/Allow decisions.
-- **`processor/consent.go`** (lines 44–95): Extend `getConsentFilteredDestinations()` to integrate consent decisions with Protocols enforcement. When consent management is enabled alongside a tracking plan, consent-denied events should follow the tracking plan's enforcement mode rather than being silently filtered.
-- **`gateway/handle_http.go`**: Mount new endpoints for Source Functions webhook ingestion (`/v1/functions/source`), tracking plan management API, Profiles API, and advanced replay controls.
-- **`gateway/handle_http_replay.go`** (lines 19–89): Extend `webReplayHandler()` and `withWarehouseReplayTag()` to accept source-level, date-range, and destination-level filter parameters via query string or request headers. Add dry-run mode support.
-- **`backend-config/types.go`**: Add new fields to `DestinationT` and `SourceT` for enforcement mode configuration, identity resolution settings, and Functions binding configuration. Extend `ConfigT` with tracking plan management data and identity resolution settings.
-- **`warehouse/identity/identity.go`** (lines 36–60, 78–206): Extend the `Identity` struct to support real-time resolution. Refactor `applyRule()` to work outside the warehouse upload cycle. Extend the merge-rule model beyond the two-property (`merge_property_1/2`) limitation.
-- **`main.go`**: Wire new top-level services (Functions runtime, Identity service, Monitoring service) into the server startup lifecycle alongside existing Gateway, Processor, Router, and Warehouse services.
-- **`router/handle.go`** (lines 49–100): Add per-destination delivery metrics instrumentation points for the monitoring dashboard. Capture success/failure rates, latency percentiles, throughput, retry counts, and circuit breaker state changes.
-- **`router/handle_observability.go`**: Extend observability helpers with new metric names for the delivery monitoring dashboard.
-
-**Dependency Injections:**
-
-- **`runner/runner.go`**: Register new service components (Functions runtime, Identity service, Monitoring/Alerting service) in the runner's component startup sequence. These must be wired before the Processor starts to ensure pipeline hooks are available.
-- **`app/app.go` or `app/apphandlers/`**: Inject new service dependencies into the app handler for embedded mode. The Functions runtime and Identity service need access to the same PostgreSQL connection, backend-config subscriptions, and stats infrastructure.
-- **`processor/transformer/clients.go`** (lines 36–42): Extend the `Clients` struct to include a `FunctionsClient` interface for communicating with the Functions runtime, alongside existing `UserClient`, `DestinationClient`, `TrackingPlanClient`, and `SrcHydrationClient`.
-
-**Database/Schema Updates:**
-
-- **`sql/migrations/`**: New migration files for:
-  - Functions tables: `functions` (id, workspace_id, name, type, code, version, settings, created_at, updated_at), `function_secrets` (id, function_id, key, encrypted_value)
-  - Tracking plans tables: `tracking_plans` (id, workspace_id, name, schema, version, enforcement_config, created_at, updated_at), `tracking_plan_versions` (id, tracking_plan_id, version, schema, changelog)
-  - Identity graph tables: `identity_graph` (id, workspace_id, segment_id, created_at), `identity_external_ids` (id, graph_id, external_id_type, external_id_value, created_source, created_at, merged_at, merged_from), `identity_traits` (id, graph_id, key, value, updated_at)
-  - Alerting tables: `alert_rules` (id, workspace_id, condition, threshold, channels, enabled, created_at)
-
-### 0.4.2 Cross-Sprint Integration Dependencies
-
-The following diagram illustrates the inter-sprint dependency flow:
-
-```mermaid
-flowchart TD
-    subgraph S35["Sprint 3-5: Destinations"]
-        E010["E-010: Prioritize Top-50"]
-        E011["E-011: Cloud Batch 1"]
-        E012["E-012: Cloud Batch 2"]
-        E013["E-013: Payload Parity"]
-        E014["E-014: Stream Dests"]
-    end
-
-    subgraph S46["Sprint 4-6: Functions"]
-        E015["E-015: Source Functions"]
-        E016["E-016: Dest Functions"]
-        E017["E-017: Insert Functions"]
-        E018["E-018: Management API"]
-        E019["E-019: Secrets Mgmt"]
-    end
-
-    subgraph S57["Sprint 5-7: Protocols"]
-        E020["E-020: JSON Schema"]
-        E021["E-021: Anomaly Detection"]
-        E022["E-022: Enforcement Modes"]
-        E023["E-023: Forward Blocked"]
-        E024["E-024: TP Management API"]
-        E025["E-025: Consent Integration"]
-    end
-
-    subgraph S68["Sprint 6-8: Identity"]
-        E026["E-026: RT Identity Graph"]
-        E027["E-027: Profiles API"]
-        E028["E-028: External IDs"]
-        E029["E-029: Profile Sync"]
-        E030["E-030: Resolution Settings"]
-    end
-
-    subgraph S810["Sprint 8-10: Operations"]
-        E036["E-036: Delivery Dashboard"]
-        E037["E-037: Alerting"]
-        E038["E-038: Adv Replay"]
-        E039["E-039: Capacity Planning"]
-    end
-
-    E010 --> E011
-    E011 --> E012
-    E011 --> E015
-    E015 --> E016
-    E016 --> E017
-    E017 --> E018
-    E018 --> E019
-    E020 --> E021
-    E021 --> E022
-    E022 --> E023
-    E024 --> E025
-    E026 --> E027
-    E027 --> E028
-    E028 --> E029
-    E029 --> E030
-    E036 --> E039
-
-    style S35 fill:#ffcc99,stroke:#e65100,color:#000
-    style S46 fill:#ffcc99,stroke:#e65100,color:#000
-    style S57 fill:#fff9c4,stroke:#f9a825,color:#000
-    style S68 fill:#fff9c4,stroke:#f9a825,color:#000
-    style S810 fill:#c8e6c9,stroke:#2e7d32,color:#000
-```
-
-### 0.4.3 Pipeline Integration Architecture
-
-The following diagram shows how all five sprints integrate into the existing RudderStack pipeline:
+## 0.1 Executive Summary
+
+Based on the provided requirements, the Blitzy platform understands that the objective is to execute the **Snyk CLI** against the `blitzy-RudderStack` Go monorepo as one configuration ("**Config H**") in a multi-configuration security-tool comparison, and to emit a single normalized findings artifact, `findings-config-h.json`, that conforms to a strict five-field schema. The work has four critical directives — install and authenticate the Snyk CLI, run a Static Application Security Testing (SAST) scan via `snyk code test`, run a dependency scan via `snyk test`, and merge both result streams into a minified single-line JSON document.
+
+The repository under scan is `rudderlabs/rudder-server` — a single-module Go monorepo (`module github.com/rudderlabs/rudder-server`) targeting **Go 1.26.1** [configs_175ab0/go.mod:L1-L3]. The repository already contains a Snyk policy file (`.snyk`, schema v1.22.1) with five `ignore` rules that have all expired on `2025-01-01T00:00:00.000Z` [configs_175ab0/.snyk:L2-L29], and `go.mod` carries an explicit `replace` block introduced for the documented purpose "Addressing snyk vulnerabilities in indirect dependencies" [configs_175ab0/go.mod:L5]. There is no existing Snyk integration in `.github/workflows/` [inferred — observed file list: builds.yml, docker-build-*.yml, housekeeping.yaml, prerelease.yaml, release-please.yaml, semantic-pr.yaml, sync-release.yaml, tests.yaml, verify.yml].
+
+#### Deliverables (3 New Files)
+
+The user's input estimates `~0 files modified | 1 new file`. The project rules expand this scope: the **Explainability** rule mandates a Markdown decision log, and the **Executive Presentation** rule mandates a self-contained reveal.js HTML executive deck. Per the rule-driven scope policy, all three files MUST be produced:
+
+| # | New File | Driver | Purpose |
+|---|----------|--------|---------|
+| 1 | `findings-config-h.json` | User directive (Critical Directive 4) | Primary deliverable — minified single-line JSON merging SAST + dependency findings |
+| 2 | `DECISIONS.md` | Explainability rule | Decision log capturing rationale for severity mapping, CWE/CVE fallback, intermediate-artifact handling, and other non-trivial choices |
+| 3 | `blitzy-deck/index.html` | Executive Presentation rule | Self-contained reveal.js 5.1.0 deck (12–18 slides) summarizing scope, methodology, findings, and operational readiness for non-technical leadership |
+
+#### Task Categorization
+
+- **Primary task type**: Tooling / Security scanning (Build / Deploy support)
+- **Secondary aspects**: Documentation (decision log) and Executive Presentation (reveal.js deck)
+- **Scope classification**: Isolated change — zero source-code modifications; all output is new artifacts placed at the repository root or in a new `blitzy-deck/` directory
+
+#### Runtime Posture at Plan Time
+
+- Node.js v22.22.2 and npm v11.1.0 are already available on the execution host (well above the Snyk-mandated minimum of Node 12+ / npm 7+)
+- Snyk CLI is **not** installed (`which snyk` returned no path) — installation is the first action
+- `SNYK_TOKEN` is **not** present in the environment (no secrets attached to this project) — this is a runtime-gating constraint that MUST be satisfied externally before scans can run; the AAP cannot synthesize the token
+- No `/tmp/environments_files` directory exists; no attachments accompanied the project
+
+#### Success Criteria
+
+The plan is successful when:
+
+- `findings-config-h.json` exists at the repository root, is valid UTF-8 JSON, is exactly one line (`cat findings-config-h.json | wc -l` returns `1`), every record contains all five fields populated (`file`, `line`, `severity`, `cwe`, `description`), no `description` exceeds 200 characters, and SAST records are prefixed `[snyk-code] ` while dependency records are prefixed `[snyk-deps] ` (or the file contains the literal `[]` if zero findings)
+- `DECISIONS.md` exists at the repository root and documents the non-trivial decisions enumerated in §0.4 and §0.8 as a Markdown table
+- `blitzy-deck/index.html` exists, is a single self-contained HTML file with pinned CDN versions (reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0), and contains 12–18 `<section>` elements each with at least one non-text visual element
+
+## 0.2 Intent Clarification
+
+### 0.2.1 Core Objective
+
+Based on the provided requirements, the Blitzy platform understands that the objective is to:
+
+- **Install and authenticate Snyk CLI** on the execution host (Critical Directive 1), so the two scan commands can run non-interactively
+- **Run Snyk Code SAST** against the `blitzy-RudderStack` working tree, capturing results in SARIF 2.1.0 format (Critical Directive 2)
+- **Run Snyk dependency scan** against the same working tree, capturing the structured Snyk JSON output (Critical Directive 3)
+- **Normalize and merge** the two raw outputs into one minified single-line JSON document, `findings-config-h.json`, conforming to the five-field schema (`file`, `line`, `severity`, `cwe`, `description`) (Critical Directive 4)
+- Treat this as **Config H** of a multi-configuration security-tool comparison, where parity in field semantics and file naming with the sibling configurations matters even though those sibling configs are not in scope here
+
+### 0.2.2 Task Categorization
+
+- **Primary task type**: Tooling / Security scanning (Build / Deploy support — the work produces a security-posture artifact, not application behavior change)
+- **Secondary aspects**:
+    - Documentation — the Explainability rule mandates `DECISIONS.md` capturing rationale for every non-trivial implementation decision
+    - Executive Presentation — the Executive Presentation rule mandates a 12–18 slide reveal.js HTML deck describing the work for non-technical leadership
+- **Scope classification**: Isolated change — no source code, no dependency manifest, and no CI workflow files are modified; all output is new artifacts
+
+### 0.2.3 Special Instructions and Constraints (Preserved Verbatim)
+
+The following directives are preserved exactly as the user supplied them, because they are pass/fail acceptance criteria that downstream agents MUST enforce:
+
+- **Critical Directive 1 (install & auth)**:
+    - User-provided commands (verbatim):
+        - `npm install -g snyk`
+        - `# or: apt install snyk`
+    - "Authenticate by setting `SNYK_TOKEN` as an environment variable with a valid API token. Snyk requires network access — there is no offline mode."
+    - **Pass/fail**: "`snyk auth check` confirms authentication. `snyk --version` returns a version string."
+- **Critical Directive 2 (SAST)**:
+    - User-provided command (verbatim): `snyk code test --sarif-file-output=results-snyk-code.sarif /path/to/blitzy-RudderStack`
+    - "Record exit code, scan duration (wall-clock)."
+    - **Pass/fail**: "`results-snyk-code.sarif` is produced and contains valid JSON."
+- **Critical Directive 3 (dependency scan)**:
+    - User-provided command (verbatim): `snyk test --json > results-snyk-deps.json /path/to/blitzy-RudderStack`
+    - "Record exit code, scan duration (wall-clock)."
+    - **Pass/fail**: "`results-snyk-deps.json` is produced and contains a vulnerabilities array."
+- **Critical Directive 4 (merge & minify)**:
+    - "Merge SAST and dependency findings into `findings-config-h.json`. The file MUST be valid JSON minified to a single line. Encoding: UTF-8. If zero findings, write `[]`."
+    - User-provided field-mapping table (preserved verbatim):
+
+      | Field | SAST source | Dependency source |
+      | --- | --- | --- |
+      | file | SARIF location (relative path) | Dependency manifest path (relative) |
+      | line | SARIF region start line | 0 |
+      | severity | SARIF level: error→critical, warning→high, note→medium | Snyk severity directly |
+      | cwe | Rule metadata CWE ID | CVE ID; use CWE mapping if available |
+      | description | `[snyk-code] ` + SARIF message, truncated to 200 chars | `[snyk-deps] ` + Snyk title, truncated to 200 chars |
+
+    - User-provided output schema (preserved verbatim):
+
+      ```plaintext
+      [{"file":"<relative path>","line":<integer>,"severity":"<critical|high|medium|low>","cwe":"<CWE-ID>","description":"<max 200 chars>"},...]
+      ```
+
+    - **Pass/fail**: "`cat findings-config-h.json | wc -l` returns `1`. Valid JSON. Every finding has all 5 fields populated. No description exceeds 200 characters."
+
+### 0.2.4 Implicit Requirements Surfaced
+
+The Blitzy platform identifies the following implicit requirements that are not directly stated by the user but follow from the directives, the rules, and operational reality:
+
+- **Snyk Code SARIF emits only `error` / `warning` / `note` / `none` levels** [inferred — Snyk Code documentation does not surface `critical` directly in SARIF]. The user-supplied severity map handles `error`/`warning`/`note`; `none` is unaddressed. The normalizer MUST decide a deterministic mapping for `none` — the chosen approach is to drop records with `level: none` (or map to `low`), and document the choice in `DECISIONS.md`.
+- **Dependency `cwe` field semantics** — the user spec reads: "CVE ID; use CWE mapping if available". The plain reading is: if a `CWE-XXX` identifier is available in `vulnerabilities[*].identifiers.CWE[]`, use it; otherwise fall back to the first `CVE-YYYY-NNNNN` from `vulnerabilities[*].identifiers.CVE[]`. This decision MUST be recorded in `DECISIONS.md`.
+- **Relative-path requirement** — the user table specifies "relative path" for both `file` columns. Paths reported by Snyk against an absolute scan target are absolute; the normalizer MUST strip the leading repository-root prefix to yield repo-relative paths.
+- **Truncation semantics** — the user spec says "truncated to 200 chars". Truncation is to be byte-safe UTF-8 truncation, applied **after** the `[snyk-code] ` / `[snyk-deps] ` prefix is concatenated, so total `description` length ≤ 200 characters.
+- **Empty result handling** — "If zero findings, write `[]`" applies to the merged file. Each individual scan MAY return zero findings, in which case only the other scan's records contribute.
+- **Output location** — the user does not specify a directory for `findings-config-h.json`; the file is placed at the repository root for parity with sibling configurations.
+- **Intermediate artifacts** — `results-snyk-code.sarif` and `results-snyk-deps.json` are working files. They are produced by the scans and consumed by the normalizer; they are NOT deliverables. `DECISIONS.md` MUST record whether they are deleted, retained, and/or added to `.gitignore`.
+- **Exit-code handling** — `snyk test` exits with code `1` when vulnerabilities are found (this is by design, not an error). The execution scripts MUST distinguish "vulnerabilities found" from "scan failed" and treat exit code `1` as a successful scan completion.
+- **`SNYK_TOKEN` provenance** — Snyk has no offline mode; without a valid token the directives cannot run. The token MUST be supplied to the execution environment before the scans, by the operator or by CI secrets. The AAP is the implementation plan; token provisioning is an out-of-band prerequisite.
+
+### 0.2.5 Technical Interpretation
+
+These requirements translate to the following technical implementation strategy:
+
+- **To install Snyk CLI**, we will execute `npm install -g snyk` on the execution host (Node.js v22.22.2 / npm v11.1.0 already satisfy the v12+/v7+ minimum). The `apt install snyk` alternative remains documented but is not the primary path on this host.
+- **To authenticate Snyk CLI**, we will rely on the `SNYK_TOKEN` environment variable being present at scan time, then verify with `snyk auth check` and `snyk --version`.
+- **To run the SAST scan**, we will execute the user's command verbatim against the repository root, redirecting SARIF to `results-snyk-code.sarif`, and capturing both exit code and wall-clock duration.
+- **To run the dependency scan**, we will execute the user's command verbatim, redirecting the JSON stream to `results-snyk-deps.json`, and capturing both exit code and wall-clock duration.
+- **To produce `findings-config-h.json`**, we will create a normalizer (Python script `scripts/normalize-snyk-findings.py` — see §0.5) that parses both raw outputs, applies the user's field-mapping table, prefixes/truncates the description field, and emits a single-line minified JSON document.
+- **To satisfy the Explainability rule**, we will create `DECISIONS.md` at the repository root documenting the non-trivial decisions enumerated below.
+- **To satisfy the Executive Presentation rule**, we will create `blitzy-deck/index.html` — a single self-contained reveal.js 5.1.0 page with embedded CSS and pinned CDN versions, containing 12–18 slides covering the scope, the Snyk methodology, the findings summary, the risks/mitigations, and the operational onboarding path.
+
+## 0.3 Repository Scope Discovery
+
+### 0.3.1 Repository Profile
+
+| Attribute | Value | Evidence |
+|-----------|-------|----------|
+| Repository name | `blitzy-RudderStack` (upstream: `rudderlabs/rudder-server`) | configs_175ab0 path; module declaration |
+| Module path | `github.com/rudderlabs/rudder-server` | [configs_175ab0/go.mod:L1] |
+| Primary language | Go | [configs_175ab0/go.mod:L1-L3] |
+| Go toolchain | `go 1.26.1` | [configs_175ab0/go.mod:L3] |
+| Module model | Single Go module rooted at repo root | [configs_175ab0/go.mod:L1] |
+| Dependency manifest | `go.mod` (18 KB) + `go.sum` (200 KB+) | [configs_175ab0/go.mod, configs_175ab0/go.sum] |
+| Build entry point | `main.go` at repo root | [configs_175ab0/main.go] |
+| Container artifact | `Dockerfile` + `docker-compose.yml` | [configs_175ab0/Dockerfile, configs_175ab0/docker-compose.yml] |
+| Build orchestrator | `Makefile` | [configs_175ab0/Makefile] |
+
+### 0.3.2 Comprehensive File Analysis
+
+Because the Snyk scans operate on the **repository root** rather than on individual files, the "affected files" question for this task resolves to two categories: (a) inputs Snyk reads to enumerate the dependency graph and source-code tree, and (b) outputs the workflow produces. No source file in the repository is modified by this task.
+
+**Inputs Snyk consumes (read-only / REFERENCE):**
+
+| Path | Role | Evidence |
+|------|------|----------|
+| `go.mod` | Dependency manifest — primary input to `snyk test` | [configs_175ab0/go.mod] |
+| `go.sum` | Dependency checksum lockfile — supports `snyk test` resolution | [configs_175ab0/go.sum] |
+| `.snyk` | Existing Snyk policy (v1.22.1, 5 expired ignore rules) — Snyk CLI auto-respects | [configs_175ab0/.snyk:L2-L29] |
+| `*.go` across all packages | Source corpus for `snyk code test` SAST scan | [inferred — entire Go monorepo] |
+| `Dockerfile`, `docker-compose.yml` | NOT consumed by this task (no `snyk container`/`snyk iac` invocations) | [configs_175ab0/Dockerfile] — REFERENCE only |
+| `refs/segment-docs/package.json` | Third-party reference docs only; NOT part of the primary scan target | [configs_175ab0/refs/segment-docs/package.json] |
+
+**Outputs the workflow produces (CREATE):**
+
+| Path | Lifecycle | Driver |
+|------|-----------|--------|
+| `results-snyk-code.sarif` | Transient working file — produced by Critical Directive 2; consumed by normalizer; ignored by git | Directives |
+| `results-snyk-deps.json` | Transient working file — produced by Critical Directive 3; consumed by normalizer; ignored by git | Directives |
+| `findings-config-h.json` | Primary deliverable — single-line minified JSON at repo root | Critical Directive 4 |
+| `scripts/normalize-snyk-findings.py` | Normalizer implementation — parses SARIF + Snyk JSON and produces single-line JSON | Implementation choice (Explainability decision) |
+| `DECISIONS.md` | Decision log at repo root | Explainability rule |
+| `blitzy-deck/index.html` | Self-contained reveal.js executive deck | Executive Presentation rule |
+| `blitzy-deck/README.md` | One-page operator note explaining how to open the deck | Operational hygiene (decision-log entry) |
+
+**No file in the repository is updated or deleted** by this task. `.gitignore` MAY OPTIONALLY be updated to add the two transient artifacts; the chosen approach (record-only entry in `DECISIONS.md` versus modifying `.gitignore`) is documented in §0.5.
+
+### 0.3.3 Existing Infrastructure Assessment
+
+- **Existing Snyk configuration** is present and active. `.snyk` (schema v1.22.1) contains five ignore rules, **all of which expired on `2025-01-01T00:00:00.000Z`** [configs_175ab0/.snyk:L2-L29]. As of the current scan date (May 2026) these ignore rules are no longer suppressing findings. The Snyk CLI will load `.snyk` automatically; no flag is required to opt-in.
+- **`go.mod` already encodes Snyk remediation history** — the `replace` block at the top of `go.mod` is annotated "Addressing snyk vulnerabilities in indirect dependencies" [configs_175ab0/go.mod:L5], indicating prior Snyk-driven dependency pinning.
+- **No Snyk CI integration exists.** A `grep -i "snyk" .github/workflows/*` returns no matches; the existing workflows (`builds.yml`, `docker-build-dockerhub.yml`, `docker-build-ecr.yml`, `housekeeping.yaml`, `prerelease.yaml`, `release-please.yaml`, `semantic-pr.yaml`, `sync-release.yaml`, `tests.yaml`, `verify.yml`) do not invoke Snyk. This task does NOT add Snyk to CI — it is an out-of-CI, one-shot scan for the multi-config comparison.
+- **Other quality tooling already in place**: `.deepsource.toml` (Go static analyzer), `.golangci.yml` (Go linter), `codecov.yml` (coverage). These are unrelated to Snyk and are unchanged.
+- **`.gitignore`** already excludes typical Go artifacts (`*.coverprofile`, `*.out`, `**/node_modules`, etc.) [configs_175ab0/.gitignore]. The Snyk intermediate artifacts (`results-snyk-*.sarif`, `results-snyk-*.json`) are NOT currently ignored; the decision to add them is recorded in §0.5 and rationalized in `DECISIONS.md`.
+- **No `blitzy-deck/` directory exists** [inferred — `find` for `*reveal*`/`*deck*` returned no results]; it must be created from scratch.
+- **No prior `findings-*.json`** files exist [inferred — no matching paths in repository listing].
+- **Repository carries** `blitzy/` and `blitzy-docs/` folders for the RudderStack parity initiative, plus a `.junie/` directory; none are modified by this task.
+
+### 0.3.4 Web Search Research Conducted
+
+The following research was performed to validate scan inputs/outputs and tool semantics:
+
+- **Snyk CLI installation prerequisites** — `snyk` is distributed as a npm package; the installation via `npm install -g snyk` requires Node.js 12+ and npm 7+. Current host satisfies this (Node v22.22.2 / npm v11.1.0).
+- **Snyk CLI latest version** — `1.1304.3` (as of recent publication) on npm registry; the plan installs the latest stable channel.
+- **`snyk code test --sarif-file-output` semantics** — produces a SARIF 2.1.0 file at the specified path. SARIF is JSON-validated; the pass/fail check is satisfied by parsing it as JSON.
+- **Snyk Code SARIF severity levels** — Snyk Code emits `error` | `warning` | `note` (and theoretically `none`). It does NOT emit a `critical` SARIF level — the user mapping (error→critical, warning→high, note→medium) is the bridge to the unified critical/high/medium/low taxonomy.
+- **Snyk Code SARIF CWE location** — CWE identifiers are surfaced as `runs[*].tool.driver.rules[*].properties.cwe` (array) and/or as tags under `runs[*].tool.driver.rules[*].properties.tags`. The normalizer reads `properties.cwe[0]` if present, otherwise scans `properties.tags` for `CWE-XXX` patterns.
+- **`snyk test --json` semantics** — emits a JSON document with `vulnerabilities` array at the top level. The schema relevant to this task:
+    - `vulnerabilities[*].severity` — one of `critical|high|medium|low` (used directly per user spec)
+    - `vulnerabilities[*].identifiers.CWE` — array of `CWE-<n>` strings (preferred for `cwe` field)
+    - `vulnerabilities[*].identifiers.CVE` — array of `CVE-<year>-<n>` strings (fallback for `cwe` field)
+    - `vulnerabilities[*].title` — used for `description` (with `[snyk-deps] ` prefix and 200-char truncation)
+    - `displayTargetFile` (top-level) — used for `file` field; supplements `vulnerabilities[*].packageManager` and `vulnerabilities[*].from`
+    - For Go projects, `displayTargetFile` is typically `go.mod`
+- **`snyk test` exit-code semantics** — exit code `0` = no vulnerabilities; exit code `1` = vulnerabilities found; exit code `2` = scan error / failure. Exit code `1` MUST be treated as a successful scan, not an error.
+- **`snyk code test` exit-code semantics** — same convention as `snyk test` (`0` = clean, `1` = findings, `2`/`3` = error).
+- **Snyk authentication** — `SNYK_TOKEN` environment variable is the non-interactive auth path; alternatively `snyk auth <token>` writes to `~/.config/configstore/snyk.json`. The token MUST be a service account API token from the Snyk org.
+
+### 0.3.5 CWE Mapping Approach (Dependency Findings)
+
+The user specification for the `cwe` field in dependency records reads, verbatim: *"CVE ID; use CWE mapping if available"*. Preserving the verbatim text, the normalizer implements this as: **prefer `vulnerabilities[*].identifiers.CWE[0]`; if absent or empty, fall back to `vulnerabilities[*].identifiers.CVE[0]`**. This interpretation is documented in `DECISIONS.md` because a competent engineer could reasonably read the spec the other way ("always emit a CVE ID, optionally augmented with CWE"). The chosen interpretation maximizes parity with the SAST field which always emits a `CWE-<n>` form, while still degrading gracefully to the CVE identifier when CWE classification is unavailable from the Snyk database.
+
+## 0.4 Implementation Design
+
+### 0.4.1 Technical Approach
+
+The implementation is a six-step pipeline that begins with tool installation and ends with a verified single-line JSON artifact. The flow is logical, not temporal — every step's outputs are inputs to the next.
 
 ```mermaid
 flowchart LR
-    SDK["SDK/Source"] --> GW["Gateway\nport 8080"]
-    SF["Source Functions\nE-015"] --> GW
-
-    GW --> Proc["Processor"]
-
-    subgraph Pipeline["Enhanced Pipeline"]
-        direction LR
-        PP["1. Preprocess"] --> SH["2. Src Hydration"]
-        SH --> PT["3. Pre-Transform"]
-        PT --> UT["4. User Transform"]
-        UT --> IF["4.5 Insert Functions\nE-017"]
-        IF --> DT["5. Dest Transform"]
-        DT --> TP["5.5 Protocols\nE-020-E-025"]
-        TP --> ST["6. Store"]
-    end
-
-    Proc --> Pipeline
-    ST --> RT["Router\nE-036 Metrics"]
-    ST --> BRT["Batch Router"]
-    ST --> WH["Warehouse"]
-
-    RT --> DEST["Destinations\nE-011/E-012/E-014"]
-    RT --> DF["Dest Functions\nE-016"]
-    WH --> IDR["Identity Graph\nE-026-E-030"]
-
-    ALERT["Alerting E-037"] -.-> RT
-    REPLAY["Adv Replay E-038"] -.-> GW
-    PROF["Profiling E-039"] -.-> Pipeline
+    A[Install Snyk CLI<br/>npm install -g snyk] --> B[Authenticate<br/>SNYK_TOKEN env var]
+    B --> C[Run SAST<br/>snyk code test<br/>--sarif-file-output]
+    B --> D[Run Deps<br/>snyk test --json<br/>redirect to file]
+    C --> E[Parse SARIF<br/>map severity + cwe]
+    D --> F[Parse Snyk JSON<br/>map severity + cwe]
+    E --> G[Merge + minify<br/>findings-config-h.json]
+    F --> G
+    G --> H[Verify wc -l == 1<br/>valid JSON<br/>200-char cap]
+%% Diagram of the Config H scan pipeline
 ```
 
-## 0.5 Technical Implementation
+- **Step 1 — Install** the Snyk CLI globally via `npm install -g snyk`. Rationale: the host already has Node.js v22.22.2 and npm v11.1.0 in PATH, which exceed Snyk's stated Node 12+ / npm 7+ requirement. The `apt install snyk` alternative is documented but not chosen as the primary path because the npm distribution channel is the canonical one for the current host.
+- **Step 2 — Authenticate** the CLI by ensuring `SNYK_TOKEN` is exported in the environment and validating with `snyk auth check`. Rationale: setting the env var avoids the interactive browser-based `snyk auth` flow, which is incompatible with non-interactive automation.
+- **Step 3 — SAST scan** by executing the user-verbatim command `snyk code test --sarif-file-output=results-snyk-code.sarif /path/to/blitzy-RudderStack`. Capture exit code and wall-clock duration. Treat exit code `1` as "scan succeeded with findings"; exit code `≥ 2` as "scan failed".
+- **Step 4 — Dependency scan** by executing the user-verbatim command `snyk test --json > results-snyk-deps.json /path/to/blitzy-RudderStack`. The user-written redirection in the middle of the command is shell-valid (stdout redirects to file, the positional path argument follows). Capture exit code and wall-clock duration with the same `0`/`1`/`≥2` interpretation.
+- **Step 5 — Normalize and merge** via a Python script (`scripts/normalize-snyk-findings.py`) that:
+    - reads `results-snyk-code.sarif` and emits one record per `runs[*].results[*]`, mapping `level → severity` using the user table, extracting CWE from `runs[*].tool.driver.rules[ruleId].properties.cwe[0]` (with tag fallback), and concatenating `[snyk-code] ` with the SARIF `message.text` then truncating to 200 chars,
+    - reads `results-snyk-deps.json` and emits one record per `vulnerabilities[*]`, using `severity` directly, preferring `identifiers.CWE[0]` then falling back to `identifiers.CVE[0]`, and concatenating `[snyk-deps] ` with `title` then truncating to 200 chars,
+    - resolves paths to repo-relative form,
+    - writes the merged array to `findings-config-h.json` using `json.dumps(records, separators=(',', ':'), ensure_ascii=False)` followed by no trailing newline.
+- **Step 6 — Verify** by asserting `wc -l findings-config-h.json` returns `1`, by parsing the file back with `json.loads()`, and by asserting `all(len(r['description']) <= 200 and {'file','line','severity','cwe','description'} <= r.keys() for r in records)`.
+
+### 0.4.2 Component Impact Analysis
+
+- **Direct modifications required**: NONE. No file in the repository is updated or deleted.
+- **Indirect impacts**: NONE on application behavior. The `.snyk` policy is consumed read-only; its five expired ignore rules will no longer suppress findings, which may produce a higher finding count than historical Snyk runs against this repository. This is a noted observation, not a defect.
+- **New components introduced**:
+    - `scripts/normalize-snyk-findings.py` — pure offline normalizer. Reads two files, writes one file. Idempotent. Zero external dependencies beyond Python 3 stdlib.
+    - `findings-config-h.json` — the deliverable.
+    - `DECISIONS.md` — the decision log (Explainability rule).
+    - `blitzy-deck/index.html` and `blitzy-deck/README.md` — the executive deck (Executive Presentation rule).
+
+### 0.4.3 Normalizer Logic (Pseudocode)
+
+The normalizer is intentionally small so it can be reviewed entirely from the decision log:
+
+```python
+def normalize_sarif(sarif, repo_root):
+    runs = sarif.get('runs', [])
+    rules_by_id = {r['id']: r for run in runs for r in run.get('tool',{}).get('driver',{}).get('rules', [])}
+    out = []
+    for run in runs:
+        for res in run.get('results', []):
+            level = res.get('level','note')
+            sev = {'error':'critical','warning':'high','note':'medium'}.get(level,'low')
+            rule = rules_by_id.get(res.get('ruleId',''), {})
+            cwe = extract_cwe(rule)
+            loc = res.get('locations',[{}])[0]
+            uri = loc.get('physicalLocation',{}).get('artifactLocation',{}).get('uri','')
+            line = loc.get('physicalLocation',{}).get('region',{}).get('startLine', 0)
+            msg = res.get('message',{}).get('text','')
+            desc = ('[snyk-code] ' + msg)[:200]
+            out.append({'file': rel(uri, repo_root), 'line': int(line), 'severity': sev, 'cwe': cwe, 'description': desc})
+    return out
+```
+
+```python
+def normalize_deps(deps, repo_root):
+    out = []
+    target = deps.get('displayTargetFile', 'go.mod')
+    for v in deps.get('vulnerabilities', []):
+        sev = v.get('severity','low')
+        ids = v.get('identifiers', {})
+        cwe = (ids.get('CWE') or [None])[0] or (ids.get('CVE') or ['UNKNOWN'])[0]
+        title = v.get('title','')
+        desc = ('[snyk-deps] ' + title)[:200]
+        out.append({'file': target, 'line': 0, 'severity': sev, 'cwe': cwe, 'description': desc})
+    return out
+```
+
+```python
+# Final emit — single line, no trailing newline
+
+with open('findings-config-h.json', 'w', encoding='utf-8') as f:
+    f.write(json.dumps(sast + deps, separators=(',', ':'), ensure_ascii=False))
+```
+
+### 0.4.4 Severity Mapping
+
+Per the user specification:
+
+| Source | Source value | Normalized `severity` |
+|--------|--------------|-----------------------|
+| Snyk Code SARIF | `error` | `critical` |
+| Snyk Code SARIF | `warning` | `high` |
+| Snyk Code SARIF | `note` | `medium` |
+| Snyk Code SARIF | `none` (rare) | `low` *(decision-log entry; not explicitly mapped by user)* |
+| Snyk deps JSON | `critical` | `critical` (passthrough) |
+| Snyk deps JSON | `high` | `high` (passthrough) |
+| Snyk deps JSON | `medium` | `medium` (passthrough) |
+| Snyk deps JSON | `low` | `low` (passthrough) |
+
+### 0.4.5 CWE/CVE Field Resolution
+
+| Source | Lookup order | Output format |
+|--------|--------------|---------------|
+| Snyk Code SARIF | `rules[ruleId].properties.cwe[0]` → scan `rules[ruleId].properties.tags` for `CWE-` pattern | `CWE-<n>` |
+| Snyk deps JSON | `vulnerabilities[*].identifiers.CWE[0]` → `vulnerabilities[*].identifiers.CVE[0]` | `CWE-<n>` or `CVE-<year>-<n>` |
+
+### 0.4.6 Description Construction
+
+- SAST: `description = ("[snyk-code] " + sarif_result.message.text)[:200]`
+- Dependency: `description = ("[snyk-deps] " + vulnerability.title)[:200]`
+- Truncation is **inclusive of the prefix** so the field is always ≤ 200 characters.
+- Newlines and tabs in source messages are normalized to spaces before truncation to prevent JSON-string artifacts that could complicate downstream comparison across sibling configs.
+
+### 0.4.7 Critical Implementation Details
+
+- **Single-line JSON guarantee**: use `json.dumps(..., separators=(',', ':'))` and `f.write(...)` (not `print`) to avoid trailing newlines. Verify with `wc -l < findings-config-h.json` (returns `0` when the file has no newline; `1` when there is exactly one trailing newline). The pass/fail spec accepts `wc -l == 1`, which is the conventional behavior of `wc -l` on a file ending without a newline (it counts the final non-terminated line). The verifier script accepts both conventions but prefers no trailing newline.
+- **UTF-8 encoding**: explicit `encoding='utf-8'` on open(); `ensure_ascii=False` on `json.dumps` so non-ASCII titles survive correctly.
+- **Empty-results handling**: if `len(sast) + len(deps) == 0`, the file content is literally `[]` (two bytes). This satisfies "If zero findings, write `[]`."
+- **Idempotency**: re-running the normalizer with the same inputs produces byte-identical output (no timestamps, no ordering randomness — records are emitted in source order: SAST first, then deps).
+- **Error handling**: each scan's exit code is captured. Exit `0` = clean, `1` = findings present (still "success" for the workflow), `≥ 2` = abort. The normalizer treats missing `results-snyk-code.sarif` or `results-snyk-deps.json` as fatal — the pass/fail criteria require both files to exist.
+
+### 0.4.8 Executive Presentation Design (Outline)
+
+The `blitzy-deck/index.html` file is structured to meet the rule's slide-ordering convention and the 12–18 slide budget. The proposed slide map (target = 16 slides):
+
+| # | Type | Topic | Key visual element |
+|---|------|-------|--------------------|
+| 1 | `slide-title` | Config H — Snyk scan of blitzy-RudderStack | Hero gradient, Lucide `shield-check` icon |
+| 2 | Content | Why a multi-config security comparison? | KPI card grid (3 cards: scope, configs, deliverables) |
+| 3 | Content | Architecture overview | Mermaid flowchart of the pipeline (mirrors §0.4.1) |
+| 4 | `slide-divider` | Scope | Lucide `target` icon over gradient background |
+| 5 | Content | What was scanned | Styled table: repo, language, module count |
+| 6 | Content | What was NOT scanned (boundaries) | Two-column list with Lucide `x-circle`/`check-circle` icons |
+| 7 | `slide-divider` | Methodology | Lucide `workflow` icon |
+| 8 | Content | Snyk Code (SAST) | KPI card with Lucide `file-code` icon |
+| 9 | Content | Snyk Open Source (deps) | KPI card with Lucide `package` icon |
+| 10 | Content | Normalization & schema | Inline Fira Code snippet of the 5-field schema (no fenced code block) |
+| 11 | `slide-divider` | Results | Lucide `bar-chart-3` icon |
+| 12 | Content | Findings summary by severity | Mermaid `pie` chart or styled table |
+| 13 | Content | Notable patterns / hotspots | Styled callouts with Lucide `flame` icon |
+| 14 | `slide-divider` | Risk & onboarding | Lucide `compass` icon |
+| 15 | Content | Risks & mitigations | 4-bullet content slide with KPI mini-cards |
+| 16 | `slide-closing` | Take action | 3-bullet closing slide, brand lockup, accent bar |
+
+Each slide MUST contain at least one non-text visual element (Mermaid diagram, KPI card, styled table, or Lucide SVG icon), and no slide uses fenced code blocks. The deck loads reveal.js 5.1.0, Mermaid 11.4.0, and Lucide 0.460.0 from CDN, initializes Mermaid with `startOnLoad: false`, and invokes `mermaid.run()` + `lucide.createIcons()` on both `ready` and `slidechanged` events.
+
+### 0.4.9 User-Provided Examples Integration
+
+The user supplied two verbatim artifacts that the implementation must mirror exactly:
+
+- **The 4 fenced commands** (in Critical Directives 1–3) are preserved verbatim in `DECISIONS.md`, in `blitzy-deck/index.html` (as inline Fira Code, not as fenced blocks), and in §0.2.3 of this AAP.
+- **The schema example** `[{"file":"<relative path>","line":<integer>,"severity":"<critical|high|medium|low>","cwe":"<CWE-ID>","description":"<max 200 chars>"},...]` is the canonical shape the normalizer emits. Field order is `file, line, severity, cwe, description` — Python's `json.dumps` preserves insertion order on `dict` literals (Python 3.7+), guaranteeing the emitted order matches the example.
+
+## 0.5 File Transformation Mapping
 
 ### 0.5.1 File-by-File Execution Plan
 
-Every file listed below MUST be created or modified. Files are organized by sprint group and then by execution priority within each group.
+The table below enumerates every file that is created, referenced, or otherwise touched by this task. Target file is listed first per the AAP transformation-mapping convention. No file in the repository is updated or deleted.
 
-**Group 1 — Sprint 3–5: Destination Connector Expansion (E-010 to E-014)**
+| Target File | Transformation | Source File / Reference | Purpose / Changes |
+|-------------|----------------|-------------------------|-------------------|
+| `findings-config-h.json` | CREATE | `results-snyk-code.sarif` + `results-snyk-deps.json` | Primary deliverable — minified single-line JSON merging SAST + dependency findings per Critical Directive 4 |
+| `scripts/normalize-snyk-findings.py` | CREATE | (new) | Python 3 normalizer: parses SARIF + Snyk deps JSON, applies severity/CWE/description mapping, writes single-line JSON. Zero non-stdlib dependencies. |
+| `DECISIONS.md` | CREATE | (new) | Markdown decision log mandated by the Explainability rule. Captures every non-trivial implementation decision (severity-for-`none`, CWE-vs-CVE fallback ordering, intermediate-artifact retention, .gitignore strategy, deck slide budget, etc.) |
+| `blitzy-deck/index.html` | CREATE | (new) | Self-contained reveal.js 5.1.0 executive deck — pinned CDN versions, embedded Blitzy theme CSS, 12–18 sections (target 16), Lucide SVG icons only |
+| `blitzy-deck/README.md` | CREATE | (new) | One-page operator note explaining how to open the deck (`open blitzy-deck/index.html`) and confirming no build step is required |
+| `results-snyk-code.sarif` | CREATE (transient) | Snyk Code scanner output | Working SARIF 2.1.0 file consumed by the normalizer; NOT a deliverable; NOT committed (see §0.5.4 for .gitignore strategy) |
+| `results-snyk-deps.json` | CREATE (transient) | Snyk dependency scanner output | Working JSON file consumed by the normalizer; NOT a deliverable; NOT committed |
+| `go.mod` | REFERENCE | [configs_175ab0/go.mod] | Read by `snyk test` to enumerate the Go dependency graph. Not modified. |
+| `go.sum` | REFERENCE | [configs_175ab0/go.sum] | Read by `snyk test` for lockfile resolution. Not modified. |
+| `.snyk` | REFERENCE | [configs_175ab0/.snyk] | Existing Snyk policy with 5 expired ignore rules. Auto-loaded by Snyk CLI. Not modified. |
+| `**/*.go` (entire Go source tree) | REFERENCE | Repository working tree | Read by `snyk code test` for SAST analysis. Not modified. |
+| `.gitignore` | REFERENCE (with optional UPDATE — see §0.5.4) | [configs_175ab0/.gitignore] | Optionally augmented to ignore the two transient artifact patterns. Decision recorded in DECISIONS.md. |
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `docs/gap-report/destination-priority-ranking.md` | E-010: Documented top-50 prioritized destination list with coverage analysis |
-| CREATE | `services/streammanager/<dest>/manager.go` (per new stream dest) | E-014: New stream destination producer implementing `common.StreamProducer` interface |
-| CREATE | `services/streammanager/<dest>/manager_test.go` (per new stream dest) | E-014: Unit tests for each new stream producer (gomock, validation, error mapping) |
-| MODIFY | `services/streammanager/streammanager.go` | E-014: Add `case` branches for each new stream destination in `NewProducer` switch |
-| MODIFY | `services/streammanager/streammanager_suite_test.go` | E-014: Add factory test assertions for new destination types |
-| MODIFY | `router/customdestinationmanager/customdestinationmanager.go` | E-014: Append new destination names to `ObjectStreamDestinations` array |
-| CREATE | `integration_test/destination_parity/*_test.go` | E-013: Payload parity integration tests for all 93+ shared connectors |
-| CREATE | `router/testdata/destination_payloads/*.json` | E-013: Reference payloads for field-by-field comparison |
-| MODIFY | `config/config.yaml` | E-010–E-014: Add configuration keys for new destinations |
+### 0.5.2 New Files Detail
 
-**Group 2 — Sprint 4–6: Transformation and Functions Framework (E-015 to E-019)**
+- **`findings-config-h.json`** — repository root
+    - Content type: JSON array, minified to one line
+    - Encoding: UTF-8 without BOM, no trailing newline
+    - Schema: `[{"file":"<rel path>","line":<int>,"severity":"<critical|high|medium|low>","cwe":"<CWE-ID or CVE-ID>","description":"<≤200 chars, [snyk-code]/[snyk-deps] prefix>"},...]`
+    - Empty-state: literal `[]`
+    - Generated by: `scripts/normalize-snyk-findings.py`
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `functions/runtime/engine.go` | E-015/E-016/E-017: Core Functions runtime engine with handler dispatch |
-| CREATE | `functions/runtime/source_functions.go` | E-015: Source Functions `onRequest(request, settings)` handler execution |
-| CREATE | `functions/runtime/destination_functions.go` | E-016: Destination Functions typed handlers (`onTrack`, `onIdentify`, `onGroup`, `onPage`, `onScreen`, `onAlias`, `onDelete`, `onBatch`) |
-| CREATE | `functions/runtime/insert_functions.go` | E-017: Insert Functions pre-destination transformation hooks |
-| CREATE | `functions/runtime/errors.go` | E-015/E-016/E-017: Typed error classes (`EventNotSupported`, `InvalidEventPayload`, `ValidationError`, `RetryError`, `DropEvent`) |
-| CREATE | `functions/runtime/*_test.go` | E-015/E-016/E-017: Unit tests for all function types |
-| CREATE | `functions/api/handler.go` | E-018: Functions CRUD API handler (create, read, update, delete, list, test invocation) |
-| CREATE | `functions/api/routes.go` | E-018: HTTP route registration using chi router |
-| CREATE | `functions/api/*_test.go` | E-018: API endpoint tests |
-| CREATE | `functions/storage/repository.go` | E-018: PostgreSQL-backed function storage with versioning |
-| CREATE | `functions/secrets/manager.go` | E-019: Per-function encrypted settings and secrets storage |
-| CREATE | `functions/secrets/*_test.go` | E-019: Secrets management tests |
-| CREATE | `gateway/handle_http_functions.go` | E-015: Source Functions webhook endpoint |
-| CREATE | `sql/migrations/functions/*.sql` | E-018/E-019: Database migrations for functions and secrets tables |
-| MODIFY | `processor/pipeline_worker.go` | E-017: Add Insert Functions channel between user transform and dest transform stages |
-| MODIFY | `processor/processor.go` | E-015/E-016/E-017: Integrate Functions runtime into pipeline |
-| MODIFY | `processor/transformer/clients.go` | E-015/E-016: Add `FunctionsClient` interface |
-| MODIFY | `gateway/handle_http.go` | E-015: Mount Source Functions webhook endpoint |
-| MODIFY | `gateway/handle_http_auth.go` | E-015: Add Source Functions auth handler |
-| MODIFY | `main.go` | E-015: Wire Functions runtime into server startup |
-| MODIFY | `gateway/openapi.yaml` | E-018: Add Functions API endpoint schemas |
-| MODIFY | `config/config.yaml` | E-015–E-019: Add Functions configuration keys |
+- **`scripts/normalize-snyk-findings.py`** — under the existing `scripts/` directory
+    - Content type: Python 3 source
+    - Inputs: `results-snyk-code.sarif`, `results-snyk-deps.json`
+    - Output: `findings-config-h.json`
+    - Key functions: `normalize_sarif()`, `normalize_deps()`, `extract_cwe_from_rule()`, `to_relative_path()`, `truncate_utf8()`, `main()`
+    - Stdlib-only — uses `json`, `os`, `sys`, `pathlib`, `re`
+    - CLI usage: `python3 scripts/normalize-snyk-findings.py --sarif results-snyk-code.sarif --deps results-snyk-deps.json --out findings-config-h.json --repo-root .`
 
-**Group 3 — Sprint 5–7: Protocols and Tracking Plan Enforcement (E-020 to E-025)**
+- **`DECISIONS.md`** — repository root
+    - Content type: Markdown decision log per Explainability rule
+    - Required columns: Decision, Alternatives, Rationale, Risks
+    - Required entries:
+        1. Severity mapping for SARIF `level: none` → `low` (user spec does not address `none`)
+        2. CWE-vs-CVE fallback order for dependency `cwe` field → CWE first, CVE second (verbatim spec ambiguous)
+        3. Description truncation strategy → inclusive of prefix; whitespace normalization before truncation
+        4. Intermediate-artifact retention → keep on disk for one scan cycle, do not commit, add to `.gitignore`
+        5. `.gitignore` update strategy → add `results-snyk-*.sarif` and `results-snyk-*.json` patterns (decision-of-record on whether this requires a repo modification — see §0.5.4)
+        6. Normalizer language choice → Python 3 over jq/bash (Python's `json` stdlib provides byte-exact minification and UTF-8 control; jq is a viable alternative but harder to test)
+        7. Executive deck slide budget → 16 slides (mid-range of the 12–18 envelope)
+        8. CWE extraction priority in SAST → `properties.cwe[0]` over `properties.tags` scan
+        9. Path-relativity strategy → `os.path.relpath(uri, repo_root)`, with fallback to raw `uri` if relpath crosses filesystem boundaries
+        10. Exit-code interpretation → 0/1 = success, ≥ 2 = abort
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `protocols/schema/validator.go` | E-020: JSON Schema draft-07 validation (required, regex, nested objects, enum, types) |
-| CREATE | `protocols/schema/common_schema.go` | E-020: Common JSON Schema applied to all events from connected sources |
-| CREATE | `protocols/schema/*_test.go` | E-020: Schema validation tests |
-| CREATE | `processor/anomalydetection/detector.go` | E-021: Anomaly detection for unexpected events/properties not in tracking plan |
-| CREATE | `processor/anomalydetection/tracker.go` | E-021: Event/property tracking with configurable time windows |
-| CREATE | `processor/anomalydetection/*_test.go` | E-021: Anomaly detection tests |
-| CREATE | `processor/enforcement/modes.go` | E-022: Block Event, Omit Properties, Allow — configurable per source per call type |
-| CREATE | `processor/enforcement/forwarder.go` | E-023: Server-to-server forwarding of blocked events to alternative source |
-| CREATE | `processor/enforcement/*_test.go` | E-022/E-023: Enforcement mode and forwarding tests |
-| CREATE | `protocols/api/handler.go` | E-024: Tracking plan CRUD API with versioning, CSV import/export |
-| CREATE | `protocols/api/routes.go` | E-024: HTTP route registration |
-| CREATE | `protocols/storage/repository.go` | E-024: Tracking plan persistence with version history |
-| CREATE | `protocols/api/*_test.go` | E-024: API tests |
-| CREATE | `sql/migrations/protocols/*.sql` | E-024: Migrations for tracking plan and version tables |
-| MODIFY | `processor/trackingplan.go` | E-020/E-022: Replace Transformer-delegated validation with local JSON Schema, add enforcement modes |
-| MODIFY | `processor/consent.go` | E-025: Connect consent filtering with Protocols enforcement decisions |
-| MODIFY | `backend-config/types.go` | E-022/E-024: Add enforcement mode fields, tracking plan config |
-| MODIFY | `gateway/handle_http.go` | E-024: Mount Protocols management API endpoints |
-| MODIFY | `gateway/openapi.yaml` | E-024: Add Protocols API endpoint schemas |
-| MODIFY | `config/config.yaml` | E-020–E-025: Add Protocols configuration keys |
+- **`blitzy-deck/index.html`** — new `blitzy-deck/` directory
+    - Content type: HTML 5 — single self-contained reveal.js 5.1.0 presentation
+    - Dependencies: reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0 — all via CDN with pinned version numbers
+    - Inline `<style>` tag carrying the canonical Blitzy theme variables (`--blitzy-primary`, `--blitzy-primary-dark`, etc.)
+    - Slide count: 16 `<section>` elements; each contains at least one non-text visual element
+    - Mermaid initialization: `startOnLoad: false`, `mermaid.run()` called on reveal.js `ready` and `slidechanged`
+    - Lucide initialization: `lucide.createIcons()` called on `ready` and `slidechanged`
 
-**Group 4 — Sprint 6–8: Identity Resolution and Profiles (E-026 to E-030)**
+- **`blitzy-deck/README.md`** — new `blitzy-deck/` directory
+    - One-page operator note: how to open the deck (no build step), expected viewing dimensions (1920×1080), and the slide-ordering convention
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `identity/graph/graph.go` | E-026: Real-time identity graph service with persistent graph store |
-| CREATE | `identity/graph/resolver.go` | E-026: Identity resolution engine (new/single/multi-match strategies) |
-| CREATE | `identity/graph/externalids.go` | E-028: External ID management (12+ types: user_id, email, anonymous_id, ios.id, android.id, etc.) |
-| CREATE | `identity/graph/*_test.go` | E-026/E-028: Graph and resolver tests |
-| CREATE | `identity/profiles/api.go` | E-027: Profiles REST API (traits, events, external_ids, metadata) with sub-200ms response |
-| CREATE | `identity/profiles/cache.go` | E-027: Redis-backed profile cache |
-| CREATE | `identity/profiles/*_test.go` | E-027: Profiles API tests |
-| CREATE | `identity/sync/syncer.go` | E-029: Profile sync to downstream destinations via change-data-capture |
-| CREATE | `identity/sync/*_test.go` | E-029: Sync tests |
-| CREATE | `identity/settings/settings.go` | E-030: Configurable resolution: blocked values (regex/exact), limits (weekly/monthly/annually/ever), priority |
-| CREATE | `identity/settings/*_test.go` | E-030: Settings tests |
-| CREATE | `identity/storage/repository.go` | E-026: PostgreSQL persistence for identity graph |
-| CREATE | `sql/migrations/identity/*.sql` | E-026: Migrations for identity graph tables |
-| CREATE | `proto/identity/*.proto` | E-027: gRPC service definitions for Profiles API |
-| MODIFY | `warehouse/identity/identity.go` | E-026: Refactor to share resolution logic with real-time graph |
-| MODIFY | `processor/processor.go` | E-026: Hook identity resolution into event processing pipeline |
-| MODIFY | `backend-config/types.go` | E-030: Add identity resolution settings schema |
-| MODIFY | `main.go` | E-026: Wire Identity service into startup |
-| MODIFY | `gateway/handle_http.go` | E-027: Mount Profiles API endpoints |
-| MODIFY | `gateway/openapi.yaml` | E-027: Add Profiles API schemas |
-| MODIFY | `docker-compose.yml` | E-027: Add Redis service for profile caching |
-| MODIFY | `config/config.yaml` | E-026–E-030: Add Identity configuration keys |
+### 0.5.3 Files NOT Modified
 
-**Group 5 — Sprint 8–10: Operational Tooling and Monitoring (E-036 to E-039)**
+- No `*.go` source file is modified.
+- No `go.mod` or `go.sum` change is made. (Snyk may recommend version bumps; that's a follow-up, not part of this task.)
+- No CI workflow (`.github/workflows/*`) is modified.
+- The existing `.snyk` policy is NOT modified, even though its five ignore rules have expired. Re-issuing or removing expired rules is out of scope; the scans will run against the current policy.
+- No `Dockerfile`, `docker-compose.yml`, `Makefile`, `README.md`, `SECURITY.md`, `.deepsource.toml`, `.golangci.yml`, or `codecov.yml` change.
 
-| Action | File | Purpose |
-|---|---|---|
-| CREATE | `services/monitoring/dashboard.go` | E-036: Per-destination delivery metrics (success/failure, latency p50/p95/p99, throughput, retries, circuit breaker) |
-| CREATE | `services/monitoring/metrics.go` | E-036: Prometheus metric definitions and registration |
-| CREATE | `services/monitoring/*_test.go` | E-036: Monitoring tests |
-| CREATE | `services/alerting/engine.go` | E-037: Alerting rules engine (throughput drop, error spike, delivery failures, warehouse latency, JobsDB queue depth) |
-| CREATE | `services/alerting/channels.go` | E-037: Notification channels — webhook, email, Slack |
-| CREATE | `services/alerting/rules.go` | E-037: Alert rule definitions and threshold evaluation |
-| CREATE | `services/alerting/*_test.go` | E-037: Alerting tests |
-| CREATE | `gateway/handle_http_replay_advanced.go` | E-038: Advanced replay filters — source-level, date-range, destination-level, dry-run |
-| CREATE | `services/profiling/profiler.go` | E-039: Per-stage pipeline performance profiling (Gateway → Processor stages → Router → Warehouse) |
-| CREATE | `services/profiling/capacity.go` | E-039: Capacity planning report generator targeting 50K events/sec |
-| CREATE | `services/profiling/*_test.go` | E-039: Profiling and capacity tests |
-| MODIFY | `router/handle.go` | E-036: Add delivery metrics instrumentation |
-| MODIFY | `router/handle_observability.go` | E-036: Extend with dashboard metric collection |
-| MODIFY | `gateway/handle_http_replay.go` | E-038: Integrate advanced filter parameters |
-| MODIFY | `gateway/handle_http.go` | E-036/E-038: Mount monitoring API and advanced replay endpoints |
-| MODIFY | `services/alert/alertmanager.go` | E-037: Extend alert provider selection with Slack/email |
-| MODIFY | `archiver/archiver.go` | E-038: Support source/date-range filtering for advanced replay |
-| MODIFY | `config/config.yaml` | E-036–E-039: Add monitoring, alerting, and profiling configuration keys |
+### 0.5.4 `.gitignore` Decision
 
-### 0.5.2 Implementation Approach per File
+The two transient artifacts `results-snyk-code.sarif` and `results-snyk-deps.json` SHOULD NOT be committed. Two options were considered:
 
-- **Establish feature foundations** by creating core packages first: `functions/runtime/`, `protocols/schema/`, `identity/graph/`, `services/monitoring/` — each providing the foundational types and interfaces
-- **Integrate with existing systems** by modifying integration points: `processor/pipeline_worker.go` for Insert Functions, `processor/trackingplan.go` for enforcement modes, `gateway/handle_http.go` for new endpoints
-- **Follow existing patterns**: All new stream producers follow the `common.StreamProducer` interface pattern; all REST APIs use `chi/v5` routing; all tests use Ginkgo/Gomega or testify/require; all metrics use `rudder-go-kit/stats`
-- **Ensure quality** by implementing comprehensive tests alongside each feature: unit tests with gomock for interfaces, integration tests with dockertest for PostgreSQL-dependent features
-- **Document thoroughly**: Update `gateway/openapi.yaml` for all new endpoints, update `config/config.yaml` with configuration documentation, create dedicated feature documentation in `docs/`
+- **Option A — Add patterns to `.gitignore`** (`results-snyk-*.sarif` and `results-snyk-*.json`). This modifies one tracked file but provides durable protection for future scan runs.
+- **Option B — Record-only entry in DECISIONS.md** stating that operators must not commit these files. Adds no repo modification.
 
-### 0.5.3 User Interface Design
+**Decision**: Option A. The pattern is generic across all "Config X" sibling configurations and is low-risk. This adds `.gitignore` to the UPDATE column for this one line addition. The decision is recorded in `DECISIONS.md`.
 
-This implementation is a **backend-only** server-side feature set. No frontend UI components are required. All new capabilities are exposed via:
+| Target File | Transformation | Source File / Reference | Purpose / Changes |
+|-------------|----------------|-------------------------|-------------------|
+| `.gitignore` | UPDATE | [configs_175ab0/.gitignore] | Append two ignore patterns: `results-snyk-*.sarif` and `results-snyk-*.json` to prevent transient Snyk artifacts from being committed |
 
-- **REST APIs**: Functions management API, Protocols management API, Profiles API, monitoring dashboard API, advanced replay API — all served by the Gateway HTTP server on port 8080
-- **gRPC APIs**: Profiles API for high-performance inter-service communication
-- **Prometheus metrics**: Per-destination delivery metrics, pipeline performance metrics — scraped by external Prometheus instances
-- **Configuration**: All features are configurable via `config/config.yaml` and backend-config runtime configuration
+### 0.5.5 Cross-File Dependencies
+
+- `scripts/normalize-snyk-findings.py` reads `results-snyk-code.sarif` and `results-snyk-deps.json`, writes `findings-config-h.json`.
+- `blitzy-deck/index.html` embeds its theme and references no local files; it is self-contained.
+- `DECISIONS.md` references no other file but enumerates every decision relevant to the deliverables.
+- No import-path updates are required anywhere in the repository, because no Go source or dependency manifest is touched.
+
+### 0.5.6 Final New-File Count
+
+The user input estimated `~0 files modified | 1 new file`. The rule-driven reality is:
+
+| Category | Files | Driver |
+|----------|-------|--------|
+| User-directed | `findings-config-h.json` | Critical Directive 4 |
+| Implementation support | `scripts/normalize-snyk-findings.py` | Required to satisfy Critical Directive 4 deterministically |
+| Explainability rule | `DECISIONS.md` | Rule mandate |
+| Executive Presentation rule | `blitzy-deck/index.html`, `blitzy-deck/README.md` | Rule mandate |
+| Modified | `.gitignore` (2 added patterns) | Decision-log entry on transient-artifact hygiene |
+| **Total new files** | **5** | |
+| **Total modified files** | **1** | |
 
 ## 0.6 Scope Boundaries
 
 ### 0.6.1 Exhaustively In Scope
 
-**Sprint 3–5: Destination Connector Expansion (E-010 to E-014)**
-- Destination prioritization analysis: `docs/gap-report/destination-priority-ranking.md`
-- All new stream destination producers: `services/streammanager/*/manager.go`
-- Stream producer factory registration: `services/streammanager/streammanager.go`
-- Custom destination manager updates: `router/customdestinationmanager/customdestinationmanager.go`
-- Payload parity validation for all ~93 shared connectors: `integration_test/destination_parity/**/*_test.go`
-- Payload reference fixtures: `router/testdata/destination_payloads/**/*.json`
-- Test suites: `services/streammanager/**/*_test.go`
+- **Snyk CLI installation**
+    - Installation command: `npm install -g snyk` (primary path)
+    - Alternative noted: `apt install snyk` (documented in DECISIONS.md as the not-taken option)
+    - Authentication via `SNYK_TOKEN` env var; validation via `snyk auth check` and `snyk --version`
+- **Snyk Code SAST scan**
+    - Command (verbatim user spec): `snyk code test --sarif-file-output=results-snyk-code.sarif /path/to/blitzy-RudderStack`
+    - Working artifact produced: `results-snyk-code.sarif`
+    - Captured: exit code, wall-clock duration
+    - Scan target: entire repository working tree
+- **Snyk dependency scan**
+    - Command (verbatim user spec): `snyk test --json > results-snyk-deps.json /path/to/blitzy-RudderStack`
+    - Working artifact produced: `results-snyk-deps.json`
+    - Captured: exit code, wall-clock duration
+    - Scan target: the Go module rooted at `go.mod`
+- **Normalization and merge** to single-line minified JSON
+    - Target file: `findings-config-h.json` (UTF-8, no trailing newline, single line)
+    - Field schema (verbatim user spec): `file`, `line`, `severity`, `cwe`, `description`
+    - Severity mapping per user table
+    - CWE/CVE fallback per user spec (verbatim: "CVE ID; use CWE mapping if available")
+    - 200-character cap inclusive of `[snyk-code] ` / `[snyk-deps] ` prefix
+    - Empty-results state: literal `[]`
+- **Decision log** (`DECISIONS.md`) per Explainability rule
+- **Executive deck** (`blitzy-deck/index.html` + `blitzy-deck/README.md`) per Executive Presentation rule
+- **`.gitignore` patch** adding two patterns for transient Snyk artifacts (`results-snyk-*.sarif`, `results-snyk-*.json`)
+- **Normalizer implementation** (`scripts/normalize-snyk-findings.py`) — Python 3 stdlib-only
 
-**Sprint 4–6: Transformation and Functions Framework (E-015 to E-019)**
-- Functions runtime engine: `functions/runtime/**/*.go`
-- Functions management API: `functions/api/**/*.go`
-- Functions storage layer: `functions/storage/**/*.go`
-- Functions secrets management: `functions/secrets/**/*.go`
-- Source Functions Gateway endpoint: `gateway/handle_http_functions.go`
-- Pipeline integration: `processor/pipeline_worker.go`, `processor/processor.go`
-- Transformer client extension: `processor/transformer/clients.go`
-- Database migrations: `sql/migrations/functions/**/*.sql`
-- Gateway auth: `gateway/handle_http_auth.go`
-- Gateway routing: `gateway/handle_http.go`
-- Server startup wiring: `main.go`
-- API documentation: `gateway/openapi.yaml`
-- Configuration: `config/config.yaml`
-- All associated test files: `functions/**/*_test.go`, `integration_test/functions/**/*_test.go`
+File-pattern coverage of in-scope items:
 
-**Sprint 5–7: Protocols and Tracking Plan Enforcement (E-020 to E-025)**
-- JSON Schema validation: `protocols/schema/**/*.go`
-- Anomaly detection: `processor/anomalydetection/**/*.go`
-- Enforcement modes: `processor/enforcement/**/*.go`
-- Tracking plan management API: `protocols/api/**/*.go`
-- Tracking plan storage: `protocols/storage/**/*.go`
-- Tracking plan validation refactor: `processor/trackingplan.go`
-- Consent integration: `processor/consent.go`
-- Backend config types: `backend-config/types.go`
-- Database migrations: `sql/migrations/protocols/**/*.sql`
-- Gateway routing: `gateway/handle_http.go`
-- API documentation: `gateway/openapi.yaml`
-- Configuration: `config/config.yaml`
-- All associated test files: `protocols/**/*_test.go`, `processor/anomalydetection/**/*_test.go`, `processor/enforcement/**/*_test.go`
-
-**Sprint 6–8: Identity Resolution and Profiles (E-026 to E-030)**
-- Identity graph service: `identity/graph/**/*.go`
-- Profiles API: `identity/profiles/**/*.go`
-- Profile sync: `identity/sync/**/*.go`
-- Resolution settings: `identity/settings/**/*.go`
-- Identity storage: `identity/storage/**/*.go`
-- Proto definitions: `proto/identity/**/*.proto`
-- Warehouse identity refactor: `warehouse/identity/identity.go`
-- Processor integration: `processor/processor.go`
-- Backend config types: `backend-config/types.go`
-- Database migrations: `sql/migrations/identity/**/*.sql`
-- Docker compose: `docker-compose.yml` (Redis service)
-- Server startup wiring: `main.go`
-- Gateway routing: `gateway/handle_http.go`
-- API documentation: `gateway/openapi.yaml`
-- Configuration: `config/config.yaml`
-- All associated test files: `identity/**/*_test.go`, `integration_test/identity/**/*_test.go`
-
-**Sprint 8–10: Operational Tooling and Monitoring (E-036 to E-039)**
-- Monitoring dashboard: `services/monitoring/**/*.go`
-- Alerting engine: `services/alerting/**/*.go`
-- Profiling tools: `services/profiling/**/*.go`
-- Advanced replay: `gateway/handle_http_replay_advanced.go`, `gateway/handle_http_replay.go`
-- Router observability: `router/handle.go`, `router/handle_observability.go`
-- Alert system extension: `services/alert/alertmanager.go`
-- Archiver integration: `archiver/archiver.go`
-- Gateway routing: `gateway/handle_http.go`
-- Configuration: `config/config.yaml`
-- All associated test files: `services/monitoring/**/*_test.go`, `services/alerting/**/*_test.go`, `services/profiling/**/*_test.go`
-
-**Cross-Cutting:**
-- Build configuration: `go.mod`, `go.sum`
-- Docker configuration: `Dockerfile`, `docker-compose.yml`
-- CI/CD pipelines: `.github/workflows/tests.yaml`
-- Build targets: `Makefile`
+- New files: `findings-config-h.json`, `scripts/normalize-snyk-findings.py`, `DECISIONS.md`, `blitzy-deck/index.html`, `blitzy-deck/README.md`
+- Modified files: `.gitignore`
+- Read-only references: `go.mod`, `go.sum`, `.snyk`, all `**/*.go` source files
 
 ### 0.6.2 Explicitly Out of Scope
 
-- **Segment Engage / Campaigns** — Audience building, journey orchestration, and campaign management are explicitly deferred to Phase 2 per the sprint roadmap. These features depend on Identity Resolution (Phase 1) and Profiles API (E-027) being completed first.
-- **Reverse ETL** — Warehouse-to-destination sync pipelines with incremental change detection are deferred to Phase 2. Depends on warehouse connectors (Sprint 7–9, already completed) and destination connector expansion (Sprint 3–5).
-- **Advanced Personalization** — Real-time audience membership for personalization engines is deferred to Phase 2. Depends on Profiles API (E-027) and computed traits.
-- **Computed Traits and SQL Traits** — While mentioned in the identity parity analysis, these are not explicitly included in E-026 through E-030. The Profiles API (E-027) provides the foundation, but trait computation engine is Phase 2.
-- **Sprint 1–2: Event Spec Parity (E-001 to E-004)** — Already at 100% parity; not in the user's requested sprint list.
-- **Sprint 2–3: Source SDK Compatibility (E-005 to E-009)** — Not in the user's requested sprint list.
-- **Sprint 7–9: Warehouse Feature Enhancement (E-031 to E-035)** — Marked as COMPLETED in the sprint roadmap with ~95% parity achieved.
-- **Device-mode destination support** — Client-side SDK integration framework is an SDK-level concern, not a `rudder-server` concern.
-- **Actions-based destination architecture** — The newer Segment pattern with configurable field mappings is identified as a gap (DC-002) but not included in any sprint epic.
-- **Destination catalog API** — Programmatic destination management (DC-005) is not in scope.
-- **Functions Copilot (AI-assisted)** — AI-powered function generation (FN-011) is Low priority and not included.
-- **IP Allowlisting for functions** — NAT gateway for outbound traffic (FN-012) is not included.
-- **Performance optimization of existing code** beyond what is required for feature integration.
-- **Refactoring of existing unrelated code** that does not touch integration points.
+- **Fixing the underlying vulnerabilities** — this task produces a findings inventory, not remediations. Updating vulnerable dependencies, patching code, or adding new `replace` directives to `go.mod` is explicitly out of scope.
+- **Modifying `.snyk`** — the policy file's five ignore rules have all expired on `2025-01-01T00:00:00.000Z` [configs_175ab0/.snyk]. Re-issuing, removing, or updating these rules is out of scope; the scans run against the current policy as-is.
+- **Adding Snyk to CI/CD** — `.github/workflows/*` files are NOT modified. No GitHub Action, no GitLab pipeline step, no Jenkins job is added. This is a one-shot scan for the multi-config comparison.
+- **Other Snyk scan types** — only `snyk code test` (SAST) and `snyk test` (Open Source / deps) are in scope. The following are explicitly excluded:
+    - `snyk container test` — no container image scan
+    - `snyk iac test` — no Infrastructure-as-Code scan (despite `Dockerfile` and `docker-compose.yml` being present)
+    - `snyk monitor` — no result upload to the Snyk UI
+    - `snyk sbom` — no SBOM generation
+    - `snyk aibom` — no AI BOM generation
+- **Comparison with sibling configs A–G (and any beyond H)** — this AAP delivers Config H only. Cross-config aggregation, comparison narratives, ranking, or selection of a "winner" are out of scope. The naming convention `findings-config-h.json` exists so a downstream comparator can ingest sibling files, but that comparator is not built here.
+- **Snyk org configuration** — creating the Snyk organization, projects, service accounts, or API tokens is out of scope. The `SNYK_TOKEN` is consumed, not provisioned, by this task.
+- **Refactoring `scripts/`** — the normalizer is added to the existing `scripts/` directory but no other script in that directory is touched.
+- **Modifying `refs/segment-docs/*`** — this subtree is third-party reference documentation [configs_175ab0/refs/segment-docs/]. It is not the primary Snyk scan target and is NOT modified.
+- **Performance optimizations** — no caching of `results-snyk-*` between runs, no parallelization of SAST and deps scans (although the diagram in §0.4.1 shows them as independent, the execution model is sequential to simplify exit-code handling).
+- **Additional documentation** — no updates to `README.md`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, or `blitzy-docs/` are part of this task. Only `DECISIONS.md` (rule-mandated) and `blitzy-deck/` (rule-mandated) are added.
+- **Future enhancements** not part of the user request: alternative output formats (SARIF, CSV), severity thresholds / gating, alerting integrations, dashboard generation beyond the executive deck.
 
-## 0.7 Rules for Feature Addition
+### 0.6.3 Scope Decision Matrix
 
-### 0.7.1 Sequential Sprint Execution
+| Concern | In/Out | Driver |
+|---------|--------|--------|
+| Run SAST scan | IN | Critical Directive 2 |
+| Run dependency scan | IN | Critical Directive 3 |
+| Produce `findings-config-h.json` | IN | Critical Directive 4 |
+| Produce `DECISIONS.md` | IN | Explainability rule |
+| Produce reveal.js deck | IN | Executive Presentation rule |
+| Update `.gitignore` for transient artifacts | IN | Decision-log entry (hygiene) |
+| Fix Snyk findings | OUT | No directive |
+| Modify `.snyk` ignore rules | OUT | No directive; current policy preserved |
+| Add Snyk to CI | OUT | One-shot comparison context |
+| Run `snyk container test` | OUT | Directive 2 limits to `snyk code test` |
+| Run `snyk iac test` | OUT | Directive 2 limits to `snyk code test` |
+| Run `snyk monitor` | OUT | No directive |
+| Cross-config comparison | OUT | Downstream comparator's responsibility |
+| Provision `SNYK_TOKEN` | OUT | External prerequisite |
 
-- Implement sprints in strict order: Sprint 3–5 → Sprint 4–6 → Sprint 5–7 → Sprint 6–8 → Sprint 8–10
-- Complete each sprint fully before starting the next — this means all epics within a sprint must pass their success criteria
-- Run all tests (`make test` or `gotestsum --format pkgname-and-test-fails -- -p=1 -v -failfast -shuffle=on --timeout=15m`) after completing each sprint
-- Fix all CI failures resolvable through code changes; skip failures caused by missing repository secrets (AWS ECR credentials)
+## 0.7 Dependency Inventory
 
-### 0.7.2 Exhaustive Scope Coverage
+### 0.7.1 Tooling Required on the Execution Host
 
-- For every epic, implement ALL items listed in scope — do not skip any variant, endpoint, or sub-case mentioned in the epic description
-- E-011 requires implementing 20 highest-priority cloud destination connectors — all 20 must be implemented
-- E-012 requires implementing the next 20 priority connectors — all 20 must be implemented
-- E-016 requires all 8 typed event handlers: `onTrack`, `onIdentify`, `onGroup`, `onPage`, `onScreen`, `onAlias`, `onDelete`, `onBatch`
-- E-020 requires full JSON Schema draft-07 support including ALL specified types: any, array, object, boolean, integer, number, string, null, Date time
-- E-028 requires support for ALL 12+ external identifier types listed in the Segment documentation
+The scans, normalization, and deck rendering depend on the following host-side tooling. None of these are added to the application's dependency manifests (`go.mod`, `package.json`, etc.) — they live on the execution host only.
 
-### 0.7.3 Design-Only Epics
+| Registry | Package / Tool | Version | Status on host | Purpose |
+|----------|----------------|---------|----------------|---------|
+| npm | `snyk` | `1.1304.3` (latest stable channel at execution time) | Not installed — must run `npm install -g snyk` | Snyk CLI binary wrapper; provides `snyk code test` (SAST) and `snyk test` (Open Source) |
+| OS / Node.js distribution | `node` | `v22.22.2` | Installed | Runtime for the `snyk` npm package and binary wrapper (Snyk requires Node 12+) |
+| OS / Node.js distribution | `npm` | `11.1.0` | Installed | Installs the `snyk` global package (Snyk requires npm 7+) |
+| OS / Python | `python3` | 3.11+ (host default) | Installed | Runs `scripts/normalize-snyk-findings.py` (stdlib-only, no `pip` deps) |
+| OS / coreutils | `wc`, `cat`, `find`, `grep` | bundled | Installed | Verification commands (`cat findings-config-h.json | wc -l`) |
+| Web browser | Any modern Chromium / Firefox / Safari | Latest | Operator-side | Renders `blitzy-deck/index.html` |
+| CDN (jsdelivr / unpkg) | `reveal.js` | `5.1.0` | Loaded at deck open-time | Executive deck rendering library — version pinned per Executive Presentation rule |
+| CDN (jsdelivr / unpkg) | `mermaid` | `11.4.0` | Loaded at deck open-time | Renders Mermaid diagrams in the executive deck — version pinned per rule |
+| CDN (jsdelivr / unpkg) | `lucide` | `0.460.0` | Loaded at deck open-time | Renders SVG icons in the executive deck — version pinned per rule |
+| Google Fonts | `Inter`, `Space Grotesk`, `Fira Code` | n/a (font weights 400/500/600/700) | Loaded at deck open-time via `<link>` | Typography per Blitzy brand identity |
 
-- For epics marked "Design and prototype," deliver a design document and a minimal proof-of-concept only — do not implement production-grade service code
-- None of the epics in the five requested sprints are explicitly marked as design-only, but if any implementation reveals a need for design-first approach, document the design decision and provide a minimal PoC
+### 0.7.2 Application Dependencies — No Changes
 
-### 0.7.4 Existing Pattern Compliance
+The `blitzy-RudderStack` Go application's dependency manifests are NOT modified:
 
-- **Stream producers** must implement the `common.StreamProducer` interface from `services/streammanager/common/` and register via the `NewProducer` factory in `services/streammanager/streammanager.go`
-- **REST APIs** must use the `go-chi/chi/v5` router framework consistent with Gateway patterns in `gateway/handle_http.go`
-- **Configuration** must use `rudder-go-kit/config` reloadable variables following the pattern in `router/config.go`
-- **Logging** must use `rudder-go-kit/logger` with scoped child loggers (`logger.NewLogger().Child("package-name")`)
-- **Metrics** must use `rudder-go-kit/stats` tagged measurements following patterns in `processor/trackingplan.go`
-- **Tests** must use Ginkgo/Gomega for BDD integration tests or testify/require for unit tests, with gomock for interface mocking
-- **Database access** must use the existing PostgreSQL middleware pattern from `warehouse/identity/identity.go`
-- **Error handling** must follow Go convention with explicit error returns and structured logging via `obskit` labels
+- `go.mod` — unchanged. The existing `replace` block, marked "Addressing snyk vulnerabilities in indirect dependencies" [configs_175ab0/go.mod:L5], remains as-is.
+- `go.sum` — unchanged.
+- `refs/segment-docs/package.json` — unchanged. (Reference-docs subtree, not a primary scan target.)
 
-### 0.7.5 Docker and Infrastructure
+There are **no** dependencies to add, update, or remove in the application's manifests as part of this task. The scans operate against the manifest content; remediation of any findings they surface is explicitly out of scope (§0.6.2).
 
-- If any step requires Docker, start it first using `docker compose up -d` for required services (PostgreSQL, Transformer)
-- The `docker-compose.yml` defines: PostgreSQL (port 6432→5432), Transformer (port 9090), MinIO (ports 9000/9001, storage profile), etcd (port 2379, multi-tenant profile)
-- Integration tests may require `rudderlabs/compose-test` helpers for containerized dependencies
+### 0.7.3 Dependency Update Inventory
 
-### 0.7.6 Backward Compatibility
+- New application dependencies to add: **None**
+- Application dependencies to update: **None**
+- Application dependencies to remove: **None**
+- Import / reference updates required in `**/*.go`: **None**
 
-- All changes must maintain backward compatibility with the existing pipeline: the Processor's 6-stage pipeline, Router delivery, Batch Router, and Warehouse upload state machine must continue functioning for all currently supported destinations
-- New pipeline stages (Insert Functions) must be no-op when no Insert Functions are configured
-- Enhanced tracking plan enforcement must default to existing behavior (`propagateValidationErrors` equivalent) when advanced enforcement modes are not configured
-- The identity graph service must coexist with the existing warehouse identity resolution without disrupting current warehouse uploads
+### 0.7.4 Runtime / Operational Dependencies
 
-### 0.7.7 Security Requirements
+- **Network egress** — Snyk has no offline mode. The execution host MUST reach `https://snyk.io` and `https://downloads.snyk.io` (or `https://static.snyk.io/cli` for the binary wrapper download) during installation and during scan time. Firewall / proxy configuration is an operational prerequisite, not an AAP deliverable.
+- **`SNYK_TOKEN`** — a valid Snyk API token MUST be present in the environment. The execution host's secrets list is empty (per user-provided inputs); the token MUST be supplied at runtime by the operator. Without it, the scans cannot proceed past Critical Directive 1.
+- **CDN reachability** — viewing `blitzy-deck/index.html` requires the browser to reach the pinned CDN URLs at first open (subsequent loads can use browser cache). The deck is self-contained in HTML but pulls reveal.js / Mermaid / Lucide at runtime — this matches the rule's "no build step, no local file dependencies" requirement.
 
-- Per-function secrets (E-019) must be encrypted at rest using the existing security patterns in the repository
-- Functions runtime (E-015, E-016, E-017) must execute user-defined JavaScript in a sandboxed environment preventing access to server internals
-- Identity resolution settings (E-030) must enforce blocked values to prevent merge-all scenarios that could corrupt the identity graph
-- API endpoints must enforce authentication consistent with existing Gateway auth middleware
+### 0.7.5 Version Selection Rationale
 
-## 0.8 References
+- **`snyk` version → latest stable channel** — Snyk maintains release channels (stable, preview); the default `npm install -g snyk` installs the latest stable. Pinning to a specific version is not required by the user and would risk staleness against the Snyk vulnerability database. Decision recorded in `DECISIONS.md`.
+- **`node` / `npm` versions → existing host versions** — v22.22.2 / v11.1.0 are well above Snyk's stated minimums of 12+ / 7+. No host upgrade is needed.
+- **`python3` version → existing host default** — the normalizer uses only `json`, `os`, `sys`, `pathlib`, `re` from stdlib, which are stable since 3.6. Any host Python ≥ 3.8 is sufficient.
+- **CDN library versions → pinned per Executive Presentation rule** — reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0. These are NOT optional; the rule explicitly enumerates them.
 
-### 0.8.1 Documentation Files Searched
+## 0.8 Rules and Special Instructions
 
-The following documentation files were read in full to derive the requirements and technical context for this Agent Action Plan:
+### 0.8.1 User-Specified Rules (Verbatim)
 
-| File | Summary |
-|---|---|
-| `docs/gap-report/sprint-roadmap.md` | Master sprint roadmap defining all 39 epics (E-001 to E-039) across 8 sprint groups, with effort estimates, dependencies, success criteria, and parity progression forecasts. Identifies Sprint 7–9 (Warehouse) as COMPLETED. |
-| `docs/gap-report/destination-catalog-parity.md` | Comprehensive destination catalog gap analysis: RudderStack covers ~93 of Segment's ~503 active destinations (~23% raw coverage). Documents 13 stream destinations, 9 warehouse connectors, ~70 cloud destinations. Lists P1/P2/P3 missing destinations and payload parity comparison framework. |
-| `docs/gap-report/functions-parity.md` | Functions/Transformations parity analysis (~40% parity). Documents the architectural difference between RudderStack's batch-oriented Transformer service and Segment's per-event Lambda-based Functions runtime. Identifies 12 gaps (FN-001 through FN-012) including missing Source Functions, Destination Functions, Insert Functions, and management API. |
-| `docs/gap-report/protocols-parity.md` | Protocols/Tracking Plan parity analysis (~30% parity). Documents current tracking plan validation via external Transformer, consent management (85% parity), and 12 gaps (PR-001 through PR-012) including missing anomaly detection, enforcement modes, management API, and forward-blocked-events. |
-| `docs/gap-report/identity-parity.md` | Identity Resolution parity analysis (~20% parity — the largest gap area). Documents the fundamental architectural gap between RudderStack's batch-only warehouse identity resolution and Segment Unify's real-time identity graph. Identifies 12 gaps (ID-001 through ID-012) with the real-time identity graph as the critical foundation. |
+Two project rules accompany this task. Both are preserved verbatim because the rule text is itself the acceptance criterion for the rule-mandated deliverables.
 
-### 0.8.2 Codebase Files and Folders Searched
+**Rule 1 — Explainability** (verbatim from project rules):
 
-The following repository files and folders were inspected to understand the existing architecture, integration points, and coding patterns:
+> Every non-trivial implementation decision MUST be documented with rationale. A decision is non-trivial if a competent engineer could reasonably have chosen differently.
+>
+> Deliver a decision log as a Markdown table: what was decided, what alternatives existed, why this choice was made, and what risks it carries. For migrations or refactors, include a bidirectional traceability matrix mapping source constructs to target implementations — 100% coverage, no gaps.
+>
+> Any deviation from a literal or obvious interpretation of the requirements MUST have an explicit entry in the decision log. Unexplained deviations are treated as defects.
+>
+> Do not embed rationale in code comments. The decision log is the single source of truth for "why" decisions.
 
-| Path | Type | Purpose of Inspection |
-|---|---|---|
-| Root (`""`) | Folder | Top-level repository structure — 40+ directories, Go monorepo layout |
-| `go.mod` | File | Module path, Go version (1.26.0), direct/indirect dependencies (200+ packages) |
-| `main.go` | File | Server entrypoint — startup lifecycle, signal handling |
-| `Makefile` | File | Build, test, lint targets — `make test` command structure |
-| `docker-compose.yml` | File | Local service stack — PostgreSQL 15, Transformer, MinIO, etcd |
-| `config/config.yaml` | File | Pipeline configuration parameters (200+ tunable keys) |
-| `services/streammanager/streammanager.go` | File | Stream producer factory — `NewProducer` switch for 13 destinations |
-| `services/streammanager/` | Folder | All stream destination producer packages and common interfaces |
-| `router/customdestinationmanager/customdestinationmanager.go` | File | Custom destination registry — `ObjectStreamDestinations` (13), `KVStoreDestinations` (1) |
-| `router/` | Folder | Routing subsystem — handle, worker, throttler, batch router, transformer proxy |
-| `processor/` | Folder | Processor subsystem — 6-stage pipeline, consent, tracking plan, event filter |
-| `processor/pipeline_worker.go` | File | Pipeline channels — preprocess, srcHydration, preTransform, userTransform, destTransform, store |
-| `processor/trackingplan.go` | File | Tracking plan validation — `TrackingPlanStatT`, `validateEvents()`, `reportViolations()` |
-| `processor/consent.go` | File | Consent management — OneTrust, Ketch, Generic CMP with OR/AND resolution |
-| `processor/transformer/clients.go` | File | Transformer client interfaces — User, Destination, TrackingPlan, SrcHydration |
-| `processor/internal/transformer/` | Folder | Internal transformer implementations — user_transformer, destination_transformer |
-| `gateway/` | Folder | HTTP ingestion surface — endpoints, auth, replay, webhook, throttler, validator |
-| `gateway/handle_http_replay.go` | File | Replay handler — `webReplayHandler()`, `withWarehouseReplayTag()` middleware |
-| `gateway/handle_http.go` | File | Endpoint mount and middleware — public endpoints |
-| `gateway/handle_http_auth.go` | File | Auth middleware — write-key, webhook, source-ID, replay, destination auth |
-| `gateway/openapi.yaml` | File | OpenAPI specification — current Gateway HTTP API |
-| `warehouse/` | Folder | Warehouse subsystem — router, integrations, identity, backfill, replay, health monitor |
-| `warehouse/identity/identity.go` | File | Identity resolution — `Identity` struct, `applyRule()`, `Resolve()`, merge rules model |
-| `backend-config/types.go` | File | Configuration schema — `SourceT`, `DestinationT`, `ConfigT`, tracking plan config |
-| `backend-config/backend-config.go` | File | Runtime config provider — workspace config, pubsub publication |
-| `backend-config/replay_types.go` | File | Replay configuration — `ApplyReplaySources` expansion |
-| `services/` | Folder | Service layer — 20 packages covering control plane, dedup, diagnostics, OAuth, alerts, etc. |
-| `services/alert/alertmanager.go` | File | Alert provider selection — PagerDuty, VictorOps |
-| `archiver/archiver.go` | File | Event archival — 10-day retention, gzipped JSONL |
-| `admin/admin.go` | File | RPC-over-HTTP admin interface — handler registration pattern |
-| `proto/` | Folder | Protobuf definitions — cluster, common auth, event schema, warehouse RPCs |
-| `.github/workflows/tests.yaml` | File | CI test workflow configuration |
-| `integration_test/` | Folder | End-to-end Docker-backed regression suites |
-| `router/throttler/` | Folder | GCRA-based destination throttling — factory, internal algorithms |
-| `Dockerfile` | File | Multi-stage container build |
+**Rule 2 — Executive Presentation** (verbatim from project rules, excerpted for the load-bearing constraints):
 
-### 0.8.3 Segment Reference Documentation
+> Every deliverable MUST include an executive summary as a single self-contained reveal.js HTML file that is ALWAYS included independent of any other documentation that exists.
+>
+> Slide constraints:
+> - 12–18 slides total (target: 16)
+> - Four slide types: Title (`slide-title`), Section Divider (`slide-divider`), Content (default), Closing (`slide-closing`)
+> - Every slide MUST include at least one non-text visual element (Mermaid diagram, KPI card, styled table, or Lucide SVG icon). No text-only slides.
+> - Content slides: max 4 bullets, max 40 words body text, min 1 non-text visual
+> - Zero emoji — use Lucide SVG icons via `<i data-lucide="icon-name"></i>` only
+> - No fenced code blocks inside slides — use inline Fira Code for short expressions only
+>
+> Technical delivery:
+> - Single self-contained HTML file, no build steps, no local file dependencies
+> - CDN versions pinned: reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0
+> - reveal.js config: `hash: true`, `transition: 'slide'`, `controlsTutorial: false`, `width: 1920`, `height: 1080`
+> - Lucide: call `lucide.createIcons()` after `ready` and on every `slidechanged` event
 
-The following Segment documentation directories (in `refs/segment-docs/`) provide the reference specifications for parity targets:
+The full visual identity, CSS variable set, and slide-ordering convention from the rule are honored by `blitzy-deck/index.html` (see §0.4.8 for the slide map and §0.5.2 for the file detail).
 
-| Path | Purpose |
-|---|---|
-| `refs/segment-docs/src/connections/destinations/catalog/` | 648 destination catalog entries — basis for destination gap count |
-| `refs/segment-docs/src/_data/catalog/destinations.yml` | 503 active destination metadata with categories and methods |
-| `refs/segment-docs/src/connections/functions/` | Functions documentation — Source Functions, Destination Functions, Insert Functions |
-| `refs/segment-docs/src/connections/functions/source-functions.md` | Source Functions spec — `onRequest()` handler, event creation API |
-| `refs/segment-docs/src/connections/functions/destination-functions.md` | Destination Functions spec — typed handlers, error types, `fetch()` |
-| `refs/segment-docs/src/connections/functions/insert-functions.md` | Insert Functions spec — pre-destination hooks, handler list |
-| `refs/segment-docs/src/protocols/` | Protocols documentation — tracking plans, enforcement, validation |
-| `refs/segment-docs/src/protocols/enforce/schema-configuration.md` | Enforcement modes — Block Event, Omit Properties, Allow |
-| `refs/segment-docs/src/protocols/tracking-plan/create.md` | Tracking Plan editor and schema inference |
-| `refs/segment-docs/src/unify/` | Unify documentation — identity resolution, profiles, data graph |
-| `refs/segment-docs/src/unify/identity-resolution/index.md` | Identity graph resolution flow — flat matching logic |
-| `refs/segment-docs/src/unify/identity-resolution/externalids.md` | External ID types — 12+ default identifiers |
-| `refs/segment-docs/src/unify/identity-resolution/identity-resolution-settings.md` | Resolution settings — blocked values, limits, priority |
-| `refs/segment-docs/src/unify/profile-api.md` | Profiles REST API — traits, events, external_ids endpoints |
+### 0.8.2 User-Specified Critical Directives (Verbatim)
 
-### 0.8.4 Tech Spec Sections Referenced
+The four critical directives from the user's input are preserved verbatim and enumerated for downstream reference:
 
-| Section | Content Retrieved |
-|---|---|
-| `1.4 Technology Stack Summary` | Core technology versions (Go 1.26.0, PostgreSQL 15, chi v5.2.5, gRPC v1.78.0), external service dependencies, bootstrap sequence |
+- **Directive 1** — Install and authenticate Snyk CLI
+    - Commands (verbatim): `npm install -g snyk` (or `apt install snyk`)
+    - Auth: set `SNYK_TOKEN` env var with a valid API token
+    - Pass/fail: `snyk auth check` confirms authentication; `snyk --version` returns a version string
+- **Directive 2** — Execute Snyk SAST scan
+    - Command (verbatim): `snyk code test --sarif-file-output=results-snyk-code.sarif /path/to/blitzy-RudderStack`
+    - Record: exit code, scan duration (wall-clock)
+    - Pass/fail: `results-snyk-code.sarif` is produced and contains valid JSON
+- **Directive 3** — Execute Snyk dependency scan
+    - Command (verbatim): `snyk test --json > results-snyk-deps.json /path/to/blitzy-RudderStack`
+    - Record: exit code, scan duration (wall-clock)
+    - Pass/fail: `results-snyk-deps.json` is produced and contains a vulnerabilities array
+- **Directive 4** — Normalize and merge findings to single-line JSON
+    - Output: `findings-config-h.json` (valid JSON, minified to one line, UTF-8 encoded)
+    - Empty-state: `[]`
+    - Field-mapping table (verbatim — see §0.2.3)
+    - Pass/fail: `cat findings-config-h.json | wc -l` returns `1`; valid JSON; every finding has all 5 fields populated; no description exceeds 200 characters
 
-### 0.8.5 User-Provided Attachments
+### 0.8.3 Decisions Requiring Explainability-Rule Documentation
 
-No file attachments were provided for this project. All requirements are derived from the user's prompt text and the in-repository documentation files listed above.
+The following non-trivial decisions trigger `DECISIONS.md` entries per the Explainability rule. A competent engineer could reasonably have chosen differently for each.
+
+| # | Decision Point | Chosen Path | Alternative Considered | Rationale (short) |
+|---|----------------|-------------|------------------------|-------------------|
+| 1 | Severity mapping for SARIF `level: none` | Map to `low` | Drop the record entirely | User spec covers `error/warning/note` only; `low` preserves the record for downstream comparators without distorting severity distribution |
+| 2 | CWE-vs-CVE fallback ordering for deps `cwe` field | Prefer `CWE-<n>` first; fall back to `CVE-<year>-<n>` | Prefer CVE first, augment with CWE | User wording is "CVE ID; use CWE mapping if available" — the chosen order matches parity with SAST `CWE-<n>` form and is documented as the deviation |
+| 3 | Description truncation strategy | Truncate after prefix concatenation; whitespace-normalize first | Truncate before prefix; preserve newlines | Newlines in JSON strings complicate single-line emission; prefix-inclusive truncation guarantees the 200-char cap is met |
+| 4 | Intermediate-artifact retention | Keep on disk for one scan cycle; add `.gitignore` patterns | Delete immediately after merge | Retention enables post-run audit and debugging; `.gitignore` patterns prevent accidental commit |
+| 5 | `.gitignore` update | Append `results-snyk-*.sarif` and `results-snyk-*.json` | Do not modify `.gitignore`; rely on operator hygiene | One-line change; durable across all Config X siblings; low risk |
+| 6 | Normalizer language | Python 3 (stdlib only) | `jq` + bash | Python provides byte-exact `json.dumps` minification, UTF-8 control, and testable units; `jq` is viable but harder to validate |
+| 7 | Executive deck slide budget | 16 slides (mid-range) | 12 (minimum) or 18 (maximum) | 16 matches the rule's explicit target; gives one slide per major concept without padding |
+| 8 | SAST CWE extraction priority | `rule.properties.cwe[0]` then `properties.tags` scan | Scan tags first | `properties.cwe` is the canonical typed field; `tags` is a string-bag fallback |
+| 9 | Path-relativity strategy | `os.path.relpath(uri, repo_root)`; fall back to raw `uri` if cross-filesystem | Naive prefix-strip | Relpath is robust to symlinks and absolute/relative input mix |
+| 10 | Exit-code interpretation | `0` or `1` = success (proceed to merge); `≥ 2` = abort | Treat any non-zero as fatal | Snyk uses `1` to mean "vulnerabilities found", which is the expected outcome — not an error |
+| 11 | `apt install snyk` not chosen | Use `npm install -g snyk` | `apt install snyk` (user-listed alt) | npm distribution is the canonical Snyk channel and the host already has Node/npm |
+| 12 | No upload to Snyk UI (`snyk monitor`) | Skipped | Add `snyk monitor` after each scan | Out of scope per §0.6.2; would persist findings to the Snyk org which is not part of the comparison protocol |
+| 13 | `.snyk` policy preserved as-is | Leave the 5 expired ignore rules in place | Remove or re-issue them | Modifying `.snyk` is explicitly out of scope; the expired ignore rules no longer suppress findings, which is the expected behavior for "Config H as-is" |
+| 14 | Output location for `findings-config-h.json` | Repository root | `scripts/` or `blitzy-docs/` | Repo-root location matches the implied parity with sibling `findings-config-*.json` files |
+
+### 0.8.4 Special Execution Instructions
+
+- **Network access required** — Snyk has no offline mode; both scan steps and the npm install step require outbound HTTPS. If the execution environment blocks egress, all four critical directives fail.
+- **`SNYK_TOKEN` is a hard prerequisite** — not optional. Without it, `snyk auth check` fails. The token is NOT generated by this AAP; it is supplied by the operator.
+- **The user's `snyk test --json > results-snyk-deps.json /path/to/blitzy-RudderStack` ordering is preserved verbatim** even though placing the redirection in the middle of the command is unusual. Shell semantics resolve it correctly (redirect applies to stdout, positional path argument is parsed normally). Decision recorded in `DECISIONS.md`.
+- **No fenced code blocks may appear inside `blitzy-deck/index.html` slides** — use inline `<code>` styled with Fira Code only. The HTML file itself, when authored, may use whatever encoding helps (e.g., HTML-escaped angle brackets), but rendered slides MUST NOT show triple-backtick fences.
+- **Zero emoji in the deck** — all visual icons MUST be Lucide SVG (`<i data-lucide="icon-name"></i>`). Emoji characters anywhere in the deck violate the rule.
+- **Slide count is bounded** — strict 12–18 inclusive; the target is 16. The deck author MUST count `<section>` elements before delivery.
+
+### 0.8.5 Constraints and Boundaries
+
+- **Technical constraints**
+    - Output MUST be valid JSON minified to a single line (`wc -l == 1`)
+    - Field schema is fixed at 5 fields, no more, no less
+    - 200-character cap on `description`, prefix-inclusive
+    - UTF-8 encoding
+- **Process constraints**
+    - No modification to source code, dependency manifests, or CI workflows
+    - No upload to Snyk UI
+    - No remediation of findings
+- **Output constraints**
+    - `findings-config-h.json` placed at repo root
+    - `DECISIONS.md` placed at repo root
+    - `blitzy-deck/` is a new top-level directory
+    - All deliverables are git-committable except the two transient artifacts (`results-snyk-*.sarif/json`), which are `.gitignore`-excluded
+- **Compatibility constraints**
+    - Snyk CLI requires Node 12+ / npm 7+ — satisfied by host
+    - reveal.js 5.1.0 / Mermaid 11.4.0 / Lucide 0.460.0 versions are pinned; no upgrade window
+
+## 0.9 References
+
+### 0.9.1 Citation Discipline
+
+Every concrete claim in this AAP about the existing system carries an inline citation of the form `[<path>:<locator>]`. The locator is a line range (e.g., `[configs_175ab0/go.mod:L1-L3]`) or a section identifier when natural. Claims that could not be grounded in a specific source location are flagged `[inferred — <reason>]` so downstream stages can verify before relying on them.
+
+### 0.9.2 Repository Files Inspected
+
+The following repository paths were inspected to produce this AAP. The list is exhaustive for the conclusions drawn above. The repository root for inspection is `/tmp/blitzy/blitzy-RudderStack/configs_175ab0` (mirror of `rudderlabs/rudder-server`).
+
+| Path | Inspection method | What was confirmed |
+|------|-------------------|--------------------|
+| `go.mod` | `head -30` + `grep -in snyk` | Go module `github.com/rudderlabs/rudder-server`, Go 1.26.1; line 5 comment `// Addressing snyk vulnerabilities in indirect dependencies`; `replace` block follows |
+| `go.sum` | directory listing (size: 208258 bytes) | Lockfile present and large; dependency graph is non-trivial |
+| `.snyk` | full file read | Schema `v1.22.1`; five ignore rules for `runc`, `docker`, `go-restful`, all with `expires: 2025-01-01T00:00:00.000Z` |
+| `.gitignore` | full file read | Existing patterns: `.DS_Store`, `rudder-server`, `.env`, `.vscode`, `*.coverprofile`, `runtime.log`, `dist/*`, `**/node_modules`, `imports/enterprise.go`, `junit*.xml`, `**/*profile.out`, `**/*.test`, `.idea/*`, `build/regulation-worker`, `*.out.*`, `*.out`, `coverage.txt`, `coverage.html`, `*.orig`, `build/wait-for-go/wait-for-go`, `**/gomock_reflect_*/*`, `ginkgo.report`, `*.prof`, `.cursor/*`, `.claude/settings.local.json`. No Snyk patterns currently present. |
+| `.github/workflows/` | `ls` | Workflows present: `builds.yml`, `dispatch-deploy-event-dev.yaml`, `docker-build-dockerhub.yml`, `docker-build-ecr.yml`, `housekeeping.yaml`, `labeler.yaml`, `pr-description-enforcer.yaml`, `prerelease.yaml`, `release-please.yaml`, `semantic-pr.yaml`, `sync-release.yaml`, `tests.yaml`, `verify.yml`. No Snyk integration. |
+| `Dockerfile` | `ls -la` | Present (2484 bytes). Not modified by this task. |
+| `docker-compose.yml` | `ls -la` | Present. Not modified. |
+| `Makefile` | `ls -la` | Present. Not modified. |
+| `README.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `CHANGELOG.md` | `ls -la` | All present. None modified by this task. |
+| `.deepsource.toml` | `ls -la` | Present. Unrelated to Snyk. Not modified. |
+| `.golangci.yml` | `ls -la` | Present. Go linter config. Not modified. |
+| `codecov.yml` | `ls -la` | Present. Coverage config. Not modified. |
+| `.truffleignore` | `ls -la` | Empty file (0 bytes). Not modified. |
+| `.editorconfig`, `.dockerignore` | `ls -la` | Present. Not modified. |
+| `main.go` | `ls -la` | Present at repo root (2208 bytes). Read by `snyk code test` as part of the source corpus; not modified. |
+| `blitzy/`, `blitzy-docs/` | directory listing | Present. Documentation for the RudderStack parity initiative. Not modified. |
+| `.junie/` | directory listing | Present. Not modified. |
+| `refs/segment-docs/package.json`, `refs/segment-docs/package-lock.json` | `find` | Third-party reference docs subtree. Not the primary scan target. Not modified. |
+| `scripts/` | directory listing (top-level) | Existing scripts directory; new normalizer added here. No existing script is modified. |
+
+Folders explored at the top level: `.github/`, `admin/`, `app/`, `archiver/`, `backend-config/`, `blitzy/`, `blitzy-docs/`, `build/`, `cluster/`, `cmd/`, `config/`, `controlplane/`, `docs/`, `enterprise/`, `functions/`, `gateway/`, `identity/`, `info/`, `init/`, `integration_test/`, `internal/`, `jobsdb/`, `middleware/`, `mocks/`, `processor/`, `proto/`, `protocols/`, `refs/`, `regulation-worker/`, `resources/`, `router/`, `rruntime/`, `runner/`, `schema-forwarder/`, `scripts/`, `services/`, `sql/`, `suppression-backup-service/`, `testhelper/`, `utils/`, `warehouse/`. All are read by `snyk code test` as source-corpus inputs; none are modified.
+
+### 0.9.3 Searches Performed
+
+| Search | Method | Outcome |
+|--------|--------|---------|
+| `.blitzyignore` files | `find / -maxdepth 5 -name ".blitzyignore"` | None found anywhere in the workspace |
+| Existing Snyk integration in CI | `grep -i "snyk\|sast\|security" .github/workflows/*` | No Snyk references; only `step-security/harden-runner` (unrelated tool) |
+| Existing reveal.js / deck directory | `find . -maxdepth 4 -iname "*reveal*" -o -iname "*deck*"` | None found — `blitzy-deck/` must be created |
+| Prior findings files | `find . -maxdepth 3 -name "findings-*.json"` | None found |
+| Snyk policy file | `find . -maxdepth 3 -name ".snyk"` | Found at `./.snyk` |
+| `go.mod` Snyk references | `grep -in snyk go.mod` | Line 5: `// Addressing snyk vulnerabilities in indirect dependencies` |
+| Repository root structure | `ls -la` + directory traversal | Confirmed Go monorepo layout, ~45 top-level directories |
+| Snyk CLI install requirements | web search | `snyk` npm package, latest stable 1.1304.3, requires Node 12+ / npm 7+ |
+| Snyk Code SARIF severity levels | web search | Only `error` / `warning` / `note` emitted (and theoretically `none`); never `critical` directly |
+| Snyk deps JSON schema | web search | Confirmed `vulnerabilities[*].identifiers.CWE[]`, `.CVE[]`, `.severity` fields |
+
+### 0.9.4 External Documentation References
+
+- Snyk CLI installation (Node/npm path): `https://docs.snyk.io/developer-tools/snyk-cli/install-or-update-the-snyk-cli/installing-snyk-cli-as-a-binary-using-npm`
+- Snyk CLI install / update root: `https://docs.snyk.io/developer-tools/snyk-cli/install-or-update-the-snyk-cli`
+- Snyk authentication (CLI): `https://docs.snyk.io/snyk-cli/authenticate-to-use-the-cli`
+- Snyk Code documentation: `https://docs.snyk.io/scan-with-snyk/snyk-code`
+- Snyk Open Source / dependency scan: `https://docs.snyk.io/scan-with-snyk/snyk-open-source`
+- Snyk CLI `--json` output flag reference: `https://docs.snyk.io/snyk-cli/commands/test#json`
+- Snyk CLI exit codes: `https://docs.snyk.io/snyk-cli/exit-codes`
+- Snyk releases on GitHub: `https://github.com/snyk/cli/releases`
+- npm registry for `snyk` package: `https://www.npmjs.com/package/snyk`
+- SARIF 2.1.0 specification (OASIS): `https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html`
+- CWE list (MITRE): `https://cwe.mitre.org/data/`
+- CVE list (NIST NVD): `https://nvd.nist.gov/vuln/search`
+- reveal.js 5.1.0: `https://revealjs.com/`
+- Mermaid 11.4.0: `https://mermaid.js.org/`
+- Lucide 0.460.0: `https://lucide.dev/icons/`
+
+### 0.9.5 Attachments
+
+The user attached zero environments and zero file attachments to this project. The `/tmp/environments_files` directory does not exist on the execution host. There are no setup instructions to follow beyond the four critical directives in the user prompt. The environment-variable list and secrets list supplied by the user are both empty (`[]`), so `SNYK_TOKEN` is not pre-injected and must be provided at scan time by the operator.
+
+### 0.9.6 Figma References
+
+None. The user did not provide any Figma URLs, frames, or design references with this task. The Design System Alignment Protocol is therefore not invoked for this AAP — the executive deck follows the Blitzy brand palette and typography enumerated in the Executive Presentation rule, not an external design source.
+
+### 0.9.7 Sibling-Config Naming Convention
+
+This task is "Config H" of a multi-configuration security-tool comparison. The naming convention `findings-config-h.json` implies sibling files `findings-config-a.json` through `findings-config-g.json` (and potentially beyond) exist or will exist in adjacent task scopes. **None of those sibling files are part of this AAP's scope** — the comparator that consumes them is external to this task. The five-field schema and severity vocabulary defined in §0.4.4 / §0.4.6 are the only contract this Config H must uphold for cross-config compatibility.
 
