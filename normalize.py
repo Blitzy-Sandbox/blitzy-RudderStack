@@ -189,7 +189,9 @@ def compute_severity(vuln):
 def collect_findings(raw, prefix):
     out = []
     for result in raw.get("results") or []:
-        ps = result.get("packageSource") or {}
+        # OSV-Scanner v2 emits ``source`` while v1 emitted ``packageSource``;
+        # accept either for forward and backward compatibility.
+        ps = result.get("source") or result.get("packageSource") or {}
         file_path = normalize_path(ps.get("path") or "", prefix)
         for pkg in result.get("packages") or []:
             for vuln in pkg.get("vulnerabilities") or []:
