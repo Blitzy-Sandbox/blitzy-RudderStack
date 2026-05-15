@@ -1,0 +1,1066 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Executive summary of the Gosec static analysis scan for the blitzy-RudderStack Go monorepo (Config D of the multi-config security tool comparison).">
+  <title>Gosec Security Scan &middot; blitzy-RudderStack &middot; Config D</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+
+  <style>
+    /* =========================================================================
+       Blitzy brand visual identity (CSS custom properties).
+       Mandated verbatim by the Executive Presentation rule (AAP section 0.7.2).
+       ========================================================================= */
+    :root {
+      --blitzy-primary: #5B39F3;
+      --blitzy-primary-dark: #2D1C77;
+      --blitzy-primary-navy: #1A105F;
+      --blitzy-primary-light: #7A6DEC;
+      --blitzy-primary-deep: #4101DB;
+      --blitzy-accent-teal: #94FAD5;
+      --blitzy-surface-0: #FFFFFF;
+      --blitzy-surface-1: #F4EFF6;
+      --blitzy-surface-2: #F2F0FE;
+      --blitzy-surface-3: #F5F5F5;
+      --blitzy-border: #D9D9D9;
+      --blitzy-border-soft: rgba(91, 57, 243, 0.18);
+      --blitzy-text: #333333;
+      --blitzy-text-muted: #999999;
+      --blitzy-text-invert: #FFFFFF;
+      --ff-body: 'Inter', system-ui, sans-serif;
+      --ff-display: 'Space Grotesk', 'Inter', sans-serif;
+      --ff-mono: 'Fira Code', 'Courier New', monospace;
+      --gradient-hero: linear-gradient(68deg, #7A6DEC 15.56%, #5B39F3 62.74%, #4101DB 84.44%);
+      --gradient-divider: linear-gradient(135deg, #2D1C77 0%, #5B39F3 100%);
+      --gradient-accent-bar: linear-gradient(90deg, #5B39F3 0%, #94FAD5 100%);
+    }
+
+    /* =========================================================================
+       Reveal.js base overrides.
+       ========================================================================= */
+    .reveal {
+      font-family: var(--ff-body);
+      color: var(--blitzy-text);
+      font-weight: 400;
+    }
+    .reveal .slides {
+      text-align: left;
+    }
+    .reveal .slides > section,
+    .reveal .slides > section > section {
+      padding: 56px 80px;
+      box-sizing: border-box;
+      height: 100%;
+    }
+    .reveal h1,
+    .reveal h2,
+    .reveal h3,
+    .reveal h4 {
+      font-family: var(--ff-display);
+      color: var(--blitzy-text);
+      text-transform: none;
+      letter-spacing: -0.01em;
+      line-height: 1.1;
+      margin: 0 0 24px 0;
+      font-weight: 600;
+    }
+    .reveal h1 { font-size: 88px; }
+    .reveal h2 { font-size: 60px; }
+    .reveal h3 { font-size: 36px; }
+    .reveal p,
+    .reveal li {
+      font-family: var(--ff-body);
+      font-size: 30px;
+      line-height: 1.45;
+      color: var(--blitzy-text);
+    }
+    .reveal ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 24px 0;
+    }
+    .reveal ul li {
+      position: relative;
+      padding-left: 32px;
+      margin-bottom: 16px;
+    }
+    .reveal ul li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 18px;
+      width: 14px;
+      height: 4px;
+      background: var(--gradient-accent-bar);
+      border-radius: 2px;
+    }
+    .reveal code {
+      font-family: var(--ff-mono);
+      font-size: 0.85em;
+      background: var(--blitzy-surface-2);
+      color: var(--blitzy-primary-dark);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--blitzy-border-soft);
+      white-space: nowrap;
+    }
+    .reveal strong { font-weight: 600; color: var(--blitzy-text); }
+
+    /* =========================================================================
+       Eyebrow (Fira Code, uppercase, teal on dark / primary on light).
+       ========================================================================= */
+    .eyebrow {
+      font-family: var(--ff-mono);
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--blitzy-primary);
+      display: inline-block;
+      margin-bottom: 24px;
+    }
+    .slide-title .eyebrow,
+    .slide-divider .eyebrow,
+    .slide-closing .eyebrow {
+      color: var(--blitzy-accent-teal);
+    }
+
+    /* =========================================================================
+       Title slide (Slide 1) — hero gradient, white text, brand lockup.
+       ========================================================================= */
+    .slide-title {
+      background: var(--gradient-hero);
+      color: var(--blitzy-text-invert);
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .slide-title h1,
+    .slide-title h2,
+    .slide-title p {
+      color: var(--blitzy-text-invert);
+    }
+    .slide-title h1 {
+      font-size: 96px;
+      max-width: 1500px;
+    }
+    .slide-title .subtitle {
+      font-family: var(--ff-body);
+      font-size: 36px;
+      font-weight: 400;
+      max-width: 1300px;
+      color: rgba(255, 255, 255, 0.88);
+      margin-top: 8px;
+    }
+    .slide-title .hero-icon {
+      color: var(--blitzy-accent-teal);
+      margin-bottom: 28px;
+    }
+    .slide-title .date-marker {
+      font-family: var(--ff-mono);
+      font-size: 22px;
+      color: var(--blitzy-accent-teal);
+      margin-top: 56px;
+      letter-spacing: 0.1em;
+    }
+    .slide-title .brand-lockup {
+      color: rgba(255, 255, 255, 0.75);
+    }
+
+    /* =========================================================================
+       Section divider slides — gradient background, large centered heading.
+       ========================================================================= */
+    .slide-divider {
+      background: var(--gradient-divider);
+      color: var(--blitzy-text-invert);
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    .slide-divider h1 {
+      color: var(--blitzy-text-invert);
+      font-size: 96px;
+      max-width: 1500px;
+      margin-top: 32px;
+    }
+    .slide-divider .hero-icon {
+      color: var(--blitzy-accent-teal);
+      width: 160px;
+      height: 160px;
+    }
+
+    /* =========================================================================
+       Closing slide — navy background, gradient accent bar, brand lockup.
+       ========================================================================= */
+    .slide-closing {
+      background: var(--blitzy-primary-navy);
+      color: var(--blitzy-text-invert);
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      position: relative;
+    }
+    .slide-closing h1 {
+      color: var(--blitzy-text-invert);
+      font-size: 104px;
+      max-width: 1500px;
+    }
+    .slide-closing p,
+    .slide-closing li {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 32px;
+    }
+    .slide-closing ul li::before {
+      background: var(--gradient-accent-bar);
+    }
+    .slide-closing .accent-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 10px;
+      background: var(--gradient-accent-bar);
+    }
+    .slide-closing .brand-lockup {
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    /* =========================================================================
+       KPI grid and cards.
+       ========================================================================= */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin: 24px 0 32px 0;
+    }
+    .kpi-grid.kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .kpi-card {
+      background: var(--blitzy-surface-2);
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 16px;
+      padding: 28px 28px 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      box-shadow: 0 2px 16px rgba(91, 57, 243, 0.06);
+    }
+    .kpi-card .kpi-icon {
+      color: var(--blitzy-primary);
+      width: 40px;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .kpi-card .kpi-icon i,
+    .kpi-card .kpi-icon svg {
+      width: 40px;
+      height: 40px;
+    }
+    .kpi-value {
+      font-family: var(--ff-display);
+      font-size: 72px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--blitzy-primary);
+      letter-spacing: -0.02em;
+    }
+    .kpi-label {
+      font-family: var(--ff-mono);
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--blitzy-text-muted);
+    }
+    .kpi-sub {
+      font-family: var(--ff-body);
+      font-size: 18px;
+      color: var(--blitzy-text-muted);
+    }
+    .kpi-card.kpi-critical .kpi-value { color: #B0271E; }
+    .kpi-card.kpi-critical .kpi-icon { color: #B0271E; }
+    .kpi-card.kpi-high .kpi-value { color: #C24B0B; }
+    .kpi-card.kpi-high .kpi-icon { color: #C24B0B; }
+    .kpi-card.kpi-medium .kpi-value { color: var(--blitzy-primary); }
+    .kpi-card.kpi-medium .kpi-icon { color: var(--blitzy-primary); }
+    .kpi-card.kpi-low .kpi-value { color: #0F7A55; }
+    .kpi-card.kpi-low .kpi-icon { color: #0F7A55; }
+
+    /* Compact KPI card for sub-grids (e.g., severity breakdown). */
+    .kpi-card.kpi-compact { padding: 20px 22px; }
+    .kpi-card.kpi-compact .kpi-value { font-size: 56px; }
+    .kpi-card.kpi-compact .kpi-icon,
+    .kpi-card.kpi-compact .kpi-icon i,
+    .kpi-card.kpi-compact .kpi-icon svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    /* =========================================================================
+       Lucide icons — predictable size and color inheritance.
+       ========================================================================= */
+    .reveal i[data-lucide],
+    .reveal svg.lucide {
+      width: 1.2em;
+      height: 1.2em;
+      vertical-align: middle;
+      stroke-width: 2;
+      flex-shrink: 0;
+    }
+    .hero-icon {
+      width: 144px;
+      height: 144px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .hero-icon i[data-lucide],
+    .hero-icon svg.lucide {
+      width: 144px;
+      height: 144px;
+      stroke-width: 1.5;
+    }
+    .icon-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      margin-top: 12px;
+    }
+    .icon-row .icon-row-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--blitzy-surface-2);
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 10px;
+      padding: 14px 20px;
+      font-family: var(--ff-body);
+      font-size: 24px;
+      color: var(--blitzy-text);
+    }
+    .icon-row .icon-row-item i[data-lucide],
+    .icon-row .icon-row-item svg.lucide {
+      width: 28px;
+      height: 28px;
+      color: var(--blitzy-primary);
+    }
+
+    /* =========================================================================
+       Mermaid diagram container.
+       ========================================================================= */
+    .reveal .mermaid {
+      text-align: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: var(--blitzy-surface-2);
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 16px;
+      padding: 24px 16px;
+      margin: 16px 0 24px 0;
+      min-height: 380px;
+      box-shadow: 0 2px 16px rgba(91, 57, 243, 0.06);
+    }
+    .reveal .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+    /* Mermaid 11.x hardcodes max-width: 200px on inline foreignObject divs
+       and emits node-label text wrapped in a block-level <p> element
+       inside an inline <span>. That block-in-inline mix forces text onto
+       a second line that gets clipped by the fixed foreignObject height.
+       The overrides below normalise the labels to inline rendering and
+       allow each label box to stretch a bit past its measured width so
+       the last glyph never gets clipped by sub-pixel rounding. */
+    .reveal .mermaid foreignObject > div {
+      max-width: none !important;
+      white-space: nowrap !important;
+      padding: 0 14px !important;
+      box-sizing: content-box !important;
+    }
+    .reveal .mermaid foreignObject .nodeLabel,
+    .reveal .mermaid foreignObject .edgeLabel {
+      font-family: var(--ff-body) !important;
+      color: var(--blitzy-text) !important;
+      display: inline-block !important;
+      white-space: nowrap !important;
+    }
+    .reveal .mermaid foreignObject .nodeLabel p,
+    .reveal .mermaid foreignObject .edgeLabel p {
+      display: inline !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      white-space: nowrap !important;
+    }
+    .reveal .mermaid g.node rect.basic.label-container {
+      rx: 8;
+      ry: 8;
+    }
+    /* Hide empty edge-label backdrops that Mermaid 11.x emits for every
+       arrow, including arrows without a textual label. They render as
+       small floating rectangles otherwise. */
+    .reveal .mermaid .edgeLabel:empty,
+    .reveal .mermaid .edgeLabel .labelBkg:empty,
+    .reveal .mermaid foreignObject:has(.edgeLabel:empty) {
+      display: none !important;
+    }
+    .reveal .mermaid g.edgeLabel:not(:has(.nodeLabel)):not(:has(p)) {
+      display: none !important;
+    }
+
+    /* =========================================================================
+       Styled tables (visual element).
+       ========================================================================= */
+    .reveal table.styled,
+    .reveal .styled-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 16px 0 24px 0;
+      font-family: var(--ff-body);
+      font-size: 26px;
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 2px 16px rgba(91, 57, 243, 0.05);
+      background: var(--blitzy-surface-0);
+    }
+    .reveal table.styled thead th,
+    .reveal .styled-table thead th {
+      background: var(--blitzy-surface-1);
+      color: var(--blitzy-primary-dark);
+      font-family: var(--ff-display);
+      font-weight: 600;
+      font-size: 24px;
+      text-align: left;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--blitzy-border-soft);
+      letter-spacing: 0;
+    }
+    .reveal table.styled tbody td,
+    .reveal .styled-table tbody td {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--blitzy-border);
+      color: var(--blitzy-text);
+      vertical-align: middle;
+    }
+    .reveal table.styled tbody tr:last-child td,
+    .reveal .styled-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .reveal table.styled tbody tr:nth-child(even) td,
+    .reveal .styled-table tbody tr:nth-child(even) td {
+      background: var(--blitzy-surface-3);
+    }
+    .reveal table.styled td.severity-cell,
+    .reveal .styled-table td.severity-cell {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .reveal table.styled td .row-icon i[data-lucide],
+    .reveal table.styled td .row-icon svg.lucide,
+    .reveal .styled-table td .row-icon i[data-lucide],
+    .reveal .styled-table td .row-icon svg.lucide {
+      width: 28px;
+      height: 28px;
+      color: var(--blitzy-primary);
+    }
+
+    /* =========================================================================
+       Brand lockup, accent bar, captions.
+       ========================================================================= */
+    .brand-lockup {
+      position: absolute;
+      bottom: 36px;
+      left: 80px;
+      font-family: var(--ff-mono);
+      font-size: 18px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--blitzy-text-muted);
+    }
+    .accent-bar {
+      height: 8px;
+      width: 100%;
+      background: var(--gradient-accent-bar);
+      border-radius: 4px;
+    }
+    .caption {
+      font-family: var(--ff-body);
+      font-size: 22px;
+      color: var(--blitzy-text-muted);
+      font-style: italic;
+      margin-top: 8px;
+    }
+
+    /* =========================================================================
+       Slide-internal layout helpers.
+       ========================================================================= */
+    .slide-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      height: 100%;
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+    .severity-sub-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- =====================================================================
+         Slide 1 — Title Slide
+         ===================================================================== -->
+    <section class="slide-title">
+      <div class="hero-icon" aria-hidden="true">
+        <i data-lucide="shield-check"></i>
+      </div>
+      <span class="eyebrow">Config D &middot; Gosec &middot; Static Analysis</span>
+      <h1>Gosec Security Scan: blitzy-RudderStack</h1>
+      <p class="subtitle">Static analysis baseline for the rudder-server Go monorepo.</p>
+      <span class="date-marker">2026 &middot; Multi-Config Comparison &middot; Build 2026-03-19</span>
+      <span class="brand-lockup">Blitzy Security &middot; Multi-Config Comparison</span>
+    </section>
+
+    <!-- =====================================================================
+         Slide 2 — Headline KPI Grid (Scan Outcome at a Glance)
+         ===================================================================== -->
+    <section>
+      <span class="eyebrow">Headline Metrics</span>
+      <h2>Scan Outcome at a Glance</h2>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="alert-triangle"></i></div>
+          <div class="kpi-value"><span id="kpi-total">--</span></div>
+          <div class="kpi-label">Findings</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="file-code"></i></div>
+          <div class="kpi-value"><span id="kpi-files">~1,263</span></div>
+          <div class="kpi-label">Go Files</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="timer"></i></div>
+          <div class="kpi-value"><span id="kpi-duration">--</span></div>
+          <div class="kpi-label">Wall-Clock</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="terminal"></i></div>
+          <div class="kpi-value"><span id="kpi-exit">--</span></div>
+          <div class="kpi-label">Gosec Process</div>
+        </div>
+      </div>
+
+      <div class="severity-sub-grid">
+        <div class="kpi-card kpi-compact kpi-critical">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="flame"></i></div>
+          <div class="kpi-value"><span id="sev-critical">--</span></div>
+          <div class="kpi-label">Critical</div>
+        </div>
+        <div class="kpi-card kpi-compact kpi-high">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="triangle-alert"></i></div>
+          <div class="kpi-value"><span id="sev-high">--</span></div>
+          <div class="kpi-label">High</div>
+        </div>
+        <div class="kpi-card kpi-compact kpi-medium">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="info"></i></div>
+          <div class="kpi-value"><span id="sev-medium">--</span></div>
+          <div class="kpi-label">Medium</div>
+        </div>
+        <div class="kpi-card kpi-compact kpi-low">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="circle-help"></i></div>
+          <div class="kpi-value"><span id="sev-low">--</span></div>
+          <div class="kpi-label">Low</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         Slide 3 — Architecture Overview (Mermaid)
+         ===================================================================== -->
+    <section>
+      <span class="eyebrow">Architecture</span>
+      <h2>How the Scan Works</h2>
+
+      <pre class="mermaid">
+flowchart LR
+  A["Install Gosec"] --&gt; B["Scan repo with Gosec"]
+  B --&gt; C[("SARIF report")]
+  C --&gt; D["Normalize to JSON"]
+  D --&gt; E[("findings-config-d.json")]
+  E --&gt; F["Cross-tool diff"]
+      </pre>
+
+      <p class="caption">Three CRITICAL directives executed in strict sequence; each gated by a binary pass/fail criterion.</p>
+    </section>
+
+    <!-- =====================================================================
+         Slide 4 — Section Divider: What Was Scanned
+         ===================================================================== -->
+    <section class="slide-divider">
+      <div class="hero-icon" aria-hidden="true">
+        <i data-lucide="target"></i>
+      </div>
+      <span class="eyebrow">01 &middot; Scope</span>
+      <h1>What Was Scanned</h1>
+    </section>
+
+    <!-- =====================================================================
+         Slide 5 — Scope Content
+         ===================================================================== -->
+    <section>
+      <span class="eyebrow">Scope</span>
+      <h2>The blitzy-RudderStack Monorepo</h2>
+
+      <table class="styled">
+        <thead>
+          <tr><th>Metric</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Module</td><td><code>github.com/rudderlabs/rudder-server</code></td></tr>
+          <tr><td>Go directive</td><td><code>1.26.1</code></td></tr>
+          <tr><td>Source files</td><td>~1,263 <code>.go</code> files</td></tr>
+          <tr><td>Rule set</td><td>Gosec defaults &middot; OWASP Top 10</td></tr>
+          <tr><td>Scope spec</td><td><code>./...</code> (full module recursion)</td></tr>
+        </tbody>
+      </table>
+
+      <ul>
+        <li>Read-only analysis &mdash; no source files were modified.</li>
+        <li>Built-in 50+ rules &mdash; no custom config, no exclude filters.</li>
+        <li>Honors pre-existing <code>#nosec</code> annotations.</li>
+      </ul>
+    </section>
+
+    <!-- =====================================================================
+         Slide 6 — Section Divider: What Was Found
+         ===================================================================== -->
+    <section class="slide-divider">
+      <div class="hero-icon" aria-hidden="true">
+        <i data-lucide="search-check"></i>
+      </div>
+      <span class="eyebrow">02 &middot; Findings</span>
+      <h1>What Was Found</h1>
+    </section>
+
+    <!-- =====================================================================
+         Slide 7 — Findings Content (severity distribution)
+         ===================================================================== -->
+    <section>
+      <span class="eyebrow">Findings</span>
+      <h2>Severity Distribution</h2>
+
+      <table class="styled">
+        <thead>
+          <tr><th>Severity</th><th>SARIF level</th><th>Count</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="row-icon"><i data-lucide="flame"></i></span> Critical</td>
+            <td><code>error</code></td>
+            <td><span id="sev-critical-row">--</span></td>
+          </tr>
+          <tr>
+            <td><span class="row-icon"><i data-lucide="triangle-alert"></i></span> High</td>
+            <td><code>warning</code></td>
+            <td><span id="sev-high-row">--</span></td>
+          </tr>
+          <tr>
+            <td><span class="row-icon"><i data-lucide="info"></i></span> Medium</td>
+            <td><code>note</code></td>
+            <td><span id="sev-medium-row">--</span></td>
+          </tr>
+          <tr>
+            <td><span class="row-icon"><i data-lucide="circle-help"></i></span> Low</td>
+            <td><code>info</code></td>
+            <td><span id="sev-low-row">--</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ul>
+        <li>Vocabulary normalized to <code>critical | high | medium | low</code>.</li>
+        <li>Each finding carries one CWE via rule metadata or fallback.</li>
+        <li>Top rules and file hotspots live in <code>findings-config-d.json</code>.</li>
+      </ul>
+    </section>
+
+    <!-- =====================================================================
+         Slide 8 — Section Divider: How Findings Are Normalized
+         ===================================================================== -->
+    <section class="slide-divider">
+      <div class="hero-icon" aria-hidden="true">
+        <i data-lucide="git-pull-request"></i>
+      </div>
+      <span class="eyebrow">03 &middot; Contract</span>
+      <h1>How Findings Are Normalized</h1>
+    </section>
+
+    <!-- =====================================================================
+         Slide 9 — Normalization Contract (Mermaid + Table)
+         ===================================================================== -->
+    <section>
+      <span class="eyebrow">Contract</span>
+      <h2>Five-Field JSON Contract</h2>
+
+      <div class="two-col">
+        <pre class="mermaid">
+flowchart LR
+  A["SARIF finding"] --&gt; B{"Rule has CWE?"}
+  B --&gt;|yes| C["CWE-N"]
+  B --&gt;|no| D{"In fallback table?"}
+  D --&gt;|yes| C
+  D --&gt;|no| E["CWE-Unknown"]
+        </pre>
+
+        <table class="styled">
+          <thead>
+            <tr><th>SARIF level</th><th>Output severity</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>error</code></td><td>critical</td></tr>
+            <tr><td><code>warning</code></td><td>high</td></tr>
+            <tr><td><code>note</code></td><td>medium</td></tr>
+            <tr><td><code>info</code></td><td>low</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         Slide 10 — Section Divider: Operational Telemetry
+         ===================================================================== -->
+    <section class="slide-divider">
+      <div class="hero-icon" aria-hidden="true">
+        <i data-lucide="activity"></i>
+      </div>
+      <span class="eyebrow">04 &middot; Telemetry</span>
+      <h1>Operational Telemetry</h1>
+    </section>
+
+    <!-- =====================================================================
+         Slide 11 — Telemetry Content
+         ===================================================================== -->
+    <section>
+      <span class="eyebrow">Telemetry</span>
+      <h2>Process Metrics Captured</h2>
+
+      <div class="kpi-grid kpi-grid-3">
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="terminal"></i></div>
+          <div class="kpi-value"><span id="tel-exit">--</span></div>
+          <div class="kpi-label">Exit Code</div>
+          <div class="kpi-sub">0 = clean &middot; 1 = findings</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="timer"></i></div>
+          <div class="kpi-value"><span id="tel-duration">--</span></div>
+          <div class="kpi-label">Duration</div>
+          <div class="kpi-sub">wall-clock seconds</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" aria-hidden="true"><i data-lucide="file-code"></i></div>
+          <div class="kpi-value"><span id="tel-files">~1,263</span></div>
+          <div class="kpi-label">Files Scanned</div>
+          <div class="kpi-sub">Go source files</div>
+        </div>
+      </div>
+
+      <ul>
+        <li>Exit code 1 is expected when findings exist &mdash; not a pipeline failure.</li>
+        <li>Telemetry is recorded in <code>decision-log.md</code> for reproducibility.</li>
+      </ul>
+    </section>
+
+    <!-- =====================================================================
+         Slide 12 — Section Divider: Risks and Mitigations
+         ===================================================================== -->
+    <section class="slide-divider">
+      <div class="hero-icon" aria-hidden="true">
+        <i data-lucide="shield-alert"></i>
+      </div>
+      <span class="eyebrow">05 &middot; Risk</span>
+      <h1>Risks and Mitigations</h1>
+    </section>
+
+    <!-- =====================================================================
+         Slide 13 — Risk Content
+         ===================================================================== -->
+    <section>
+      <span class="eyebrow">Risk</span>
+      <h2>Residual Risk and How It Is Handled</h2>
+
+      <table class="styled">
+        <thead>
+          <tr><th>Risk</th><th>Mitigation</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>New Gosec rule lacks CWE metadata</td>
+            <td>Embedded fallback table; flagged as <code>CWE-Unknown</code></td>
+          </tr>
+          <tr>
+            <td>False positives from default rule set</td>
+            <td><code>#nosec</code> annotations honored in source</td>
+          </tr>
+          <tr>
+            <td>SARIF schema drift</td>
+            <td>Pinned to SARIF 2.1.0 (Gosec contract)</td>
+          </tr>
+          <tr>
+            <td>Tool version drift</td>
+            <td>Gosec version captured in <code>decision-log.md</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ul>
+        <li>Multi-config comparison surfaces gaps no single scanner catches.</li>
+        <li>This config exercises Gosec defaults to preserve attribution fidelity.</li>
+      </ul>
+    </section>
+
+    <!-- =====================================================================
+         Slide 14 — Section Divider: Operational Continuity
+         ===================================================================== -->
+    <section class="slide-divider">
+      <div class="hero-icon" aria-hidden="true">
+        <i data-lucide="book-open-check"></i>
+      </div>
+      <span class="eyebrow">06 &middot; Onboarding</span>
+      <h1>Operational Continuity</h1>
+    </section>
+
+    <!-- =====================================================================
+         Slide 15 — Onboarding Content
+         ===================================================================== -->
+    <section>
+      <span class="eyebrow">Onboarding</span>
+      <h2>Reproduce This Scan in Three Commands</h2>
+
+      <div class="icon-row">
+        <div class="icon-row-item">
+          <i data-lucide="package"></i>
+          <span><strong>Install</strong> &mdash; <code>go install github.com/securego/gosec/v2/cmd/gosec@latest</code></span>
+        </div>
+        <div class="icon-row-item">
+          <i data-lucide="play"></i>
+          <span><strong>Scan</strong> &mdash; <code>gosec -fmt=sarif -out=results-gosec.sarif ./...</code></span>
+        </div>
+        <div class="icon-row-item">
+          <i data-lucide="refresh-ccw"></i>
+          <span><strong>Normalize</strong> &mdash; <code>python3 scripts/normalize-findings.py results-gosec.sarif findings-config-d.json</code></span>
+        </div>
+      </div>
+
+      <ul>
+        <li>Artifacts live at the repo root and inside <code>scripts/</code>.</li>
+        <li>Extend the rule-ID to CWE table in <code>scripts/normalize-findings.py</code> for new rules.</li>
+      </ul>
+    </section>
+
+    <!-- =====================================================================
+         Slide 16 — Closing Slide
+         ===================================================================== -->
+    <section class="slide-closing">
+      <div class="hero-icon" aria-hidden="true" style="color: var(--blitzy-accent-teal);">
+        <i data-lucide="check-circle-2"></i>
+      </div>
+      <span class="eyebrow">Wrap-Up</span>
+      <h1>Scan Done. Comparison Ready.</h1>
+      <ul>
+        <li>Output conforms to the five-field cross-tool contract.</li>
+        <li>Decision log records every non-trivial choice.</li>
+        <li>Ready to diff against Config B, C, E results.</li>
+      </ul>
+      <span class="brand-lockup">Blitzy Security &middot; Config D &middot; 2026</span>
+      <div class="accent-bar"></div>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script>
+  /* =========================================================================
+     Mermaid initialization — Blitzy theme variables.
+     ========================================================================= */
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#F2F0FE',
+      primaryTextColor: '#333333',
+      primaryBorderColor: '#5B39F3',
+      lineColor: '#999999',
+      secondaryColor: '#F4EFF6',
+      fontFamily: "'Inter', system-ui, sans-serif",
+      fontSize: '18px'
+    },
+    flowchart: {
+      curve: 'basis',
+      padding: 24,
+      nodeSpacing: 60,
+      rankSpacing: 80,
+      useMaxWidth: true,
+      wrappingWidth: 400
+    }
+  });
+
+  /* =========================================================================
+     Reveal.js initialization.
+     ========================================================================= */
+  const deck = new Reveal({
+    hash: true,
+    transition: 'slide',
+    controlsTutorial: false,
+    width: 1920,
+    height: 1080
+  });
+
+  /* =========================================================================
+     KPI population from findings-config-d.json (graceful fallback).
+     ========================================================================= */
+  async function populateKPIs() {
+    const setText = function (id, val) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(val);
+    };
+    try {
+      const resp = await fetch('./findings-config-d.json', { cache: 'no-store' });
+      if (!resp || !resp.ok) return;
+      const findings = await resp.json();
+      if (!Array.isArray(findings)) return;
+      const total = findings.length;
+      const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+      for (let i = 0; i < findings.length; i++) {
+        const sev = findings[i] && findings[i].severity;
+        if (counts.hasOwnProperty(sev)) counts[sev]++;
+      }
+      setText('kpi-total', total);
+      setText('sev-critical', counts.critical);
+      setText('sev-high', counts.high);
+      setText('sev-medium', counts.medium);
+      setText('sev-low', counts.low);
+      setText('sev-critical-row', counts.critical);
+      setText('sev-high-row', counts.high);
+      setText('sev-medium-row', counts.medium);
+      setText('sev-low-row', counts.low);
+    } catch (e) {
+      /* Silent — placeholder dashes remain. */
+    }
+  }
+
+  /* =========================================================================
+     Cache original Mermaid source so we can reset and re-render diagrams
+     once their containing slide is visible and has real layout dimensions.
+     Mermaid otherwise renders hidden slides with NaN container width,
+     producing truncated node labels.
+     ========================================================================= */
+  function cacheMermaidSources() {
+    const nodes = document.querySelectorAll('.mermaid');
+    nodes.forEach(function (el) {
+      if (!el.dataset.mermaidSource) {
+        el.dataset.mermaidSource = el.textContent;
+      }
+    });
+  }
+
+  function resetMermaidElement(el) {
+    if (!el.dataset.mermaidSource) return;
+    el.removeAttribute('data-processed');
+    el.innerHTML = el.dataset.mermaidSource;
+  }
+
+  /* =========================================================================
+     Render Mermaid diagrams in the currently visible slide.
+     Idempotent — diagrams already marked data-processed are skipped by
+     mermaid.run(), so this is safe to call repeatedly.
+     ========================================================================= */
+  function renderMermaidInCurrentSlide() {
+    if (!window.mermaid || typeof window.mermaid.run !== 'function') return;
+    const currentSlide = deck.getCurrentSlide();
+    if (!currentSlide) return;
+    const diagrams = currentSlide.querySelectorAll('.mermaid');
+    if (diagrams.length === 0) return;
+    diagrams.forEach(resetMermaidElement);
+    try {
+      window.mermaid.run({ nodes: diagrams, suppressErrors: true });
+    } catch (e) {
+      /* Ignore — mermaid may rethrow if a diagram is already in flight. */
+    }
+  }
+
+  /* =========================================================================
+     Render Lucide icons across the whole deck.
+     Safe to call repeatedly — createIcons only converts unconverted nodes.
+     ========================================================================= */
+  function renderLucideIcons() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      try {
+        window.lucide.createIcons();
+      } catch (e) {
+        /* Ignore. */
+      }
+    }
+  }
+
+  /* =========================================================================
+     Wait for web fonts to finish loading before rendering Mermaid.
+     Mermaid measures label widths during layout; if fonts swap in after
+     layout, label text overflows its allocated foreignObject box.
+     ========================================================================= */
+  function waitForFonts() {
+    if (document.fonts && typeof document.fonts.ready !== 'undefined') {
+      return document.fonts.ready;
+    }
+    return Promise.resolve();
+  }
+
+  deck.initialize().then(function () {
+    cacheMermaidSources();
+    renderLucideIcons();
+    populateKPIs();
+    return waitForFonts();
+  }).then(function () {
+    /* Render Mermaid only after fonts are loaded so label widths are
+       measured with the final glyph metrics. */
+    renderMermaidInCurrentSlide();
+    deck.on('slidechanged', function () {
+      renderLucideIcons();
+      renderMermaidInCurrentSlide();
+    });
+  });
+</script>
+</body>
+</html>
