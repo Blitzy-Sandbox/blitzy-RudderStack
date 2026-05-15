@@ -25,3 +25,7 @@ ginkgo.report
 *.prof
 .cursor/*
 .claude/settings.local.json
+
+# Snyk transient scan artifacts (Config H workflow)
+results-snyk-*.sarif
+results-snyk-*.json
