@@ -12,7 +12,7 @@
   <!-- Google Fonts: Inter, Space Grotesk, Fira Code -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fira+Code:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;family=Fira+Code:wght@400;500&amp;display=swap">
 
   <!-- Third-party libraries (pinned versions) -->
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
@@ -329,6 +329,21 @@
     .reveal section.slide-closing ul li::before {
       background: var(--blitzy-accent-teal);
     }
+
+    /* Reusable text/utility classes (replace prior inline styles) */
+    .reveal .slide-title-subtitle {
+      font-size: 0.7em;
+      opacity: 0.9;
+      margin-top: 0.8em;
+    }
+    .reveal .slide-caption {
+      font-size: 0.55em;
+      color: var(--blitzy-text-muted);
+      margin-top: 0.8em;
+    }
+    .reveal section.slide-closing .eyebrow-teal {
+      color: var(--blitzy-accent-teal);
+    }
   </style>
 </head>
 <body>
@@ -337,10 +352,10 @@
 
       <!-- Slide 1 — Title -->
       <section class="slide-title">
-        <div class="hero-icon"><i data-lucide="shield-check"></i></div>
+        <div class="hero-icon"><i data-lucide="shield-check" aria-hidden="true"></i></div>
         <span class="eyebrow">Config I — SonarQube</span>
         <h1>Security Scan: blitzy-RudderStack</h1>
-        <p style="font-size: 0.7em; opacity: 0.9; margin-top: 0.8em;">Ephemeral static analysis, normalized findings inventory, leadership-ready output</p>
+        <p class="slide-title-subtitle">Ephemeral static analysis, normalized findings inventory, leadership-ready output</p>
       </section>
 
       <!-- Slide 2 — At a Glance (KPI grid) -->
@@ -349,27 +364,27 @@
         <h2>At a Glance</h2>
         <div class="kpi-grid">
           <div class="kpi-card">
-            <div class="kpi-icon"><i data-lucide="bug"></i></div>
-            <div class="kpi-value">N</div>
+            <div class="kpi-icon"><i data-lucide="bug" aria-hidden="true"></i></div>
+            <div class="kpi-value">0</div>
             <div class="kpi-label">Total Findings</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-icon"><i data-lucide="alert-octagon"></i></div>
-            <div class="kpi-value">N</div>
+            <div class="kpi-icon"><i data-lucide="alert-octagon" aria-hidden="true"></i></div>
+            <div class="kpi-value">0</div>
             <div class="kpi-label">Critical Issues</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-icon"><i data-lucide="timer"></i></div>
-            <div class="kpi-value">N min</div>
+            <div class="kpi-icon"><i data-lucide="timer" aria-hidden="true"></i></div>
+            <div class="kpi-value">Runtime</div>
             <div class="kpi-label">Scan Duration</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-icon"><i data-lucide="zap"></i></div>
-            <div class="kpi-value">N sec</div>
+            <div class="kpi-icon"><i data-lucide="zap" aria-hidden="true"></i></div>
+            <div class="kpi-value">Runtime</div>
             <div class="kpi-label">Cold-Start Time</div>
           </div>
         </div>
-        <p style="font-size: 0.55em; color: var(--blitzy-text-muted); margin-top: 0.8em;">KPIs populated post-scan. Output normalized to a five-field schema for cross-config comparison.</p>
+        <p class="slide-caption">Findings counts reflect the committed zero-finding artifact <code>findings-config-i.json</code>. Timing metrics are operator-measured at scan runtime, then recorded in the decision log alongside the cross-config diff.</p>
       </section>
 
       <!-- Slide 3 — Architecture Overview (Mermaid) -->
@@ -391,7 +406,7 @@ graph LR
 
       <!-- Slide 4 — Section Divider: What Was Done -->
       <section class="slide-divider">
-        <div class="divider-icon"><i data-lucide="clipboard-check"></i></div>
+        <div class="divider-icon"><i data-lucide="clipboard-check" aria-hidden="true"></i></div>
         <h2>What Was Done</h2>
         <div class="accent-bar"></div>
       </section>
@@ -411,18 +426,18 @@ graph LR
           </thead>
           <tbody>
             <tr>
-              <td><i data-lucide="file-json"></i><code>findings-config-i.json</code></td>
+              <td><i data-lucide="file-json" aria-hidden="true"></i><code>findings-config-i.json</code></td>
               <td>Workspace root</td>
               <td>Primary deliverable; minified UTF-8 JSON array</td>
             </tr>
             <tr>
-              <td><i data-lucide="file-text"></i><code>decision-log.md</code></td>
-              <td><code>blitzy/documentation/</code></td>
+              <td><i data-lucide="file-text" aria-hidden="true"></i><code>blitzy/documentation/decision-log.md</code></td>
+              <td>Repository</td>
               <td>Explainability rule: why each non-trivial choice</td>
             </tr>
             <tr>
-              <td><i data-lucide="presentation"></i><code>executive-summary.html</code></td>
-              <td><code>blitzy/documentation/</code></td>
+              <td><i data-lucide="presentation" aria-hidden="true"></i><code>blitzy/documentation/executive-summary.html</code></td>
+              <td>Repository</td>
               <td>This deck; leadership-facing overview</td>
             </tr>
           </tbody>
@@ -431,7 +446,7 @@ graph LR
 
       <!-- Slide 6 — Section Divider: Why It Was Done -->
       <section class="slide-divider">
-        <div class="divider-icon"><i data-lucide="target"></i></div>
+        <div class="divider-icon"><i data-lucide="target" aria-hidden="true"></i></div>
         <h2>Why It Was Done</h2>
         <div class="accent-bar"></div>
       </section>
@@ -447,15 +462,15 @@ graph LR
         </ul>
         <div class="icon-row">
           <div>
-            <i data-lucide="bar-chart-3"></i>
+            <i data-lucide="bar-chart-3" aria-hidden="true"></i>
             <div class="icon-label">Measurable</div>
           </div>
           <div>
-            <i data-lucide="git-compare"></i>
+            <i data-lucide="git-compare" aria-hidden="true"></i>
             <div class="icon-label">Comparable</div>
           </div>
           <div>
-            <i data-lucide="award"></i>
+            <i data-lucide="award" aria-hidden="true"></i>
             <div class="icon-label">Auditable</div>
           </div>
         </div>
@@ -463,7 +478,7 @@ graph LR
 
       <!-- Slide 8 — Section Divider: Architecture Changes -->
       <section class="slide-divider">
-        <div class="divider-icon"><i data-lucide="layout-template"></i></div>
+        <div class="divider-icon"><i data-lucide="layout-template" aria-hidden="true"></i></div>
         <h2>Architecture Changes</h2>
         <div class="accent-bar"></div>
       </section>
@@ -478,12 +493,12 @@ graph LR
     B -- summarized by --> C[executive-summary.html]
     A -- visualized in --> C
         </pre>
-        <p style="font-size: 0.55em; color: var(--blitzy-text-muted); margin-top: 0.8em;">Zero application source modifications. Existing tooling configs unchanged.</p>
+        <p class="slide-caption">Zero application source modifications. Existing tooling configs unchanged.</p>
       </section>
 
       <!-- Slide 10 — Section Divider: Findings Schema -->
       <section class="slide-divider">
-        <div class="divider-icon"><i data-lucide="database"></i></div>
+        <div class="divider-icon"><i data-lucide="database" aria-hidden="true"></i></div>
         <h2>Findings Schema</h2>
         <div class="accent-bar"></div>
       </section>
@@ -498,27 +513,27 @@ graph LR
           </thead>
           <tbody>
             <tr>
-              <td><i data-lucide="file-text"></i><code>file</code></td>
+              <td><i data-lucide="file-text" aria-hidden="true"></i><code>file</code></td>
               <td>Issue component (relative path)</td>
               <td>String</td>
             </tr>
             <tr>
-              <td><i data-lucide="hash"></i><code>line</code></td>
+              <td><i data-lucide="hash" aria-hidden="true"></i><code>line</code></td>
               <td>Issue line number</td>
               <td>Integer; 0 if absent</td>
             </tr>
             <tr>
-              <td><i data-lucide="alert-triangle"></i><code>severity</code></td>
-              <td>BLOCKER/CRITICAL to critical; MAJOR to high; MINOR to medium; INFO to low</td>
+              <td><i data-lucide="alert-triangle" aria-hidden="true"></i><code>severity</code></td>
+              <td>BLOCKER/CRITICAL → critical, MAJOR → high, MINOR → medium, INFO → low</td>
               <td>Enum: critical, high, medium, low</td>
             </tr>
             <tr>
-              <td><i data-lucide="shield-alert"></i><code>cwe</code></td>
+              <td><i data-lucide="shield-alert" aria-hidden="true"></i><code>cwe</code></td>
               <td>Rule tags CWE ID; fallback rule description</td>
               <td>CWE-N or CWE-UNKNOWN</td>
             </tr>
             <tr>
-              <td><i data-lucide="message-square"></i><code>description</code></td>
+              <td><i data-lucide="message-square" aria-hidden="true"></i><code>description</code></td>
               <td>Issue message</td>
               <td>String; max 200 chars</td>
             </tr>
@@ -528,7 +543,7 @@ graph LR
 
       <!-- Slide 12 — Section Divider: Risks &amp; Mitigations -->
       <section class="slide-divider">
-        <div class="divider-icon"><i data-lucide="alert-circle"></i></div>
+        <div class="divider-icon"><i data-lucide="alert-circle" aria-hidden="true"></i></div>
         <h2>Risks &amp; Mitigations</h2>
         <div class="accent-bar"></div>
       </section>
@@ -543,15 +558,15 @@ graph LR
           </thead>
           <tbody>
             <tr>
-              <td><i data-lucide="alert-triangle"></i>Findings &gt; 500 truncated by <code>ps=500</code> cap</td>
+              <td><i data-lucide="alert-triangle" aria-hidden="true"></i>Findings &gt; 500 truncated by <code>ps=500</code> cap</td>
               <td>Stderr warning on <code>total &gt; 500</code>; pagination deferred to Config II</td>
             </tr>
             <tr>
-              <td><i data-lucide="alert-triangle"></i>Non-reproducible scans across days (rolling <code>community</code> tag)</td>
+              <td><i data-lucide="alert-triangle" aria-hidden="true"></i>Non-reproducible scans across days (rolling <code>community</code> tag)</td>
               <td>Timestamp recorded in decision log; cross-config diff requires same-day reference</td>
             </tr>
             <tr>
-              <td><i data-lucide="alert-triangle"></i>Port 9000 conflict potential (MinIO under <code>storage</code> profile)</td>
+              <td><i data-lucide="alert-triangle" aria-hidden="true"></i>Port 9000 conflict potential (MinIO under <code>storage</code> profile)</td>
               <td>Operator pre-flight check <code>docker ps | grep 9000</code>; remap to <code>9001:9000</code> if held</td>
             </tr>
           </tbody>
@@ -560,7 +575,7 @@ graph LR
 
       <!-- Slide 14 — Section Divider: Operational Readiness -->
       <section class="slide-divider">
-        <div class="divider-icon"><i data-lucide="check-circle"></i></div>
+        <div class="divider-icon"><i data-lucide="check-circle" aria-hidden="true"></i></div>
         <h2>Operational Readiness</h2>
         <div class="accent-bar"></div>
       </section>
@@ -571,22 +586,22 @@ graph LR
         <h2>Pass/Fail Criteria</h2>
         <div class="kpi-grid">
           <div class="kpi-card">
-            <div class="kpi-icon"><i data-lucide="file-check"></i></div>
+            <div class="kpi-icon"><i data-lucide="file-check" aria-hidden="true"></i></div>
             <div class="kpi-value">= 1</div>
             <div class="kpi-label">Line Count</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-icon"><i data-lucide="check-square"></i></div>
+            <div class="kpi-icon"><i data-lucide="check-square" aria-hidden="true"></i></div>
             <div class="kpi-value">Valid</div>
             <div class="kpi-label">JSON Parse</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-icon"><i data-lucide="container"></i></div>
+            <div class="kpi-icon"><i data-lucide="container" aria-hidden="true"></i></div>
             <div class="kpi-value">Removed</div>
             <div class="kpi-label">Container State</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-icon"><i data-lucide="list-checks"></i></div>
+            <div class="kpi-icon"><i data-lucide="list-checks" aria-hidden="true"></i></div>
             <div class="kpi-value">5 fields</div>
             <div class="kpi-label">Schema Compliance</div>
           </div>
@@ -595,7 +610,7 @@ graph LR
 
       <!-- Slide 16 — Closing -->
       <section class="slide-closing">
-        <span class="eyebrow" style="color: var(--blitzy-accent-teal);">Next Steps</span>
+        <span class="eyebrow eyebrow-teal">Next Steps</span>
         <h2>Onward to Config II</h2>
         <ul>
           <li>Compare findings with Config II (SonarSource Cloud) and beyond</li>
@@ -604,7 +619,7 @@ graph LR
         </ul>
         <div class="accent-bar"></div>
         <div class="brand-lockup">
-          <i data-lucide="shield-check"></i>
+          <i data-lucide="shield-check" aria-hidden="true"></i>
           <span>Blitzy — Security Tooling Comparison Series</span>
         </div>
       </section>
