@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Config H — Snyk Scan of blitzy-RudderStack</title>
+
+  <!-- Google Fonts: Inter, Space Grotesk, Fira Code (weights 400/500/600/700) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Fira+Code:wght@400;500;600;700&display=swap">
+
+  <!-- reveal.js 5.1.0 core stylesheet (CDN, pinned version) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <!-- reveal.js 5.1.0 white theme base (Blitzy variables override the visuals) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
+
+  <style>
+    /* ==========================================================
+       Blitzy executive deck theme — inline, self-contained.
+       Canonical CSS custom properties per AAP section 0.5.2.
+       ========================================================== */
+    :root {
+      --blitzy-primary: #4F46E5;          /* indigo-600 */
+      --blitzy-primary-dark: #312E81;     /* indigo-900 */
+      --blitzy-accent: #06B6D4;           /* cyan-500 */
+      --blitzy-text: #0F172A;             /* slate-900 */
+      --blitzy-text-muted: #475569;       /* slate-600 */
+      --blitzy-bg: #FFFFFF;
+      --blitzy-bg-soft: #F8FAFC;          /* slate-50 */
+      --blitzy-bg-dark: #0F172A;          /* slate-900 — for dividers */
+      --blitzy-success: #16A34A;          /* green-600 */
+      --blitzy-warning: #F59E0B;          /* amber-500 */
+      --blitzy-danger: #DC2626;           /* red-600 */
+      --blitzy-border: #E2E8F0;           /* slate-200 */
+    }
+
+    /* --------- Typography defaults --------- */
+    html, body {
+      background: var(--blitzy-bg);
+    }
+    body, .reveal {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: var(--blitzy-text);
+    }
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-weight: 600;
+      color: var(--blitzy-text);
+      text-transform: none;
+      letter-spacing: -0.01em;
+      line-height: 1.15;
+    }
+    .reveal h1 { font-size: 3.2em; }
+    .reveal h2 { font-size: 2.0em; margin-bottom: 0.4em; }
+    .reveal h3 { font-size: 1.4em; }
+    .reveal p, .reveal li, .reveal td, .reveal th {
+      color: var(--blitzy-text);
+      line-height: 1.4;
+    }
+    .reveal p { font-size: 0.95em; }
+
+    /* Inline code uses Fira Code (the only acceptable code-display mechanism inside slides) */
+    .reveal code,
+    .reveal .fira {
+      font-family: 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+      font-size: 0.85em;
+      background: #F1F5F9;
+      padding: 0.1em 0.4em;
+      border-radius: 4px;
+      color: var(--blitzy-primary-dark);
+      font-weight: 500;
+    }
+
+    /* Override reveal.js defaults for clean look */
+    .reveal .slides section {
+      text-align: left;
+      padding: 0 24px;
+      box-sizing: border-box;
+    }
+    .reveal .slides section.slide-title,
+    .reveal .slides section.slide-divider,
+    .reveal .slides section.slide-closing {
+      text-align: center;
+    }
+    .reveal .progress {
+      color: var(--blitzy-primary);
+    }
+    .reveal .controls {
+      color: var(--blitzy-primary);
+    }
+    .reveal .slide-number {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 16px;
+      background: rgba(15, 23, 42, 0.04);
+      color: var(--blitzy-text-muted);
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    /* --------- Slide types --------- */
+    /* Title slide — hero gradient, white text */
+    .reveal section.slide-title {
+      background: linear-gradient(135deg, var(--blitzy-primary-dark) 0%, var(--blitzy-primary) 100%);
+      color: #FFFFFF;
+      padding: 64px;
+    }
+    .reveal section.slide-title h1,
+    .reveal section.slide-title h2,
+    .reveal section.slide-title p {
+      color: #FFFFFF;
+    }
+    .reveal section.slide-title h1 {
+      font-size: 3.5em;
+      margin-top: 0.5em;
+      letter-spacing: -0.02em;
+    }
+    .reveal section.slide-title .title-subtitle {
+      font-size: 1.4em;
+      font-weight: 500;
+      margin-top: 0.4em;
+      opacity: 0.95;
+    }
+    .reveal section.slide-title .title-tagline {
+      font-size: 1.05em;
+      font-weight: 400;
+      margin-top: 1.2em;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      opacity: 0.85;
+    }
+    .reveal section.slide-title code {
+      background: rgba(255, 255, 255, 0.12);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Divider slide — dark slate background, large icon */
+    .reveal section.slide-divider {
+      background: var(--blitzy-bg-dark);
+      color: #FFFFFF;
+      padding: 80px;
+    }
+    .reveal section.slide-divider h1,
+    .reveal section.slide-divider p {
+      color: #FFFFFF;
+    }
+    .reveal section.slide-divider h1 {
+      font-size: 4em;
+      margin-top: 0.6em;
+    }
+    .reveal section.slide-divider .divider-subtitle {
+      font-size: 1.2em;
+      font-weight: 400;
+      margin-top: 0.6em;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    /* Closing slide — gradient, action bullets */
+    .reveal section.slide-closing {
+      background: linear-gradient(135deg, var(--blitzy-primary-dark) 0%, var(--blitzy-primary) 100%);
+      color: #FFFFFF;
+      padding: 64px;
+    }
+    .reveal section.slide-closing h1,
+    .reveal section.slide-closing li,
+    .reveal section.slide-closing p {
+      color: #FFFFFF;
+    }
+    .reveal section.slide-closing h1 {
+      font-size: 3.2em;
+    }
+    .reveal section.slide-closing code {
+      background: rgba(255, 255, 255, 0.12);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Default content slides — accent bar on H2 */
+    .reveal section h2 {
+      position: relative;
+      padding-left: 22px;
+    }
+    .reveal section h2::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.15em;
+      bottom: 0.15em;
+      width: 6px;
+      background: var(--blitzy-primary);
+      border-radius: 3px;
+    }
+    /* Reset the accent bar on title/divider/closing slides */
+    .reveal section.slide-title h1,
+    .reveal section.slide-title h2,
+    .reveal section.slide-divider h1,
+    .reveal section.slide-divider h2,
+    .reveal section.slide-closing h1,
+    .reveal section.slide-closing h2 {
+      padding-left: 0;
+    }
+    .reveal section.slide-title h1::before,
+    .reveal section.slide-title h2::before,
+    .reveal section.slide-divider h1::before,
+    .reveal section.slide-divider h2::before,
+    .reveal section.slide-closing h1::before,
+    .reveal section.slide-closing h2::before {
+      display: none;
+    }
+
+    /* --------- Lucide icon sizing (classes propagate to the generated SVG) --------- */
+    .reveal svg.lucide {
+      stroke-width: 1.8;
+      vertical-align: middle;
+    }
+    .hero-icon { width: 120px; height: 120px; }
+    .divider-icon { width: 96px; height: 96px; }
+    .kpi-icon { width: 40px; height: 40px; }
+    .callout-icon { width: 28px; height: 28px; flex-shrink: 0; }
+    .col-list-icon { width: 24px; height: 24px; }
+    .bullet-icon { width: 28px; height: 28px; flex-shrink: 0; }
+    .brand-icon { width: 36px; height: 36px; }
+
+    /* --------- KPI card grid --------- */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      margin-top: 48px;
+    }
+    .kpi-card {
+      background: var(--blitzy-bg-soft);
+      border: 1px solid var(--blitzy-border);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: left;
+    }
+    .kpi-card .kpi-icon {
+      color: var(--blitzy-primary);
+      margin-bottom: 16px;
+    }
+    .kpi-card .kpi-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.5em;
+      font-weight: 700;
+      color: var(--blitzy-primary-dark);
+      line-height: 1;
+    }
+    .kpi-card .kpi-label {
+      font-size: 0.9em;
+      color: var(--blitzy-text-muted);
+      margin-top: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+    .kpi-card .kpi-detail {
+      margin-top: 16px;
+      font-size: 0.95em;
+      color: var(--blitzy-text);
+      line-height: 1.35;
+    }
+
+    /* --------- Styled table --------- */
+    .blitzy-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 24px;
+      font-size: 0.9em;
+      background: var(--blitzy-bg);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 0 1px var(--blitzy-border);
+    }
+    .blitzy-table th {
+      background: var(--blitzy-bg-dark);
+      color: #FFFFFF;
+      text-align: left;
+      padding: 14px 18px;
+      font-weight: 600;
+      font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: 0.02em;
+    }
+    .blitzy-table td {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--blitzy-border);
+      vertical-align: top;
+    }
+    .blitzy-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .blitzy-table tbody tr:hover {
+      background: var(--blitzy-bg-soft);
+    }
+
+    /* --------- Two-column lists --------- */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      margin-top: 24px;
+    }
+    .two-col h3 {
+      font-size: 1.05em;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--blitzy-text-muted);
+      margin-bottom: 8px;
+    }
+    .col-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .col-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 8px 0;
+      font-size: 0.95em;
+    }
+    .col-list li svg {
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+    .col-list.do li svg { color: var(--blitzy-success); }
+    .col-list.dont li svg { color: var(--blitzy-danger); }
+
+    /* --------- Callouts (hotspots) --------- */
+    .callout {
+      background: var(--blitzy-bg-soft);
+      border-left: 4px solid var(--blitzy-warning);
+      padding: 16px 20px;
+      margin: 12px 0;
+      border-radius: 0 8px 8px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .callout .callout-body {
+      flex: 1;
+    }
+    .callout .callout-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 600;
+      color: var(--blitzy-text);
+      margin-bottom: 4px;
+    }
+    .callout .callout-text {
+      color: var(--blitzy-text-muted);
+      font-size: 0.92em;
+      line-height: 1.35;
+    }
+    .callout svg { color: var(--blitzy-warning); }
+    .callout-flame {
+      border-left-color: var(--blitzy-danger);
+    }
+    .callout-flame svg { color: var(--blitzy-danger); }
+
+    /* --------- Brand lockup (closing slide) --------- */
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 56px;
+    }
+    .brand-lockup .brand-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.3em;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: 0.01em;
+    }
+    .accent-bar {
+      height: 4px;
+      background: linear-gradient(90deg, var(--blitzy-accent), var(--blitzy-primary));
+      border-radius: 2px;
+      margin: 32px auto 0;
+      width: 30%;
+      max-width: 320px;
+    }
+    .reveal section.slide-title .accent-bar,
+    .reveal section.slide-closing .accent-bar {
+      background: linear-gradient(90deg, rgba(255,255,255,0.6), rgba(255,255,255,0.95));
+    }
+
+    /* --------- Action bullets (closing slide) --------- */
+    .action-list {
+      list-style: none;
+      padding: 0;
+      margin: 40px auto 0;
+      max-width: 880px;
+      text-align: left;
+    }
+    .action-list li {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 24px;
+      margin: 14px 0;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 10px;
+      font-size: 1.0em;
+      color: #FFFFFF;
+    }
+    .action-list li svg {
+      color: var(--blitzy-accent);
+    }
+
+    /* --------- Risk list (Slide 15) --------- */
+    .risk-list {
+      list-style: none;
+      padding: 0;
+      margin: 24px 0 0;
+    }
+    .risk-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 18px;
+      margin: 10px 0;
+      background: var(--blitzy-bg-soft);
+      border: 1px solid var(--blitzy-border);
+      border-left: 4px solid var(--blitzy-warning);
+      border-radius: 0 8px 8px 0;
+      font-size: 0.95em;
+    }
+    .risk-list li svg {
+      color: var(--blitzy-warning);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .risk-list li strong {
+      color: var(--blitzy-text);
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 600;
+    }
+
+    /* --------- Mermaid container --------- */
+    .mermaid {
+      background: var(--blitzy-bg-soft);
+      border: 1px solid var(--blitzy-border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+      text-align: center;
+    }
+    .mermaid svg {
+      max-width: 100%;
+      max-height: 520px;
+      width: auto;
+      height: auto;
+      overflow: visible !important;
+    }
+    /* Pie charts: explicitly cap height so they don't push content past the slide. */
+    .mermaid svg[role="img"],
+    .mermaid svg[aria-roledescription="pie"] {
+      max-height: 420px;
+    }
+    /* Mermaid v11 with htmlLabels emits foreignObject width=0; force the inner HTML
+       label to determine its own width and not clip at the SVG box boundary. */
+    .mermaid svg foreignObject {
+      overflow: visible;
+    }
+    .mermaid svg foreignObject > div {
+      width: max-content;
+      max-width: none !important;
+    }
+    .mermaid svg .nodeLabel,
+    .mermaid svg .nodeLabel p {
+      margin: 0;
+      padding: 0 4px;
+      white-space: nowrap;
+    }
+
+    /* --------- Intro paragraph (sub-intro under H2) --------- */
+    .reveal section .intro {
+      font-size: 1.0em;
+      color: var(--blitzy-text-muted);
+      max-width: 1100px;
+    }
+
+    /* --------- Caption (under a chart) --------- */
+    .caption {
+      margin-top: 14px;
+      font-size: 0.85em;
+      color: var(--blitzy-text-muted);
+      font-style: italic;
+      text-align: center;
+    }
+
+    /* --------- Schema example line --------- */
+    .schema-example {
+      margin-top: 16px;
+      font-size: 0.9em;
+      color: var(--blitzy-text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- Slide 1 / 16 — Title -->
+      <section class="slide-title">
+        <i data-lucide="shield-check" class="hero-icon" aria-hidden="true"></i>
+        <h1>Config H</h1>
+        <p class="title-subtitle">Snyk Scan of <code>blitzy-RudderStack</code></p>
+        <p class="title-tagline">Multi-Configuration Security-Tool Comparison</p>
+        <div class="accent-bar"></div>
+      </section>
+
+      <!-- Slide 2 / 16 — Why this comparison? -->
+      <section>
+        <h2>Why This Comparison?</h2>
+        <p class="intro">Snyk benchmarked against sibling configurations. Each config produces a normalized findings file.</p>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <i data-lucide="target" class="kpi-icon" aria-hidden="true"></i>
+            <div class="kpi-value">1</div>
+            <div class="kpi-label">Repository Scanned</div>
+            <div class="kpi-detail">Go 1.26.1 monorepo</div>
+          </div>
+          <div class="kpi-card">
+            <i data-lucide="layers" class="kpi-icon" aria-hidden="true"></i>
+            <div class="kpi-value">2</div>
+            <div class="kpi-label">Scan Types</div>
+            <div class="kpi-detail">SAST + dependencies</div>
+          </div>
+          <div class="kpi-card">
+            <i data-lucide="file-json" class="kpi-icon" aria-hidden="true"></i>
+            <div class="kpi-value">5</div>
+            <div class="kpi-label">Deliverable Files</div>
+            <div class="kpi-detail">Per the AAP</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 3 / 16 — Architecture overview -->
+      <section>
+        <h2>Scan Pipeline</h2>
+        <p class="intro">Six steps from CLI install to a single-line minified JSON deliverable.</p>
+        <div class="mermaid">
+flowchart LR
+  A[Install Snyk CLI] --> B[Authenticate via SNYK_TOKEN]
+  B --> C[snyk code test<br/>SAST scan]
+  B --> D[snyk test --json<br/>Dependency scan]
+  C --> E[Parse SARIF]
+  D --> F[Parse Snyk JSON]
+  E --> G[Merge and minify]
+  F --> G
+  G --> H[findings-config-h.json]
+        </div>
+      </section>
+
+      <!-- Slide 4 / 16 — Scope divider -->
+      <section class="slide-divider">
+        <i data-lucide="target" class="divider-icon" aria-hidden="true"></i>
+        <h1>Scope</h1>
+        <p class="divider-subtitle">What's in the box</p>
+      </section>
+
+      <!-- Slide 5 / 16 — What was scanned -->
+      <section>
+        <h2>What Was Scanned</h2>
+        <table class="blitzy-table">
+          <thead>
+            <tr><th>Property</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Repository</td><td><code>rudderlabs/rudder-server</code></td></tr>
+            <tr><td>Language</td><td>Go</td></tr>
+            <tr><td>Toolchain</td><td>Go 1.26.1</td></tr>
+            <tr><td>Module model</td><td>Single module at repo root</td></tr>
+            <tr><td>Dependency manifests</td><td><code>go.mod</code>, <code>go.sum</code></td></tr>
+            <tr><td>Source corpus</td><td>All <code>**/*.go</code> files</td></tr>
+            <tr><td>Existing policy</td><td><code>.snyk</code> (5 expired ignore rules)</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Slide 6 / 16 — Boundaries (NOT scanned vs scanned) -->
+      <section>
+        <h2>Boundaries</h2>
+        <div class="two-col">
+          <div>
+            <h3>Excluded</h3>
+            <ul class="col-list dont">
+              <li><i data-lucide="x-circle" class="col-list-icon" aria-hidden="true"></i><span>Container images (<code>snyk container test</code>)</span></li>
+              <li><i data-lucide="x-circle" class="col-list-icon" aria-hidden="true"></i><span>Infrastructure-as-code (<code>snyk iac test</code>)</span></li>
+              <li><i data-lucide="x-circle" class="col-list-icon" aria-hidden="true"></i><span>Snyk UI upload (<code>snyk monitor</code>)</span></li>
+              <li><i data-lucide="x-circle" class="col-list-icon" aria-hidden="true"></i><span>SBOM generation (<code>snyk sbom</code>)</span></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Included</h3>
+            <ul class="col-list do">
+              <li><i data-lucide="check-circle" class="col-list-icon" aria-hidden="true"></i><span>SAST (<code>snyk code test</code>)</span></li>
+              <li><i data-lucide="check-circle" class="col-list-icon" aria-hidden="true"></i><span>Dependencies (<code>snyk test</code>)</span></li>
+              <li><i data-lucide="check-circle" class="col-list-icon" aria-hidden="true"></i><span>SARIF 2.1.0 output</span></li>
+              <li><i data-lucide="check-circle" class="col-list-icon" aria-hidden="true"></i><span>Snyk JSON output</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 7 / 16 — Methodology divider -->
+      <section class="slide-divider">
+        <i data-lucide="workflow" class="divider-icon" aria-hidden="true"></i>
+        <h1>Methodology</h1>
+        <p class="divider-subtitle">How the scan runs</p>
+      </section>
+
+      <!-- Slide 8 / 16 — Snyk Code (SAST) -->
+      <section>
+        <h2>Snyk Code — SAST</h2>
+        <p class="intro">Static analysis across the Go source corpus, output as SARIF 2.1.0.</p>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <i data-lucide="file-code" class="kpi-icon" aria-hidden="true"></i>
+            <div class="kpi-value">SARIF 2.1.0</div>
+            <div class="kpi-label">Output Format</div>
+            <div class="kpi-detail">Industry-standard schema</div>
+          </div>
+          <div class="kpi-card">
+            <i data-lucide="gauge" class="kpi-icon" aria-hidden="true"></i>
+            <div class="kpi-value">3 levels</div>
+            <div class="kpi-label">Severity Mapping</div>
+            <div class="kpi-detail">error→critical, warning→high, note→medium</div>
+          </div>
+          <div class="kpi-card">
+            <i data-lucide="tag" class="kpi-icon" aria-hidden="true"></i>
+            <div class="kpi-value">CWE-N</div>
+            <div class="kpi-label">Identifier</div>
+            <div class="kpi-detail">From rule metadata</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 9 / 16 — Snyk Open Source (dependencies) -->
+      <section>
+        <h2>Snyk Open Source — Dependencies</h2>
+        <p class="intro">Resolves the Go dependency graph via <code>go.mod</code>. Output is structured JSON with a <code>vulnerabilities</code> array.</p>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <i data-lucide="package" class="kpi-icon" aria-hidden="true"></i>
+            <div class="kpi-value">go.mod</div>
+            <div class="kpi-label">Manifest</div>
+            <div class="kpi-detail">Primary dependency input</div>
+          </div>
+          <div class="kpi-card">
+            <i data-lucide="arrow-down-circle" class="kpi-icon" aria-hidden="true"></i>
+            <div class="kpi-value">Passthrough</div>
+            <div class="kpi-label">Severity</div>
+            <div class="kpi-detail">critical / high / medium / low</div>
+          </div>
+          <div class="kpi-card">
+            <i data-lucide="tag" class="kpi-icon" aria-hidden="true"></i>
+            <div class="kpi-value">CWE → CVE</div>
+            <div class="kpi-label">Identifier Fallback</div>
+            <div class="kpi-detail">CWE preferred, CVE on fallback</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 10 / 16 — Normalization and schema -->
+      <section>
+        <h2>Normalized Output Schema</h2>
+        <table class="blitzy-table">
+          <thead>
+            <tr><th>Field</th><th>Type</th><th>Semantics</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>file</code></td><td>string</td><td>Repo-relative path</td></tr>
+            <tr><td><code>line</code></td><td>integer</td><td>SARIF start line</td></tr>
+            <tr><td><code>severity</code></td><td>string</td><td>critical / high / medium / low</td></tr>
+            <tr><td><code>cwe</code></td><td>string</td><td><code>CWE-N</code> or <code>CVE</code></td></tr>
+            <tr><td><code>description</code></td><td>string</td><td>Prefix + body ≤200</td></tr>
+          </tbody>
+        </table>
+        <p class="schema-example"><code>cat findings-config-h.json | wc -l</code></p>
+      </section>
+
+      <!-- Slide 11 / 16 — Results divider -->
+      <section class="slide-divider">
+        <i data-lucide="bar-chart-3" class="divider-icon" aria-hidden="true"></i>
+        <h1>Results</h1>
+        <p class="divider-subtitle">Findings at plan time</p>
+      </section>
+
+      <!-- Slide 12 / 16 — Severity distribution -->
+      <section>
+        <h2>Severity Distribution</h2>
+        <p class="intro">Plan-time deliverable initialized to <code>[]</code>. Distribution populates once the operator runs the scans.</p>
+        <div class="mermaid">
+pie title Plan-Time Severity Mix
+  "Critical (TBD)" : 1
+  "High (TBD)" : 1
+  "Medium (TBD)" : 1
+  "Low (TBD)" : 1
+        </div>
+        <p class="caption">Live counts populate once <code>SNYK_TOKEN</code> is provisioned.</p>
+      </section>
+
+      <!-- Slide 13 / 16 — Known hotspots -->
+      <section>
+        <h2>Known Hotspots</h2>
+        <div class="callout callout-flame">
+          <i data-lucide="flame" class="callout-icon" aria-hidden="true"></i>
+          <div class="callout-body">
+            <div class="callout-title">Indirect dependency pins</div>
+            <div class="callout-text"><code>go.mod</code> has a <code>replace</code> block for Snyk fixes.</div>
+          </div>
+        </div>
+        <div class="callout callout-flame">
+          <i data-lucide="flame" class="callout-icon" aria-hidden="true"></i>
+          <div class="callout-body">
+            <div class="callout-title">Expired ignore rules</div>
+            <div class="callout-text">Five <code>.snyk</code> rules expired 2025-01-01, surfacing prior findings.</div>
+          </div>
+        </div>
+        <div class="callout callout-flame">
+          <i data-lucide="flame" class="callout-icon" aria-hidden="true"></i>
+          <div class="callout-body">
+            <div class="callout-title">No CI integration today</div>
+            <div class="callout-text">No workflow invokes Snyk; this is one-shot.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 14 / 16 — Risk & onboarding divider -->
+      <section class="slide-divider">
+        <i data-lucide="compass" class="divider-icon" aria-hidden="true"></i>
+        <h1>Risk &amp; Onboarding</h1>
+        <p class="divider-subtitle">What to watch, what to do next</p>
+      </section>
+
+      <!-- Slide 15 / 16 — Risks and mitigations -->
+      <section>
+        <h2>Risks and Mitigations</h2>
+        <ul class="risk-list">
+          <li>
+            <i data-lucide="alert-triangle" class="bullet-icon" aria-hidden="true"></i>
+            <span><strong>Token absence</strong> — <code>SNYK_TOKEN</code> not set; operator must inject.</span>
+          </li>
+          <li>
+            <i data-lucide="alert-triangle" class="bullet-icon" aria-hidden="true"></i>
+            <span><strong>Network egress</strong> — Snyk needs <code>snyk.io</code> reachable.</span>
+          </li>
+          <li>
+            <i data-lucide="alert-triangle" class="bullet-icon" aria-hidden="true"></i>
+            <span><strong>Higher findings</strong> — <code>.snyk</code> rules expired; expect more than baselines.</span>
+          </li>
+          <li>
+            <i data-lucide="alert-triangle" class="bullet-icon" aria-hidden="true"></i>
+            <span><strong>Exit code 1 is success</strong> — <code>snyk test</code> exits 1 on findings; ≥2 is fatal.</span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Slide 16 / 16 — Closing -->
+      <section class="slide-closing">
+        <i data-lucide="rocket" class="hero-icon" aria-hidden="true"></i>
+        <h1>Take Action</h1>
+        <ul class="action-list">
+          <li>
+            <i data-lucide="key" class="bullet-icon" aria-hidden="true"></i>
+            <span>Provision <code>SNYK_TOKEN</code> as an environment secret</span>
+          </li>
+          <li>
+            <i data-lucide="play" class="bullet-icon" aria-hidden="true"></i>
+            <span>Run the two scans, then <code>python3 scripts/normalize-snyk-findings.py</code></span>
+          </li>
+          <li>
+            <i data-lucide="git-pull-request" class="bullet-icon" aria-hidden="true"></i>
+            <span>Commit <code>findings-config-h.json</code> and <code>DECISIONS.md</code></span>
+          </li>
+        </ul>
+        <div class="brand-lockup">
+          <i data-lucide="shield-check" class="brand-icon" aria-hidden="true"></i>
+          <span class="brand-name">Config H — Snyk on blitzy-RudderStack</span>
+        </div>
+        <div class="accent-bar"></div>
+      </section>
+
+    </div><!-- /.slides -->
+  </div><!-- /.reveal -->
+
+  <!--
+    Runtime libraries, all from pinned CDN versions:
+      reveal.js 5.1.0
+      Lucide  0.460.0 (UMD)
+      Mermaid 11.4.0 (ES module)
+    Loaded at the end of <body> so the slide DOM is ready before init runs.
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.esm.min.mjs';
+
+    // Initialize Mermaid - startOnLoad: false per AAP section 0.8.1 Rule 2.
+    // securityLevel: 'loose' is required so htmlLabels (the <br/> in flowchart nodes) render.
+    // fontFamily is set to a system sans so Mermaid's text-width measurement matches
+    // the rendered font (deferred web fonts cause node-text clipping otherwise).
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'loose',
+      theme: 'base',
+      fontFamily: 'arial, sans-serif',
+      themeVariables: {
+        primaryColor: '#E0E7FF',
+        primaryTextColor: '#1E1B4B',
+        primaryBorderColor: '#4F46E5',
+        lineColor: '#475569',
+        secondaryColor: '#CFFAFE',
+        secondaryTextColor: '#083344',
+        secondaryBorderColor: '#06B6D4',
+        tertiaryColor: '#F8FAFC',
+        tertiaryTextColor: '#0F172A',
+        tertiaryBorderColor: '#E2E8F0',
+        mainBkg: '#E0E7FF',
+        nodeBorder: '#4F46E5',
+        clusterBkg: '#F8FAFC',
+        edgeLabelBackground: '#F8FAFC',
+        fontFamily: 'arial, sans-serif',
+        fontSize: '14px',
+        pie1: '#DC2626',
+        pie2: '#F59E0B',
+        pie3: '#4F46E5',
+        pie4: '#06B6D4',
+        pieTitleTextSize: '20px',
+        pieSectionTextSize: '16px',
+        pieLegendTextSize: '14px'
+      },
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis', nodeSpacing: 50, rankSpacing: 60, padding: 16 },
+      pie: { useMaxWidth: false, textPosition: 0.55 }
+    });
+
+    // Safe wrappers — keep init resilient if Lucide UMD didn't load (e.g., offline first-run)
+    function safeLucide() {
+      try {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+      } catch (e) {
+        console.warn('Lucide createIcons failed:', e);
+      }
+    }
+    async function safeMermaid(selector) {
+      try {
+        await mermaid.run({ querySelector: selector });
+      } catch (e) {
+        console.warn('Mermaid run failed:', e);
+      }
+    }
+
+    // Initialize reveal.js per AAP section 0.8.1 Rule 2
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      controlsTutorial: false,
+      width: 1920,
+      height: 1080,
+      margin: 0.06,
+      minScale: 0.2,
+      maxScale: 2.0,
+      slideNumber: 'c/t'
+    }).then(() => {
+      // Render initial state
+      safeLucide();
+      safeMermaid('.mermaid');
+    });
+
+    // Re-render icons and Mermaid on reveal.js lifecycle events
+    Reveal.on('ready', () => {
+      safeLucide();
+      safeMermaid('.mermaid');
+    });
+    Reveal.on('slidechanged', () => {
+      safeLucide();
+      // Mermaid stamps rendered diagrams with data-processed="true";
+      // only re-run on diagrams that have not yet been rendered.
+      safeMermaid('.mermaid:not([data-processed="true"])');
+    });
+  </script>
+</body>
+</html>
+
+
