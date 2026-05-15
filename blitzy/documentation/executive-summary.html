@@ -5,19 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Config I — SonarQube — blitzy-RudderStack</title>
 
-  <!-- reveal.js core CSS (pinned 5.1.0) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" id="theme">
+  <!-- reveal.js core CSS (pinned 5.1.0) -- with Subresource Integrity (SRI) sha384 hashes -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css"
+        integrity="sha384-YgvgKeZJykuztG+iQPoZHNZENTFZvOcOJ/uRzmJTje6GHYN9zAw+y5rx/L8MQKA/"
+        crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" id="theme"
+        integrity="sha384-/TZMdZeq0ZGi4iePTHhOMXOkyv2f72ZcwmhAtOmSZlPkx+5qCOfyc/U1kjd5Su6S"
+        crossorigin="anonymous">
 
-  <!-- Google Fonts: Inter, Space Grotesk, Fira Code -->
+  <!-- Google Fonts: Inter, Space Grotesk, Fira Code (SRI not applicable to Google Fonts CSS — the response varies per User-Agent because of unicode-range font-face slicing) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;family=Fira+Code:wght@400;500&amp;display=swap">
 
-  <!-- Third-party libraries (pinned versions) -->
-  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
-  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <!-- Third-party libraries (pinned versions) -- with Subresource Integrity (SRI) sha384 hashes -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"
+          integrity="sha384-M/JtqCVlLcK9lwVnBnMXP0V577CBULkjodKsR/PITOe4MSKNbbwqCemEyluOw0+5"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"
+          integrity="sha384-Wm9qzEgq4j1jEnuFK2FxKTlwuhbV2QqtGhcchvjDoKxeJ7WWAW7fysBq+1s6myfX"
+          crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"
+          integrity="sha384-ieG+IKD0d/ZPXyCBTMVAbqsQdns8QGJR/e26WMw7M4fkaI/rHcS/YIoi+ah9WGge"
+          crossorigin="anonymous"></script>
 
   <!-- Inline Blitzy reveal.js theme (self-contained; no local file dependencies) -->
   <style>
@@ -735,7 +745,7 @@ graph LR
         const src = mermaidSources.get(pre.getAttribute('data-mermaid-id'));
         if (src) {
           pre.removeAttribute('data-processed');
-          pre.innerHTML = src;
+          pre.textContent = src;
         }
       }
       if (pres.length) await mermaid.run({ nodes: Array.from(pres) });
