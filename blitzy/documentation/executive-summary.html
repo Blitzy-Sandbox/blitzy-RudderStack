@@ -426,26 +426,26 @@
         <div class="kpi-grid">
           <div class="kpi-card">
             <div class="kpi-icon"><i data-lucide="bug" aria-hidden="true"></i></div>
-            <div class="kpi-value">0</div>
+            <div class="kpi-value">275</div>
             <div class="kpi-label">Total Findings</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon"><i data-lucide="alert-octagon" aria-hidden="true"></i></div>
-            <div class="kpi-value">0</div>
+            <div class="kpi-value">102</div>
             <div class="kpi-label">Critical Issues</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon"><i data-lucide="timer" aria-hidden="true"></i></div>
-            <div class="kpi-value">&mdash;</div>
+            <div class="kpi-value">1m 44s</div>
             <div class="kpi-label">Scan Duration</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon"><i data-lucide="zap" aria-hidden="true"></i></div>
-            <div class="kpi-value">&mdash;</div>
+            <div class="kpi-value">38s</div>
             <div class="kpi-label">Cold-Start Time</div>
           </div>
         </div>
-        <p class="slide-caption">Findings counts reflect the committed zero-finding artifact <code>findings-config-i.json</code>. Timing metrics are operator-measured at scan runtime, then recorded in the decision log alongside the cross-config diff.</p>
+        <p class="slide-caption">Findings counts reflect the committed <code>findings-config-i.json</code> artifact: 275 normalized issues (1 BLOCKER + 101 CRITICAL collapsing to <strong>critical</strong>, 164 MAJOR mapping to <strong>high</strong>, 9 MINOR mapping to <strong>medium</strong>). Timing metrics are measured against SonarQube Community Build 26.5.0 on a single-container deployment.</p>
       </section>
 
       <!-- Slide 3 — Architecture Overview (Mermaid) -->
