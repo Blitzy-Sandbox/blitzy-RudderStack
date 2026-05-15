@@ -18,7 +18,8 @@ import json
 import re
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlparse
 
 
 SEVERITY_MAP = {
@@ -41,8 +42,8 @@ DESCRIPTION_KEYWORD_TO_CWE = [
     (re.compile(r"\bdirectory traversal\b", re.IGNORECASE), "CWE-22"),
     (re.compile(r"\b(weak crypto|insecure hash|md5|sha1)\b", re.IGNORECASE), "CWE-327"),
     (re.compile(r"\bopen redirect\b", re.IGNORECASE), "CWE-601"),
-    (re.compile(r"\bssrf|server[- ]side request forgery\b", re.IGNORECASE), "CWE-918"),
-    (re.compile(r"\bxxe|xml external entity\b", re.IGNORECASE), "CWE-611"),
+    (re.compile(r"\b(ssrf|server[- ]side request forgery)\b", re.IGNORECASE), "CWE-918"),
+    (re.compile(r"\b(xxe|xml external entity)\b", re.IGNORECASE), "CWE-611"),
     (re.compile(r"\binsecure deserialization\b", re.IGNORECASE), "CWE-502"),
     (re.compile(r"\b(csrf|cross[- ]site request forgery)\b", re.IGNORECASE), "CWE-352"),
     (re.compile(r"\bnull pointer\b", re.IGNORECASE), "CWE-476"),
@@ -181,21 +182,84 @@ def sanitize_description(text):
     return flattened[:DESCRIPTION_MAX_CHARS]
 
 
-def extract_file_path(location):
-    """Read the relative path from a SARIF location, stripping file:// scheme.
+def extract_scan_roots(run):
+    """Return the absolute filesystem roots declared in SARIF originalUriBaseIds.
 
-    Trailing absolute path prefixes are reduced to a leading-slash-stripped
-    form so the emitted 'file' value is suitable for relative-path comparison
-    across configurations.
+    Walks the run's originalUriBaseIds dictionary and returns the list of
+    absolute POSIX paths declared as base URIs (e.g. %SRCROOT% -> file:///repo).
+    Returned paths are POSIX-normalized strings with the file:// scheme and
+    URL-encoding removed. An empty list is returned when no roots are declared
+    (which is the common case for Semgrep CE SARIF that already emits relative
+    URIs).
     """
-    uri = location.get("physicalLocation", {}).get("artifactLocation", {}).get("uri", "")
+    roots = []
+    base_ids = run.get("originalUriBaseIds") or {}
+    if not isinstance(base_ids, dict):
+        return roots
+    for base in base_ids.values():
+        if not isinstance(base, dict):
+            continue
+        uri = base.get("uri")
+        if not isinstance(uri, str) or not uri:
+            continue
+        decoded = _strip_file_scheme(uri)
+        if decoded and decoded.startswith("/"):
+            roots.append(decoded.rstrip("/"))
+    return roots
+
+
+def _strip_file_scheme(uri):
+    """Strip the file:// scheme and URL-decode a SARIF URI to a plain path."""
     if not isinstance(uri, str):
         return ""
-    if uri.startswith("file://"):
-        uri = uri[len("file://"):]
-    if uri.startswith("/"):
-        uri = uri.lstrip("/")
-    return uri
+    parsed = urlparse(uri)
+    if parsed.scheme == "file":
+        return unquote(parsed.path)
+    return unquote(uri)
+
+
+def extract_file_path(location, scan_roots=None):
+    """Read the relative path from a SARIF location.
+
+    Handles three SARIF URI forms emitted in practice:
+
+    1. Relative URI (Semgrep CE default; uriBaseId = %SRCROOT%):
+       returned as-is after URL-decoding.
+    2. file:// absolute URI (some tools emit these): scheme is stripped,
+       URL-decoding is applied, and the path is made scan-root-relative
+       when any declared root prefixes it.
+    3. POSIX absolute path (e.g. /tmp/repo/gateway/foo.go): made
+       scan-root-relative when any declared root prefixes it; otherwise
+       returned with leading slashes stripped so the emitted value remains
+       a relative path string suitable for cross-configuration comparison.
+
+    Preserves deterministic, relative paths in the emitted findings so that
+    the five-field schema's 'file' value is intercompatible with other
+    configurations regardless of which absolute path the operator scanned.
+    """
+    raw = (
+        location.get("physicalLocation", {})
+        .get("artifactLocation", {})
+        .get("uri", "")
+    )
+    if not isinstance(raw, str) or not raw:
+        return ""
+
+    decoded = _strip_file_scheme(raw)
+
+    if not decoded.startswith("/"):
+        return decoded
+
+    if scan_roots:
+        candidate = PurePosixPath(decoded)
+        for root in scan_roots:
+            try:
+                relative = candidate.relative_to(PurePosixPath(root))
+            except ValueError:
+                continue
+            return relative.as_posix()
+
+    return decoded.lstrip("/")
 
 
 def extract_line(location):
@@ -211,19 +275,23 @@ def extract_line(location):
         return 0
 
 
-def project_record(result, rules):
+def project_record(result, rules, scan_roots=None):
     """Project a single SARIF result into the five-field findings record.
 
     Returns a tuple (record_dict, inference_record). inference_record is
     None when the CWE came from metadata, or a (rule_id, source_text, cwe)
     tuple when the CWE was inferred from description text.
+
+    scan_roots is forwarded to extract_file_path so absolute SARIF URIs are
+    normalized to scan-root-relative paths when the run declares
+    originalUriBaseIds.
     """
     locations = result.get("locations", []) or []
     location = locations[0] if locations else {}
 
     rule = _resolve_rule(result, rules)
 
-    file_path = extract_file_path(location)
+    file_path = extract_file_path(location, scan_roots=scan_roots)
     line = extract_line(location)
 
     severity = map_severity(result.get("level"), rule)
@@ -329,8 +397,9 @@ def main():
 
     for run in runs:
         rules = index_rules(run)
+        scan_roots = extract_scan_roots(run)
         for result in run.get("results", []) or []:
-            record, inference = project_record(result, rules)
+            record, inference = project_record(result, rules, scan_roots=scan_roots)
             records.append(record)
             if inference is not None:
                 inferences.append(inference)

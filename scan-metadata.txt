@@ -3,12 +3,12 @@ rule_pack_security_audit_sha256=fdc7027973176abe71f6b1fc8739ef88a4c411735c380cfc
 rule_pack_secrets_sha256=fbbe6809214065a2efec7264cd1c9ca16be9b3e7665dfa790e0bdfd08a6d7a16
 rule_pack_owasp_top_ten_sha256=d866bd809983001afdfa81014b86404d704c0604b22c378ed37608e69525e040
 rule_pack_acquisition_utc=2026-05-15T03:10:06Z
-scan_command=semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off /tmp/blitzy/blitzy-RudderStack/blitzy-9dc2860b-a202-4bda-8d7d-f0252cd179c1_fdef9c
-scan_start_utc=2026-05-15T03:59:19Z
-scan_end_utc=2026-05-15T03:59:54Z
+scan_command=semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off .
+scan_start_utc=2026-05-15T05:07:59Z
+scan_end_utc=2026-05-15T05:08:34Z
 exit_code=0
-duration_seconds=34.74
-files_scanned=4760
+duration_seconds=35.30
+files_scanned=4763
 files_skipped=1476
 parse_errors=34
 timeouts=1
@@ -17,5 +17,7 @@ findings_critical=15
 findings_high=201
 findings_medium=0
 findings_low=0
+cwe_in_tags_coverage=216/216
 dry_run_exit_code=0
 network_calls_during_scan=0
+stderr_capture_file=semgrep-stderr.txt

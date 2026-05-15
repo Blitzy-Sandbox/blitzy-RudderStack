@@ -36,6 +36,22 @@
   --gradient-hero: linear-gradient(68deg, #7A6DEC 15.56%, #5B39F3 62.74%, #4101DB 84.44%);
   --gradient-divider: linear-gradient(135deg, #2D1C77 0%, #5B39F3 100%);
   --gradient-accent-bar: linear-gradient(90deg, #5B39F3 0%, #94FAD5 100%);
+
+  /* ---------- Semantic severity / likelihood tokens ----------
+     Derived from the Blitzy palette plus standard severity hues so they
+     stay semantically distinguishable in table state pills without
+     hardcoding raw hex values at every use site.                          */
+  --severity-critical: #B91C1C;
+  --severity-critical-bg: rgba(220, 38, 38, 0.12);
+  --severity-high: var(--blitzy-primary-dark);
+  --severity-high-bg: rgba(91, 57, 243, 0.14);
+  --severity-medium: #B45309;
+  --severity-medium-bg: rgba(245, 158, 11, 0.14);
+  --severity-low: #047857;
+  --severity-low-bg: rgba(16, 185, 129, 0.14);
+  --likelihood-high: var(--severity-critical);
+  --likelihood-medium: var(--severity-medium);
+  --likelihood-low: var(--severity-low);
 }
 
 /* ---------- Global reveal.js overrides ---------- */
@@ -459,37 +475,37 @@
 }
 
 .sev-critical {
-  background: rgba(220, 38, 38, 0.12);
-  color: #B91C1C;
+  background: var(--severity-critical-bg);
+  color: var(--severity-critical);
 }
 
 .sev-high {
-  background: rgba(91, 57, 243, 0.14);
-  color: var(--blitzy-primary-dark);
+  background: var(--severity-high-bg);
+  color: var(--severity-high);
 }
 
 .sev-medium {
-  background: rgba(245, 158, 11, 0.14);
-  color: #B45309;
+  background: var(--severity-medium-bg);
+  color: var(--severity-medium);
 }
 
 .sev-low {
-  background: rgba(16, 185, 129, 0.14);
-  color: #047857;
+  background: var(--severity-low-bg);
+  color: var(--severity-low);
 }
 
 .likelihood-low {
-  color: #047857;
+  color: var(--likelihood-low);
   font-weight: 600;
 }
 
 .likelihood-medium {
-  color: #B45309;
+  color: var(--likelihood-medium);
   font-weight: 600;
 }
 
 .likelihood-high {
-  color: #B91C1C;
+  color: var(--likelihood-high);
   font-weight: 600;
 }
 
@@ -693,27 +709,27 @@
       </div>
       <div>
         <p class="kpi-label">Exit Code</p>
-        <p class="kpi-sublabel">Clean scan, no fatal errors</p>
+        <p class="kpi-sublabel">Clean scan</p>
       </div>
     </div>
     <div class="kpi-card">
       <div>
         <i data-lucide="timer" class="kpi-icon"></i>
-        <div class="kpi-value">34.7<span style="font-size:32px;font-weight:500;color:var(--blitzy-text-muted);">s</span></div>
+        <div class="kpi-value">35.3<span style="font-size:32px;font-weight:500;color:var(--blitzy-text-muted);">s</span></div>
       </div>
       <div>
         <p class="kpi-label">Wall-Clock</p>
-        <p class="kpi-sublabel">Single hermetic pass</p>
+        <p class="kpi-sublabel">Hermetic pass</p>
       </div>
     </div>
     <div class="kpi-card">
       <div>
         <i data-lucide="files" class="kpi-icon"></i>
-        <div class="kpi-value">4,760</div>
+        <div class="kpi-value">4,763</div>
       </div>
       <div>
         <p class="kpi-label">Files Scanned</p>
-        <p class="kpi-sublabel">Across Go, YAML, JS, shell, Python</p>
+        <p class="kpi-sublabel">Full repo sweep</p>
       </div>
     </div>
     <div class="kpi-card">
@@ -723,15 +739,14 @@
       </div>
       <div>
         <p class="kpi-label">Findings</p>
-        <p class="kpi-sublabel">15 critical &middot; 201 high</p>
+        <p class="kpi-sublabel">15 critical, 201 high</p>
       </div>
     </div>
   </div>
   <div class="meta-strip">
     <span><strong>Semgrep</strong> 1.163.0</span>
-    <span><strong>Rule packs</strong> 3 (820 rules)</span>
-    <span><strong>Network calls during scan</strong> 0</span>
-    <span><strong>Output</strong> findings-config-b.json</span>
+    <span><strong>Rule packs</strong> 3</span>
+    <span><strong>Network calls</strong> 0</span>
   </div>
 </section>
 
@@ -743,21 +758,26 @@
   <h2>Pipeline Architecture</h2>
   <pre class="mermaid">
 flowchart LR
-    A[Provision Python venv] --&gt; B[pip install semgrep 1.144.0]
-    B --&gt; C[Fetch p/security-audit]
-    B --&gt; D[Fetch p/secrets]
-    B --&gt; E[Fetch p/owasp-top-ten]
-    C --&gt; F[local-rules/]
+    A[Provision Python venv] --&gt; B[pip install semgrep 1.163.0]
+    B --&gt; C[Fetch p/security-audit yaml]
+    B --&gt; D[Fetch p/secrets yaml]
+    B --&gt; E[Fetch p/owasp-top-ten yaml]
+    C --&gt; F[local-rules/ dir]
     D --&gt; F
     E --&gt; F
-    F --&gt; G{Dry-run: exit 0?}
+    F --&gt; G{Dry-run: exit code 0?}
     G -- yes --&gt; H[semgrep scan --sarif -o results-semgrep.sarif]
-    G -- no --&gt; X[Halt + log]
-    H --&gt; I[Capture exit code + duration + files]
-    I --&gt; J[normalize-sarif.py]
-    J --&gt; L[findings-config-b.json single-line]
+    G -- no --&gt; X[Halt and log to decision-log.md]
+    H --&gt; I[Capture exit code + duration + files-scanned]
+    I --&gt; J{SARIF valid JSON with runs array?}
+    J -- yes --&gt; K[Normalization script]
+    J -- no --&gt; X
+    K --&gt; L[findings-config-b.json single-line]
+    L --&gt; M[Validate wc -l == 1 + parse + fields + lengths]
+    M --&gt; N[Produce decision-log.md]
+    M --&gt; O[Produce executive-summary.html]
   </pre>
-  <p class="caption">A four-stage hermetic pipeline: provision Semgrep, cache rule packs locally, gate on a dry-run, then scan and normalize without network traffic.</p>
+  <p class="caption">A five-stage hermetic pipeline mirroring AAP §0.5.2: provision Semgrep, cache rule packs, gate on dry-run, scan, validate SARIF, normalize, validate the JSON post-conditions, and emit the rule-mandated documentation.</p>
 </section>
 
 <!-- =========================================================
@@ -781,8 +801,7 @@ flowchart LR
         <div class="kpi-value">1,263</div>
       </div>
       <div>
-        <p class="kpi-label">Go Files</p>
-        <p class="kpi-sublabel">Dominant language</p>
+        <p class="kpi-label">Go</p>
       </div>
     </div>
     <div class="kpi-card">
@@ -791,8 +810,7 @@ flowchart LR
         <div class="kpi-value">184</div>
       </div>
       <div>
-        <p class="kpi-label">YAML Files</p>
-        <p class="kpi-sublabel">Including CI workflows</p>
+        <p class="kpi-label">YAML</p>
       </div>
     </div>
     <div class="kpi-card">
@@ -802,7 +820,6 @@ flowchart LR
       </div>
       <div>
         <p class="kpi-label">JavaScript</p>
-        <p class="kpi-sublabel">Vendored tooling</p>
       </div>
     </div>
     <div class="kpi-card">
@@ -812,7 +829,6 @@ flowchart LR
       </div>
       <div>
         <p class="kpi-label">Shell</p>
-        <p class="kpi-sublabel">Helper scripts</p>
       </div>
     </div>
     <div class="kpi-card">
@@ -822,11 +838,10 @@ flowchart LR
       </div>
       <div>
         <p class="kpi-label">Python</p>
-        <p class="kpi-sublabel">Utility</p>
       </div>
     </div>
   </div>
-  <p class="caption">Full read-only sweep of the rudder-server v1.68.1 Go monolith and its vendored documentation. Source tree untouched throughout the scan.</p>
+  <p class="caption">Full read-only sweep of the rudder-server v1.68.1 Go monolith. Source tree untouched.</p>
 </section>
 
 <!-- =========================================================
@@ -854,17 +869,17 @@ flowchart LR
     <tbody>
       <tr>
         <td><code>p/security-audit</code></td>
-        <td><code>semgrep.dev/c/p/security-audit</code></td>
+        <td><code>https://semgrep.dev/c/p/security-audit</code></td>
         <td>Cross-language audit patterns for common insecure code</td>
       </tr>
       <tr>
         <td><code>p/secrets</code></td>
-        <td><code>semgrep.dev/c/p/secrets</code></td>
+        <td><code>https://semgrep.dev/c/p/secrets</code></td>
         <td>Hardcoded credentials, API keys, tokens in source</td>
       </tr>
       <tr>
         <td><code>p/owasp-top-ten</code></td>
-        <td><code>semgrep.dev/c/p/owasp-top-ten</code></td>
+        <td><code>https://semgrep.dev/c/p/owasp-top-ten</code></td>
         <td>OWASP Top-10 coverage: injection, broken auth, sensitive exposure</td>
       </tr>
     </tbody>
@@ -1069,7 +1084,7 @@ flowchart LR
       <i data-lucide="download" class="step-icon"></i>
       <span class="step-body">
         <span class="step-title">Refresh rule packs (optional)</span>
-        <span class="step-detail"><code>curl -sSL semgrep.dev/c/p/&lt;slug&gt; -o local-rules/&lt;slug&gt;.yaml</code></span>
+        <span class="step-detail"><code>curl -sSL https://semgrep.dev/c/p/&lt;slug&gt; -o local-rules/&lt;slug&gt;.yaml</code></span>
       </span>
     </li>
     <li>
@@ -1077,7 +1092,7 @@ flowchart LR
       <i data-lucide="terminal-square" class="step-icon"></i>
       <span class="step-body">
         <span class="step-title">Re-run the scan</span>
-        <span class="step-detail"><code>semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off &lt;target&gt;</code></span>
+        <span class="step-detail"><code>semgrep scan --config=./local-rules --sarif -o results-semgrep.sarif --metrics=off .</code></span>
       </span>
     </li>
     <li>
