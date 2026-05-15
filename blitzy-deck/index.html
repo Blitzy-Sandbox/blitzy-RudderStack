@@ -10,15 +10,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Fira+Code:wght@400;500;600;700&display=swap">
 
-  <!-- reveal.js 5.1.0 core stylesheet (CDN, pinned version) -->
+  <!-- reveal.js 5.1.0 core stylesheet -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
-  <!-- reveal.js 5.1.0 white theme base (Blitzy variables override the visuals) -->
+  <!-- reveal.js 5.1.0 white theme base -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
 
   <style>
     /* ==========================================================
-       Blitzy executive deck theme — inline, self-contained.
-       Canonical CSS custom properties per AAP section 0.5.2.
+       Blitzy executive deck theme
        ========================================================== */
     :root {
       --blitzy-primary: #4F46E5;          /* indigo-600 */
@@ -70,6 +69,35 @@
       border-radius: 4px;
       color: var(--blitzy-primary-dark);
       font-weight: 500;
+    }
+
+    /* Inline command line — wider Fira Code block for verbatim commands */
+    .reveal .cmd-line {
+      display: block;
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: #F1F5F9;
+      border-left: 4px solid var(--blitzy-primary);
+      border-radius: 0 8px 8px 0;
+      font-family: 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+      font-size: 0.78em;
+      color: var(--blitzy-primary-dark);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+    .reveal .cmd-line.cmd-comment {
+      border-left-color: var(--blitzy-text-muted);
+      color: var(--blitzy-text-muted);
+    }
+    .reveal .cmd-label {
+      display: block;
+      margin-top: 12px;
+      font-size: 0.82em;
+      font-weight: 600;
+      color: var(--blitzy-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     /* Override reveal.js defaults for clean look */
@@ -176,6 +204,20 @@
       background: rgba(255, 255, 255, 0.12);
       color: #FFFFFF;
       border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .reveal section.slide-closing .cmd-line {
+      background: rgba(0, 0, 0, 0.25);
+      color: #FFFFFF;
+      border-left-color: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-left: 4px solid rgba(255, 255, 255, 0.7);
+    }
+    .reveal section.slide-closing .cmd-line.cmd-comment {
+      color: rgba(255, 255, 255, 0.7);
+      border-left-color: rgba(255, 255, 255, 0.35);
+    }
+    .reveal section.slide-closing .cmd-label {
+      color: rgba(255, 255, 255, 0.8);
     }
 
     /* Default content slides — accent bar on H2 */
@@ -295,6 +337,14 @@
     .blitzy-table tbody tr:hover {
       background: var(--blitzy-bg-soft);
     }
+    .boundary-table th .th-icon {
+      width: 18px;
+      height: 18px;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    .boundary-table th .th-icon-do { color: #86EFAC; }
+    .boundary-table th .th-icon-dont { color: #FCA5A5; }
 
     /* --------- Two-column lists --------- */
     .two-col {
@@ -457,13 +507,12 @@
       height: auto;
       overflow: visible !important;
     }
-    /* Pie charts: explicitly cap height so they don't push content past the slide. */
+    /* Pie chart height cap */
     .mermaid svg[role="img"],
     .mermaid svg[aria-roledescription="pie"] {
       max-height: 420px;
     }
-    /* Mermaid v11 with htmlLabels emits foreignObject width=0; force the inner HTML
-       label to determine its own width and not clip at the SVG box boundary. */
+    /* Mermaid foreignObject label sizing */
     .mermaid svg foreignObject {
       overflow: visible;
     }
@@ -515,9 +564,9 @@
         <div class="accent-bar"></div>
       </section>
 
-      <!-- Slide 2 / 16 — Why this comparison? -->
+      <!-- Slide 2 / 16 -->
       <section>
-        <h2>Why This Comparison?</h2>
+        <h2>Why a multi-config security comparison?</h2>
         <p class="intro">Snyk benchmarked against sibling configurations. Each config produces a normalized findings file.</p>
         <div class="kpi-grid">
           <div class="kpi-card">
@@ -541,9 +590,9 @@
         </div>
       </section>
 
-      <!-- Slide 3 / 16 — Architecture overview -->
+      <!-- Slide 3 / 16 -->
       <section>
-        <h2>Scan Pipeline</h2>
+        <h2>Architecture overview</h2>
         <p class="intro">Six steps from CLI install to a single-line minified JSON deliverable.</p>
         <div class="mermaid">
 flowchart LR
@@ -565,9 +614,9 @@ flowchart LR
         <p class="divider-subtitle">What's in the box</p>
       </section>
 
-      <!-- Slide 5 / 16 — What was scanned -->
+      <!-- Slide 5 / 16 -->
       <section>
-        <h2>What Was Scanned</h2>
+        <h2>What was scanned</h2>
         <table class="blitzy-table">
           <thead>
             <tr><th>Property</th><th>Value</th></tr>
@@ -584,29 +633,24 @@ flowchart LR
         </table>
       </section>
 
-      <!-- Slide 6 / 16 — Boundaries (NOT scanned vs scanned) -->
+      <!-- Slide 6 / 16 -->
       <section>
-        <h2>Boundaries</h2>
-        <div class="two-col">
-          <div>
-            <h3>Excluded</h3>
-            <ul class="col-list dont">
-              <li><i data-lucide="x-circle" class="col-list-icon" aria-hidden="true"></i><span>Container images (<code>snyk container test</code>)</span></li>
-              <li><i data-lucide="x-circle" class="col-list-icon" aria-hidden="true"></i><span>Infrastructure-as-code (<code>snyk iac test</code>)</span></li>
-              <li><i data-lucide="x-circle" class="col-list-icon" aria-hidden="true"></i><span>Snyk UI upload (<code>snyk monitor</code>)</span></li>
-              <li><i data-lucide="x-circle" class="col-list-icon" aria-hidden="true"></i><span>SBOM generation (<code>snyk sbom</code>)</span></li>
-            </ul>
-          </div>
-          <div>
-            <h3>Included</h3>
-            <ul class="col-list do">
-              <li><i data-lucide="check-circle" class="col-list-icon" aria-hidden="true"></i><span>SAST (<code>snyk code test</code>)</span></li>
-              <li><i data-lucide="check-circle" class="col-list-icon" aria-hidden="true"></i><span>Dependencies (<code>snyk test</code>)</span></li>
-              <li><i data-lucide="check-circle" class="col-list-icon" aria-hidden="true"></i><span>SARIF 2.1.0 output</span></li>
-              <li><i data-lucide="check-circle" class="col-list-icon" aria-hidden="true"></i><span>Snyk JSON output</span></li>
-            </ul>
-          </div>
-        </div>
+        <h2>What was NOT scanned (boundaries)</h2>
+        <table class="blitzy-table boundary-table">
+          <thead>
+            <tr>
+              <th>Surface</th>
+              <th><i data-lucide="check-circle" class="th-icon th-icon-do" aria-hidden="true"></i> Included</th>
+              <th><i data-lucide="x-circle" class="th-icon th-icon-dont" aria-hidden="true"></i> Excluded</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Application source</td><td>SAST via <code>snyk code test</code></td><td>—</td></tr>
+            <tr><td>Dependency graph</td><td>OSS via <code>snyk test</code></td><td>—</td></tr>
+            <tr><td>Container images</td><td>—</td><td><code>snyk container test</code></td></tr>
+            <tr><td>IaC + SBOM + monitor</td><td>—</td><td><code>snyk iac test</code>, <code>snyk sbom</code>, <code>snyk monitor</code></td></tr>
+          </tbody>
+        </table>
       </section>
 
       <!-- Slide 7 / 16 — Methodology divider -->
@@ -616,9 +660,9 @@ flowchart LR
         <p class="divider-subtitle">How the scan runs</p>
       </section>
 
-      <!-- Slide 8 / 16 — Snyk Code (SAST) -->
+      <!-- Slide 8 / 16 -->
       <section>
-        <h2>Snyk Code — SAST</h2>
+        <h2>Snyk Code (SAST)</h2>
         <p class="intro">Static analysis across the Go source corpus, output as SARIF 2.1.0.</p>
         <div class="kpi-grid">
           <div class="kpi-card">
@@ -640,11 +684,13 @@ flowchart LR
             <div class="kpi-detail">From rule metadata</div>
           </div>
         </div>
+        <span class="cmd-label">CLI command (verbatim per AAP §0.2.3)</span>
+        <code class="cmd-line">snyk code test --sarif-file-output=results-snyk-code.sarif /path/to/blitzy-RudderStack</code>
       </section>
 
-      <!-- Slide 9 / 16 — Snyk Open Source (dependencies) -->
+      <!-- Slide 9 / 16 -->
       <section>
-        <h2>Snyk Open Source — Dependencies</h2>
+        <h2>Snyk Open Source (deps)</h2>
         <p class="intro">Resolves the Go dependency graph via <code>go.mod</code>. Output is structured JSON with a <code>vulnerabilities</code> array.</p>
         <div class="kpi-grid">
           <div class="kpi-card">
@@ -666,11 +712,13 @@ flowchart LR
             <div class="kpi-detail">CWE preferred, CVE on fallback</div>
           </div>
         </div>
+        <span class="cmd-label">CLI command (verbatim per AAP §0.2.3)</span>
+        <code class="cmd-line">snyk test --json > results-snyk-deps.json /path/to/blitzy-RudderStack</code>
       </section>
 
-      <!-- Slide 10 / 16 — Normalization and schema -->
+      <!-- Slide 10 / 16 -->
       <section>
-        <h2>Normalized Output Schema</h2>
+        <h2>Normalization &amp; schema</h2>
         <table class="blitzy-table">
           <thead>
             <tr><th>Field</th><th>Type</th><th>Semantics</th></tr>
@@ -693,9 +741,9 @@ flowchart LR
         <p class="divider-subtitle">Findings at plan time</p>
       </section>
 
-      <!-- Slide 12 / 16 — Severity distribution -->
+      <!-- Slide 12 / 16 -->
       <section>
-        <h2>Severity Distribution</h2>
+        <h2>Findings summary by severity</h2>
         <p class="intro">Plan-time deliverable initialized to <code>[]</code>. Distribution populates once the operator runs the scans.</p>
         <div class="mermaid">
 pie title Plan-Time Severity Mix
@@ -707,9 +755,9 @@ pie title Plan-Time Severity Mix
         <p class="caption">Live counts populate once <code>SNYK_TOKEN</code> is provisioned.</p>
       </section>
 
-      <!-- Slide 13 / 16 — Known hotspots -->
+      <!-- Slide 13 / 16 -->
       <section>
-        <h2>Known Hotspots</h2>
+        <h2>Notable patterns / hotspots</h2>
         <div class="callout callout-flame">
           <i data-lucide="flame" class="callout-icon" aria-hidden="true"></i>
           <div class="callout-body">
@@ -733,16 +781,16 @@ pie title Plan-Time Severity Mix
         </div>
       </section>
 
-      <!-- Slide 14 / 16 — Risk & onboarding divider -->
+      <!-- Slide 14 / 16 — Divider -->
       <section class="slide-divider">
         <i data-lucide="compass" class="divider-icon" aria-hidden="true"></i>
-        <h1>Risk &amp; Onboarding</h1>
+        <h1>Risk &amp; onboarding</h1>
         <p class="divider-subtitle">What to watch, what to do next</p>
       </section>
 
-      <!-- Slide 15 / 16 — Risks and mitigations -->
+      <!-- Slide 15 / 16 -->
       <section>
-        <h2>Risks and Mitigations</h2>
+        <h2>Risks &amp; mitigations</h2>
         <ul class="risk-list">
           <li>
             <i data-lucide="alert-triangle" class="bullet-icon" aria-hidden="true"></i>
@@ -766,7 +814,7 @@ pie title Plan-Time Severity Mix
       <!-- Slide 16 / 16 — Closing -->
       <section class="slide-closing">
         <i data-lucide="rocket" class="hero-icon" aria-hidden="true"></i>
-        <h1>Take Action</h1>
+        <h1>Take action</h1>
         <ul class="action-list">
           <li>
             <i data-lucide="key" class="bullet-icon" aria-hidden="true"></i>
@@ -781,6 +829,9 @@ pie title Plan-Time Severity Mix
             <span>Commit <code>findings-config-h.json</code> and <code>DECISIONS.md</code></span>
           </li>
         </ul>
+        <span class="cmd-label">Install Snyk CLI first (verbatim per AAP §0.2.3)</span>
+        <code class="cmd-line">npm install -g snyk</code>
+        <code class="cmd-line cmd-comment"># or: apt install snyk</code>
         <div class="brand-lockup">
           <i data-lucide="shield-check" class="brand-icon" aria-hidden="true"></i>
           <span class="brand-name">Config H — Snyk on blitzy-RudderStack</span>
@@ -791,23 +842,14 @@ pie title Plan-Time Severity Mix
     </div><!-- /.slides -->
   </div><!-- /.reveal -->
 
-  <!--
-    Runtime libraries, all from pinned CDN versions:
-      reveal.js 5.1.0
-      Lucide  0.460.0 (UMD)
-      Mermaid 11.4.0 (ES module)
-    Loaded at the end of <body> so the slide DOM is ready before init runs.
-  -->
+  <!-- Runtime libraries: reveal.js 5.1.0, Lucide 0.460.0 (UMD), Mermaid 11.4.0 (ESM) -->
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.esm.min.mjs';
 
-    // Initialize Mermaid - startOnLoad: false per AAP section 0.8.1 Rule 2.
-    // securityLevel: 'loose' is required so htmlLabels (the <br/> in flowchart nodes) render.
-    // fontFamily is set to a system sans so Mermaid's text-width measurement matches
-    // the rendered font (deferred web fonts cause node-text clipping otherwise).
+    // Mermaid initialization
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'loose',
@@ -842,7 +884,7 @@ pie title Plan-Time Severity Mix
       pie: { useMaxWidth: false, textPosition: 0.55 }
     });
 
-    // Safe wrappers — keep init resilient if Lucide UMD didn't load (e.g., offline first-run)
+    // Init wrappers
     function safeLucide() {
       try {
         if (window.lucide && typeof window.lucide.createIcons === 'function') {
@@ -860,7 +902,7 @@ pie title Plan-Time Severity Mix
       }
     }
 
-    // Initialize reveal.js per AAP section 0.8.1 Rule 2
+    // Reveal.js initialization
     Reveal.initialize({
       hash: true,
       transition: 'slide',
@@ -884,8 +926,6 @@ pie title Plan-Time Severity Mix
     });
     Reveal.on('slidechanged', () => {
       safeLucide();
-      // Mermaid stamps rendered diagrams with data-processed="true";
-      // only re-run on diagrams that have not yet been rendered.
       safeMermaid('.mermaid:not([data-processed="true"])');
     });
   </script>

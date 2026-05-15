@@ -23,6 +23,13 @@ browser is the entire workflow — there is no install command, no bundler, and 
 - Subsequent loads can use the browser cache; an offline second viewing is supported once the
   CDN assets are cached
 
+The Mermaid 11.4.0 pin is mandated by AAP §0.8.1 Rule 2 (Executive Presentation) and is retained
+under a formal security exception recorded in `DECISIONS.md` (Decision 15). All Mermaid diagram
+sources in this deck are hardcoded by the deck author — no user-controlled diagram source ever
+reaches Mermaid at runtime — so the deck's threat model does not exercise the public-CDN
+Mermaid vulnerability surface for this release. See `DECISIONS.md` for the full risk analysis
+and mitigations.
+
 ## Viewing Dimensions
 
 - The deck is designed for **1920x1080** (Full HD landscape) per AAP §0.8.1 Rule 2
@@ -64,23 +71,23 @@ Total: 16 slides, the mid-range of the 12 to 18 envelope per AAP §0.4.8.
 
 ## Contents
 
-The deck is structured as 16 sequential slides:
+The deck is structured as 16 sequential slides. The list below mirrors the rendered `<h1>` / `<h2>` text in `index.html` byte-for-byte.
 
-1. Config H — Snyk scan of `blitzy-RudderStack` (Title)
+1. Config H (Title)
 2. Why a multi-config security comparison? (Content)
 3. Architecture overview (Content)
 4. Scope (Divider)
 5. What was scanned (Content)
-6. What was NOT scanned — boundaries (Content)
+6. What was NOT scanned (boundaries) (Content)
 7. Methodology (Divider)
-8. Snyk Code — SAST (Content)
-9. Snyk Open Source — dependencies (Content)
-10. Normalization and schema (Content)
+8. Snyk Code (SAST) (Content)
+9. Snyk Open Source (deps) (Content)
+10. Normalization & schema (Content)
 11. Results (Divider)
 12. Findings summary by severity (Content)
-13. Notable patterns and hotspots (Content)
-14. Risk and onboarding (Divider)
-15. Risks and mitigations (Content)
+13. Notable patterns / hotspots (Content)
+14. Risk & onboarding (Divider)
+15. Risks & mitigations (Content)
 16. Take action (Closing)
 
 ## Relationship to other deliverables

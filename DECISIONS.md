@@ -1,23 +1,8 @@
 # Decision Log — Config H Snyk Scan of `blitzy-RudderStack`
 
-## Metadata
+**Scope** — Config H of a multi-configuration security-tool comparison (Snyk CLI on a Go monorepo). **Repository** — `github.com/rudderlabs/rudder-server`, Go 1.26.1 (single Go module rooted at the repository root). **Driver** — AAP §0.4 Implementation Design + AAP §0.8.3 (14 plan-time enumerated decisions) plus 2 additional decisions surfaced during Checkpoint 1 review remediation (Decisions 15-16: Mermaid 11.4.0 security exception and CDN Subresource Integrity deferral). The Explainability rule (AAP §0.8.1 Rule 1) makes this log a mandatory deliverable. **Companion deliverables** — `findings-config-h.json` (primary deliverable — single-line minified JSON), `scripts/normalize-snyk-findings.py` (implementation support — Python 3 stdlib-only normalizer), `blitzy-deck/index.html` (executive deck — reveal.js 5.1.0), `blitzy-deck/README.md` (operator note), `.gitignore` (one-line update to exclude transient scan artifacts). **Status** — Plan-time decision log. Refresh post-execution if scan results introduce new decisions; do NOT embed runtime data (finding counts, exit codes, durations) — those belong in execution logs.
 
-- **Scope**: Config H of a multi-configuration security-tool comparison (Snyk CLI on a Go monorepo).
-- **Repository**: `github.com/rudderlabs/rudder-server`, Go 1.26.1 (single Go module rooted at the repository root).
-- **Driver**: AAP §0.4 Implementation Design + AAP §0.8.3 (14 enumerated decisions). The Explainability rule (AAP §0.8.1 Rule 1) makes this log a mandatory deliverable.
-- **Companion deliverables**: `findings-config-h.json` (primary deliverable — single-line minified JSON), `scripts/normalize-snyk-findings.py` (implementation support — Python 3 stdlib-only normalizer), `blitzy-deck/index.html` (executive deck — reveal.js 5.1.0), `blitzy-deck/README.md` (operator note), `.gitignore` (one-line update to exclude transient scan artifacts).
-- **Status**: Plan-time decision log. Refresh post-execution if scan results introduce new decisions; do NOT embed runtime data (finding counts, exit codes, durations) — those belong in execution logs.
-
-## How to Read This Log
-
-Each row in the Decisions table answers four questions in order:
-
-- **Decision** — what was decided (the chosen behavior or value).
-- **Alternatives Considered** — what else was on the table and rejected.
-- **Rationale** — why the chosen path was selected over the alternatives.
-- **Risks** — what could go wrong because of the choice and how the risk is mitigated.
-
-A decision appears here only if a competent engineer could reasonably have chosen differently. Trivial mechanical translations of the user spec (e.g., emitting the literal `[]` when there are zero findings) are not enumerated.
+Each row in the Decisions table below answers four questions in order: **Decision** (what was decided — the chosen behavior or value), **Alternatives Considered** (what else was on the table and rejected), **Rationale** (why the chosen path was selected over the alternatives), and **Risks** (what could go wrong because of the choice and how the risk is mitigated). A decision appears here only if a competent engineer could reasonably have chosen differently. Trivial mechanical translations of the user spec (e.g., emitting the literal `[]` when there are zero findings) are not enumerated.
 
 ## Decisions
 
@@ -39,6 +24,8 @@ _Bidirectional traceability matrix not applicable: this is an isolated tooling t
 | 12 | No upload to Snyk UI (`snyk monitor`) | Skip `snyk monitor` entirely; do not push findings to a Snyk org dashboard. | Run `snyk monitor` after each scan so findings are visible in the Snyk web UI. | Explicitly out of scope per AAP §0.6.2. The multi-configuration comparison is offline-aggregated by sibling `findings-config-X.json` files; uploading would persist findings to a Snyk org that is not part of the comparison protocol and would create accidental noise in operational dashboards. | The Snyk dashboard will not track this run's findings. Mitigated because the JSON deliverable (`findings-config-h.json`) is the canonical artifact for this task and the raw `results-snyk-*` files remain available for ad-hoc inspection. |
 | 13 | `.snyk` policy preserved as-is | Leave the existing `.snyk` policy file unchanged, including its five `ignore` rules that all expired on `2025-01-01T00:00:00.000Z`. | (a) Remove the expired rules; (b) Re-issue them with new expiration dates; (c) Delete `.snyk` entirely. | Modifying `.snyk` is explicitly out of scope per AAP §0.6.2. The expired ignore rules no longer suppress findings (Snyk CLI treats an `expires` timestamp in the past as inactive), which is the expected behavior for a "Config H as-is" snapshot of the repository's current posture. | The scan may surface a higher finding count than historical Snyk baselines that ran while the ignore rules were active. Documented as an observation in the executive deck rather than treated as a regression. |
 | 14 | Output location for `findings-config-h.json` | Place at the repository root (`./findings-config-h.json`). | (a) Under `scripts/`; (b) Under `blitzy-docs/`; (c) In a new `findings/` directory. | Repository root matches the implied parity with sibling `findings-config-{a..g}.json` files and any future Config X variants. Downstream comparators expect a flat layout discoverable by a single glob (`findings-config-*.json`). | Visual clutter in the repository root listing as additional configurations are added. Mitigated because the files are small, share a clear `findings-config-` prefix, and can be collected into a directory by a downstream aggregator without touching this repository. |
+| 15 | Mermaid 11.4.0 pin retained — formal security exception | Retain the mandated Mermaid `11.4.0` pin in the executive deck despite public vulnerability data flagging that release. Document a formal risk exception here in lieu of upgrading. | (a) Upgrade to a currently non-vulnerable Mermaid release on the same major line; (b) Replace Mermaid with pre-rendered SVGs and remove the runtime dependency. | The AAP §0.8.1 Rule 2 (Executive Presentation) explicitly enumerates the pinned versions — `reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0` — as a non-negotiable contract. Diverging from that pin would violate the user-specified Rule, which takes precedence over an opportunistic CDN upgrade. The known Mermaid 11.4.0 issues (arbitrary code injection, infinite loop, and XSS classes per public vulnerability databases) are mitigated by the deck's threat model: (1) the Mermaid input is hardcoded in `<div class="mermaid">` blocks authored by the deck — no user-controlled diagram source ever reaches Mermaid; (2) the deck is delivered as a static file viewed locally by trusted operators; (3) `securityLevel: 'loose'` is required only for `htmlLabels` (the `<br/>` in flowchart nodes) and is paired with the closed input surface above; (4) all CDN URLs use HTTPS with pinned-version SRI candidates (deferred per Decision #16). | A future Mermaid CVE that bypasses the closed-input mitigation would still execute in the operator's browser. Mitigated by (a) re-evaluating this exception at the next AAP revision, (b) keeping the deck behind a trusted distribution channel (no public hosting), and (c) recording the pin choice in this log so security review can revisit it on a known cadence. |
+| 16 | Subresource Integrity (SRI) hashes deferred for deck CDN dependencies | Omit SRI `integrity` attributes from the three CDN `<script>`/`<link>` references in `blitzy-deck/index.html`. | (a) Add SRI hashes for all three CDN resources (reveal.js, Lucide UMD, Mermaid ESM); (b) Add SRI hashes only for the two scripts loaded via classic tags and skip the Mermaid ES module. | SRI is not required by the AAP or by the Executive Presentation rule. Mermaid 11.4.0 is loaded as an ES module (`<script type="module">`) which makes SRI hash management substantively more involved than for a UMD bundle — every transitive module fetch needs its own hash, and the Mermaid ESM bundle currently does not publish a single canonical hash. Deferring SRI keeps the deck a single self-contained HTML file with no operator hash-maintenance overhead. The CDN URLs are HTTPS and version-pinned, so a TLS downgrade or an unannounced CDN rewrite would already be detectable through standard browser-side defenses. | A compromised CDN serving a tampered reveal.js or Lucide bundle would execute in the operator's browser unchallenged. Mitigated because (a) the deck is viewed by trusted operators on managed devices, (b) the CDN providers (jsdelivr, unpkg) are widely audited, and (c) operators can copy the deck into a fully offline distribution if the threat model tightens — at which point SRI becomes redundant. |
 
 ## User-Verbatim Critical Directives
 
@@ -120,7 +107,7 @@ Empty-state (zero merged findings): `[]`.
 Encoding and structural invariants:
 
 - UTF-8 without BOM.
-- No trailing newline (the file is a single line; `wc -l` returns either `0` or `1` depending on whether the operating system counts a non-terminated final line as a line).
+- Single-line content terminated by a trailing `LF` (`\n`). The Checkpoint 1 plan-time artifact is exactly `[]\n` (three bytes), and `cat findings-config-h.json | wc -l` returns `1`. The pass/fail spec in AAP §0.2.3 requires `wc -l == 1`; the trailing LF satisfies this on all POSIX systems by terminating the single line. If a future normalizer release elects to emit no trailing newline at all, that change MUST be documented separately as its own decision so the contract stays unambiguous.
 - Field order on each record is `file`, `line`, `severity`, `cwe`, `description` — preserved by relying on Python's insertion-order-preserving `dict` (Python 3.7+).
 - Records appear in source order: SAST records (prefix `[snyk-code] `) precede dependency records (prefix `[snyk-deps] `).
 
@@ -168,9 +155,13 @@ The transformation matrix below mirrors AAP §0.5.1 and §0.5.4. Every file touc
 - [Snyk CLI authentication](https://docs.snyk.io/snyk-cli/authenticate-to-use-the-cli)
 - [Snyk Code documentation](https://docs.snyk.io/scan-with-snyk/snyk-code)
 - [Snyk Open Source](https://docs.snyk.io/scan-with-snyk/snyk-open-source)
-- [Snyk CLI exit codes](https://docs.snyk.io/snyk-cli/exit-codes)
+- [Snyk CLI `snyk test` command (exit codes documented inline)](https://docs.snyk.io/snyk-cli/commands/test)
+- [Snyk CLI `snyk code test` command (exit codes documented inline)](https://docs.snyk.io/snyk-cli/commands/code-test)
 - [npm registry for `snyk`](https://www.npmjs.com/package/snyk)
 - [SARIF 2.1.0 specification](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
 - [CWE list (MITRE)](https://cwe.mitre.org/data/)
 - [CVE list (NIST NVD)](https://nvd.nist.gov/vuln/search)
+- [reveal.js 5.1.0 documentation](https://revealjs.com/)
+- [Mermaid 11.4.0 documentation](https://mermaid.js.org/)
+- [Lucide 0.460.0 icon library](https://lucide.dev/icons/)
 
