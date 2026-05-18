@@ -28,3 +28,6 @@ ginkgo.report
 # Snyk transient scan artifacts (Config H workflow)
 results-snyk-*.sarif
 results-snyk-*.json
+snyk-*.json
+snyk-*.log
+scripts/__pycache__/
