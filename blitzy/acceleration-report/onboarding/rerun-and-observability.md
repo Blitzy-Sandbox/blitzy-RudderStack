@@ -4,13 +4,9 @@
 
 ---
 
-## 1. Welcome
+## 1. Prerequisites (Clean-Machine Setup)
 
 Welcome to the `blitzy/acceleration-report/` measurement workspace. This document is your single source of truth for re-running the acceleration-measurement pipeline end-to-end. By the time you finish reading, you should be able to clone the repository onto a clean machine, install prerequisites, run `make all`, run `make verify`, and have a freshly-rendered `acceleration-report.md` plus `executive-summary.html` on disk. If anything below is unclear, the canonical reference documents are: [README.md](../README.md) for the workspace overview, [decision-log.md](../decision-log.md) for non-trivial decisions and their rationale, and [acceleration-report.md](../acceleration-report.md) for the rendered measurement deliverable.
-
----
-
-## 2. Prerequisites (Clean-Machine Setup)
 
 The pipeline runs on Linux and macOS. Windows is supported under WSL2. The bullets below enumerate every binary and credential the pipeline consults, separated into REQUIRED (the pipeline will not run without them) and OPTIONAL (the pipeline degrades to a documented fallback when absent).
 
@@ -42,9 +38,9 @@ The workspace ships a template at [`../.env.example`](../.env.example) listing e
 
 ---
 
-## 3. Clone-and-Setup
+## 2. Clone-and-Setup
 
-This section walks through the exact steps to take a clean machine from "nothing installed" to "ready to run `make all`". Every command is read-only with respect to the analyzed repository (no commits, pushes, or external system writes). Section 4 below shows the one-command rerun that uses the workspace built here.
+This section walks through the exact steps to take a clean machine from "nothing installed" to "ready to run `make all`". Every command is read-only with respect to the analyzed repository (no commits, pushes, or external system writes). Section 3 below shows the one-command rerun that uses the workspace built here.
 
 **Step 1 — Clone the repository.** The analyzed repository lives at `Blitzy-Sandbox/blitzy-RudderStack` on GitHub. Clone via HTTPS (no special credentials needed for read-only clone of the public-or-org-readable repo) [`catalog-info.yaml:metadata.annotations.github.com/project-slug`]:
 
@@ -88,15 +84,15 @@ The `.env.example` template [`blitzy/acceleration-report/.env.example`] document
 DRY_RUN=1 make extract
 ```
 
-This invokes every extraction script with the `--dry-run` flag, printing the exact set of HTTP endpoints and git commands the pipeline would issue, then exiting without performing them. The dry-run is the analytics equivalent of a readiness gate (see Section 8.3 below) and validates that every required tool and token is configured before the actual run.
+This invokes every extraction script with the `--dry-run` flag, printing the exact set of HTTP endpoints and git commands the pipeline would issue, then exiting without performing them. The dry-run is the analytics equivalent of a readiness gate (see Section 7.3 below) and validates that every required tool and token is configured before the actual run.
 
-After Step 6 succeeds with zero errors, jump to Section 4 (One-Command Rerun) below.
+After Step 6 succeeds with zero errors, jump to Section 3 (One-Command Rerun) below.
 
 ---
 
-## 4. One-Command Rerun
+## 3. One-Command Rerun
 
-After Section 2 prerequisites are installed, the complete pipeline runs in four commands:
+After Section 1 prerequisites are installed, the complete pipeline runs in four commands:
 
 ```bash
 cd blitzy/acceleration-report
@@ -121,11 +117,11 @@ After `make all` completes, the deliverables appear at:
 - `data/metrics.json` — single source of truth feeding both renderers
 - `data/run.log.jsonl` — structured JSON log feed for the pipeline run
 
-The complete target catalogue lives in the workspace [`../Makefile`](../Makefile); read it for advanced targets such as `make clean`, `make lint`, and per-stage invocation.
+The complete target catalogue lives in the workspace [`../Makefile`](../Makefile) (created by the FIN-1 checkpoint per AAP §0.6.2); read it for advanced targets such as `make clean`, `make lint`, and per-stage invocation. At the INC-3 checkpoint this file is a forward reference — link resolution becomes valid once FIN-1 emits the workspace Makefile.
 
 ---
 
-## 5. Domain Context (rudder-server)
+## 4. Domain Context (rudder-server)
 
 This section summarizes the analyzed system at a level sufficient to interpret the metrics. The two long-form references that ground this summary are `blitzy/documentation/Project Guide.md` (operational status and coordination record across 25 epics) and `blitzy/documentation/Technical Specifications.md` (sequenced engineering plan and authoritative design reference). Read those if you need deeper context than this section provides — but you do NOT need to read them to re-run the pipeline.
 
@@ -137,7 +133,7 @@ The repository has a single default branch `main` plus **8 `blitzy-*` feature br
 
 The repository contains 497 `*_test.go` files declaring 859+ test functions and 749+ sub-tests across 29 Ginkgo suites. There are 57 mockgen directives and 47 testdata directories. The primary CI test pipeline is `.github/workflows/tests.yaml`, which executes a 25-job package-unit matrix and a 9-destination warehouse-integration matrix.
 
-The rudder-server emits telemetry in three wire formats: Prometheus client_golang `v1.23.2` (pull HTTP on port `:9102`), StatsD UDP via prom/statsd-exporter `v0.22.4` (port `:9125` to `:9102` bridge), and OpenTelemetry OTLP `v1.40.0`. Structured logging uses `rudder-observability-kit` (obskit) `v0.0.6`. The runtime exposes a `/health` liveness endpoint and six bearer-protected internal endpoints: `/protocols`, `/profiles`, `/monitoring`, `/profiling`, `/alerts`, `/replay`. Alert routing lives under `services/alert/` with a VictorOps default plus PagerDuty, Slack, and Email backends. Section 7 of this document covers the rudder-server observability stack in more detail.
+The rudder-server emits telemetry in three wire formats: Prometheus client_golang `v1.23.2` (pull HTTP on port `:9102`), StatsD UDP via prom/statsd-exporter `v0.22.4` (port `:9125` to `:9102` bridge), and OpenTelemetry OTLP `v1.40.0`. Structured logging uses `rudder-observability-kit` (obskit) `v0.0.6`. The runtime exposes a `/health` liveness endpoint and six bearer-protected internal endpoints: `/protocols`, `/profiles`, `/monitoring`, `/profiling`, `/alerts`, `/replay`. Alert routing lives under `services/alert/` with a VictorOps default plus PagerDuty, Slack, and Email backends. Section 8 of this document covers the rudder-server observability stack in more detail.
 
 The repository has 13 GitHub Actions workflows under `.github/workflows/`. The key workflows consumed by this measurement are: `tests.yaml` (primary test pipeline; consumed by Metric 11 CI history and Metric 10 required-check identification); `verify.yml` (generate-and-diff with `git diff --exit-code`, plus `golangci-lint v2.9.0`, `gofumpt v0.9.1`, `govulncheck`, and `mockgen v0.6.0`; consumed by Metric 10 for the lint-exemption catalogue); `release-please.yaml` (creates releases on `release/*` branches with `release-type: go` and `bump-minor-pre-major: true`, and dispatches deploy events to `rudderstack-operator` and `rudder-devops`; consumed by Metric 9); and `semantic-pr.yaml` (enforces conventional-commit-typed PR titles with allowed types `fix`, `feat`, `chore`, `refactor`, `exp`, `doc`, `test`; the authority for the Metric 6 conventional-commit category map).
 
@@ -145,11 +141,11 @@ The active engineering-actor roster across `main` is four human authors plus one
 
 ---
 
-## 6. Pipeline Stages
+## 5. Pipeline Stages
 
 The pipeline is a deterministic three-stage extract → compute → render flow. Each stage is independently invocable, idempotent, and produces a checkpointable artifact that downstream stages consume. The separation enforces Rule 1 (Data Provenance) by persisting raw output before any derivation [`blitzy/acceleration-report/scripts/lib/observability.py:_redact_value`], and Rule 4 (Internal Consistency) by ensuring both renderers consume only the compute outputs. The canonical full description lives in [`acceleration-report.md`](../acceleration-report.md) §4 Methodology.
 
-### 6.1 Extract Stage (scripts 00–08)
+### 5.1 Extract Stage (scripts 00–08)
 
 The extract stage consults nine sources of signal and writes a raw data artifact per source. Scripts are independent; failure of one does not block the others, but each failure is logged with the structured-JSON logger and surfaces in the Risk Assessment of the report.
 
@@ -163,13 +159,13 @@ The extract stage consults nine sources of signal and writes a raw data artifact
 - `07_extract_exceptions.py` — audit log, force-pushes, label scan, and lint-config exemptions; emits `data/exceptions.json`
 - `08_extract_linear.py` — Linear GraphQL (no-op without `LINEAR_API_KEY`); emits `data/issues.json` and `data/slas.json`
 
-### 6.2 Compute Stage (script 09)
+### 5.2 Compute Stage (script 09)
 
 The compute stage is pure (no I/O beyond reading and writing the named files) so that it is exactly reproducible from the data artifacts:
 
 - `09_compute_metrics.py` — deterministic compute step for all 12 metrics plus per-engineer breakdown, temporal phase aggregation, and multi-module aggregation; emits `data/metrics.json` and `data/per_engineer.json` with `{value, confidence, caveat, provenance, boundary_conditions}` fields per metric per phase
 
-### 6.3 Render Stage (scripts 10, 11)
+### 5.3 Render Stage (scripts 10, 11)
 
 The render stage consumes ONLY the compute outputs — never the raw extraction artifacts directly. This enforces Rule 4 (Internal Consistency) mechanically: both renderers see the same `metrics.json`:
 
@@ -178,9 +174,114 @@ The render stage consumes ONLY the compute outputs — never the raw extraction 
 
 See [`../diagrams/extraction-pipeline.mmd`](../diagrams/extraction-pipeline.mmd) for the Mermaid topology of this pipeline.
 
+### 5.4 Reference Map
+
+The Reference Map is the cross-walk between the entities a new analyst will encounter (data artifacts, scripts, schemas, decisions, rules) and the canonical location of each. Use this as the lookup index when a section of the rendered report references "see X" — the locator here resolves "X" to a file path with line- or section-locator. Every row uses the `[<path>:<locator>]` citation discipline mandated by AAP §0.10.1.
+
+#### Data Artifacts (the provenance trail per Rule 1)
+
+| Artifact | Canonical Path | Produced By | Consumed By |
+|---|---|---|---|
+| Environment snapshot (Rule 6) | [`blitzy/acceleration-report/data/environment.json`] | `scripts/00_environment.sh` | every downstream script for `BLITZY_RUN_ID` plus the renderer for the Environment Verification section |
+| Inflection result | [`blitzy/acceleration-report/data/inflection.json`] | `scripts/01_detect_inflection.py` | every downstream script for the inflection date plus the renderer for the Methodology section |
+| Full commit roster | [`blitzy/acceleration-report/data/commits.csv`] | `scripts/02_extract_commits.sh` | `scripts/09_compute_metrics.py` (Flow Velocity, multi-module aggregation) |
+| Revert-candidate commits | [`blitzy/acceleration-report/data/revert_candidates.csv`] | `scripts/02_extract_commits.sh` | `scripts/05_extract_reverts.sh` |
+| PR inventory | [`blitzy/acceleration-report/data/pulls.json`] | `scripts/03_extract_pulls.py` (API) or local-git fallback | `scripts/09_compute_metrics.py` (Metrics 1, 2, 4, 5, 6, 7, 10) |
+| PR review timelines | [`blitzy/acceleration-report/data/reviews.json`] | `scripts/03_extract_pulls.py` | `scripts/09_compute_metrics.py` (Metric 4 ready-for-review bounds) |
+| PR event timelines | [`blitzy/acceleration-report/data/pull_events.json`] | `scripts/03_extract_pulls.py` | `scripts/09_compute_metrics.py` (Metric 4) |
+| Release inventory | [`blitzy/acceleration-report/data/releases.json`] | `scripts/04_extract_releases.py` | `scripts/09_compute_metrics.py` (Metric 9), `scripts/05_extract_reverts.sh` |
+| Revert resolutions | [`blitzy/acceleration-report/data/reverts.json`] | `scripts/05_extract_reverts.sh` | `scripts/09_compute_metrics.py` (Metric 8) |
+| CI workflow run history | [`blitzy/acceleration-report/data/ci_runs.json`] | `scripts/06_extract_ci_history.py` | `scripts/09_compute_metrics.py` (Metric 11) |
+| Test transitions | [`blitzy/acceleration-report/data/test_transitions.json`] | `scripts/06_extract_ci_history.py` | `scripts/09_compute_metrics.py` (Metric 11) |
+| Exception inventory | [`blitzy/acceleration-report/data/exceptions.json`] | `scripts/07_extract_exceptions.py` | `scripts/09_compute_metrics.py` (Metric 10) |
+| Linear issue inventory | [`blitzy/acceleration-report/data/issues.json`] | `scripts/08_extract_linear.py` (or empty with reason) | `scripts/09_compute_metrics.py` (Metric 6 Linear-label classifier, Metric 12) |
+| Linear SLA targets | [`blitzy/acceleration-report/data/slas.json`] | `scripts/08_extract_linear.py` (or empty with reason) | `scripts/09_compute_metrics.py` (Metric 12) |
+| Computed metrics | [`blitzy/acceleration-report/data/metrics.json`] | `scripts/09_compute_metrics.py` | `scripts/10_render_report.py`, `scripts/11_render_deck.py` |
+| Per-engineer breakdown | [`blitzy/acceleration-report/data/per_engineer.json`] | `scripts/09_compute_metrics.py` | `scripts/10_render_report.py`, `scripts/11_render_deck.py` |
+| Run log feed | [`blitzy/acceleration-report/data/run.log.jsonl`] | every script via `lib/observability.py` | analyst live-tail; CI verify target |
+
+#### Extraction Scripts
+
+| Script | Path | Purpose |
+|---|---|---|
+| Environment preamble | [`blitzy/acceleration-report/scripts/00_environment.sh`] | Rule 6 Environment Verification preamble |
+| Inflection detector | [`blitzy/acceleration-report/scripts/01_detect_inflection.py`] | Three-tier AI inflection point detection |
+| Commit roster | [`blitzy/acceleration-report/scripts/02_extract_commits.sh`] | Full commit and revert-candidate roster |
+| PR + review + events | [`blitzy/acceleration-report/scripts/03_extract_pulls.py`] | GitHub Pulls + Reviews + Events APIs |
+| Releases | [`blitzy/acceleration-report/scripts/04_extract_releases.py`] | GitHub Releases API + tag scan |
+| Reverts | [`blitzy/acceleration-report/scripts/05_extract_reverts.sh`] | Revert-to-original resolution + release attribution |
+| CI history | [`blitzy/acceleration-report/scripts/06_extract_ci_history.py`] | Actions Runs API + JUnit XML |
+| Exceptions | [`blitzy/acceleration-report/scripts/07_extract_exceptions.py`] | Branch protection + audit log + label scan |
+| Linear | [`blitzy/acceleration-report/scripts/08_extract_linear.py`] | Linear GraphQL (no-op when key absent) |
+| Compute | [`blitzy/acceleration-report/scripts/09_compute_metrics.py`] | Deterministic metric computation |
+| Report renderer | [`blitzy/acceleration-report/scripts/10_render_report.py`] | Markdown report generation |
+| Deck renderer | [`blitzy/acceleration-report/scripts/11_render_deck.py`] | reveal.js HTML generation |
+| Observability lib | [`blitzy/acceleration-report/scripts/lib/observability.py`] | Structured JSON logger with redaction |
+| GitHub client lib | [`blitzy/acceleration-report/scripts/lib/github.py`] | Paginated, rate-limit-aware REST client |
+| Git helpers lib | [`blitzy/acceleration-report/scripts/lib/git.py`] | `subprocess`-based git helpers |
+
+#### JSON Schemas
+
+| Schema | Path |
+|---|---|
+| Environment | [`blitzy/acceleration-report/scripts/lib/schemas/environment.schema.json`] |
+| Inflection | [`blitzy/acceleration-report/scripts/lib/schemas/inflection.schema.json`] |
+| Pulls | [`blitzy/acceleration-report/scripts/lib/schemas/pulls.schema.json`] |
+| Releases | [`blitzy/acceleration-report/scripts/lib/schemas/releases.schema.json`] |
+| Metrics | [`blitzy/acceleration-report/scripts/lib/schemas/metrics.schema.json`] |
+
+#### Decision Log Entries (Why Each Non-Trivial Choice)
+
+The full table lives in [`decision-log.md`](../decision-log.md). Key entries:
+
+| ID | Subject | Section |
+|---|---|---|
+| DL-001 | No-write contract (read-only) | [`decision-log.md:DL-001`] |
+| DL-002 | Inflection-point detection precedence (Tier 2 used) | [`decision-log.md:DL-002`] |
+| DL-003 | Blitzy identity union (agent@blitzy.com + blitzy[bot]) | [`decision-log.md:DL-003`] |
+| DL-004 | dependabot[bot] exclusion from Flow Velocity | [`decision-log.md:DL-004`] |
+| DL-006 | Two-phase fallback when post-introduction < 90 days | [`decision-log.md:DL-006`] |
+| DL-007 | Linear API unavailability handling | [`decision-log.md:DL-007`] |
+| DL-008 | Admin audit log unavailability handling | [`decision-log.md:DL-008`] |
+| DL-009 | M6 classifier priority order | [`decision-log.md:DL-009`] |
+| DL-010 | Factual-neutral-tone blocklist | [`decision-log.md:DL-010`] |
+| DL-011 | Multi-module attribution strategy | [`decision-log.md:DL-011`] |
+| DL-012 | Engineering-actor substitution as the only baseline/after difference | [`decision-log.md:DL-012`] |
+| DL-013 | Executive deck SRI handling | [`decision-log.md:DL-013`] |
+
+#### Rule Anchors (Cross-Reference to AAP §0.7)
+
+| Rule | AAP Section | Enforcement Location |
+|---|---|---|
+| Observability | AAP §0.7.1.1 | [`scripts/lib/observability.py`] + this onboarding doc Section 7 |
+| Onboarding | AAP §0.7.1.2 | This document itself |
+| Explainability | AAP §0.7.1.3 | [`decision-log.md`] |
+| Visual Architecture | AAP §0.7.1.4 | [`diagrams/*.mmd`] referenced in [`acceleration-report.md`] |
+| Executive Presentation | AAP §0.7.1.5 | [`executive-summary.html`] |
+| Rule 1 Data Provenance | AAP §0.7.2 row 1 | Every `provenance` field in [`data/metrics.json`] |
+| Rule 2 Factual-Neutral Tone | AAP §0.7.2 row 2 | Pre-write blocklist in `scripts/10_render_report.py` |
+| Rule 3 Confidence Transparency | AAP §0.7.2 row 3 | `confidence` + `caveat` fields in `metrics.json` |
+| Rule 4 Internal Consistency | AAP §0.7.2 row 4 | Single-source rendering from `metrics.json` |
+| Rule 5 Reproducibility | AAP §0.7.2 row 5 | `extraction_command` field on every provenance + Reproducibility Appendix |
+| Rule 6 Environment First | AAP §0.7.2 row 6 | [`data/environment.json`] + renderer section-order constant |
+
+#### Analyzed Repository Anchors
+
+| Subject | Path with Locator |
+|---|---|
+| Go module version | [`go.mod:L3`] |
+| Default branch | [`blitzy/acceleration-report/data/environment.json:default_branch`] |
+| Repository slug | [`catalog-info.yaml:metadata.annotations.github.com/project-slug`] |
+| Allowed conventional-commit types | [`.github/workflows/semantic-pr.yaml:types`] |
+| Release configuration | [`.github/workflows/release-please.yaml:release-type: go`] |
+| Lint exemption catalogue | [`.golangci.yml:linters-settings.gosec.excludes`] |
+| Security exception catalogue | [`.snyk:exclude`] |
+| Test target inventory | [`Makefile:test`] |
+| `/health` endpoint | [`gateway/handle.go`] |
+
 ---
 
-## 7. Common Pitfalls
+## 6. Common Pitfalls
 
 This section lists the failure modes most commonly encountered on first-time runs and their mitigations. The placement of Common Pitfalls BEFORE Observability is intentional: an analyst hitting an issue typically wants the troubleshooting catalogue first, then turns to the observability surfaces to confirm the fix worked. Per the CP2 review item, this section moved from its prior position after observability to its required position before observability.
 
@@ -188,13 +289,13 @@ This section lists the failure modes most commonly encountered on first-time run
 
 Unauthenticated requests are limited to 60 requests per hour, which is insufficient for the ~538-commit roster plus PR-merge histories plus workflow runs plus releases. With `GH_TOKEN`, the limit rises to 5,000 requests per hour, which is adequate for the full pipeline. The shared `lib/github.py` client implements exponential back-off on `403 Rate Limit Exceeded` responses but may still time out on cold caches [`blitzy/acceleration-report/scripts/lib/github.py`].
 
-**Mitigation**: Set `GH_TOKEN` in `.env` (see Section 2 above). If a run fails with rate-limit errors, rerun `make extract` — the client persists last-success cursors at `data/.cursor.json` so the rerun resumes cleanly from the last successful page.
+**Mitigation**: Set `GH_TOKEN` in `.env` (see Section 1 above). If a run fails with rate-limit errors, rerun `make extract` — the client persists last-success cursors at `data/.cursor.json` so the rerun resumes cleanly from the last successful page.
 
 #### Linear API Unavailable
 
 When `LINEAR_API_KEY` is absent OR the Linear API is unreachable, **Metric 12 (Defects Out of SLA)** reports `"Insufficient signal — no SLA source"` and **Metric 6 (Flow Distribution)** falls back to conventional-commit-prefix classification only (no Linear issue-label classification) [`blitzy/acceleration-report/data/issues.json:unavailable_reason`].
 
-**Mitigation**: Provision `LINEAR_API_KEY` per Section 2 above. When unavailable, this fallback is documented as [`decision-log.md`](../decision-log.md) entry `DL-007` and surfaces in the Risk Assessment section of the rendered report.
+**Mitigation**: Provision `LINEAR_API_KEY` per Section 1 above. When unavailable, this fallback is documented as [`decision-log.md`](../decision-log.md) entry `DL-007` and surfaces in the Risk Assessment section of the rendered report.
 
 #### Admin Audit Log Inaccessible
 
@@ -245,11 +346,11 @@ The 2-week windows are anchored to Monday 00:00 UTC. If the host machine's clock
 
 ---
 
-## 8. Observability Surfaces of the Analysis Pipeline
+## 7. Observability Surfaces of the Analysis Pipeline
 
 The analysis pipeline is itself observable. Per Rule 1 (Observability, AAP §0.7.1.1), the interpretation for an analytics deliverable comprises four surfaces: a structured JSON log feed (the analytics equivalent of distributed tracing), a pipeline counters summary (the analytics equivalent of a metrics endpoint), a readiness preflight (the analytics equivalent of a health gate), and a dashboard template (the analytics equivalent of a Grafana dashboard).
 
-### 8.1 Structured JSON Log Feed
+### 7.1 Structured JSON Log Feed
 
 Every extraction, compute, and render script imports `lib.observability.get_logger(run_id)` and emits single-line JSON events to `data/run.log.jsonl`. Each event carries the schema:
 
@@ -280,7 +381,7 @@ tail -F data/run.log.jsonl | while read -r line; do echo "$line" | python3 -m js
 
 Sensitive fields are REDACTED by the logger: any key matching `*token*` or `*key*` is replaced with `"[REDACTED]"` before serialization. The `GH_TOKEN` and `LINEAR_API_KEY` values therefore never appear in `data/run.log.jsonl` or in any other committed artifact.
 
-### 8.2 Pipeline Counters Summary
+### 7.2 Pipeline Counters Summary
 
 On completion, each script prints a stdout summary block. Examples:
 
@@ -288,9 +389,9 @@ On completion, each script prints a stdout summary block. Examples:
 - `06_extract_ci_history.py` prints total workflow runs fetched, total artifacts downloaded, and runs by conclusion (`success`, `failure`, `cancelled`).
 - `09_compute_metrics.py` prints per-metric value summaries (for example, `M1 baseline X.X, after X.X, multiplier X.Xx, confidence`; `M2 ...`).
 
-These stdout summaries are the analytics-pipeline equivalent of a metrics surface. They are designed to be skimmed at the end of a run for a rapid health check; the structured JSON log feed (Section 6.1) is the source of truth for detailed inspection.
+These stdout summaries are the analytics-pipeline equivalent of a metrics surface. They are designed to be skimmed at the end of a run for a rapid health check; the structured JSON log feed (Section 7.1) is the source of truth for detailed inspection.
 
-### 8.3 Readiness Preflight (`--dry-run` flag)
+### 7.3 Readiness Preflight (`--dry-run` flag)
 
 Every script supports a `--dry-run` flag that lists every external endpoint and every git command it WOULD invoke, then exits 0 without performing any of them. This is the analytics-pipeline equivalent of a readiness or health gate.
 
@@ -313,7 +414,7 @@ A dry-run produces an output report (to stdout AND to `data/run.log.jsonl` with 
 
 Use the dry-run BEFORE running the full extraction on a new machine to validate that all required tooling and tokens are configured.
 
-### 8.4 Dashboard Template
+### 7.4 Dashboard Template
 
 The Mermaid diagram at [`../diagrams/extraction-pipeline.mmd`](../diagrams/extraction-pipeline.mmd) is the analytics-pipeline equivalent of a Grafana dashboard. Render it to SVG via the Mermaid CLI:
 
@@ -329,21 +430,21 @@ The diagram shows: data sources (GitHub APIs, Linear API, local git, in-repo fil
 
 ---
 
-## 9. rudder-server's Own Observability Stack (Existing, Reused for Context)
+## 8. rudder-server's Own Observability Stack (Existing, Reused for Context)
 
 Per the Observability rule's "Check if the project already has logging, tracing, metrics, or health checks. Use what exists. Document what you reused and what you added." directive (AAP §0.7.1.1), this section documents the EXISTING observability stack of the analyzed rudder-server. The measurement pipeline does NOT exercise these endpoints; they are READ-ONLY context for analysts who wish to stand up rudder-server locally to gather Metric 11 signal or inspect runtime metrics directly.
 
-### 9.1 Three Wire Formats
+### 8.1 Three Wire Formats
 
 - **Prometheus** — scrape endpoint at `http://localhost:9102/metrics` (pull HTTP, `prometheus/client_golang` v1.23.2). Example series names: `gateway_event_latency_seconds`, `router_destination_delivery_total`, `processor_pipeline_duration_seconds`.
 - **StatsD** — UDP datagram listener on port `9125`, bridged to Prometheus on `9102` via `prom/statsd-exporter` v0.22.4. Used for legacy compatibility with existing dashboards.
 - **OpenTelemetry OTLP** — trace and metric export via `go.opentelemetry.io/otel` v1.40.0. Configurable OTLP receiver endpoint.
 
-### 9.2 Structured Logging
+### 8.2 Structured Logging
 
 `rudder-observability-kit` (`obskit`) v0.0.6 — the canonical structured logger across the codebase. It provides field-tagged log lines with standardized keys such as `destination_id`, `source_id`, `workspace_id`, and `job_id`.
 
-### 9.3 HTTP Endpoints
+### 8.3 HTTP Endpoints
 
 - `GET /health` — liveness probe (returns `200 OK` with JSON `{"server":"UP", "db":"UP", "acceptingEvents":"TRUE"}` when healthy). Mounted at `gateway/handle_lifecycle.go`.
 - Six bearer-protected internal endpoints (all require Bearer-token auth):
@@ -354,7 +455,7 @@ Per the Observability rule's "Check if the project already has logging, tracing,
   - `/alerts` — alerting-rule state
   - `/replay` — advanced replay control
 
-### 9.4 Alert Routing
+### 8.4 Alert Routing
 
 `services/alert/` wraps four notification backends:
 
@@ -365,7 +466,7 @@ Per the Observability rule's "Check if the project already has logging, tracing,
 
 Configuration lives in `config/config.yaml` and is propagated via backend-config subscription.
 
-### 9.5 How to Exercise Locally
+### 8.5 How to Exercise Locally
 
 If you wish to inspect the runtime metrics surface to corroborate Metric 11 signal:
 
@@ -384,114 +485,7 @@ The analysis pipeline does NOT depend on rudder-server being running. The pipeli
 
 ---
 
-## 10. Reference Map
-
-The Reference Map is the cross-walk between the entities a new analyst will encounter (data artifacts, scripts, schemas, decisions, rules) and the canonical location of each. Use this as the lookup index when a section of the rendered report references "see X" — the locator here resolves "X" to a file path with line- or section-locator. Every row uses the `[<path>:<locator>]` citation discipline mandated by AAP §0.10.1.
-
-### 10.1 Data Artifacts (the provenance trail per Rule 1)
-
-| Artifact | Canonical Path | Produced By | Consumed By |
-|---|---|---|---|
-| Environment snapshot (Rule 6) | [`blitzy/acceleration-report/data/environment.json`] | `scripts/00_environment.sh` | every downstream script for `BLITZY_RUN_ID` plus the renderer for the Environment Verification section |
-| Inflection result | [`blitzy/acceleration-report/data/inflection.json`] | `scripts/01_detect_inflection.py` | every downstream script for the inflection date plus the renderer for the Methodology section |
-| Full commit roster | [`blitzy/acceleration-report/data/commits.csv`] | `scripts/02_extract_commits.sh` | `scripts/09_compute_metrics.py` (Flow Velocity, multi-module aggregation) |
-| Revert-candidate commits | [`blitzy/acceleration-report/data/revert_candidates.csv`] | `scripts/02_extract_commits.sh` | `scripts/05_extract_reverts.sh` |
-| PR inventory | [`blitzy/acceleration-report/data/pulls.json`] | `scripts/03_extract_pulls.py` (API) or local-git fallback | `scripts/09_compute_metrics.py` (Metrics 1, 2, 4, 5, 6, 7, 10) |
-| PR review timelines | [`blitzy/acceleration-report/data/reviews.json`] | `scripts/03_extract_pulls.py` | `scripts/09_compute_metrics.py` (Metric 4 ready-for-review bounds) |
-| PR event timelines | [`blitzy/acceleration-report/data/pull_events.json`] | `scripts/03_extract_pulls.py` | `scripts/09_compute_metrics.py` (Metric 4) |
-| Release inventory | [`blitzy/acceleration-report/data/releases.json`] | `scripts/04_extract_releases.py` | `scripts/09_compute_metrics.py` (Metric 9), `scripts/05_extract_reverts.sh` |
-| Revert resolutions | [`blitzy/acceleration-report/data/reverts.json`] | `scripts/05_extract_reverts.sh` | `scripts/09_compute_metrics.py` (Metric 8) |
-| CI workflow run history | [`blitzy/acceleration-report/data/ci_runs.json`] | `scripts/06_extract_ci_history.py` | `scripts/09_compute_metrics.py` (Metric 11) |
-| Test transitions | [`blitzy/acceleration-report/data/test_transitions.json`] | `scripts/06_extract_ci_history.py` | `scripts/09_compute_metrics.py` (Metric 11) |
-| Exception inventory | [`blitzy/acceleration-report/data/exceptions.json`] | `scripts/07_extract_exceptions.py` | `scripts/09_compute_metrics.py` (Metric 10) |
-| Linear issue inventory | [`blitzy/acceleration-report/data/issues.json`] | `scripts/08_extract_linear.py` (or empty with reason) | `scripts/09_compute_metrics.py` (Metric 6 Linear-label classifier, Metric 12) |
-| Linear SLA targets | [`blitzy/acceleration-report/data/slas.json`] | `scripts/08_extract_linear.py` (or empty with reason) | `scripts/09_compute_metrics.py` (Metric 12) |
-| Computed metrics | [`blitzy/acceleration-report/data/metrics.json`] | `scripts/09_compute_metrics.py` | `scripts/10_render_report.py`, `scripts/11_render_deck.py` |
-| Per-engineer breakdown | [`blitzy/acceleration-report/data/per_engineer.json`] | `scripts/09_compute_metrics.py` | `scripts/10_render_report.py`, `scripts/11_render_deck.py` |
-| Run log feed | [`blitzy/acceleration-report/data/run.log.jsonl`] | every script via `lib/observability.py` | analyst live-tail; CI verify target |
-
-### 10.2 Extraction Scripts
-
-| Script | Path | Purpose |
-|---|---|---|
-| Environment preamble | [`blitzy/acceleration-report/scripts/00_environment.sh`] | Rule 6 Environment Verification preamble |
-| Inflection detector | [`blitzy/acceleration-report/scripts/01_detect_inflection.py`] | Three-tier AI inflection point detection |
-| Commit roster | [`blitzy/acceleration-report/scripts/02_extract_commits.sh`] | Full commit and revert-candidate roster |
-| PR + review + events | [`blitzy/acceleration-report/scripts/03_extract_pulls.py`] | GitHub Pulls + Reviews + Events APIs |
-| Releases | [`blitzy/acceleration-report/scripts/04_extract_releases.py`] | GitHub Releases API + tag scan |
-| Reverts | [`blitzy/acceleration-report/scripts/05_extract_reverts.sh`] | Revert-to-original resolution + release attribution |
-| CI history | [`blitzy/acceleration-report/scripts/06_extract_ci_history.py`] | Actions Runs API + JUnit XML |
-| Exceptions | [`blitzy/acceleration-report/scripts/07_extract_exceptions.py`] | Branch protection + audit log + label scan |
-| Linear | [`blitzy/acceleration-report/scripts/08_extract_linear.py`] | Linear GraphQL (no-op when key absent) |
-| Compute | [`blitzy/acceleration-report/scripts/09_compute_metrics.py`] | Deterministic metric computation |
-| Report renderer | [`blitzy/acceleration-report/scripts/10_render_report.py`] | Markdown report generation |
-| Deck renderer | [`blitzy/acceleration-report/scripts/11_render_deck.py`] | reveal.js HTML generation |
-| Observability lib | [`blitzy/acceleration-report/scripts/lib/observability.py`] | Structured JSON logger with redaction |
-| GitHub client lib | [`blitzy/acceleration-report/scripts/lib/github.py`] | Paginated, rate-limit-aware REST client |
-| Git helpers lib | [`blitzy/acceleration-report/scripts/lib/git.py`] | `subprocess`-based git helpers |
-
-### 10.3 JSON Schemas
-
-| Schema | Path |
-|---|---|
-| Environment | [`blitzy/acceleration-report/scripts/lib/schemas/environment.schema.json`] |
-| Inflection | [`blitzy/acceleration-report/scripts/lib/schemas/inflection.schema.json`] |
-| Pulls | [`blitzy/acceleration-report/scripts/lib/schemas/pulls.schema.json`] |
-| Releases | [`blitzy/acceleration-report/scripts/lib/schemas/releases.schema.json`] |
-| Metrics | [`blitzy/acceleration-report/scripts/lib/schemas/metrics.schema.json`] |
-
-### 10.4 Decision Log Entries (Why Each Non-Trivial Choice)
-
-The full table lives in [`decision-log.md`](../decision-log.md). Key entries:
-
-| ID | Subject | Section |
-|---|---|---|
-| DL-001 | No-write contract (read-only) | [`decision-log.md:DL-001`] |
-| DL-002 | Inflection-point detection precedence (Tier 2 used) | [`decision-log.md:DL-002`] |
-| DL-003 | Blitzy identity union (agent@blitzy.com + blitzy[bot]) | [`decision-log.md:DL-003`] |
-| DL-004 | dependabot[bot] exclusion from Flow Velocity | [`decision-log.md:DL-004`] |
-| DL-006 | Two-phase fallback when post-introduction < 90 days | [`decision-log.md:DL-006`] |
-| DL-007 | Linear API unavailability handling | [`decision-log.md:DL-007`] |
-| DL-008 | Admin audit log unavailability handling | [`decision-log.md:DL-008`] |
-| DL-009 | M6 classifier priority order | [`decision-log.md:DL-009`] |
-| DL-010 | Factual-neutral-tone blocklist | [`decision-log.md:DL-010`] |
-| DL-011 | Multi-module attribution strategy | [`decision-log.md:DL-011`] |
-| DL-012 | Engineering-actor substitution as the only baseline/after difference | [`decision-log.md:DL-012`] |
-| DL-013 | Executive deck SRI handling | [`decision-log.md:DL-013`] |
-
-### 10.5 Rule Anchors (Cross-Reference to AAP §0.7)
-
-| Rule | AAP Section | Enforcement Location |
-|---|---|---|
-| Observability | AAP §0.7.1.1 | [`scripts/lib/observability.py`] + this onboarding doc Section 8 |
-| Onboarding | AAP §0.7.1.2 | This document itself |
-| Explainability | AAP §0.7.1.3 | [`decision-log.md`] |
-| Visual Architecture | AAP §0.7.1.4 | [`diagrams/*.mmd`] referenced in [`acceleration-report.md`] |
-| Executive Presentation | AAP §0.7.1.5 | [`executive-summary.html`] |
-| Rule 1 Data Provenance | AAP §0.7.2 row 1 | Every `provenance` field in [`data/metrics.json`] |
-| Rule 2 Factual-Neutral Tone | AAP §0.7.2 row 2 | Pre-write blocklist in `scripts/10_render_report.py` |
-| Rule 3 Confidence Transparency | AAP §0.7.2 row 3 | `confidence` + `caveat` fields in `metrics.json` |
-| Rule 4 Internal Consistency | AAP §0.7.2 row 4 | Single-source rendering from `metrics.json` |
-| Rule 5 Reproducibility | AAP §0.7.2 row 5 | `extraction_command` field on every provenance + Reproducibility Appendix |
-| Rule 6 Environment First | AAP §0.7.2 row 6 | [`data/environment.json`] + renderer section-order constant |
-
-### 10.6 Analyzed Repository Anchors
-
-| Subject | Path with Locator |
-|---|---|
-| Go module version | [`go.mod:L3`] |
-| Default branch | [`blitzy/acceleration-report/data/environment.json:default_branch`] |
-| Repository slug | [`catalog-info.yaml:metadata.annotations.github.com/project-slug`] |
-| Allowed conventional-commit types | [`.github/workflows/semantic-pr.yaml:types`] |
-| Release configuration | [`.github/workflows/release-please.yaml:release-type: go`] |
-| Lint exemption catalogue | [`.golangci.yml:linters-settings.gosec.excludes`] |
-| Security exception catalogue | [`.snyk:exclude`] |
-| Test target inventory | [`Makefile:test`] |
-| `/health` endpoint | [`gateway/handle.go`] |
-
----
-
-## 11. Extending the Pipeline (Out of Scope but Admitted)
+## 9. Extending the Pipeline (Out of Scope but Admitted)
 
 Extensions to the pipeline fall into three categories: disallowed, allowed, and methodology-preserving.
 
@@ -513,7 +507,7 @@ Any change MUST preserve identical methodology across baseline and after periods
 
 ---
 
-## 12. Suggested Next Investigations
+## 10. Suggested Next Investigations
 
 Out-of-scope tasks discovered during preparation but worth pursuing later:
 
