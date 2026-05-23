@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/releases.schema.json",
+  "title": "Release Inventory",
+  "description": "Output of 04_extract_releases.py. Records the production release inventory with prereleases segregated per AAP §0.5.3.10. Source precedence: GitHub Releases API -> annotated git tags matching semver -> CI deploy events. The chosen tier is recorded so the report's Methodology section can explain how the count was derived.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["releases", "prereleases", "chosen_tier"],
+  "properties": {
+    "releases": {
+      "type": "array",
+      "description": "Primary release inventory (non-prerelease entries). May be empty if no releases exist by any tier.",
+      "items": {"$ref": "#/$defs/releaseEntry"}
+    },
+    "prereleases": {
+      "type": "array",
+      "description": "Prerelease entries (tags matching -alpha, -beta, -rc, -dev suffixes), kept separate from the primary count.",
+      "items": {"$ref": "#/$defs/releaseEntry"}
+    },
+    "chosen_tier": {
+      "type": "string",
+      "enum": ["github_releases_api", "git_tag_scan", "ci_deploy_event", "none"],
+      "description": "Which source-precedence tier yielded the release inventory. 'none' indicates no tier produced data and Metric 9 will report Insufficient signal."
+    },
+    "tier_availability": {
+      "type": "object",
+      "description": "Per-tier availability snapshot to explain the chosen_tier in the decision log.",
+      "additionalProperties": true,
+      "properties": {
+        "github_releases_api": {"type": "boolean"},
+        "git_tag_scan": {"type": "boolean"},
+        "ci_deploy_event": {"type": "boolean"}
+      }
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "description": "Wall-clock timestamp at which the release inventory was captured."
+    },
+    "repo_slug": {
+      "type": "string",
+      "pattern": "^[^/\\s]+/[^/\\s]+$"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["total_releases", "total_prereleases"],
+      "properties": {
+        "total_releases": {"type": "integer", "minimum": 0},
+        "total_prereleases": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "$defs": {
+    "releaseEntry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["tag_name", "published_at", "prerelease", "source_tier"],
+      "properties": {
+        "tag_name": {"type": "string", "minLength": 1},
+        "published_at": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+        "prerelease": {"type": "boolean"},
+        "source_tier": {
+          "type": "string",
+          "enum": ["github_releases_api", "git_tag_scan", "ci_deploy_event"]
+        },
+        "name": {"type": ["string", "null"]},
+        "body": {"type": ["string", "null"]},
+        "html_url": {"type": ["string", "null"]},
+        "target_commitish": {"type": ["string", "null"]},
+        "draft": {"type": ["boolean", "null"]},
+        "created_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"}
+      }
+    }
+  }
+}
