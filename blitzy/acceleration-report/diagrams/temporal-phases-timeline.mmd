@@ -1,23 +1,21 @@
-%% Title: Temporal Phase Decomposition Timeline
-%% Legend: Gantt segments represent the analysis phases used for this measurement.
-%% Baseline = period before AI inflection (2026-02-23 → 2026-02-24, ~2 days).
-%% Post-Introduction = period after AI inflection (2026-02-25 → 2026-05-23, 86 days).
-%% Per AAP §0.5.6 fallback: post-introduction span <90 days → Ramp-Up vs Steady-State split is NOT applied.
-%% Decision logged as DL-006 in decision-log.md.
-
+%% Title: Temporal Phase Decomposition: Baseline → Post-Introduction
+%% Legend:
+%%   Each bar represents a phase of the measurement window.
+%%   Baseline          = period from earliest commit (2026-02-23) to the AI inflection
+%%                       point (2026-02-25), used for "before" metric extraction.
+%%   Post-Introduction = period from the AI inflection point to the latest observed
+%%                       commit (2026-05-21), used for "after" metric extraction.
+%%   Fallback applied: post-introduction span is 86 days (< 90), so per AAP §0.5.6
+%%   the Ramp-Up (first 90 days) vs Steady-State (90+ days) split is NOT shown.
+%%   This decision is logged as DL-006 in decision-log.md.
+%%   The AI inflection point was resolved via Tier 2 (AI-actor email pattern) detection;
+%%   the first agent@blitzy.com commit landed at 2026-02-25 02:58:59 UTC
+%%   (commit 803732e140796ac4db4343c22791025b6503885c).
 gantt
-    title Acceleration Measurement Phases — Blitzy-RudderStack
-    dateFormat YYYY-MM-DD
-    axisFormat %Y-%m-%d
-
-    section Baseline (pre-inflection)
-    Baseline window  :baseline, 2026-02-23, 2026-02-25
-
-    section Post-Introduction (after inflection)
-    Post-Introduction (Monday-anchored 2-week windows, n=6) :post, 2026-02-25, 2026-05-24
-
-    section AI Inflection (Tier 2)
-    Inflection 2026-02-25 02:58:59 UTC :milestone, m1, 2026-02-25, 0d
-
-    section Ramp-Up vs Steady-State split (NOT APPLIED — 86d < 90d)
-    Not applied — see DL-006 :crit, fallback, 2026-05-25, 2026-05-26
+    title Temporal Phase Decomposition: Baseline -> Post-Introduction
+    dateFormat  YYYY-MM-DD
+    axisFormat  %Y-%m-%d
+    section Baseline
+    Pre-inflection observation    :baseline, 2026-02-23, 2d
+    section Post-Introduction (fallback applied: <90 days post-inflection)
+    AI assistance active          :post, 2026-02-25, 86d
