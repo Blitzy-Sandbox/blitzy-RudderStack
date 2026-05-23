@@ -155,8 +155,27 @@
           "type": "string",
           "description": "Optional free-text note documenting that this artifact is the hand-authored seed (will be overwritten by the live extractor)."
         },
+        "seed_created_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "Wall-clock UTC timestamp at which the hand-authored seed was originally drafted. Distinct from `extraction_timestamp`, which is the canonical per-run correlation timestamp. The renderer ignores this field and uses `extraction_timestamp` for run correlation; this field is archival only."
+        },
+        "seed_created_at_note": {
+          "type": "string",
+          "description": "Optional free-text justification for keeping `seed_created_at` separate from `extraction_timestamp`. Documents why the original seed creation moment is preserved alongside the run-correlation timestamp."
+        },
+        "extraction_timestamp_alignment_note": {
+          "type": "string",
+          "description": "Optional free-text note recording that the artifact's `extraction_timestamp` was deliberately aligned to the canonical per-run timestamp captured in `data/environment.json#extraction_timestamp`. Honors Rule 4 (Internal Consistency) by making the alignment visible in the artifact rather than implicit."
+        },
         "artifact_kind": {"type": "string", "minLength": 1},
-        "schema_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"}
+        "schema_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+        "schema_version_change_note": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Free-text justification for the latest schema_version bump. Lets a reviewer scan recent CP-remediation changes without diffing the schema file. Required only when schema_version differs from the prior release; permitted but unused otherwise."
+        }
       }
     },
     "releaseEntry": {

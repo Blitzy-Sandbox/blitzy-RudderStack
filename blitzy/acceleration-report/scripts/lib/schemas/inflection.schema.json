@@ -63,6 +63,55 @@
       "format": "date-time",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
       "description": "Wall-clock timestamp of detection."
+    },
+    "baseline_duration_days": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The number of full days between the earliest commit on `main` and the inflection point (`date_utc`). This is the canonical baseline-phase duration referenced by `metrics.json#_metadata.ramp_up_steady_state_split_applied_reason` and by AAP §0.5.6. Top-level field for the CP2 data contract — equivalent value also exposed under `phase_decomposition.baseline.duration_days` for backward compatibility."
+    },
+    "post_introduction": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["duration_days", "start_iso", "end_iso"],
+      "description": "Top-level summary of the post-introduction phase. The CP2 data contract expects these fields at the top level for renderer convenience; the same values are also exposed under `phase_decomposition.*` for backward compatibility. Renderers SHOULD prefer this top-level object as the single source of truth.",
+      "properties": {
+        "duration_days": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Days between `date_utc` and the latest commit on `main` in the analysis window. When this is less than `ramp_up_steady_state_threshold_days` (90), `ramp_up_steady_state_split_applied` MUST be false."
+        },
+        "start_iso": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "Start of the post-introduction phase in ISO-8601 UTC. Equal to `date_utc`."
+        },
+        "end_iso": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "End of the post-introduction phase in ISO-8601 UTC. Equal to the latest commit timestamp on `main` in the analysis window."
+        },
+        "commit_count_on_main": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of commits on `main` in the post-introduction phase. Surfaced for cross-checking M2 (Flow Velocity) aggregate counts."
+        }
+      }
+    },
+    "ramp_up_steady_state_split_applied": {
+      "type": "boolean",
+      "description": "Whether the after-period was split into Ramp-Up and Steady State phases per AAP §0.5.6. When false, the fallback Baseline vs Post-Introduction decomposition was applied because fewer than 90 days of post-introduction data exist. Mirror of `metrics.json#_metadata.ramp_up_steady_state_split_applied`; Rule 4 (Internal Consistency) requires both values to be equal."
+    },
+    "ramp_up_steady_state_threshold_days": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The threshold day count at which Ramp-Up transitions to Steady State per AAP §0.5.6. Always 90 in the current contract; surfaced as a schema field so a future change to the threshold is mechanically visible."
+    },
+    "ramp_up_steady_state_split_applied_reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-text justification for the value of `ramp_up_steady_state_split_applied`. References AAP §0.5.6 and `decision-log.md` DL-006."
     }
   },
   "allOf": [

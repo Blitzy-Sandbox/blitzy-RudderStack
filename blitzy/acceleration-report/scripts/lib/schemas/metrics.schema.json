@@ -72,6 +72,40 @@
           "type": "string",
           "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?/[A-Za-z0-9._-]+$",
           "description": "Optional 'owner/repo' slug of the analyzed repository (e.g., 'Blitzy-Sandbox/blitzy-RudderStack'). Surfaced in the report header so a reviewer who sees the rendered document knows which fork it describes."
+        },
+        "ramp_up_steady_state_split_applied": {
+          "type": "boolean",
+          "description": "Whether the after-period was split into Ramp-Up (first 90 days post-introduction) and Steady State (90+ days post-introduction) phases per AAP §0.5.6. When false, the fallback Baseline vs Post-Introduction decomposition was applied because fewer than 90 days of post-introduction data existed at extraction time. Recorded here so renderers consume the phase-decomposition flag from the single source of truth (Rule 4 Internal Consistency) and the report's Methodology section can cross-reference `decision-log.md` DL-006 with one lookup. Mirror of `inflection.json#ramp_up_steady_state_split_applied`."
+        },
+        "ramp_up_steady_state_split_applied_reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Free-text justification for the value of `ramp_up_steady_state_split_applied`. When the split was NOT applied, this field contains the post-introduction duration in days and references AAP §0.5.6 and `decision-log.md` DL-006. When the split WAS applied, this field documents the inflection date and the post-introduction duration that exceeded the 90-day threshold."
+        },
+        "ramp_up_steady_state_threshold_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The number of days post-introduction at which Ramp-Up transitions to Steady State per AAP §0.5.6. Always 90 in the current contract; surfaced as a schema field so a future change to the threshold is mechanically visible to renderers and reviewers rather than buried in code."
+        },
+        "post_introduction_duration_days": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The number of full days between the inflection point and the analysis-period end. Used by the renderer to label the after-period axis in the Acceleration Curve and to justify the ramp_up_steady_state_split_applied value. Mirror of `inflection.json#post_introduction.duration_days`."
+        },
+        "phase_keys_used": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["baseline", "ramp_up", "steady_state", "post_introduction"]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "The set of phase keys that downstream metric rows are guaranteed to populate. When `ramp_up_steady_state_split_applied` is false this is `['baseline', 'post_introduction']`; when true it is `['baseline', 'ramp_up', 'steady_state']`. Renderers MUST iterate this array rather than hardcoding the phase set so the fallback decomposition is honored without code changes."
+        },
+        "schema_version_change_note": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Free-text justification for the latest schema_version bump. Lets a reviewer scan recent CP-remediation changes without diffing the schema file. Required only when schema_version differs from the prior release; permitted but unused otherwise."
         }
       }
     },
@@ -117,7 +151,14 @@
       "properties": {
         "requirement_id": {"type": "string", "minLength": 1, "description": "User-prompt requirement identifier (e.g., 'M1-FlowLoad'). Used by the Traceability Matrix renderer."},
         "extraction_command": {"type": "string", "minLength": 1, "description": "Authoritative shell or git command that produced the raw data -- must be syntactically valid bash for the Rule 5 (Reproducibility) verify gate."},
-        "raw_output_artifact_path": {"type": "string", "minLength": 1, "description": "Path to the raw artifact under data/ that the derivation read from."},
+        "raw_output_artifact_path": {"type": "string", "minLength": 1, "description": "Path to the primary raw artifact under data/ that the derivation read from. When the derivation reads from multiple artifacts, this field carries the most authoritative single path AND the additional paths are enumerated in `raw_output_artifact_paths`."},
+        "raw_output_artifact_paths": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Optional explicit array of every raw artifact path the derivation read from. Required for derivations that span multiple artifacts (e.g., M4 reads pulls.json + reviews.json + pull_events.json). When present, EVERY element MUST be a concrete `data/*.{json,csv}` path that exists on disk — the Rule 1 (Data Provenance) verify gate dereferences each path. Use this field instead of a compound `raw_output_artifact_path` string (`'a.json + b.json'`) so the path list is machine-resolvable. The primary path SHOULD also appear as the first element of this array for renderer convenience."
+        },
         "derivation_function": {"type": "string", "minLength": 1, "description": "Fully-qualified Python function name in 09_compute_metrics.py that produced this metric (e.g., 'compute_m1_flow_load')."}
       }
     },
@@ -184,6 +225,16 @@
         "extraction_strategy": {
           "type": "string",
           "description": "Short prose describing how the metric was extracted, for the Methodology section."
+        },
+        "semantic_contract": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional named contract identifier documenting which counting unit the metric uses when the live data source is unavailable. Example: 'merge_commit_fallback' for M2 (Flow Velocity) when the GitHub Pulls API is unreachable and the unit is each explicit merge commit on `main`. The contract identifier is referenced by `decision-log.md` and is consumed by renderers and per-engineer breakdowns so the same unit is used uniformly (Rule 4 Internal Consistency)."
+        },
+        "semantic_contract_note": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional free-text justification accompanying `semantic_contract`. Documents why the fallback unit was chosen and how it relates to the live-data unit; cited by the per-engineer breakdown in per_engineer.json."
         },
         "per_window": {
           "type": "array",

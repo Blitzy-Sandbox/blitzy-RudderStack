@@ -11,15 +11,22 @@
 # local and remote-tracking ref, per AAP §0.5.3 and §0.6.2):
 #
 #   data/commits.csv             Authoritative full commit roster.
-#                                Header:
-#                                  sha|author_email|author_name|author_date|
-#                                  committer_email|committer_name|
-#                                  committer_date|parents|subject
+#                                Header (CP2 contract; `_iso` suffix and
+#                                `parent_shas` per the checkpoint review):
+#                                  commit_sha|author_email|author_name|
+#                                  author_date_iso|committer_email|
+#                                  committer_name|committer_date_iso|
+#                                  parent_shas|subject
 #                                Pipe-delimited (`|`). One row per commit.
+#                                Date fields are ISO-8601 UTC with a
+#                                trailing Z (the raw `%aI`/`%cI` strings
+#                                from git log carry the commit's local
+#                                timezone offset; the script normalises
+#                                them in-pipeline via Python).
 #                                In this repo: 538 body rows.
 #
 #   data/revert_candidates.csv   Commits whose subject begins with `Revert "`.
-#                                Header:  sha|date|subject
+#                                Header:  commit_sha|author_date|subject
 #                                In this repo: 0 body rows.
 #
 # These artifacts feed Metrics 1, 2, 3, 4, 5, 6, 7, 8, 10 and the Tier-3
@@ -86,11 +93,13 @@ Default rev scope: --all (every local and remote-tracking ref, per AAP §0.5.3).
 
 Outputs (default paths):
   ${COMMITS_FILE}
-      Header: sha|author_email|author_name|author_date|committer_email|committer_name|committer_date|parents|subject
-      One row per commit. Pipe-delimited.
+      Header: commit_sha|author_email|author_name|author_date_iso|committer_email|committer_name|committer_date_iso|parent_shas|subject
+      One row per commit. Pipe-delimited. Date fields are UTC ISO-8601 with the
+      Z suffix; the script normalises the raw local-offset %aI/%cI output in
+      pipeline.
 
   ${CANDIDATES_FILE}
-      Header: sha|date|subject
+      Header: commit_sha|author_date|subject
       Subset of commits whose subject begins with the literal prefix \`Revert "\`.
 
 Options:
@@ -406,16 +415,20 @@ PYEOF
     # 09_compute_metrics.py, NOT here; this script extracts raw data exactly
     # as git reports it").
     #
-    # Format fields:
-    #   %H   full commit hash
-    #   %aE  author email (raw, as recorded; not lower-cased here)
-    #   %aN  author name (display name)
-    #   %aI  author date (strict ISO-8601 with timezone offset)
-    #   %cE  committer email
-    #   %cN  committer name
-    #   %cI  committer date (strict ISO-8601 with timezone offset)
-    #   %P   parent hashes (space-separated; 2+ for merge commits)
-    #   %s   subject (first line of the commit message)
+    # Format fields (CP2 contract — field names use the `_iso` suffix and
+    # date values are normalised to UTC Z form by the in-pipeline Python
+    # filter below; raw `%aI` / `%cI` output is strict ISO-8601 with the
+    # commit's local timezone offset and is converted to a Z-suffixed UTC
+    # timestamp before being written to the file):
+    #   commit_sha           full commit hash (raw %H)
+    #   author_email         author email, raw (%aE)
+    #   author_name          author display name (%aN)
+    #   author_date_iso      author date normalised to UTC ISO-8601 Z form
+    #   committer_email      committer email (%cE)
+    #   committer_name       committer display name (%cN)
+    #   committer_date_iso   committer date normalised to UTC ISO-8601 Z form
+    #   parent_shas          space-separated parent hashes (%P; 2+ for merge)
+    #   subject              first line of the commit message (%s)
     #
     # Atomic-write contract: the body is streamed to a .tmp sibling file and
     # only `mv`d into place after the streaming completes. This protects
@@ -423,17 +436,50 @@ PYEOF
     # the script is interrupted mid-extraction.
     local COMMITS_TMP="${COMMITS_FILE}.tmp"
     {
-        echo 'sha|author_email|author_name|author_date|committer_email|committer_name|committer_date|parents|subject'
+        echo 'commit_sha|author_email|author_name|author_date_iso|committer_email|committer_name|committer_date_iso|parent_shas|subject'
         # The `git log` invocation is read-only. Per AAP §0.5.3 and §0.6.2,
         # default REV_SCOPE is `--all` so that commits on every ref (main,
         # release/*, blitzy-* feature branches, all remote-tracking refs)
-        # are captured. The trailing `printf '\n'` ensures the body
-        # terminates with a newline (git log --pretty=format omits the
-        # trailing newline by design, which would otherwise concat the last
-        # commit row directly to EOF without a line terminator and break
-        # standard line-counting tools like `wc -l`).
-        git log "${REV_SCOPE}" --pretty=format:'%H|%aE|%aN|%aI|%cE|%cN|%cI|%P|%s'
-        printf '\n'
+        # are captured. The output is piped through a small Python filter
+        # that normalises columns 4 (author_date) and 7 (committer_date)
+        # from raw `%aI`/`%cI` (with local-timezone offsets) to UTC Z form,
+        # preserving every other field byte-for-byte. The filter reads
+        # line-by-line so memory stays O(1) regardless of repository size.
+        # The trailing `printf '\n'` ensures the body terminates with a
+        # newline (git log --pretty=format omits the trailing newline by
+        # design, which would otherwise concat the last commit row directly
+        # to EOF without a line terminator and break standard line-counting
+        # tools like `wc -l`).
+        git log "${REV_SCOPE}" --pretty=format:'%H|%aE|%aN|%aI|%cE|%cN|%cI|%P|%s' \
+        | python3 -c '
+import sys
+from datetime import datetime, timezone
+
+def to_utc_z(s: str) -> str:
+    s = s.strip()
+    if not s:
+        return s
+    iso = s[:-1] + "+00:00" if s.endswith("Z") else s
+    try:
+        dt = datetime.fromisoformat(iso)
+    except ValueError:
+        return s
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+for line in sys.stdin:
+    line = line.rstrip("\n")
+    if not line:
+        continue
+    # The subject (last field) may itself contain | characters from PR
+    # titles; split with maxsplit so the subject is preserved verbatim.
+    fields = line.split("|", 8)
+    if len(fields) != 9:
+        sys.stdout.write(line + "\n")
+        continue
+    fields[3] = to_utc_z(fields[3])
+    fields[6] = to_utc_z(fields[6])
+    sys.stdout.write("|".join(fields) + "\n")
+'
     } > "${COMMITS_TMP}"
     mv "${COMMITS_TMP}" "${COMMITS_FILE}"
 
@@ -517,14 +563,21 @@ PYEOF
     # Atomic write: same .tmp + mv pattern as Phase 4.
     local CANDIDATES_TMP="${CANDIDATES_FILE}.tmp"
     {
-        echo 'sha|date|subject'
+        # Header uses commit_sha + author_date columns aligned with the
+        # CP2 contract on commits.csv. Authors of downstream scripts read
+        # the header rather than positionally so a future schema change
+        # affects one row.
+        echo 'commit_sha|author_date|subject'
         # Capture the body in a subshell so that an empty result (the common
         # case for this repo) does not write a stray newline before the
         # trailing printf. We use `printf '%s'` to avoid `echo`'s
         # platform-dependent backslash handling. Per AAP §0.5.3 and §0.6.2,
         # default REV_SCOPE is `--all` so that reverts on any ref are
         # discovered and can be attributed to the release that contained
-        # the original commit (Metric 8).
+        # the original commit (Metric 8). The author-date column is
+        # normalised to UTC ISO-8601 Z form in pipeline by the same
+        # Python filter shape used by Phase 4 above; the empty body is
+        # left as an unmodified empty string.
         local _revert_body
         _revert_body="$(
             git log "${REV_SCOPE}" --grep='^Revert "' --extended-regexp \
@@ -532,7 +585,30 @@ PYEOF
             || printf ''
         )"
         if [[ -n "${_revert_body}" ]]; then
-            printf '%s\n' "${_revert_body}"
+            printf '%s\n' "${_revert_body}" | python3 -c '
+import sys
+from datetime import datetime, timezone
+
+def to_utc_z(s: str) -> str:
+    s = s.strip()
+    if not s:
+        return s
+    iso = s[:-1] + "+00:00" if s.endswith("Z") else s
+    try:
+        dt = datetime.fromisoformat(iso)
+    except ValueError:
+        return s
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+for line in sys.stdin:
+    line = line.rstrip("\n")
+    if not line:
+        continue
+    fields = line.split("|", 2)
+    if len(fields) == 3:
+        fields[1] = to_utc_z(fields[1])
+    sys.stdout.write("|".join(fields) + "\n")
+'
         fi
     } > "${CANDIDATES_TMP}"
     mv "${CANDIDATES_TMP}" "${CANDIDATES_FILE}"

@@ -2,11 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://blitzy.io/acceleration-report/schemas/environment.schema.json",
   "title": "Environment Verification Snapshot",
-  "description": "Rule 6 (Environment First) preamble artifact produced by 00_environment.sh. Documents the execution environment that every downstream metric extraction is computed against. Loaded by 09_compute_metrics.py and 10_render_report.py at read boundaries.",
+  "description": "Rule 6 (Environment First) preamble artifact produced by 00_environment.sh. Documents the execution environment that every downstream metric extraction is computed against. Loaded by 09_compute_metrics.py and 10_render_report.py at read boundaries. The required-field list reflects the CP2 review contract: it includes repository_slug, default_branch, go_module_version, commit_date_range.earliest_utc / latest_utc / latest_on_main, in addition to the original Rule 6 set.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "repository_url",
+    "repository_slug",
+    "default_branch",
+    "go_module_version",
     "git_version",
     "total_commit_count",
     "active_branch_count",
@@ -20,6 +23,25 @@
       "type": "string",
       "minLength": 1,
       "description": "Git remote URL with embedded auth credentials stripped (the producer applies a redact_url helper before writing). Example: https://github.com/Blitzy-Sandbox/blitzy-RudderStack."
+    },
+    "repository_slug": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "description": "Owner/repository slug derived from repository_url (e.g., 'Blitzy-Sandbox/blitzy-RudderStack'). Used as the path component for GitHub REST API calls in scripts/03_extract_pulls.py, 04_extract_releases.py, 06_extract_ci_history.py, and 07_extract_exceptions.py."
+    },
+    "default_branch": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Name of the repository's default branch as configured on GitHub (e.g., 'main'). The local-git inflection-point detection and the Releases API tag lookup both anchor on this branch name."
+    },
+    "go_module_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
+      "description": "Go module language version sourced from the 'go' directive in go.mod (e.g., '1.26.1'). Recorded as part of Environment Verification because the rudder-server's build toolchain version is documented evidence in the Reproducibility Appendix (Rule 5)."
+    },
+    "go_module_version_source": {
+      "type": "string",
+      "description": "Optional citation locator for go_module_version (e.g., 'go.mod:L3'). Provides Rule 1 (Data Provenance) traceability for the version string."
     },
     "git_version": {
       "type": "string",
@@ -44,19 +66,49 @@
     "commit_date_range": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["earliest", "latest"],
+      "required": ["earliest_utc", "latest_utc", "latest_on_main"],
       "properties": {
         "earliest": {
           "type": "string",
           "format": "date-time",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
-          "description": "Earliest commit author date in ISO-8601 UTC (e.g., 2026-02-23T05:19:38Z)."
+          "description": "Compatibility alias for earliest_utc. Earliest commit author date in ISO-8601 UTC (e.g., 2026-02-23T05:19:38Z). Retained for backward compatibility with the original Rule 6 contract; new consumers SHOULD read earliest_utc."
         },
         "latest": {
           "type": "string",
           "format": "date-time",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
-          "description": "Latest commit author date in ISO-8601 UTC."
+          "description": "Compatibility alias for latest_utc. Latest commit author date across --all refs in ISO-8601 UTC. New consumers SHOULD read latest_utc."
+        },
+        "earliest_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "Earliest commit author date across --all refs in ISO-8601 UTC. Canonical CP2-contract field name."
+        },
+        "latest_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "Latest commit author date across --all refs in ISO-8601 UTC. Canonical CP2-contract field name. May be later than latest_on_main because feature-branch activity (e.g., blitzy-* sandboxes) can extend beyond the most recent main merge."
+        },
+        "latest_on_main": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "HEAD committer timestamp of the default branch ('main') in ISO-8601 UTC. Sourced from `git log -1 main --format='%cI'` and normalised to the Z form. Distinct from latest_utc, which spans --all refs."
+        },
+        "earliest_aliases_note": {
+          "type": "string",
+          "description": "Optional explanatory note documenting the compatibility-alias policy between earliest/earliest_utc and latest/latest_utc. Producers MAY emit this note for human readability; consumers MUST NOT depend on it."
+        },
+        "latest_vs_latest_on_main_note": {
+          "type": "string",
+          "description": "Optional explanatory note documenting why latest_utc and latest_on_main may differ (feature-branch activity past the last main merge)."
+        },
+        "latest_on_main_source_command": {
+          "type": "string",
+          "description": "Optional citation of the exact shell command used to compute latest_on_main. Provides Rule 1 (Data Provenance) traceability."
         }
       }
     },

@@ -321,16 +321,78 @@ PYEOF
         output "${OUTPUT_FILE}"
 
     # -------------------------------------------------------------------------
-    # Phase 3 — Repository URL (token-scrubbed)
+    # Phase 3 — Repository URL (token-scrubbed) and slug (owner/repo)
     # -------------------------------------------------------------------------
     # Strip any embedded auth in the userinfo segment of an https URL. Matches:
     #   https://user:token@host/path
     #   https://token@host/path
     # while leaving plain https://host/path unchanged. SSH and git:// URLs are
     # already token-free so they pass through.
-    local RAW_URL REPO_URL
+    local RAW_URL REPO_URL REPO_SLUG
     RAW_URL="$(git remote get-url origin 2>/dev/null || printf 'unknown')"
     REPO_URL="$(printf '%s' "${RAW_URL}" | sed -E 's|^(https?://)[^/@[:space:]]+@|\1|')"
+    # Derive owner/repo slug from the (token-scrubbed) URL. Handles the four
+    # canonical Git remote forms: https://host/owner/repo[.git], ssh://...,
+    # git@host:owner/repo[.git], and SCP-style host:owner/repo[.git]. The
+    # tail of the URL (after the last ':' for ssh-style, or after the host
+    # for https) is normalised by stripping leading/trailing slashes and a
+    # trailing '.git' so the slug is always 'owner/repo'.
+    REPO_SLUG="$(
+        printf '%s' "${REPO_URL}" \
+        | sed -E -e 's|^[a-z]+://[^/]+/||' -e 's|^[^@]+@[^:]+:||' -e 's|\.git$||' -e 's|^/||' -e 's|/$||'
+    )"
+
+    # -------------------------------------------------------------------------
+    # Phase 3b — Default branch name (best-effort)
+    # -------------------------------------------------------------------------
+    # Probe the symbolic-ref of origin/HEAD first (most reliable when the
+    # remote was cloned from a server that publishes a default-branch hint).
+    # Fall back to 'main' if the symbolic-ref is missing, and finally to the
+    # current branch's local short name.
+    local DEFAULT_BRANCH
+    DEFAULT_BRANCH="$(
+        git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null \
+        | sed -E 's|^origin/||'
+    )"
+    if [[ -z "${DEFAULT_BRANCH}" ]]; then
+        if git show-ref --verify --quiet refs/heads/main 2>/dev/null; then
+            DEFAULT_BRANCH="main"
+        elif git show-ref --verify --quiet refs/heads/master 2>/dev/null; then
+            DEFAULT_BRANCH="master"
+        else
+            DEFAULT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || printf 'main')"
+        fi
+    fi
+
+    # -------------------------------------------------------------------------
+    # Phase 3c — Go module version (from go.mod, if present)
+    # -------------------------------------------------------------------------
+    # The `go` directive in go.mod (e.g., 'go 1.26.1') is the language
+    # version pin for the rudder-server toolchain. The value is recorded
+    # as part of Environment Verification because the build toolchain
+    # version is provenance evidence per Rule 1 in the Reproducibility
+    # Appendix. An empty value is preserved as the literal empty string —
+    # the renderer surfaces it as "(absent)" when consumed.
+    local GO_MODULE_VERSION
+    GO_MODULE_VERSION=""
+    if [[ -f "${WORKSPACE_ROOT}/../../go.mod" ]]; then
+        GO_MODULE_VERSION="$(
+            awk '/^go [0-9]+(\.[0-9]+){1,2}/ { print $2; exit }' \
+                "${WORKSPACE_ROOT}/../../go.mod" 2>/dev/null \
+            || printf ''
+        )"
+    elif git ls-files -- '*go.mod' >/dev/null 2>&1; then
+        # Locate the closest go.mod via git ls-files (relative to repo root).
+        local GO_MOD_PATH
+        GO_MOD_PATH="$(git ls-files -- 'go.mod' | head -1 || true)"
+        if [[ -n "${GO_MOD_PATH}" && -f "${GO_MOD_PATH}" ]]; then
+            GO_MODULE_VERSION="$(
+                awk '/^go [0-9]+(\.[0-9]+){1,2}/ { print $2; exit }' \
+                    "${GO_MOD_PATH}" 2>/dev/null \
+                || printf ''
+            )"
+        fi
+    fi
 
     # -------------------------------------------------------------------------
     # Phase 4 — Git version (third field of `git --version` output)
@@ -385,20 +447,25 @@ PYEOF
     fi
 
     # -------------------------------------------------------------------------
-    # Phase 8 — Commit date range (across --all branches)
+    # Phase 8 — Commit date range (across --all branches and on default branch)
     # -------------------------------------------------------------------------
     # `|| true` defends against SIGPIPE on the upstream `git log` when `head -1`
     # closes the pipe early under `set -o pipefail`. The kernel pipe buffer
     # typically absorbs the full output before head reads it, but defending
     # against the worst case is cheap.
-    local EARLIEST_RAW LATEST_RAW
+    local EARLIEST_RAW LATEST_RAW LATEST_ON_MAIN_RAW
     EARLIEST_RAW="$(git log --all --reverse --pretty=format:'%aI' 2>/dev/null | head -1 || true)"
     LATEST_RAW="$(git log --all --pretty=format:'%aI' 2>/dev/null | head -1 || true)"
+    # latest_on_main is the HEAD committer timestamp of the default branch.
+    # Distinct from LATEST_RAW which spans --all refs and may include
+    # feature-branch activity beyond the most recent main merge.
+    LATEST_ON_MAIN_RAW="$(git log -1 "${DEFAULT_BRANCH}" --pretty=format:'%cI' 2>/dev/null || true)"
 
-    # Normalise both timestamps to UTC ISO-8601 with the Z suffix. Values are
-    # passed via env vars so no shell-interpolated user data ends up inside the
-    # Python source string (defence in depth against quote/backslash injection).
-    local EARLIEST_UTC LATEST_UTC
+    # Normalise all three timestamps to UTC ISO-8601 with the Z suffix. Values
+    # are passed via env vars so no shell-interpolated user data ends up inside
+    # the Python source string (defence in depth against quote/backslash
+    # injection).
+    local EARLIEST_UTC LATEST_UTC LATEST_ON_MAIN_UTC
     EARLIEST_UTC="$(
         BLITZY_TS_RAW="${EARLIEST_RAW}" python3 -c '
 import os
@@ -427,6 +494,20 @@ else:
     print(dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
 '
     )"
+    LATEST_ON_MAIN_UTC="$(
+        BLITZY_TS_RAW="${LATEST_ON_MAIN_RAW}" python3 -c '
+import os
+from datetime import datetime, timezone
+s = os.environ.get("BLITZY_TS_RAW", "").strip()
+if not s:
+    print("")
+else:
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    dt = datetime.fromisoformat(s)
+    print(dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+'
+    )"
 
     # -------------------------------------------------------------------------
     # Phase 9 — Extraction timestamp (wall clock, UTC, Z-suffix ISO-8601)
@@ -443,12 +524,16 @@ else:
     mkdir -p "${DATA_DIR}"
 
     BLITZY_REPO_URL="${REPO_URL}" \
+    BLITZY_REPO_SLUG="${REPO_SLUG}" \
+    BLITZY_DEFAULT_BRANCH="${DEFAULT_BRANCH}" \
+    BLITZY_GO_VERSION="${GO_MODULE_VERSION}" \
     BLITZY_GIT_VERSION="${GIT_VERSION}" \
     BLITZY_TOTAL_COMMITS="${TOTAL_COMMIT_COUNT}" \
     BLITZY_BRANCH_COUNT="${ACTIVE_BRANCH_COUNT}" \
     BLITZY_SUBMODULE_STATE="${SUBMODULE_STATE}" \
     BLITZY_EARLIEST="${EARLIEST_UTC}" \
     BLITZY_LATEST="${LATEST_UTC}" \
+    BLITZY_LATEST_ON_MAIN="${LATEST_ON_MAIN_UTC}" \
     BLITZY_EXTRACTION_TS="${EXTRACTION_TS}" \
     BLITZY_OUTPUT_PATH="${OUTPUT_FILE}" \
     python3 - <<'PYEOF'
@@ -465,15 +550,28 @@ def _int(name: str) -> int:
         return 0
 
 
+earliest = os.environ.get("BLITZY_EARLIEST", "")
+latest = os.environ.get("BLITZY_LATEST", "")
+latest_on_main = os.environ.get("BLITZY_LATEST_ON_MAIN", "")
+
 payload = {
     "repository_url": os.environ.get("BLITZY_REPO_URL", ""),
+    "repository_slug": os.environ.get("BLITZY_REPO_SLUG", ""),
+    "default_branch": os.environ.get("BLITZY_DEFAULT_BRANCH", "main"),
+    "go_module_version": os.environ.get("BLITZY_GO_VERSION", ""),
+    "go_module_version_source": "go.mod 'go' directive",
     "git_version": os.environ.get("BLITZY_GIT_VERSION", ""),
     "total_commit_count": _int("BLITZY_TOTAL_COMMITS"),
     "active_branch_count": _int("BLITZY_BRANCH_COUNT"),
     "submodule_state": os.environ.get("BLITZY_SUBMODULE_STATE", "no_submodules"),
     "commit_date_range": {
-        "earliest": os.environ.get("BLITZY_EARLIEST", ""),
-        "latest": os.environ.get("BLITZY_LATEST", ""),
+        # Compatibility aliases (original Rule 6 contract) are preserved.
+        "earliest": earliest,
+        "latest": latest,
+        # Canonical CP2-contract field names below.
+        "earliest_utc": earliest,
+        "latest_utc": latest,
+        "latest_on_main": latest_on_main,
     },
     "extraction_timestamp": os.environ.get("BLITZY_EXTRACTION_TS", ""),
     "run_id": os.environ.get("BLITZY_RUN_ID", ""),
@@ -496,12 +594,16 @@ PYEOF
     # -------------------------------------------------------------------------
     log_json info script_complete \
         repo_url "${REPO_URL}" \
+        repo_slug "${REPO_SLUG}" \
+        default_branch "${DEFAULT_BRANCH}" \
+        go_module_version "${GO_MODULE_VERSION}" \
         git_version "${GIT_VERSION}" \
         total_commits "${TOTAL_COMMIT_COUNT}" \
         branches "${ACTIVE_BRANCH_COUNT}" \
         submodules "${SUBMODULE_STATE}" \
         earliest_commit "${EARLIEST_UTC}" \
         latest_commit "${LATEST_UTC}" \
+        latest_on_main "${LATEST_ON_MAIN_UTC}" \
         extraction_timestamp "${EXTRACTION_TS}" \
         output "${OUTPUT_FILE}"
 

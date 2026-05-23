@@ -48,34 +48,42 @@
       "items": {
         "type": "object",
         "additionalProperties": true,
+        "$comment": "Two PR-entry shapes are accepted: (1) full live-API shape with every field populated; (2) fallback shape produced when github_api.available is false, where certain fields that are only knowable from the live PR object (number for ad-hoc merges, created_at, draft, head.sha, base.sha, pr_commits[]) may be null, the literal placeholder 'unknown_local_git_only', or absent. The fallback shape is the one used by the CP2 seed artifact in this repository. The 'required' list is the intersection of fields that BOTH shapes carry; the per-field types are widened to permit the fallback values explicitly. The full set of fields a live-API entry would carry is documented in the per_pr_schema_documentation block at the top of pulls.json and is enforced by the live extractor (scripts/03_extract_pulls.py) when the API is reachable.",
         "required": [
-          "number",
           "state",
           "title",
           "body",
-          "created_at",
-          "closed_at",
           "merged_at",
           "merge_commit_sha",
-          "draft",
           "user",
           "head",
           "base",
           "labels",
           "requested_reviewers",
-          "linked_linear_keys",
-          "pr_commits"
+          "linked_linear_keys"
         ],
         "properties": {
-          "number": {"type": "integer", "minimum": 1},
+          "number": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "description": "GitHub PR number. INTEGER when the merge commit references a PR via its subject line (pattern '#NNN'). NULL when this entry is an ad-hoc merge commit with no PR reference (fallback only). The live extractor produces an integer in every case."
+          },
           "state": {"type": "string", "enum": ["open", "closed"]},
           "title": {"type": "string"},
           "body": {"type": ["string", "null"]},
-          "created_at": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+          "created_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+            "description": "PR creation timestamp. STRING (ISO-8601 Z-form) when the live PR object is available. NULL in fallback mode because PR creation time is not derivable from local-git history alone — when null, the artifact MUST carry a sibling `created_at_null_reason` field."
+          },
           "closed_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
           "merged_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
           "merge_commit_sha": {"type": ["string", "null"], "pattern": "^[0-9a-fA-F]{7,40}$"},
-          "draft": {"type": "boolean"},
+          "draft": {
+            "type": ["boolean", "null"],
+            "description": "PR draft flag. BOOLEAN when the live PR object is available. NULL in fallback mode because draft state is not derivable from local-git history (the `draft` boolean lives on the PR object). When null, the artifact MUST carry a sibling `draft_null_reason` field."
+          },
           "user": {
             "type": "object",
             "additionalProperties": true,
@@ -91,7 +99,13 @@
             "required": ["ref", "sha"],
             "properties": {
               "ref": {"type": "string", "minLength": 1},
-              "sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"}
+              "sha": {
+                "anyOf": [
+                  {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
+                  {"type": "string", "const": "unknown_local_git_only"}
+                ],
+                "description": "Head-branch tip SHA. SHA hex when the live PR object is available; the literal placeholder string 'unknown_local_git_only' in fallback mode because the merge commit only references the merged tip via its merge-of-parent pointer, not via the head branch's true tip SHA."
+              }
             }
           },
           "base": {
@@ -100,7 +114,13 @@
             "required": ["ref", "sha"],
             "properties": {
               "ref": {"type": "string", "minLength": 1},
-              "sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"}
+              "sha": {
+                "anyOf": [
+                  {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
+                  {"type": "string", "const": "unknown_local_git_only"}
+                ],
+                "description": "Base-branch tip SHA at the moment of the PR. SHA hex when the live PR object is available; the literal placeholder string 'unknown_local_git_only' in fallback mode because the base tip at PR-creation time is not derivable from the post-merge state."
+              }
             }
           },
           "labels": {
@@ -215,7 +235,11 @@
         "open_prs_count": {"type": "integer", "minimum": 0},
         "merged_prs_count": {"type": "integer", "minimum": 0},
         "closed_without_merge_prs_count": {"type": "integer", "minimum": 0},
-        "draft_prs_count": {"type": "integer", "minimum": 0},
+        "draft_prs_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Count of PRs in draft state at extraction time. INTEGER when the GitHub Pulls API was reachable and the draft flag could be observed. NULL when github_api.available is false because draft state is not derivable from local-git data alone (the `draft` boolean lives on the PR object, not on any commit or ref). When null, the artifact MUST carry a sibling `draft_prs_count_null_reason` field explaining the unavailability."
+        },
         "excluded_dependency_bot_prs_count": {"type": "integer", "minimum": 0},
         "blitzy_authored_prs_count": {"type": "integer", "minimum": 0},
         "human_authored_prs_count": {"type": "integer", "minimum": 0},
@@ -298,6 +322,11 @@
         "schema_version": {
           "type": "string",
           "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "schema_version_change_note": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Free-text justification for the latest schema_version bump. Lets a reviewer scan recent CP-remediation changes without diffing the schema file. Required only when schema_version differs from the prior release; permitted but unused otherwise."
         },
         "source_files_referenced": {
           "type": "array",
