@@ -1,167 +1,23 @@
 {
   "_metadata": {
-    "extraction_timestamp": "2026-05-23T05:54:20Z",
-    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+    "extraction_timestamp": "2026-05-23T23:41:21Z",
+    "run_id": "55555555-5555-4555-8555-555555555555",
     "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
     "default_branch": "main",
-    "analysis_period_start": "2026-02-23T00:00:00Z",
-    "analysis_period_end": "2026-05-21T23:59:59Z",
+    "analysis_period_start": "2026-02-23T05:19:38Z",
+    "analysis_period_end": "2026-05-15T21:00:51Z",
     "inflection_date_utc": "2026-02-25T02:58:59Z",
-    "artifact_kind": "hand_authored_seed",
-    "artifact_kind_note": "This is a hand-authored seed artifact for the reviews_by_pr inventory. The reviews_by_pr object is intentionally empty because the analysis sandbox has no network access to the GitHub Pulls Reviews API (a sub-endpoint of the Pulls API). When scripts/03_extract_pulls.py runs with GH_TOKEN set and network reachable, it will overwrite this file with the populated per-PR review timelines; the run_id and extraction_timestamp will then reflect that execution. Per AAP §0.8.5 (Network optionality), when unavailable the github_api.available flag is false and reviews_by_pr is an empty object — downstream M4 (Flow Active) falls back to the local-git first-commit-to-last-commit span without review-event bounding, with confidence downgraded to Low per AAP §0.2.4.",
+    "artifact_kind": "live_extraction",
     "schema_version": "1.0.0",
-    "depends_on": [
-      "data/environment.json",
-      "data/inflection.json",
-      "data/pulls.json"
-    ],
-    "consumed_by": [
-      "scripts/09_compute_metrics.py"
+    "source_files_referenced": [
+      "environment.json",
+      "inflection.json"
     ]
   },
   "github_api": {
     "available": false,
-    "endpoint_pattern": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls/{pr_number}/reviews",
-    "endpoint_pattern_note": "Per AAP §0.2.1.2, this sub-endpoint is queried once per PR object returned by the parent /repos/{owner}/{repo}/pulls?state=all enumeration. Pagination is handled with per_page=100 and the Link header; review counts per PR are typically small (single-digit) so pagination is rarely required, but the script handles it for correctness. Reviews are read-only; no POST/PUT/PATCH/DELETE is ever issued by the extraction pipeline per AAP §0.8.2.",
-    "unavailable_reason": "GH_TOKEN environment variable not set or rate limit exceeded; analysis sandbox has no outbound network access for this seed run. Per AAP §0.8.5, when GH_TOKEN is absent and the GitHub API is unreachable, the pipeline runs in offline mode using only local-git data; confidence tiers drop accordingly and the Risk Assessment notes the degradation.",
-    "fetched_at": null,
-    "prs_queried_count": 0,
-    "reviews_retrieved_count": 0,
-    "pagination": {
-      "pages_fetched": 0,
-      "items_fetched": 0,
-      "per_page_used": 100,
-      "rate_limit_remaining_at_end": null
-    },
-    "fallback_used": "none_applicable",
-    "fallback_note": "Unlike the parent /pulls endpoint, no local-git fallback exists for review events. Reviews are a GitHub-side construct (review submission, state, body, author) with no representation in commit history. When the Reviews API is unreachable, M4 (Flow Active) cannot bound refine spans on review events; the metric falls back to first-commit-to-last-commit per AAP §0.5.3.5 with confidence downgraded to Low. The data/pull_events.json artifact provides a complementary signal (review_requested events from /issues/{n}/events) but does not carry review-submission state."
+    "endpoint": "https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/pulls/<n>/reviews",
+    "fetched_at": "2026-05-23T23:41:21Z"
   },
-  "review_state_enum": [
-    "APPROVED",
-    "CHANGES_REQUESTED",
-    "COMMENTED",
-    "DISMISSED",
-    "PENDING"
-  ],
-  "review_state_enum_note": "The canonical GitHub Reviews API state enumeration. APPROVED indicates the reviewer has approved the PR; CHANGES_REQUESTED indicates the reviewer requested changes; COMMENTED indicates the reviewer left comments without explicit approval/rejection; DISMISSED indicates a previously-submitted review was dismissed (typically by a repository admin); PENDING indicates a review that was started but not submitted (typically not visible via the API). Per AAP §0.5.3.5, any of APPROVED, CHANGES_REQUESTED, or COMMENTED is treated as a review-event that bounds an M4 refine span; DISMISSED and PENDING are excluded from refine-span boundary computation.",
-  "author_association_enum": [
-    "MEMBER",
-    "OWNER",
-    "COLLABORATOR",
-    "CONTRIBUTOR",
-    "FIRST_TIME_CONTRIBUTOR",
-    "FIRST_TIMER",
-    "MANNEQUIN",
-    "NONE"
-  ],
-  "author_association_enum_note": "Per AAP §0.5.3.5 Flow Active, author_association helps distinguish bot reviewers from human reviewers, which is needed for the M4 actor-substitution logic. MANNEQUIN indicates a placeholder/imported account; NONE indicates the reviewer has no association with the repository. When user_type=Bot OR author_association=MANNEQUIN, the review is treated as a non-engineering-actor review (e.g., automated code-quality check posting as a review) and excluded from refine-span boundaries.",
-  "per_review_schema_documentation": {
-    "schema_note": "This block documents the per-review object schema for downstream consumers (scripts/09_compute_metrics.py). When reviews_by_pr[<pr_number>] arrays are populated, every object MUST conform to this schema.",
-    "required_fields": [
-      "id",
-      "node_id",
-      "user_login",
-      "user_id",
-      "user_type",
-      "state",
-      "submitted_at",
-      "commit_id",
-      "author_association"
-    ],
-    "optional_fields": [
-      "body",
-      "html_url",
-      "pull_request_url"
-    ],
-    "field_types": {
-      "id": "integer review id (GitHub global)",
-      "node_id": "string GraphQL node id",
-      "user_login": "string GitHub username of the reviewer",
-      "user_id": "integer GitHub user id",
-      "user_type": "string enum: User | Bot",
-      "body": "string review comment body — truncated to first 500 chars by the extraction script to bound JSON size; full body is NOT preserved",
-      "state": "string enum: APPROVED | CHANGES_REQUESTED | COMMENTED | DISMISSED | PENDING",
-      "html_url": "string URL to the review on github.com",
-      "pull_request_url": "string URL to the parent PR API endpoint",
-      "submitted_at": "ISO-8601 UTC string — the canonical timestamp used by M4 to bound refine spans",
-      "commit_id": "string 40-char hex SHA — the head SHA at the time of review submission; used to detect whether subsequent commits by the engineering actor occurred (which open a new refine span)",
-      "author_association": "string enum: MEMBER | OWNER | COLLABORATOR | CONTRIBUTOR | FIRST_TIME_CONTRIBUTOR | FIRST_TIMER | MANNEQUIN | NONE"
-    },
-    "body_truncation_rule": "Per AAP-imposed JSON size discipline, the body field is truncated to the first 500 characters of the original review comment, with the truncation marker '... [truncated]' appended when truncation occurs. The original body is NOT preserved anywhere in this artifact. The truncated body is sufficient for the renderer's M4 deep-dive section, which uses only the review state distribution (not body content) for aggregation.",
-    "submitted_at_is_canonical": "The submitted_at timestamp is the canonical bound for M4 refine spans per AAP §0.5.3.5. The 'first commit after a review' is identified by joining reviews_by_pr[<pr_number>][i].submitted_at against the PR's commit list from data/pulls.json#pulls[*].pr_commits or the supplementary /pulls/{n}/commits endpoint output.",
-    "commit_id_purpose": "commit_id (also known as the 'review head SHA') marks the state of the PR head ref at the time the reviewer submitted the review. When the engineering actor pushes new commits after this SHA, those commits open a new refine span per AAP §0.5.3.5. The renderer joins this against the PR commit list to bound each refine span between consecutive review-submission timestamps."
-  },
-  "reviews_by_pr": {},
-  "reviews_by_pr_note": "Hand-authored seed: empty object. When scripts/03_extract_pulls.py runs with a reachable GitHub API, this object will be populated with one key per PR (JSON-string PR number) and one array of review objects per key, each conforming to the per_review_schema_documentation above. Per AAP §0.5.3.5, only PRs that received at least one review event will appear as keys (PRs with zero reviews are absent from this object — their refine-span computation reduces to first-commit-to-last-commit for the corresponding engineering actor).",
-  "observed_pr_numbers_local_git_fallback": [
-    11,
-    12,
-    18,
-    20,
-    27
-  ],
-  "observed_pr_numbers_local_git_fallback_note": "Per data/pulls.json#observed_merge_commits_on_main, five of the six merge commits on main reference numbered PRs (#11, #12, #18, #20, #27). The sixth merge is an ad-hoc local merge without a PR number reference. When the Reviews API becomes reachable, the reviews_by_pr object should populate at most these five PR-number keys plus any additional open or closed-without-merge PRs that received reviews. The exact superset requires the parent /pulls endpoint enumeration plus a per-PR /reviews query, both of which are unavailable in the current offline seed run.",
-  "merged_to_main_prs_with_review_potential": {
-    "prs_with_numbered_references_on_main": 5,
-    "ad_hoc_merges_without_pr_number": 1,
-    "max_possible_keys_in_reviews_by_pr": 5,
-    "note": "The maximum possible number of keys in reviews_by_pr is bounded by the number of PRs that received at least one review — itself bounded above by the count of merged-to-main PRs visible via merge commits (5) plus any open or closed-without-merge PRs (unknown without API access). Per AAP, the analysis sandbox has zero outbound network access; the upper bound is therefore 5 merged-to-main numbered PRs based on local-git evidence alone."
-  },
-  "summary": {
-    "total_prs_with_reviews": 0,
-    "total_reviews": 0,
-    "review_states_seen": [],
-    "approved_count": 0,
-    "changes_requested_count": 0,
-    "commented_count": 0,
-    "dismissed_count": 0,
-    "pending_count": 0,
-    "unique_reviewers_count": 0,
-    "unique_reviewers_logins": [],
-    "median_reviews_per_pr": null,
-    "median_reviews_per_pr_reason": "No reviews captured in this run — github_api.available is false and the reviews_by_pr object is empty. Per AAP §0.7.3 (no fabrication, estimation, or extrapolation), the empty-state value for a derived statistic over an empty set is null with an explanatory reason rather than 0 or NaN.",
-    "median_reviews_per_pr_among_reviewed": null,
-    "median_reviews_per_pr_among_reviewed_reason": "No PRs with reviews captured in this run. When this artifact is populated by scripts/03_extract_pulls.py, median_reviews_per_pr is computed over all merged-to-main PRs (zero-review PRs contribute a 0 to the median); median_reviews_per_pr_among_reviewed is computed over only the PRs present as keys in reviews_by_pr.",
-    "first_review_per_pr_median_seconds_to_open_pr": null,
-    "first_review_per_pr_median_seconds_to_open_pr_reason": "No reviews captured in this run. When populated, this is computed as the median across all reviewed PRs of (first review submitted_at − PR created_at) in seconds. Used by the M4 deep-dive section as a qualitative indicator of review-queue latency.",
-    "review_states_distribution_pct": {
-      "APPROVED": null,
-      "CHANGES_REQUESTED": null,
-      "COMMENTED": null,
-      "DISMISSED": null,
-      "PENDING": null
-    },
-    "review_states_distribution_pct_reason": "No reviews captured in this run. When populated, each value is the percentage (0.0–100.0, one decimal) of reviews in the respective state, summed across all reviews_by_pr entries.",
-    "summary_note": "All counts are zero because this is a hand-authored seed with an empty reviews_by_pr object. When scripts/03_extract_pulls.py runs with API access, this summary block will be repopulated from the populated reviews_by_pr object. Per AAP Rule 4 (Internal Consistency), the summary values are derived exclusively from reviews_by_pr — they are never independently sourced."
-  },
-  "rule_compliance": {
-    "rule_1_data_provenance": "Every numeric value in this artifact is derived from a single named extraction command (GET /repos/{owner}/{repo}/pulls/{number}/reviews) or from the reviews_by_pr object whose own derivation is the same endpoint. The empty reviews_by_pr object reflects the github_api.available=false state and is itself a faithful representation of 'no data available' — not an estimate or extrapolation.",
-    "rule_3_confidence_transparency": "When this artifact's reviews_by_pr is empty (current state), downstream metric M4 (Flow Active) falls back to the unbounded first-commit-to-last-commit span per AAP §0.5.3.5 with confidence downgraded to Low. The downstream metrics.json renderer surfaces this in the report's Risk Assessment section with the exact caveat 'Flow Active fell back to local-git first-commit-to-last-commit span; review-event bounding was unavailable because the GitHub Reviews API was unreachable.'",
-    "rule_4_internal_consistency": "_metadata.run_id=ff490c72-43fb-4c05-b466-b9355cab917f is identical to the run_id in data/environment.json, data/inflection.json, and data/pulls.json (single-run correlation per the Observability rule). _metadata.inflection_date_utc=2026-02-25T02:58:59Z is identical to data/inflection.json#date_utc. _metadata.analysis_period_start and _metadata.analysis_period_end match data/pulls.json#_metadata exactly.",
-    "rule_5_reproducibility": "The exact endpoint pattern string in github_api.endpoint_pattern plus the per_review_schema_documentation together specify how to re-derive this artifact from scratch. The Reproducibility Appendix in acceleration-report.md will reference both. The endpoint is read-only HTTP GET only — no write operations are issued.",
-    "rule_6_environment_first": "_metadata fields satisfy the Environment Verification preamble: repository_slug, default_branch, analysis_period_start, analysis_period_end, inflection_date_utc, extraction_timestamp, run_id. Cross-referenced with data/environment.json."
-  },
-  "cross_consistency_assertions": {
-    "matches_pulls_json": {
-      "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
-      "extraction_timestamp": "2026-05-23T05:54:20Z",
-      "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
-      "analysis_period_start": "2026-02-23T00:00:00Z",
-      "analysis_period_end": "2026-05-21T23:59:59Z",
-      "inflection_date_utc": "2026-02-25T02:58:59Z"
-    },
-    "matches_environment_json": {
-      "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
-      "extraction_timestamp": "2026-05-23T05:54:20Z",
-      "repository_url_derived_slug": "Blitzy-Sandbox/blitzy-RudderStack"
-    },
-    "matches_inflection_json": {
-      "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
-      "inflection_date_utc": "2026-02-25T02:58:59Z"
-    },
-    "reviews_by_pr_keys_subset_of_pulls_json_pull_numbers": {
-      "assertion": "Every key in reviews_by_pr corresponds to a pull.number in data/pulls.json#pulls[*].number when both are populated.",
-      "current_state": "reviews_by_pr is empty in this seed; pulls.json#pulls is also empty in its seed. The assertion holds vacuously in the current state and is enforced by scripts/09_compute_metrics.py at compute time."
-    }
-  }
+  "reviews_by_pr": {}
 }

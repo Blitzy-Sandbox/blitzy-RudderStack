@@ -1,7 +1,7 @@
 {
   "_metadata": {
-    "extraction_timestamp": "2026-05-23T18:44:04Z",
-    "run_id": "729fb296-36d9-44ea-a422-15dfa3ab46d1",
+    "extraction_timestamp": "2026-05-23T22:25:26Z",
+    "run_id": "55555555-5555-4555-8555-555555555555",
     "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
     "default_branch": "main",
     "schema_version": "1.0",
@@ -13,7 +13,7 @@
     ],
     "inflection_date_utc": "2026-02-25T02:58:59Z",
     "phase_decomposition": "baseline_vs_post_introduction",
-    "phase_decomposition_reason": "Post-introduction span is 88 days (inflection 2026-02-25T02:58:59Z → end 2026-05-23T16:54:56Z). 88 < 90-day threshold per AAP §0.5.6 and decision-log.md DL-006, so the two-phase fallback (Baseline + Post-Introduction) is applied; no ramp_up or steady_state keys are emitted on any metric row.",
+    "phase_decomposition_reason": "Post-introduction span is 88 days (inflection 2026-02-25T02:58:59Z → end 2026-05-23T22:21:17Z). 88 < 90-day threshold per AAP §0.5.6 and decision-log.md DL-006, so the two-phase fallback (Baseline + Post-Introduction) is applied; no ramp_up or steady_state keys are emitted on any metric row.",
     "metrics_covered": [
       "m2",
       "m4",
@@ -32,27 +32,28 @@
         "agent@blitzy.com"
       ],
       "display_name_aliases": [
+        "Blitzy",
         "Blitzy Agent",
         "agent",
         "agent@blitzy.com",
         "blitzy-agent",
         "blitzy[bot]"
       ],
-      "total_commits_on_main": 645,
+      "total_commits_on_main": 652,
       "commits_in_baseline_phase": 0,
-      "commits_in_post_introduction_phase": 645,
+      "commits_in_post_introduction_phase": 652,
       "first_commit_iso": "2026-02-25T02:58:59Z",
-      "last_commit_iso": "2026-05-23T16:54:56Z",
+      "last_commit_iso": "2026-05-23T22:21:17Z",
       "m2_flow_velocity": {
         "baseline": 0,
         "post_introduction": 5,
         "multiplier": "—",
         "post_introduction_pr_numbers": [
-          11,
-          12,
-          18,
+          27,
           20,
-          27
+          18,
+          12,
+          11
         ]
       },
       "m4_flow_active": {
@@ -69,8 +70,7 @@
       },
       "m6_flow_distribution": {
         "post_introduction_proportions": {
-          "unknown": 0.8,
-          "feature": 0.2
+          "unknown": 1.0
         }
       },
       "m10_approved_exceptions": {
@@ -137,7 +137,7 @@
       "last_commit_iso": "2026-04-07T03:46:12Z",
       "m2_flow_velocity": {
         "baseline": 0,
-        "post_introduction": 1,
+        "post_introduction": 0,
         "multiplier": "—",
         "post_introduction_pr_numbers": []
       },
@@ -154,9 +154,7 @@
         "reason": "Engineer michael has no joined per-PR active/time pairs in either phase; per-engineer Flow Efficiency cannot be computed."
       },
       "m6_flow_distribution": {
-        "post_introduction_proportions": {
-          "tech-debt": 1.0
-        }
+        "post_introduction_proportions": {}
       },
       "m10_approved_exceptions": {
         "baseline": 0,

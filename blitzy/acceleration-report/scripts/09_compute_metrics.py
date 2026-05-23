@@ -981,6 +981,8 @@ def insufficient(
     provenance: dict[str, Any] | None = None,
     baseline_windows: int = 0,
     post_intro_windows: int = 0,
+    baseline_reason: str | None = None,
+    post_introduction_reason: str | None = None,
 ) -> dict[str, Any]:
     """Build a schema-compliant insufficient-signal metric record.
 
@@ -993,11 +995,72 @@ def insufficient(
           (Metrics 3 and 5 inherit from their inputs per AAP §0.2.4),
           otherwise ``"insufficient"``.
         * ``boundary_conditions`` (required by schema when confidence != "high").
+
+    Per-phase failure-mode reporting (MAJ-FIN-2-002 fix)
+    ----------------------------------------------------
+    When a metric's two phases (``baseline`` and ``post_introduction``)
+    fail for *different* underlying reasons — for example, Flow
+    Predictability where the baseline has too few windows AND the
+    post-introduction has zero variance — the caller MAY pass the
+    optional ``baseline_reason`` and ``post_introduction_reason``
+    keyword arguments to assign each phase its own failure-mode text.
+    When ``baseline_reason`` is omitted, the baseline phase reuses the
+    headline ``reason`` (the prior single-reason behaviour); same for
+    ``post_introduction_reason``. The phase-level ``boundary_conditions``
+    field continues to carry the unified ``body`` text so the
+    cross-phase context is preserved alongside the phase-specific
+    failure mode. All existing call sites that pass only the positional
+    ``reason`` argument retain their pre-fix behaviour by construction.
+
+    Args:
+        metric_number: 1-based metric number for the ``provenance`` block.
+        metric_name: Human-readable metric name.
+        reason: Headline failure-mode text (used as the default for
+            each phase when phase-specific reasons are not supplied).
+        inherit_confidence: ``"low"``, ``"medium"``, or ``"high"`` to
+            inherit a specific confidence tag from an upstream metric;
+            anything else (including ``None``) yields ``"insufficient"``.
+        extraction_strategy: Free-text strategy description.
+        boundary_conditions: Free-text boundary-conditions description
+            mirroring the schema's ``boundary_conditions`` field.
+        provenance: Optional pre-built provenance block; when omitted a
+            stub block is generated from ``metric_number``.
+        baseline_windows: Number of 2-week windows observed in the
+            baseline phase; populated on ``baseline.windows``.
+        post_intro_windows: Number of 2-week windows observed in the
+            post-introduction phase; populated on
+            ``post_introduction.windows``.
+        baseline_reason: Optional phase-specific failure-mode text for
+            the baseline phase. When provided, the baseline phase's
+            ``reason`` field carries this text instead of the headline
+            ``reason``. Introduced by MAJ-FIN-2-002 to disambiguate
+            "fewer than 4 windows" (baseline) from "zero variance"
+            (post-introduction) when M3 reports insufficient signal.
+        post_introduction_reason: Optional phase-specific failure-mode
+            text for the post-introduction phase. Mirrors
+            ``baseline_reason``.
+
+    Returns:
+        A schema-conformant metric record.
     """
     conf = inherit_confidence if inherit_confidence in {"low", "medium", "high"} else "insufficient"
     body = boundary_conditions or (
         "Primary data source unavailable; no fallback yields signal. "
         "See reason field for details."
+    )
+    # Phase-specific reason resolution (MAJ-FIN-2-002 fix):
+    # When the caller supplies phase-specific reasons, use them on
+    # their respective phase records. Otherwise, fall back to the
+    # headline ``reason`` argument so the pre-fix behaviour is
+    # preserved for the 15+ existing call sites that supply only
+    # ``reason=``.
+    effective_baseline_reason = (
+        baseline_reason if baseline_reason is not None else reason
+    )
+    effective_post_reason = (
+        post_introduction_reason
+        if post_introduction_reason is not None
+        else reason
     )
     record: dict[str, Any] = {
         "metric_number": metric_number,
@@ -1013,7 +1076,7 @@ def insufficient(
             "value": INSUFFICIENT_SIGNAL,
             "confidence": conf,
             "windows": baseline_windows,
-            "reason": reason,
+            "reason": effective_baseline_reason,
             "boundary_conditions": body,
         },
         "post_introduction": {
@@ -1021,7 +1084,7 @@ def insufficient(
             "confidence": conf,
             "windows": post_intro_windows,
             "multiplier": EM_DASH,
-            "reason": reason,
+            "reason": effective_post_reason,
             "boundary_conditions": body,
         },
         "per_window": [],
@@ -1126,8 +1189,10 @@ def derive_phase_bounds(
 
     The two-phase fallback ("baseline" + "post_introduction") is applied
     when the post-introduction span is shorter than ``RAMP_UP_DAYS`` (90)
-    per AAP §0.5.6. In the current data this span is 86 days, so the
-    fallback is always active for this run.
+    per AAP §0.5.6. The actual span (in days) for any given run is
+    recorded in ``data/metrics.json#_metadata.post_introduction_duration_days``
+    so consumers can audit the fallback decision against the data. See
+    decision-log.md DL-006.
     """
     if not inflection or not isinstance(inflection, dict):
         raise RuntimeError(
@@ -1662,17 +1727,68 @@ def compute_m3_flow_predictability(
     baseline_val, baseline_reason = _predictability(baseline_series)
     post_val, post_reason = _predictability(post_series)
 
-    # Pick the dominant phase result (post_introduction) for the headline.
+    # Build phase-specific reason text (MAJ-FIN-2-002 fix). Each phase's
+    # ``reason`` field MUST describe that phase's own failure mode — not
+    # the other phase's. Previously, the unified ``reason`` text on
+    # ``insufficient(...)`` was applied to both phases, causing the
+    # baseline to incorrectly report the post-introduction's failure
+    # mode (e.g., "zero variance" on a baseline that actually failed
+    # with "fewer than 4 windows"). See decision-log.md DL-035.
+    def _phase_reason(phase_label: str, phase_failure: str,
+                       window_count: int) -> str:
+        """Format a phase-specific reason string per AAP §0.5.3.4."""
+        if phase_failure == "fewer than 4 windows":
+            return (
+                f"{phase_label} period yields 'fewer than 4 windows': "
+                f"{window_count} window(s) observed. Per AAP §0.5.3.4, "
+                "Flow Predictability cannot be computed when a phase has "
+                "fewer than 4 two-week windows."
+            )
+        if phase_failure == "zero variance":
+            return (
+                f"{phase_label} period yields 'zero variance': "
+                f"{window_count} windows observed with identical M2 values. "
+                "Per AAP §0.5.3.4, Flow Predictability is the reciprocal of "
+                "the coefficient of variation; when variance is zero the "
+                "ratio is undefined."
+            )
+        # Defensive default: should never trigger in practice because
+        # ``_predictability`` only returns one of the two strings above.
+        return (
+            f"{phase_label} period yields '{phase_failure}'. Per AAP "
+            "§0.5.3.4, Flow Predictability cannot be computed in this case."
+        )
+
+    # Per-phase reason resolution:
+    #   * If the phase computed a successful value, ``_phase_reason`` is
+    #     not invoked (the phase has no failure mode to describe) and
+    #     ``None`` is passed to ``insufficient(...)`` so that the helper
+    #     falls back to the headline reason for that phase. This avoids
+    #     emitting an empty ``reason`` field on a phase that simply
+    #     didn't fail.
+    #   * If the phase failed, the phase-specific failure-mode text is
+    #     constructed via ``_phase_reason`` and supplied to
+    #     ``insufficient(...)`` so the phase's ``reason`` field reflects
+    #     its own underlying cause (not the dominant phase's cause).
+    baseline_phase_reason: str | None = (
+        _phase_reason("Baseline", baseline_reason, len(baseline_series))
+        if isinstance(baseline_val, str) else None
+    )
+    post_phase_reason: str | None = (
+        _phase_reason("Post-introduction", post_reason, len(post_series))
+        if isinstance(post_val, str) else None
+    )
+
+    # Headline reason: when the post-introduction phase fails (the
+    # dominant phase for the after/before multiplier), the headline
+    # carries the post-introduction's failure-mode text. When ONLY the
+    # baseline fails (rare — only if post computes successfully), the
+    # headline tracks the baseline failure instead.
     if isinstance(post_val, str):
+        headline_reason = post_phase_reason or ""
         return insufficient(
             3, name,
-            reason=(
-                f"Post-introduction period yields '{post_reason}': "
-                f"{len(post_series)} windows observed, "
-                f"{'fewer than 4 windows' if post_reason == 'fewer than 4 windows' else 'zero variance'}. "
-                "Per AAP §0.5.3.4, Flow Predictability cannot be computed "
-                "in this case."
-            ),
+            reason=headline_reason,
             inherit_confidence=m2_conf,
             extraction_strategy=strategy,
             boundary_conditions=(
@@ -1685,6 +1801,18 @@ def compute_m3_flow_predictability(
             provenance=provenance,
             baseline_windows=len(baseline_series),
             post_intro_windows=len(post_series),
+            # MAJ-FIN-2-002 fix: per-phase reason text so each phase's
+            # ``reason`` field describes its own failure mode rather
+            # than echoing the dominant phase's reason. The baseline
+            # phase's reason now correctly reads "fewer than 4 windows"
+            # when that is the actual failure (the prior unified
+            # behaviour caused this finding by reporting the
+            # post-introduction's "zero variance" reason on the
+            # baseline phase too). When a phase computed successfully,
+            # ``None`` is passed so insufficient() falls back to the
+            # headline reason for that phase.
+            baseline_reason=baseline_phase_reason,
+            post_introduction_reason=post_phase_reason,
         )
 
     multiplier = (

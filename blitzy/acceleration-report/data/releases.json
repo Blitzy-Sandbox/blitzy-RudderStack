@@ -1,30 +1,26 @@
 {
   "_metadata": {
-    "extraction_timestamp": "2026-05-23T05:54:20Z",
-    "extraction_timestamp_alignment_note": "Aligned to the canonical per-run timestamp from data/environment.json#extraction_timestamp (2026-05-23T05:54:20Z) per the CP2 review Cross-Artifact Consistency finding. The original seed value 2026-05-22T00:00:00Z was a hand-authored placeholder that weakened run correlation; the new value is the same wall-clock instant carried by the canonical Rule 6 Environment Verification snapshot.",
-    "seed_created_at": "2026-05-22T00:00:00Z",
-    "seed_created_at_note": "The original hand-authored seed creation moment, preserved for archival; not used for run correlation. The renderer uses extraction_timestamp only.",
-    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+    "extraction_timestamp": "2026-05-23T22:25:26Z",
+    "run_id": "55555555-5555-4555-8555-555555555555",
     "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
     "default_branch": "main",
-    "analysis_period_start": "2026-02-23T00:00:00Z",
-    "analysis_period_end": "2026-05-21T23:59:59Z",
+    "analysis_period_start": "2026-02-23T05:19:38Z",
+    "analysis_period_end": "2026-05-23T22:21:17Z",
     "inflection_date_utc": "2026-02-25T02:58:59Z",
-    "seed_note": "Hand-authored seed produced before scripts/04_extract_releases.py is executed against a live network. The script will overwrite this file with extraction_timestamp set to time.time() under the per-run UUID4. run_id is the canonical per-run correlation ID exported via BLITZY_RUN_ID and is identical across all 14 raw data artifacts in this directory per Rule 1 (Data Provenance) and the AAP \u00a70.5.6 Observability discipline. inflection_date_utc is the canonical AI-introduction inflection point sourced from data/inflection.json#date_utc and is identical across all artifacts that carry it (per Rule 4 Internal Consistency)."
+    "artifact_kind": "releases_inventory",
+    "schema_version": "1.0.0"
   },
   "tier_availability": {
     "tier_1_github_releases_api": {
-      "available": false,
+      "available": true,
       "endpoint": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/releases",
-      "fetched_at": null,
-      "unavailable_reason": "GH_TOKEN environment variable not set or rate limit exceeded",
+      "fetched_at": "2026-05-23T22:26:05Z",
       "total_releases_count": 0,
       "non_prerelease_count": 0,
       "prerelease_count": 0,
       "pagination": {
         "per_page": 100,
-        "pages_fetched": 0,
-        "last_page_seen": null
+        "pages_fetched": 1
       },
       "rate_limit_state": {
         "limit": null,
@@ -33,59 +29,44 @@
       }
     },
     "tier_2_annotated_tags": {
-      "available": true,
+      "available": false,
       "source": "local_git",
-      "search_pattern": "v?\\d+\\.\\d+\\.\\d+",
-      "search_command": "git for-each-ref refs/tags/ --format='%(refname:short)|%(creatordate:iso-strict)|%(objectname)'",
+      "search_pattern": "^v?(\\d+)\\.(\\d+)\\.(\\d+)(?:[-+].*)?$",
+      "search_command": "git for-each-ref refs/tags/ --format='%(refname:short)|%(creatordate:iso-strict)|%(objectname)|%(*objectname)|%(taggerdate:iso-strict)'",
       "verification_command": "git tag -l | wc -l",
-      "verification_command_output": "0",
       "tags_found": 0,
       "tags": [],
-      "note": "Verified by `git tag -l | wc -l` returning 0; this fork has no annotated tags. CHANGELOG.md inherited from upstream (rudderlabs/rudder-server) lists historical releases but those pre-date this fork's lifespan."
+      "unavailable_reason": "Zero local annotated tags match the semver pattern '^v?(\\\\d+)\\\\.(\\\\d+)\\\\.(\\\\d+)(?:[-+].*)?$'."
     },
     "tier_3_ci_deploy_events": {
       "available": false,
       "source_workflow_files": [
         "dispatch-deploy-event-dev.yaml",
-        "release-please.yaml"
+        "release-please.yaml",
+        "sync-release.yaml"
       ],
-      "endpoint": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/actions/workflows/{workflow_filename}/runs",
+      "endpoint": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/actions/runs",
       "events_count": 0,
-      "unavailable_reason": "GitHub Actions Runs API not invoked in hand-authored seed (GH_TOKEN absent); the two source workflow files are present in .github/workflows/ but no run history was captured",
-      "events": []
+      "invoked": true,
+      "unavailable_reason": "Tier 3 invoked but no workflow runs matched any of ['dispatch-deploy-event-dev', 'release-please', 'sync-release'] with conclusion 'success'."
     }
   },
   "chosen_tier": "none",
-  "chosen_tier_rationale": "All three tiers yielded zero or were unavailable; m9 is 'insufficient_signal' for this run. Tier 1 (GitHub Releases API): unavailable without GH_TOKEN. Tier 2 (annotated git tags): zero tags exist in this fork (verified by `git tag -l | wc -l` returning 0; this fork inherits a populated CHANGELOG.md from upstream rudderlabs/rudder-server but inherits zero git tag objects). Tier 3 (CI deploy events from dispatch-deploy-event-dev.yaml and release-please.yaml workflow runs): GitHub Actions Runs API not invoked in this seed. Per AAP \u00a70.7.3 (no fabrication), m9 MUST be reported as 'insufficient_signal' when no tier produces signal; this is the correct read-only outcome and does NOT degrade the other eleven metrics.",
+  "chosen_tier_rationale": "All three tiers yielded zero or were unavailable; Metric 9 will report 'insufficient_signal' per AAP §0.5.3.10. Tier 1 (GitHub Releases API): available, 0 record(s). Tier 2 (annotated git tags): 0 tag(s) matched. Tier 3 (CI deploy events): 0 record(s).",
   "releases": [],
   "prereleases": [],
   "summary": {
     "total_releases": 0,
     "total_prereleases": 0,
-    "releases_per_2week_window": [],
     "earliest_release_iso": null,
     "latest_release_iso": null,
     "release_frequency_mean_per_window": null,
-    "release_frequency_mean_per_window_reason": "No releases retrieved from any tier"
+    "release_frequency_mean_per_window_reason": "Per-window aggregation is the responsibility of 09_compute_metrics.py; this artifact carries the raw inventory only."
   },
-  "upstream_changelog_reference": {
-    "file": "CHANGELOG.md",
-    "size_bytes": 618580,
-    "line_count": 4744,
-    "approximate_entry_count": 240,
-    "verification_commands": {
-      "size": "wc -c CHANGELOG.md",
-      "lines": "wc -l CHANGELOG.md",
-      "entries": "grep -c '^## \\[' CHANGELOG.md"
-    },
-    "first_entry_excerpt": "## [1.68.1](https://github.com/rudderlabs/rudder-server/compare/v1.68.0...v1.68.1) (2026-02-18)",
-    "last_entry_link_pattern": "https://github.com/rudderlabs/rudder-server/...",
-    "note": "CHANGELOG.md is inherited from upstream `rudderlabs/rudder-server` v1.68.1 baseline; entries pre-date this fork's lifespan and MUST NOT be used as the release inventory for this measurement. Per AAP \u00a70.2.3, the latest CHANGELOG.md entry is dated 2026-02-18, which is approximately one week before the inflection-point candidate at 2026-02-25 (first `agent@blitzy.com` commit). Using CHANGELOG.md as the release inventory would conflate upstream history with this fork's release cadence and would violate Rule 4 (Internal Consistency)."
-  },
-  "prerelease_suffix_pattern": "-(alpha|beta|rc|dev)(\\.|$)",
-  "prerelease_suffix_pattern_source": "AAP \u00a70.5.3.10",
+  "prerelease_suffix_pattern": "-(?:alpha|beta|rc|dev)\\b",
+  "prerelease_suffix_pattern_source": "AAP §0.5.3.10",
   "provenance": {
-    "spec_section": "AAP \u00a70.5.3.10 (Metric 9 \u2014 Releases)",
+    "spec_section": "AAP §0.5.3.10 (Metric 9 — Releases)",
     "source_precedence": [
       "GitHub Releases / GitLab Releases API",
       "Annotated git tags matching v?\\d+\\.\\d+\\.\\d+",

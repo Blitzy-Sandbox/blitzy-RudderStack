@@ -1,221 +1,23 @@
 {
   "_metadata": {
-    "extraction_timestamp": "2026-05-23T05:54:20Z",
-    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+    "extraction_timestamp": "2026-05-23T23:41:21Z",
+    "run_id": "55555555-5555-4555-8555-555555555555",
     "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
     "default_branch": "main",
-    "analysis_period_start": "2026-02-23T00:00:00Z",
-    "analysis_period_end": "2026-05-21T23:59:59Z",
+    "analysis_period_start": "2026-02-23T05:19:38Z",
+    "analysis_period_end": "2026-05-15T21:00:51Z",
     "inflection_date_utc": "2026-02-25T02:58:59Z",
-    "artifact_kind": "hand_authored_seed",
-    "artifact_kind_note": "This is a hand-authored seed artifact for the events_by_pr inventory. The events_by_pr object is intentionally empty because the analysis sandbox has no network access to the GitHub Issues-Events API endpoint (GitHub exposes PR events via the Issues-Events endpoint because PRs are issues in GitHub's underlying data model). When scripts/03_extract_pulls.py runs with GH_TOKEN set and network reachable, it will overwrite this file with the populated per-PR event timelines; the run_id and extraction_timestamp will then reflect that execution. Per AAP \u00a70.8.5 (Network optionality), when unavailable the github_api.available flag is false and events_by_pr is an empty object \u2014 downstream M4 (Flow Active) falls back to the local-git first-commit-to-last-commit span without review-event bounding, with confidence downgraded to Low per AAP \u00a70.2.4.",
+    "artifact_kind": "live_extraction",
     "schema_version": "1.0.0",
-    "depends_on": [
-      "data/environment.json",
-      "data/inflection.json",
-      "data/pulls.json"
-    ],
-    "consumed_by": [
-      "scripts/09_compute_metrics.py"
+    "source_files_referenced": [
+      "environment.json",
+      "inflection.json"
     ]
   },
   "github_api": {
     "available": false,
-    "endpoint_pattern": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/issues/{pr_number}/events",
-    "endpoint_pattern_note": "Per AAP \u00a70.2.1.2 this sub-endpoint is queried once per PR object returned by the parent /repos/{owner}/{repo}/pulls?state=all enumeration. GitHub exposes PR events via the Issues-Events endpoint because PRs share the issue numbering namespace and event timeline with issues. The companion review-event timeline (the actual review state submissions) is served by the separate /pulls/{n}/reviews endpoint and is persisted to data/reviews.json. The two endpoints provide complementary signal: /reviews carries review state transitions (APPROVED/CHANGES_REQUESTED/COMMENTED), while /issues/{n}/events carries the broader timeline (draft transitions, review_requested, labeled, head_ref_force_pushed, merged, closed, reopened). Both are required for M4 (Flow Active) ready_for_review boundary computation per AAP \u00a70.5.3.5. Pagination is handled with per_page=100 and the Link header; event counts per PR are typically small (single-digit to low-double-digit) so pagination is rarely required, but the script handles it for correctness. Events are read-only; no POST/PUT/PATCH/DELETE is ever issued by the extraction pipeline per AAP \u00a70.8.2.",
-    "unavailable_reason": "GH_TOKEN environment variable not set or rate limit exceeded; analysis sandbox has no outbound network access for this seed run. Per AAP \u00a70.8.5, when GH_TOKEN is absent and the GitHub API is unreachable, the pipeline runs in offline mode using only local-git data; confidence tiers drop accordingly and the Risk Assessment notes the degradation.",
-    "fetched_at": null,
-    "prs_queried_count": 0,
-    "events_retrieved_count": 0,
-    "pagination": {
-      "pages_fetched": 0,
-      "items_fetched": 0,
-      "per_page_used": 100,
-      "rate_limit_remaining_at_end": null
-    },
-    "fallback_used": "none_applicable",
-    "fallback_note": "Unlike the parent /pulls endpoint, no local-git fallback exists for issue-events. Events are a GitHub-side construct (label transitions, draft conversions, review requests, force-push markers, merge/close/reopen events) with no representation in commit history. When the Issues-Events API is unreachable, M4 (Flow Active) cannot bound refine spans on review_requested or ready_for_review events; the metric falls back to first-commit-to-last-commit per AAP \u00a70.5.3.5 with confidence downgraded to Low. The local-git proxy for 'first commit by another author' (AAP \u00a70.5.3.5 boundary (c)) is still computable from data/commits.csv joined against data/pulls.json#observed_merge_commits_on_main, but boundaries (a) 'PR leaves draft' and (b) 'first review_requested event' are unavailable without API access."
+    "endpoint": "https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/issues/<n>/events",
+    "fetched_at": "2026-05-23T23:41:21Z"
   },
-  "event_type_enum": [
-    "labeled",
-    "unlabeled",
-    "ready_for_review",
-    "convert_to_draft",
-    "review_requested",
-    "review_request_removed",
-    "head_ref_force_pushed",
-    "head_ref_deleted",
-    "head_ref_restored",
-    "base_ref_changed",
-    "closed",
-    "merged",
-    "reopened",
-    "assigned",
-    "unassigned",
-    "milestoned",
-    "demilestoned",
-    "renamed",
-    "locked",
-    "unlocked",
-    "pinned",
-    "unpinned",
-    "subscribed",
-    "unsubscribed",
-    "mentioned",
-    "referenced",
-    "cross-referenced",
-    "auto_merge_enabled",
-    "auto_merge_disabled",
-    "automatic_base_change_succeeded",
-    "automatic_base_change_failed"
-  ],
-  "event_type_enum_note": "The canonical GitHub Issues-Events API event-type enumeration as observed against the public GitHub REST API documentation. PR-specific events present in this list (ready_for_review, convert_to_draft, review_requested, review_request_removed, head_ref_force_pushed, head_ref_deleted, head_ref_restored, base_ref_changed, auto_merge_enabled, auto_merge_disabled, automatic_base_change_*) appear only on PR issue numbers; the remaining types are shared with regular issues. Per AAP \u00a70.5.3.5 M4 Flow Active, the events of interest for ready_for_review boundary computation are 'ready_for_review' (boundary (a) PR leaves draft) and 'review_requested' (boundary (b) first review requested). For M10 Approved Exceptions per AAP \u00a70.5.3.11, 'head_ref_force_pushed' is the per-PR force-push signal that complements the main-branch reflog signal recorded in data/exceptions.json.",
-  "events_of_interest_for_metrics": {
-    "m4_flow_active_ready_for_review_boundary": [
-      "ready_for_review",
-      "review_requested",
-      "convert_to_draft"
-    ],
-    "m4_flow_active_ready_for_review_boundary_rule": "Per AAP \u00a70.5.3.5, ready_for_review_at is the earliest of: (a) PR leaves draft (event=ready_for_review), (b) first review_requested event, (c) first commit by another author (NOT an event \u2014 derived from commit roster), (d) PR opened (NOT an event \u2014 derived from data/pulls.json#created_at). The convert_to_draft event opens a new active span if it occurs after ready_for_review_at \u2014 the actor returns to coding while the PR is back in draft, and the next ready_for_review event closes the new span. The renderer joins these event timestamps against the PR commit list from /pulls/{n}/commits to bound each active and refine span.",
-    "m10_approved_exceptions_per_pr_signals": [
-      "head_ref_force_pushed",
-      "head_ref_deleted",
-      "head_ref_restored"
-    ],
-    "m10_approved_exceptions_per_pr_signals_rule": "Per AAP \u00a70.5.3.11 Approved Exceptions, per-PR force-pushes captured here are a partial signal for the M10 'force-pushes to protected branches' line item. The complete signal requires admin audit log access to detect main-branch force-pushes (recorded in data/exceptions.json#force_pushes from 'git reflog show main'); the per-PR force-push events here are a complementary partial signal because branch-protection-bypass events on main do NOT generate per-PR events (they happen on the branch ref, not on a PR). Without admin audit log access, M10 confidence drops to Low per AAP \u00a70.2.4 and the limitation is recorded in the Risk Assessment.",
-    "m6_flow_distribution_label_signals": [
-      "labeled",
-      "unlabeled"
-    ],
-    "m6_flow_distribution_label_signals_rule": "Per AAP \u00a70.5.3.7 Flow Distribution, label-based classification is a fallback when Linear API access is unavailable. The labeled/unlabeled events here record when each label was applied or removed; combined with the final-label-state snapshot in data/pulls.json#pulls[].labels, they enable a labels-over-time view for the deep-dive section. The label catalogue available in this repository per .github/labeler.yml is limited to 'with tests', 'server-team', 'warehouse-team' (no feature/defect/security/compliance labels); the classification fallback chain therefore proceeds to conventional-commit prefix on PR title per .github/workflows/semantic-pr.yaml before resorting to keyword match."
-  },
-  "per_event_schema_documentation": {
-    "schema_note": "This block documents the per-event object schema for downstream consumers (scripts/09_compute_metrics.py). When events_by_pr[<pr_number>] arrays are populated, every object MUST conform to this schema.",
-    "required_fields": [
-      "id",
-      "node_id",
-      "url",
-      "actor_login",
-      "actor_id",
-      "event",
-      "created_at"
-    ],
-    "optional_fields": [
-      "commit_id",
-      "commit_url",
-      "label_name",
-      "review_requester_login",
-      "review_requested_login",
-      "review_requested_team_slug",
-      "assignee_login",
-      "assigner_login",
-      "rename_from",
-      "rename_to",
-      "milestone_title",
-      "performed_via_github_app"
-    ],
-    "field_types": {
-      "id": "integer event id (GitHub global)",
-      "node_id": "string GraphQL node id",
-      "url": "string API URL of the event",
-      "actor_login": "string GitHub username of the actor who triggered the event (the PR author for self-triggered events, a reviewer for review_requested, or 'github-actions[bot]' or similar for automated events)",
-      "actor_id": "integer GitHub user id of the actor",
-      "event": "string enum: one of event_type_enum above",
-      "commit_id": "string 40-char hex SHA OR null \u2014 populated for events that reference a commit (head_ref_force_pushed: SHA of the new head after force-push; merged: the merge commit SHA; referenced: the referencing commit SHA)",
-      "commit_url": "string URL OR null \u2014 the API URL for the referenced commit (paired with commit_id; when commit_id is null, commit_url is also null)",
-      "created_at": "ISO-8601 UTC string \u2014 the canonical timestamp used by M4 to bound active and refine spans",
-      "label_name": "string OR null \u2014 populated only when event=labeled or event=unlabeled; the name of the label applied or removed",
-      "review_requester_login": "string OR null \u2014 populated only when event=review_requested; the login of the actor who requested the review (typically the PR author or a maintainer)",
-      "review_requested_login": "string OR null \u2014 populated only when event=review_requested; the login of the user whose review was requested (None when a team review was requested instead)",
-      "review_requested_team_slug": "string OR null \u2014 populated only when event=review_requested AND a team review was requested; the slug of the team",
-      "assignee_login": "string OR null \u2014 populated only when event=assigned or event=unassigned; the login of the user assigned or unassigned",
-      "assigner_login": "string OR null \u2014 populated only when event=assigned or event=unassigned; the login of the actor who performed the assignment",
-      "rename_from": "string OR null \u2014 populated only when event=renamed; the prior PR title",
-      "rename_to": "string OR null \u2014 populated only when event=renamed; the new PR title",
-      "milestone_title": "string OR null \u2014 populated only when event=milestoned or event=demilestoned; the milestone title",
-      "performed_via_github_app": "object OR null \u2014 populated when the event was performed by a GitHub App rather than a user; contains the app slug and id for distinguishing automated events from human events"
-    },
-    "created_at_is_canonical": "The created_at timestamp is the canonical bound for M4 active and refine spans per AAP \u00a70.5.3.5. Specifically, ready_for_review_at is computed as min(created_at for event=ready_for_review, created_at for first event=review_requested, first commit author_date for a commit by an author other than the engineering actor, pull.created_at). When an event has created_at < pull.created_at (theoretically impossible but defensively guarded), the event is excluded from boundary computation and a warning is emitted to the structured-JSON log.",
-    "actor_login_purpose": "actor_login distinguishes human-driven events (the PR author or a maintainer triggering ready_for_review) from automated events (github-actions[bot] auto-labeling, blitzy[bot] auto-merging, dependabot[bot] auto-rebasing). Per AAP \u00a70.5.3.5, only events triggered by actors who are not the engineering actor contribute to ready_for_review boundary (b) and (c); events triggered by the engineering actor (e.g., the PR author requesting their own review from a teammate) are still treated as ready_for_review signals since they materially advance the PR to the review queue.",
-    "string_keys_in_events_by_pr_note": "Per JSON specification, object keys must be strings. PR numbers are integers in GitHub's response payload but are serialised as JSON-string-encoded integers as keys in events_by_pr (e.g., \"11\", \"12\", \"18\", \"20\", \"27\"). Consumers (scripts/09_compute_metrics.py) parse the key back to an integer via int(key) when joining against pulls.json#pulls[*].number. This is the same convention used by reviews.json#reviews_by_pr.",
-    "force_push_event_dual_signal_note": "head_ref_force_pushed events are tracked here AND complementarily in data/exceptions.json#force_pushes. The per-PR force-push events here are detectable only for PRs that received force-push activity on their head ref (typically a feature branch). The data/exceptions.json#force_pushes records main-branch force-pushes detected from 'git reflog show main' locally \u2014 these are detectable only on a local clone with reflog history and are NOT exposed as per-PR events because they happen on the protected branch ref, not on a PR's head. The two signals together form the M10 (Approved Exceptions) force-push count: per-PR force-pushes signal head-branch hygiene issues (low-severity exception), and main-branch force-pushes signal branch-protection bypass (high-severity exception)."
-  },
-  "events_by_pr": {},
-  "events_by_pr_note": "Hand-authored seed: empty object. When scripts/03_extract_pulls.py runs with a reachable GitHub API, this object will be populated with one key per PR (JSON-string-encoded PR number) and one array of event objects per key, each conforming to the per_event_schema_documentation above. Per AAP \u00a70.5.3.5, only PRs that received at least one issue-event will appear as keys (PRs with zero events \u2014 typically PRs opened and immediately merged with no labels, reviews, or force-pushes \u2014 are absent from this object; their ready_for_review boundary reduces to pull.created_at per the AAP boundary (d) fallback).",
-  "observed_pr_numbers_local_git_fallback": [
-    11,
-    12,
-    18,
-    20,
-    27
-  ],
-  "observed_pr_numbers_local_git_fallback_note": "Per data/pulls.json#observed_merge_commits_on_main, five of the six merge commits on main reference numbered PRs (#11, #12, #18, #20, #27). The sixth merge is an ad-hoc local merge without a PR number reference. When the Issues-Events API becomes reachable, the events_by_pr object should populate at most these five PR-number keys plus any additional open or closed-without-merge PRs that received events. The exact superset requires the parent /pulls endpoint enumeration plus a per-PR /issues/{n}/events query, both of which are unavailable in the current offline seed run.",
-  "merged_to_main_prs_with_event_potential": {
-    "prs_with_numbered_references_on_main": 5,
-    "ad_hoc_merges_without_pr_number": 1,
-    "max_possible_keys_in_events_by_pr": 5,
-    "note": "The maximum possible number of keys in events_by_pr is bounded by the number of PRs that received at least one issue-event \u2014 itself bounded above by the count of merged-to-main PRs visible via merge commits (5) plus any open or closed-without-merge PRs (unknown without API access). Per AAP, the analysis sandbox has zero outbound network access; the upper bound is therefore 5 merged-to-main numbered PRs based on local-git evidence alone. In practice, every merged PR will have at least one 'merged' and one 'closed' event, so when the API is reachable all 5 keys are expected to populate."
-  },
-  "summary": {
-    "total_prs_with_events": 0,
-    "total_events": 0,
-    "event_types_seen": [],
-    "prs_with_ready_for_review_event": 0,
-    "prs_with_force_pushed_event": 0,
-    "prs_with_label_events": 0,
-    "prs_with_review_requested_event": 0,
-    "prs_with_convert_to_draft_event": 0,
-    "median_events_per_pr": null,
-    "median_events_per_pr_reason": "No events captured in this run \u2014 github_api.available is false and the events_by_pr object is empty. Per AAP \u00a70.7.3 (no fabrication, estimation, or extrapolation), the empty-state value for a derived statistic over an empty set is null with an explanatory reason rather than 0 or NaN.",
-    "median_events_per_pr_among_evented": null,
-    "median_events_per_pr_among_evented_reason": "No PRs with events captured in this run. When this artifact is populated by scripts/03_extract_pulls.py, median_events_per_pr is computed over all merged-to-main PRs (zero-event PRs contribute a 0 to the median); median_events_per_pr_among_evented is computed over only the PRs present as keys in events_by_pr.",
-    "first_ready_for_review_per_pr_median_seconds_to_open_pr": null,
-    "first_ready_for_review_per_pr_median_seconds_to_open_pr_reason": "No events captured in this run. When populated, this is computed as the median across all PRs of (first ready_for_review event created_at \u2212 PR created_at) in seconds. Used by the M4 deep-dive section as a quantitative indicator of draft-phase duration. For PRs that were never in draft state, the value is 0 (the PR was ready for review at creation).",
-    "event_types_distribution_pct": {},
-    "event_types_distribution_pct_reason": "No events captured in this run. When populated, each value is the percentage (0.0\u2013100.0, one decimal) of events of the respective type out of total_events, summed across all events_by_pr entries.",
-    "summary_note": "All counts are zero because this is a hand-authored seed with an empty events_by_pr object. When scripts/03_extract_pulls.py runs with API access, this summary block will be repopulated from the populated events_by_pr object. Per AAP Rule 4 (Internal Consistency), the summary values are derived exclusively from events_by_pr \u2014 they are never independently sourced."
-  },
-  "rule_compliance": {
-    "rule_1_data_provenance": "Every numeric value in this artifact is derived from a single named extraction command (GET /repos/{owner}/{repo}/issues/{number}/events) or from the events_by_pr object whose own derivation is the same endpoint. The empty events_by_pr object reflects the github_api.available=false state and is itself a faithful representation of 'no data available' \u2014 not an estimate or extrapolation.",
-    "rule_3_confidence_transparency": "When this artifact's events_by_pr is empty (current state), downstream metric M4 (Flow Active) falls back to the unbounded first-commit-to-last-commit span per AAP \u00a70.5.3.5 with confidence downgraded to Low. The downstream metrics.json renderer surfaces this in the report's Risk Assessment section with the exact caveat 'Flow Active fell back to local-git first-commit-to-last-commit span; ready_for_review boundary was unavailable because the GitHub Issues-Events API was unreachable.'",
-    "rule_4_internal_consistency": "_metadata.run_id=ff490c72-43fb-4c05-b466-b9355cab917f is identical to the run_id in data/environment.json, data/inflection.json, data/pulls.json, and data/reviews.json (single-run correlation per the Observability rule). _metadata.inflection_date_utc=2026-02-25T02:58:59Z is identical to data/inflection.json#date_utc. _metadata.analysis_period_start, _metadata.analysis_period_end, and _metadata.repository_slug match data/pulls.json#_metadata and data/reviews.json#_metadata exactly.",
-    "rule_5_reproducibility": "The exact endpoint pattern string in github_api.endpoint_pattern plus the per_event_schema_documentation together specify how to re-derive this artifact from scratch. The Reproducibility Appendix in acceleration-report.md will reference both. The endpoint is read-only HTTP GET only \u2014 no write operations are issued.",
-    "rule_6_environment_first": "_metadata fields satisfy the Environment Verification preamble: repository_slug, default_branch, analysis_period_start, analysis_period_end, inflection_date_utc, extraction_timestamp, run_id. Cross-referenced with data/environment.json."
-  },
-  "cross_consistency_assertions": {
-    "matches_pulls_json": {
-      "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
-      "extraction_timestamp": "2026-05-23T05:54:20Z",
-      "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
-      "analysis_period_start": "2026-02-23T00:00:00Z",
-      "analysis_period_end": "2026-05-21T23:59:59Z",
-      "inflection_date_utc": "2026-02-25T02:58:59Z"
-    },
-    "matches_reviews_json": {
-      "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
-      "extraction_timestamp": "2026-05-23T05:54:20Z",
-      "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
-      "analysis_period_start": "2026-02-23T00:00:00Z",
-      "analysis_period_end": "2026-05-21T23:59:59Z",
-      "inflection_date_utc": "2026-02-25T02:58:59Z",
-      "observed_pr_numbers_local_git_fallback_identical_to_reviews_json": true
-    },
-    "matches_environment_json": {
-      "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
-      "extraction_timestamp": "2026-05-23T05:54:20Z",
-      "repository_url_derived_slug": "Blitzy-Sandbox/blitzy-RudderStack"
-    },
-    "matches_inflection_json": {
-      "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
-      "inflection_date_utc": "2026-02-25T02:58:59Z"
-    },
-    "events_by_pr_keys_subset_of_pulls_json_pull_numbers": {
-      "assertion": "Every key in events_by_pr corresponds to a pull.number in data/pulls.json#pulls[*].number when both are populated.",
-      "current_state": "events_by_pr is empty in this seed; pulls.json#pulls is also empty in its seed. The assertion holds vacuously in the current state and is enforced by scripts/09_compute_metrics.py at compute time."
-    },
-    "events_by_pr_keys_superset_of_reviews_by_pr_keys": {
-      "assertion": "Every key in reviews_by_pr (data/reviews.json) corresponds to a key in events_by_pr (this artifact) when both are populated \u2014 because every review submission is preceded by a review_requested event on the same PR (unless the reviewer self-submitted without being requested, which is uncommon). The reverse is NOT true: a PR may have events (e.g., labeled, head_ref_force_pushed) without ever receiving a review.",
-      "current_state": "Both objects are empty in their respective seed artifacts. The assertion holds vacuously and is enforced by scripts/09_compute_metrics.py at compute time. When violated, the compute step emits a structured-JSON warning and downgrades M4 confidence by one tier."
-    }
-  }
+  "events_by_pr": {}
 }

@@ -909,12 +909,14 @@ def _compute_phase_decomposition(
     commit_date_range = env_payload.get("commit_date_range") or {}
     earliest_iso = commit_date_range.get("earliest_utc") or commit_date_range.get("earliest")
     # Prefer ``latest_utc`` — the latest commit across all refs — which is
-    # the convention used by the agent prompt's expected outcome
-    # ("post-introduction span is 86 days (2026-02-25 → 2026-05-21)" matches
-    # the cross-ref ``latest_utc`` and not the main-only ``latest_on_main``).
-    # The fallback order is: latest_utc → latest → latest_on_main, which
-    # ensures both schema-conformant inflection results and rule-4 internal
-    # consistency with the existing report's phase decomposition.
+    # the convention used by the agent prompt's expected outcome (the
+    # post-introduction span is computed from inflection_date → latest_utc
+    # and the exact value depends on the run's extraction timestamp; consult
+    # ``data/metrics.json#_metadata.post_introduction_duration_days`` for the
+    # current value of any given run). The fallback order is:
+    # ``latest_utc → latest → latest_on_main``, which ensures both
+    # schema-conformant inflection results and rule-4 internal consistency
+    # with the existing report's phase decomposition.
     latest_iso = (
         commit_date_range.get("latest_utc")
         or commit_date_range.get("latest")

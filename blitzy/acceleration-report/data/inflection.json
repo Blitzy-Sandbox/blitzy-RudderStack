@@ -6,9 +6,9 @@
     "author_email": "agent@blitzy.com",
     "author_name": "Blitzy Agent",
     "author_date": "2026-02-25T02:58:59Z",
-    "total_ai_actor_commits": 645,
+    "total_ai_actor_commits": 652,
     "ai_actor_email_breakdown": {
-      "agent@blitzy.com": 640,
+      "agent@blitzy.com": 647,
       "191547922+blitzy[bot]@users.noreply.github.com": 5
     }
   },
@@ -23,15 +23,15 @@
       "reason_rejected": "Not evaluated for inflection: tier 'velocity_inflection' was not required because the higher-precedence tier 'ai_actor_email' already produced a definitive result. Tier 3 (velocity inflection) in particular is the safety-net fallback and is only used when the trailer and email signals are both silent."
     }
   ],
-  "run_id": "513128a7-0682-44df-b16b-56837d510f05",
-  "fetched_at": "2026-05-23T18:44:04Z",
+  "run_id": "55555555-5555-4555-8555-555555555555",
+  "fetched_at": "2026-05-23T22:31:28Z",
   "baseline_duration_days": 2,
   "post_introduction": {
     "duration_days": 88,
     "start_iso": "2026-02-25T02:58:59Z",
-    "end_iso": "2026-05-23T16:54:56Z"
+    "end_iso": "2026-05-23T22:21:17Z"
   },
   "ramp_up_steady_state_split_applied": false,
   "ramp_up_steady_state_threshold_days": 90,
-  "ramp_up_steady_state_split_applied_reason": "Post-introduction span is 88 days (inflection 2026-02-25T02:58:59Z → end 2026-05-23T16:54:56Z). 88 < 90-day threshold per AAP §0.5.6 and decision-log entry DL-006, so the two-phase fallback (Baseline + Post-Introduction) is applied by downstream consumers; no ramp_up or steady_state phase keys are emitted on any metric row."
+  "ramp_up_steady_state_split_applied_reason": "Post-introduction span is 88 days (inflection 2026-02-25T02:58:59Z → end 2026-05-23T22:21:17Z). 88 < 90-day threshold per AAP §0.5.6 and decision-log entry DL-006, so the two-phase fallback (Baseline + Post-Introduction) is applied by downstream consumers; no ramp_up or steady_state phase keys are emitted on any metric row."
 }

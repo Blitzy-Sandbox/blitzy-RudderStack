@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "extraction_timestamp": "2026-05-23T18:44:04Z",
-    "run_id": "7376139c-d6dc-4367-b683-8dce9b5189c9",
+    "extraction_timestamp": "2026-05-23T22:25:26Z",
+    "run_id": "55555555-5555-4555-8555-555555555555",
     "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
     "default_branch": "main",
     "extraction_method": "git_cat_file_and_merge_base_is_ancestor",
     "analysis_period_start": "2026-02-25T02:58:59Z",
-    "analysis_period_end": "2026-05-23T16:54:56Z",
+    "analysis_period_end": "2026-05-23T22:21:17Z",
     "inflection_date_utc": "2026-02-25T02:58:59Z",
     "schema_version": "1.0.0",
     "feeds_metric": "m8",
@@ -22,7 +22,7 @@
     ],
     "release_tag_count_consulted": 0
   },
-  "fetched_at": "2026-05-23T20:05:41Z",
+  "fetched_at": "2026-05-23T22:26:05Z",
   "reverts": [],
   "exclusions": {
     "unattributable": [],
@@ -56,7 +56,7 @@
     "secondary_command": "git log main --grep='^Revert ' --oneline | wc -l",
     "secondary_command_output": "0",
     "tertiary_corroboration_command": "git log --all --grep='This reverts commit' --oneline | wc -l",
-    "tertiary_corroboration_command_output": "1",
+    "tertiary_corroboration_command_output": "2",
     "broadest_corroboration_command": "git log --all --pretty=format:'%H|%s' | grep -iE '^[a-f0-9]+\\|Revert' | wc -l",
     "broadest_corroboration_command_output": "0",
     "verification_summary": "All four independent search variants \u2014 primary AAP command, secondary verification command, body-text corroboration, and broadest subject scan \u2014 return their match counts here. The primary command count is the authoritative cross-check against the count returned by the candidates CSV row count (0); the three corroboration commands should return identical or higher counts (higher only when a revert subject deviates from the canonical 'Revert \"...\"' prefix)."

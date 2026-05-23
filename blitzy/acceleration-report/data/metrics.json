@@ -1,12 +1,12 @@
 {
   "_metadata": {
     "schema_version": "1.1.0",
-    "run_id": "729fb296-36d9-44ea-a422-15dfa3ab46d1",
-    "extraction_timestamp": "2026-05-23T18:44:04Z",
+    "run_id": "55555555-5555-4555-8555-555555555555",
+    "extraction_timestamp": "2026-05-23T22:25:26Z",
     "generated_by": "scripts/09_compute_metrics.py",
     "inflection_date_utc": "2026-02-25T02:58:59Z",
     "ramp_up_steady_state_split_applied": false,
-    "ramp_up_steady_state_split_applied_reason": "Post-introduction span is 88 days (inflection 2026-02-25T02:58:59Z → end 2026-05-23T16:54:56Z). 88 < 90-day threshold per AAP §0.5.6 and decision-log.md DL-006, so the two-phase fallback (Baseline + Post-Introduction) is applied; no ramp_up or steady_state keys are emitted on any metric row.",
+    "ramp_up_steady_state_split_applied_reason": "Post-introduction span is 88 days (inflection 2026-02-25T02:58:59Z → end 2026-05-23T22:21:17Z). 88 < 90-day threshold per AAP §0.5.6 and decision-log.md DL-006, so the two-phase fallback (Baseline + Post-Introduction) is applied; no ramp_up or steady_state keys are emitted on any metric row.",
     "ramp_up_steady_state_threshold_days": 90,
     "post_introduction_duration_days": 88,
     "phase_keys_used": [
@@ -82,21 +82,21 @@
         "config": 1,
         "router": 1
       },
-      "unattributed_count": 551,
-      "total_non_merge_commits": 667,
+      "unattributed_count": 558,
+      "total_non_merge_commits": 674,
       "weights": {
-        "warehouse": 0.068966,
-        "gateway": 0.025487,
-        "functions": 0.023988,
-        "identity": 0.022489,
-        "protocols": 0.014993,
-        "processor": 0.007496,
-        "backend-config": 0.004498,
-        "archiver": 0.002999,
-        "config": 0.001499,
-        "router": 0.001499
+        "warehouse": 0.068249,
+        "gateway": 0.025223,
+        "functions": 0.023739,
+        "identity": 0.022255,
+        "protocols": 0.014837,
+        "processor": 0.007418,
+        "backend-config": 0.004451,
+        "archiver": 0.002967,
+        "config": 0.001484,
+        "router": 0.001484
       },
-      "unattributed_weight": 0.826087,
+      "unattributed_weight": 0.827893,
       "resolution_method": "conventional_commit_scope_plus_branch_ref",
       "resolution_method_note": "AAP §0.5.6 specifies majority-changed-paths heuristic; 09_compute_metrics.py performs ZERO git invocations by design (AAP §0.5.1), so the current implementation uses conventional-commit scope + branch ref heuristics. The full-fidelity extension is documented in decision-log.md."
     },
@@ -155,7 +155,7 @@
     "metric_number": 2,
     "name": "Flow Velocity",
     "metric_name": "Flow Velocity",
-    "value": 1,
+    "value": 0.8333,
     "after_before_multiplier": "—",
     "confidence": "medium",
     "extraction_strategy": "From data/pulls.json, select PRs where merged_at IS NOT NULL AND base.ref == 'main'; bucket by Monday-anchored 2-week window using merged_at; exclude dependabot[bot]; group by canonical author for the per-engineer breakdown. Per-phase value is the mean PRs per window. Local-git fallback (active in this run): enumerate every merge commit on main via `git log main --merges --pretty=format:...` and treat each merge commit (whether PR-numbered or ad-hoc) as one M2 unit. Counts mirror data/pulls.json#summary.merged_prs_count and the prs_per_2week_window_post_introduction series.",
@@ -166,7 +166,7 @@
       "boundary_conditions": "GitHub Pulls API unavailable (GH_TOKEN absent); falls back to local-git merge-commit enumeration on main. The local-git fallback cannot distinguish dependency-bot PRs from human/Blitzy PRs without scanning commit subjects; the data file data/pulls.json#summary documents how each merge commit was attributed."
     },
     "post_introduction": {
-      "value": 1,
+      "value": 0.8333,
       "confidence": "medium",
       "windows": 6,
       "multiplier": "—",
@@ -192,7 +192,7 @@
         "end": "2026-04-06T00:00:00Z",
         "window_start_iso": "2026-03-23T00:00:00Z",
         "window_end_iso": "2026-04-06T00:00:00Z",
-        "value": 3
+        "value": 2
       },
       {
         "start": "2026-04-06T00:00:00Z",
@@ -250,7 +250,7 @@
     "metric_number": 3,
     "name": "Flow Predictability",
     "metric_name": "Flow Predictability",
-    "value": 0.9129,
+    "value": 1.107,
     "after_before_multiplier": "—",
     "confidence": "medium",
     "extraction_strategy": "From data/metrics.json#m2.per_window for each phase, compute 1/CV = mean/stdev (sample stdev, n−1 divisor). Two insufficient-signal rules apply per AAP §0.5.3.4: fewer than 4 windows in the phase, or zero variance across the windows.",
@@ -262,7 +262,7 @@
       "boundary_conditions": "Baseline phase: fewer than 4 windows."
     },
     "post_introduction": {
-      "value": 0.9129,
+      "value": 1.107,
       "confidence": "medium",
       "windows": 6,
       "multiplier": "—",
@@ -407,7 +407,7 @@
     "metric_number": 6,
     "name": "Flow Distribution",
     "metric_name": "Flow Distribution",
-    "value": 0.6667,
+    "value": 1.0,
     "after_before_multiplier": "—",
     "confidence": "low",
     "extraction_strategy": "Per AAP §0.5.3.7: for each merged PR, classify into feature, defect, risk/compliance, tech-debt, or unknown. Priority: (1) Linear issue-label on linked ticket (issues.json), (2) precomputed classified_category on PR row, (3) conventional-commit prefix on PR title (feat→feature, fix→defect, others→tech-debt), (4) keyword match on title+body, (5) unknown.",
@@ -423,31 +423,23 @@
       "boundary_conditions": "baseline confidence 'low' — inherits the metric-level boundary conditions."
     },
     "post_introduction": {
-      "value": 0.6667,
+      "value": 1.0,
       "confidence": "low",
       "windows": 6,
       "multiplier": "—",
       "category_counts": {
-        "unknown": 4,
-        "tech-debt": 1,
-        "feature": 1
+        "unknown": 5
       },
       "category_proportions": {
-        "unknown": 0.6667,
-        "tech-debt": 0.1667,
-        "feature": 0.1667
+        "unknown": 1.0
       },
-      "unknown_rate": 0.6667,
+      "unknown_rate": 1.0,
       "per_actor_proportions": {
         "Blitzy": {
-          "unknown": 0.8,
-          "feature": 0.2
-        },
-        "michael": {
-          "tech-debt": 1.0
+          "unknown": 1.0
         }
       },
-      "total_prs": 6,
+      "total_prs": 5,
       "boundary_conditions": "post_introduction confidence 'low' — inherits the metric-level boundary conditions."
     },
     "per_window": [],
@@ -470,8 +462,8 @@
       ],
       "derivation_function": "compute_m6_flow_distribution"
     },
-    "boundary_conditions": "Linear API: unavailable. Post-introduction unknown rate: 66.7%. Baseline unknown rate: 0.0%. Per AAP §0.5.3.7, unknown rate >20% downgrades phase confidence to Low. When Linear labels are unavailable, the classifier depends on conventional-commit prefixes and a keyword catalogue in scripts/09_compute_metrics.py.",
-    "caveat": "Linear API: unavailable. Post-introduction unknown rate: 66.7%. Baseline unknown rate: 0.0%. Per AAP §0.5.3.7, unknown rate >20% downgrades phase confidence to Low. When Linear labels are unavailable, the classifier depends on conventional-commit prefixes and a keyword catalogue in scripts/09_compute_metrics.py.",
+    "boundary_conditions": "Linear API: unavailable. Post-introduction unknown rate: 100.0%. Baseline unknown rate: 0.0%. Per AAP §0.5.3.7, unknown rate >20% downgrades phase confidence to Low. When Linear labels are unavailable, the classifier depends on conventional-commit prefixes and a keyword catalogue in scripts/09_compute_metrics.py.",
+    "caveat": "Linear API: unavailable. Post-introduction unknown rate: 100.0%. Baseline unknown rate: 0.0%. Per AAP §0.5.3.7, unknown rate >20% downgrades phase confidence to Low. When Linear labels are unavailable, the classifier depends on conventional-commit prefixes and a keyword catalogue in scripts/09_compute_metrics.py.",
     "_actor_resolution": {
       "baseline_resolver": "_actor_resolver_baseline",
       "post_introduction_resolver": "_actor_resolver_post_introduction",
@@ -483,25 +475,25 @@
     "name": "Flow Time",
     "metric_name": "Flow Time",
     "value": "insufficient_signal",
-    "reason": "Flow Time requires per-PR first-commit timestamps (pr_commits_first_at_iso). The GitHub Pulls API is unavailable in this run and 6 merged PRs in the post-introduction phase lack a reconstructable first-commit timestamp. Per AAP §0.5.3.8, the metric is reported as insufficient_signal when the median cannot be computed.",
+    "reason": "Flow Time requires per-PR first-commit timestamps (pr_commits_first_at_iso). The GitHub Pulls API is unavailable in this run and 5 merged PRs in the post-introduction phase lack a reconstructable first-commit timestamp. Per AAP §0.5.3.8, the metric is reported as insufficient_signal when the median cannot be computed.",
     "confidence": "medium",
-    "boundary_conditions": "Pulls API: unavailable. Excluded PRs (no first-commit timestamp): baseline=0, post=6. Local-git fallback cannot resolve first-commit-on-branch from data/commits.csv alone because commits.csv lacks branch-ref attribution.",
+    "boundary_conditions": "Pulls API: unavailable. Excluded PRs (no first-commit timestamp): baseline=0, post=5. Local-git fallback cannot resolve first-commit-on-branch from data/commits.csv alone because commits.csv lacks branch-ref attribution.",
     "after_before_multiplier": "—",
     "extraction_strategy": "Per AAP §0.5.3.8: for each merged PR, compute merge_commit_committer_date − first_commit_author_date. Median per phase. Report exclusions for PRs whose first commit is no longer reachable due to history rewrites.",
     "baseline": {
       "value": "insufficient_signal",
       "confidence": "medium",
       "windows": 0,
-      "reason": "Flow Time requires per-PR first-commit timestamps (pr_commits_first_at_iso). The GitHub Pulls API is unavailable in this run and 6 merged PRs in the post-introduction phase lack a reconstructable first-commit timestamp. Per AAP §0.5.3.8, the metric is reported as insufficient_signal when the median cannot be computed.",
-      "boundary_conditions": "Pulls API: unavailable. Excluded PRs (no first-commit timestamp): baseline=0, post=6. Local-git fallback cannot resolve first-commit-on-branch from data/commits.csv alone because commits.csv lacks branch-ref attribution."
+      "reason": "Flow Time requires per-PR first-commit timestamps (pr_commits_first_at_iso). The GitHub Pulls API is unavailable in this run and 5 merged PRs in the post-introduction phase lack a reconstructable first-commit timestamp. Per AAP §0.5.3.8, the metric is reported as insufficient_signal when the median cannot be computed.",
+      "boundary_conditions": "Pulls API: unavailable. Excluded PRs (no first-commit timestamp): baseline=0, post=5. Local-git fallback cannot resolve first-commit-on-branch from data/commits.csv alone because commits.csv lacks branch-ref attribution."
     },
     "post_introduction": {
       "value": "insufficient_signal",
       "confidence": "medium",
       "windows": 6,
       "multiplier": "—",
-      "reason": "Flow Time requires per-PR first-commit timestamps (pr_commits_first_at_iso). The GitHub Pulls API is unavailable in this run and 6 merged PRs in the post-introduction phase lack a reconstructable first-commit timestamp. Per AAP §0.5.3.8, the metric is reported as insufficient_signal when the median cannot be computed.",
-      "boundary_conditions": "Pulls API: unavailable. Excluded PRs (no first-commit timestamp): baseline=0, post=6. Local-git fallback cannot resolve first-commit-on-branch from data/commits.csv alone because commits.csv lacks branch-ref attribution."
+      "reason": "Flow Time requires per-PR first-commit timestamps (pr_commits_first_at_iso). The GitHub Pulls API is unavailable in this run and 5 merged PRs in the post-introduction phase lack a reconstructable first-commit timestamp. Per AAP §0.5.3.8, the metric is reported as insufficient_signal when the median cannot be computed.",
+      "boundary_conditions": "Pulls API: unavailable. Excluded PRs (no first-commit timestamp): baseline=0, post=5. Local-git fallback cannot resolve first-commit-on-branch from data/commits.csv alone because commits.csv lacks branch-ref attribution."
     },
     "per_window": [],
     "provenance": {
@@ -674,25 +666,25 @@
     "name": "Releases",
     "metric_name": "Releases",
     "value": "insufficient_signal",
-    "reason": "All three source tiers per AAP §0.5.3.10 yielded zero or were unavailable. Tier 1 (Releases API): unavailable. Tier 2 (annotated tags): zero matching tags in local clone. Tier 3 (CI deploy events): zero deploy events observed. Per AAP §0.5.3.10, this signals 'Insufficient signal — Releases API unavailable and no local tags'.",
+    "reason": "All three source tiers per AAP §0.5.3.10 yielded zero or were unavailable. Tier 1 (Releases API): available. Tier 2 (annotated tags): zero matching tags in local clone. Tier 3 (CI deploy events): zero deploy events observed. Per AAP §0.5.3.10, this signals 'Insufficient signal — Releases API unavailable and no local tags'.",
     "confidence": "insufficient",
-    "boundary_conditions": "All three source tiers yielded zero or were unavailable. Tiers: tier_1_github_releases_api: GH_TOKEN environment variable not set or rate limit exceeded; tier_3_ci_deploy_events: GitHub Actions Runs API not invoked in hand-authored seed (GH_TOKEN absent); the two source workflow files are present in .github/workflows/ but no run history was captured.",
+    "boundary_conditions": "All three source tiers yielded zero or were unavailable. Tiers: tier_2_annotated_tags: Zero local annotated tags match the semver pattern '^v?(\\\\d+)\\\\.(\\\\d+)\\\\.(\\\\d+)(?:[-+].*)?$'.; tier_3_ci_deploy_events: Tier 3 invoked but no workflow runs matched any of ['dispatch-deploy-event-dev', 'release-please', 'sync-release'] with conclusion 'success'..",
     "after_before_multiplier": "—",
     "extraction_strategy": "Per AAP §0.5.3.10: count releases per 2-week window. Source precedence: (1) GitHub Releases API, (2) annotated git tags matching v?\\d+\\.\\d+\\.\\d+, (3) CI/CD deploy events. Prereleases (-alpha, -beta, -rc, -dev) excluded from the primary count and reported separately.",
     "baseline": {
       "value": "insufficient_signal",
       "confidence": "insufficient",
       "windows": 0,
-      "reason": "All three source tiers per AAP §0.5.3.10 yielded zero or were unavailable. Tier 1 (Releases API): unavailable. Tier 2 (annotated tags): zero matching tags in local clone. Tier 3 (CI deploy events): zero deploy events observed. Per AAP §0.5.3.10, this signals 'Insufficient signal — Releases API unavailable and no local tags'.",
-      "boundary_conditions": "All three source tiers yielded zero or were unavailable. Tiers: tier_1_github_releases_api: GH_TOKEN environment variable not set or rate limit exceeded; tier_3_ci_deploy_events: GitHub Actions Runs API not invoked in hand-authored seed (GH_TOKEN absent); the two source workflow files are present in .github/workflows/ but no run history was captured."
+      "reason": "All three source tiers per AAP §0.5.3.10 yielded zero or were unavailable. Tier 1 (Releases API): available. Tier 2 (annotated tags): zero matching tags in local clone. Tier 3 (CI deploy events): zero deploy events observed. Per AAP §0.5.3.10, this signals 'Insufficient signal — Releases API unavailable and no local tags'.",
+      "boundary_conditions": "All three source tiers yielded zero or were unavailable. Tiers: tier_2_annotated_tags: Zero local annotated tags match the semver pattern '^v?(\\\\d+)\\\\.(\\\\d+)\\\\.(\\\\d+)(?:[-+].*)?$'.; tier_3_ci_deploy_events: Tier 3 invoked but no workflow runs matched any of ['dispatch-deploy-event-dev', 'release-please', 'sync-release'] with conclusion 'success'.."
     },
     "post_introduction": {
       "value": "insufficient_signal",
       "confidence": "insufficient",
       "windows": 6,
       "multiplier": "—",
-      "reason": "All three source tiers per AAP §0.5.3.10 yielded zero or were unavailable. Tier 1 (Releases API): unavailable. Tier 2 (annotated tags): zero matching tags in local clone. Tier 3 (CI deploy events): zero deploy events observed. Per AAP §0.5.3.10, this signals 'Insufficient signal — Releases API unavailable and no local tags'.",
-      "boundary_conditions": "All three source tiers yielded zero or were unavailable. Tiers: tier_1_github_releases_api: GH_TOKEN environment variable not set or rate limit exceeded; tier_3_ci_deploy_events: GitHub Actions Runs API not invoked in hand-authored seed (GH_TOKEN absent); the two source workflow files are present in .github/workflows/ but no run history was captured."
+      "reason": "All three source tiers per AAP §0.5.3.10 yielded zero or were unavailable. Tier 1 (Releases API): available. Tier 2 (annotated tags): zero matching tags in local clone. Tier 3 (CI deploy events): zero deploy events observed. Per AAP §0.5.3.10, this signals 'Insufficient signal — Releases API unavailable and no local tags'.",
+      "boundary_conditions": "All three source tiers yielded zero or were unavailable. Tiers: tier_2_annotated_tags: Zero local annotated tags match the semver pattern '^v?(\\\\d+)\\\\.(\\\\d+)\\\\.(\\\\d+)(?:[-+].*)?$'.; tier_3_ci_deploy_events: Tier 3 invoked but no workflow runs matched any of ['dispatch-deploy-event-dev', 'release-please', 'sync-release'] with conclusion 'success'.."
     },
     "per_window": [],
     "provenance": {

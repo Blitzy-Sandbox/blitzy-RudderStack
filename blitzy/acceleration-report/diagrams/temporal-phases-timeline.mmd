@@ -4,9 +4,12 @@
 %%   Baseline          = period from earliest commit (2026-02-23) to the AI inflection
 %%                       point (2026-02-25), used for "before" metric extraction.
 %%   Post-Introduction = period from the AI inflection point to the latest observed
-%%                       commit (2026-05-21), used for "after" metric extraction.
-%%   Fallback applied: post-introduction span is 86 days (< 90), so per AAP §0.5.6
+%%                       commit on main, used for "after" metric extraction.
+%%   Fallback applied: post-introduction span is <90 days, so per AAP §0.5.6
 %%   the Ramp-Up (first 90 days) vs Steady-State (90+ days) split is NOT shown.
+%%   The exact span (in days) for any given run is recorded in
+%%   data/metrics.json#_metadata.post_introduction_duration_days; this diagram
+%%   approximates it with a fixed bar length for visual stability across reruns.
 %%   This decision is logged as DL-006 in decision-log.md.
 %%   The AI inflection point was resolved via Tier 2 (AI-actor email pattern) detection;
 %%   the first agent@blitzy.com commit landed at 2026-02-25 02:58:59 UTC
@@ -18,4 +21,4 @@ gantt
     section Baseline
     Pre-inflection observation    :baseline, 2026-02-23, 2d
     section Post-Introduction (fallback applied: <90 days post-inflection)
-    AI assistance active          :post, 2026-02-25, 86d
+    AI assistance active          :post, 2026-02-25, 88d
