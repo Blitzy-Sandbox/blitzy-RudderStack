@@ -586,13 +586,12 @@
       "gosec_excludes": 18,
       "depguard_deny": 6,
       "forbidigo_patterns": 14,
-      "bodyclose_path_exclusions": 4,
+      "path_exclusions": 4,
       "snyk_active": 5,
       "truffleignore_entries": 0,
-      "deepsource_exclude_patterns": 2,
-      "deepsource_meta_config_implied": 1
+      "deepsource_exclude_patterns": 2
     },
-    "boundary_conditions": "Audit log: unavailable; admin access required. Branch-protection check: unavailable. Force-push reflog entries: 0. Exception-labeled PRs: 0. Lint-exemption HEAD inventory: 50 entries (reported separately; not counted in per-window events).",
+    "boundary_conditions": "Audit log: unavailable; admin access required. Branch-protection check: unavailable. Force-push reflog entries: 0. Exception-labeled PRs: 0. Lint-exemption HEAD inventory: 49 entries (reported separately; not counted in per-window events).",
     "caveat": "Without admin audit-log access, the signal is limited to (a) force-pushes detectable from this clone's local git reflog, (b) PRs labelled with exception/waiver/override/bypass patterns (none observed in the current label catalogue per .github/labeler.yml), and (c) HEAD-only static-analysis exemption inventory (reported separately, not as per-window events). The true count of admin overrides, required-check bypasses, and branch-protection-rule modifications during the analysis window is unobservable and may be non-zero."
   },
   "m11": {
