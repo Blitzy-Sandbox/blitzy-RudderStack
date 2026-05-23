@@ -22,6 +22,25 @@ with a hard-coded ``"GET"`` argument, so no calling-side configuration can
 escalate the verb. This enforcement makes Agent Action Plan §0.3.2 and
 §0.8.2 read-only constraints structural rather than convention-based.
 
+URL host allow-listing (SSRF and credential-forwarding defence)
+---------------------------------------------------------------
+
+Every call to :meth:`GithubClient._request` validates that the target URL's
+host matches the configured ``base_url`` host (``api.github.com`` by
+default; any GitHub Enterprise Server host when configured). A URL whose
+host does not match raises :class:`ValueError` unless the caller opts in
+to a cross-host download via ``allow_cross_host=True``. Cross-host
+requests dispatch through a fresh :func:`requests.request` call that does
+NOT carry the session's ``Authorization`` (Bearer) header, so the GitHub
+token cannot be forwarded to non-GitHub hosts even when an attacker-
+controlled ``Link`` header or redirect URL is observed.
+
+The only legitimate cross-host consumer is :meth:`GithubClient.get_binary`,
+which is used to follow the pre-signed S3 URL returned by the GitHub
+Actions artifact-download endpoint. That URL is already authenticated via
+its query-string signature, so the missing ``Authorization`` header is
+ignored downstream by the storage provider.
+
 Retry and back-off
 ------------------
 
@@ -274,6 +293,11 @@ class GithubClient:
         The latter shape is required by :meth:`paginate`, which forwards
         the next-page URL verbatim to :meth:`_request` without rebuilding.
 
+        Note: absolute URLs that pass through this helper unchanged are
+        validated for host membership in :meth:`_request` before any HTTP
+        traffic is issued — see the module docstring's "URL host
+        allow-listing" section for the SSRF/credential-forwarding model.
+
         Args:
             path: A path beginning with ``/`` or without one, or a full
                 ``http://`` / ``https://`` URL.
@@ -285,6 +309,38 @@ class GithubClient:
         if path.startswith("https://") or path.startswith("http://"):
             return path
         return f"{self._base_url}/{path.lstrip('/')}"
+
+    def _is_api_host(self, url: str) -> bool:
+        """Return ``True`` iff ``url``'s host matches the configured base URL host.
+
+        Used by :meth:`_request` to enforce the URL allow-list described in
+        the module docstring's "URL host allow-listing" section. A URL whose
+        parsed hostname (case-insensitive, normalised by
+        :func:`urllib.parse.urlparse`) matches the configured ``base_url``
+        hostname is considered "in the API host" and may receive the
+        session's ``Authorization`` header. All other URLs are cross-host
+        and must opt in via ``allow_cross_host=True`` on :meth:`_request`.
+
+        Args:
+            url: The fully qualified URL to inspect. Schemeless inputs,
+                relative paths, and malformed URLs all return ``False``
+                (the safe default — they cannot demonstrate API-host
+                membership).
+
+        Returns:
+            ``True`` iff ``url`` is a syntactically valid absolute URL
+            whose hostname matches the configured base-URL hostname.
+        """
+        if not isinstance(url, str) or not url:
+            return False
+        try:
+            url_host = (urlparse(url).hostname or "").lower()
+            base_host = (urlparse(self._base_url).hostname or "").lower()
+        except ValueError:
+            # urlparse can raise ValueError on certain malformed inputs
+            # (e.g. invalid IPv6 brackets). Treat as not-API-host.
+            return False
+        return bool(url_host) and bool(base_host) and url_host == base_host
 
     # ------------------------------------------------------------------
     # Back-off helpers
@@ -417,6 +473,7 @@ class GithubClient:
         method: str,
         url: str,
         params: dict[str, Any] | None = None,
+        allow_cross_host: bool = False,
     ) -> requests.Response:
         """Issue a single GitHub API request, with retry and rate-limit handling.
 
@@ -426,6 +483,27 @@ class GithubClient:
         raises :class:`ValueError`. Callers should always pass
         ``"GET"`` — the public :meth:`get_one`, :meth:`get`, and
         :meth:`get_binary` methods do this for them.
+
+        URL host allow-listing
+        ----------------------
+
+        Before any HTTP traffic, the URL's host is compared to the
+        configured ``base_url`` host (see :meth:`_is_api_host`):
+
+        * **API host match**: the request is dispatched on
+          :data:`self._session`, which carries the ``Authorization``
+          Bearer header when a token was configured. This is the normal
+          path for ``GET /repos/{owner}/{repo}/...`` and for any
+          ``rel="next"`` Link-header URL whose host is the GitHub API.
+        * **Cross-host, ``allow_cross_host=False``** (the default):
+          :class:`ValueError` is raised. A cross-host URL is rejected
+          to defend against SSRF and credential forwarding via an
+          attacker-controlled redirect or Link header.
+        * **Cross-host, ``allow_cross_host=True``**: the request is
+          dispatched via a fresh :func:`requests.request` call that
+          carries ONLY a benign ``User-Agent`` and ``Accept`` header —
+          never the session's ``Authorization``. This path exists for
+          :meth:`get_binary` to follow pre-signed S3 artifact URLs.
 
         Retry behaviour:
 
@@ -449,6 +527,14 @@ class GithubClient:
             params: Optional query-string parameters. Forwarded verbatim
                 to :meth:`requests.Session.request`. ``None`` means no
                 query string is appended.
+            allow_cross_host: When ``False`` (the default), a URL whose
+                host does not match the configured base-URL host raises
+                :class:`ValueError`. When ``True``, such URLs are
+                permitted but are dispatched WITHOUT the session's
+                ``Authorization`` header. Only :meth:`get_binary` should
+                set this to ``True`` and only when following an artifact
+                URL that is already authenticated via its query-string
+                signature.
 
         Returns:
             The successful :class:`requests.Response`. The response
@@ -456,7 +542,9 @@ class GithubClient:
             for ``.json()`` / ``.content`` extraction.
 
         Raises:
-            ValueError: If ``method`` is anything other than ``"GET"``.
+            ValueError: If ``method`` is anything other than ``"GET"``,
+                or if ``url`` resolves to a host outside the configured
+                allow-list and ``allow_cross_host`` is ``False``.
             requests.HTTPError: On a 4xx response other than 429, or on
                 any retry-exhausted 429/5xx response.
             requests.exceptions.RequestException: On a retry-exhausted
@@ -468,15 +556,55 @@ class GithubClient:
                 "GithubClient is read-only; only GET requests are permitted"
             )
 
+        is_api_host = self._is_api_host(url)
+        if not is_api_host and not allow_cross_host:
+            # Log first, then raise. The redacted URL is safe to log; the
+            # raw URL is not echoed back to the caller in the exception
+            # message (the redacted form is sufficient for diagnosis).
+            self._logger.error(
+                "github_api_url_rejected",
+                extra={
+                    "url": redact_url(url),
+                    "reason": "host_not_in_allow_list",
+                    "expected_host": urlparse(self._base_url).hostname or "",
+                },
+            )
+            raise ValueError(
+                "GithubClient URL host is not in the configured allow-list: "
+                f"{redact_url(url)} (only requests to the configured base-URL "
+                "host are permitted). Use get_binary() with allow_cross_host=True "
+                "for trusted artifact downloads only."
+            )
+
         last_exception: BaseException | None = None
         for attempt in range(MAX_RETRIES):
             try:
-                resp = self._session.request(
-                    "GET",
-                    url,
-                    params=params,
-                    timeout=REQUEST_TIMEOUT_SECONDS,
-                )
+                if is_api_host:
+                    # Authenticated session request to the configured API host.
+                    resp = self._session.request(
+                        "GET",
+                        url,
+                        params=params,
+                        timeout=REQUEST_TIMEOUT_SECONDS,
+                    )
+                else:
+                    # Cross-host, explicitly permitted (allow_cross_host=True).
+                    # Dispatch via a fresh requests.request call so the
+                    # session's Authorization (and any other session-scoped
+                    # state) does NOT leak to a non-GitHub host. The
+                    # artifact-download URL is already authenticated via
+                    # its pre-signed query string.
+                    cross_host_headers = {
+                        "User-Agent": DEFAULT_USER_AGENT,
+                        "Accept": "*/*",
+                    }
+                    resp = requests.request(
+                        "GET",
+                        url,
+                        params=params,
+                        timeout=REQUEST_TIMEOUT_SECONDS,
+                        headers=cross_host_headers,
+                    )
             except requests.exceptions.RequestException as exc:
                 last_exception = exc
                 sleep_seconds = self._exponential_backoff_seconds(attempt)
@@ -704,19 +832,49 @@ class GithubClient:
         signed query string, and that signed URL must not be rebuilt by
         :meth:`_build_url`.
 
+        Cross-host handling
+        -------------------
+
+        Two URL shapes are supported and both are safe with respect to
+        the read-only credential-forwarding boundary documented at the
+        module level:
+
+        * ``url`` resolves to the configured API host (e.g.
+          ``https://api.github.com/...artifacts/.../zip``) — the request
+          is dispatched on the authenticated session. GitHub responds
+          with a 302 redirect to S3, and :mod:`requests` (2.32.x and
+          later) automatically strips the ``Authorization`` header on
+          cross-host redirects.
+        * ``url`` resolves to a non-API host (a pre-signed S3 URL passed
+          directly to this method) — the request is dispatched via
+          :meth:`_request` with ``allow_cross_host=True``, which strips
+          the ``Authorization`` header before any HTTP traffic is
+          issued.
+
         Args:
-            url: Absolute URL pointing at the binary resource.
+            url: Absolute URL pointing at the binary resource. May be an
+                API-host endpoint or a pre-signed cross-host artifact URL.
 
         Returns:
             The raw response body as bytes.
 
         Raises:
+            ValueError: If ``url`` is malformed (e.g. missing scheme).
             requests.HTTPError: On a 4xx response other than 429, or on
                 any retry-exhausted 429/5xx response.
             requests.exceptions.RequestException: On a retry-exhausted
                 network-level failure.
         """
-        resp = self._request("GET", url)
+        # Determine cross-host status from the URL's parsed hostname.
+        # When the URL's host matches the configured base URL host
+        # (API host), the authenticated session is used and GitHub's
+        # 302 redirect to S3 is followed by `requests` with automatic
+        # cross-host Authorization stripping. When the URL's host is
+        # NOT the API host (e.g., the caller already resolved the
+        # artifact redirect and is calling with the S3 URL directly),
+        # `allow_cross_host=True` opts into the credential-stripped path.
+        allow_cross_host = not self._is_api_host(url)
+        resp = self._request("GET", url, allow_cross_host=allow_cross_host)
         return resp.content
 
     # ------------------------------------------------------------------

@@ -7,8 +7,8 @@
 # order; the numeric prefix `02` is positional within the topological order
 # 00 → 02 → 01 → 03..08 → 09 → 10,11 — see AAP §0.5.2).
 #
-# Emits two read-only data artifacts derived from `git log` on the default
-# branch (`main`):
+# Emits two read-only data artifacts derived from `git log --all` (every
+# local and remote-tracking ref, per AAP §0.5.3 and §0.6.2):
 #
 #   data/commits.csv             Authoritative full commit roster.
 #                                Header:
@@ -61,21 +61,28 @@ CANDIDATES_FILE="${DATA_DIR}/revert_candidates.csv"
 # sets it).
 DRY_RUN="${DRY_RUN:-0}"
 
-# Default branch — the AAP §0.5.2 / §0.6.2 designates `main` as the
-# default branch. Override via --branch <name> if rerunning on a fork
-# with a different default.
-BRANCH="main"
+# Rev-list scope. Per AAP §0.5.3 and §0.6.2, this script extracts the FULL
+# commit roster across ALL refs by default (`--all`), which is required for
+# inflection detection, author-roster discovery, module weighting, and
+# metric provenance to observe commits on every branch (main, release/*,
+# blitzy-* feature branches, and all remote-tracking refs).
+#
+# An optional --branch <name> override may be supplied to narrow extraction
+# to a single rev-spec for debugging on a fork or feature branch; in that
+# mode the rev-spec replaces `--all` in the underlying `git log` calls.
+# Default (and AAP-compliant production) behaviour is `--all`.
+REV_SCOPE="--all"
 
 # -----------------------------------------------------------------------------
 # usage: human-readable help text
 # -----------------------------------------------------------------------------
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [--dry-run] [--branch BRANCH] [--commits-output PATH] [--candidates-output PATH] [--help]
+Usage: $(basename "$0") [--dry-run] [--branch REV] [--commits-output PATH] [--candidates-output PATH] [--help]
 
-Extract full commit roster and revert-candidate list from the default branch.
+Extract full commit roster and revert-candidate list across ALL refs.
 
-Default branch: main
+Default rev scope: --all (every local and remote-tracking ref, per AAP §0.5.3).
 
 Outputs (default paths):
   ${COMMITS_FILE}
@@ -91,11 +98,16 @@ Options:
                                   and writes this script WOULD perform, then
                                   exit 0. No git reads, no file writes.
                                   Equivalent to setting DRY_RUN=1 in the env.
-  --branch BRANCH                 Override the default branch (default: main).
+  --branch REV                    Narrow extraction to a single rev-spec
+                                  (debug override). Replaces \`--all\` in the
+                                  underlying \`git log\` queries. Default
+                                  production behaviour is \`--all\`.
   --commits-output PATH           Write the commit roster to PATH instead of
-                                  the default ${COMMITS_FILE}.
+                                  the default ${COMMITS_FILE}. PATH must
+                                  resolve under \`${DATA_DIR}\`.
   --candidates-output PATH        Write the revert-candidate list to PATH
                                   instead of the default ${CANDIDATES_FILE}.
+                                  PATH must resolve under \`${DATA_DIR}\`.
   --help, -h                      Show this help and exit 0.
 
 Environment variables (all optional):
@@ -151,6 +163,76 @@ PYEOF
 }
 
 # -----------------------------------------------------------------------------
+# validate_output_path: reject paths that escape the workspace data/ directory
+#
+# Purpose: prevent path traversal via `..` segments and reject absolute paths
+# that resolve outside `${DATA_DIR}`. This honours the AAP §0.6.2 read-only /
+# data-directory-only output contract for bash extraction scripts.
+#
+# Usage:  validate_output_path PATH ARG_NAME
+#         echoes the normalised absolute path on stdout when valid,
+#         writes an error to stderr and exits non-zero when not.
+#
+# Resolution rules:
+#   - Relative paths anchor to `${DATA_DIR}`.
+#   - Absolute paths are accepted for resolution but must still land
+#     under `${DATA_DIR}` after `realpath` normalisation.
+#   - `..` segments and symlinks are resolved before the boundary check.
+#   - The target must be a file path, not the data directory itself.
+# -----------------------------------------------------------------------------
+validate_output_path() {
+    BLITZY_PATH_CANDIDATE="${1:-}" \
+    BLITZY_PATH_DATA_DIR="${DATA_DIR}" \
+    BLITZY_PATH_ARG_NAME="${2:-output}" \
+    python3 - <<'PYEOF'
+import os
+import sys
+
+candidate = os.environ.get("BLITZY_PATH_CANDIDATE", "")
+data_dir = os.environ.get("BLITZY_PATH_DATA_DIR", "")
+arg = os.environ.get("BLITZY_PATH_ARG_NAME", "output")
+
+if not candidate:
+    sys.stderr.write(f"Error: {arg} requires a non-empty path argument\n")
+    sys.exit(2)
+
+if os.path.isabs(candidate):
+    abs_candidate = candidate
+else:
+    abs_candidate = os.path.join(data_dir, candidate)
+
+norm = os.path.realpath(abs_candidate)
+norm_data = os.path.realpath(data_dir)
+
+try:
+    common = os.path.commonpath([norm, norm_data])
+except ValueError:
+    sys.stderr.write(
+        f"Error: {arg} path {candidate!r} resolves to {norm!r} which is "
+        f"not comparable to the workspace data directory {norm_data!r}.\n"
+    )
+    sys.exit(2)
+
+if common != norm_data:
+    sys.stderr.write(
+        f"Error: {arg} path {candidate!r} resolves to {norm!r} which is "
+        f"OUTSIDE the workspace data directory {norm_data!r}. The script's "
+        f"read-only contract requires all outputs to live under data/.\n"
+    )
+    sys.exit(2)
+
+if norm == norm_data:
+    sys.stderr.write(
+        f"Error: {arg} path {candidate!r} resolves to the data directory "
+        f"itself ({norm_data!r}); expected a file path under it.\n"
+    )
+    sys.exit(2)
+
+sys.stdout.write(norm)
+PYEOF
+}
+
+# -----------------------------------------------------------------------------
 # main: full commit-roster + revert-candidate extraction driver
 # -----------------------------------------------------------------------------
 main() {
@@ -165,10 +247,12 @@ main() {
                 ;;
             --branch)
                 if [[ $# -lt 2 ]]; then
-                    echo "Error: --branch requires a branch name argument" >&2
+                    echo "Error: --branch requires a rev-spec argument" >&2
                     exit 2
                 fi
-                BRANCH="$2"
+                # Override the default `--all` scope with a single rev-spec.
+                # Documented as a debug-mode override per AAP §0.5.3.
+                REV_SCOPE="$2"
                 shift 2
                 ;;
             --commits-output)
@@ -176,7 +260,12 @@ main() {
                     echo "Error: --commits-output requires a path argument" >&2
                     exit 2
                 fi
-                COMMITS_FILE="$2"
+                # Reject paths that escape ${DATA_DIR}. The validator
+                # writes an error to stderr and exits non-zero if the
+                # candidate path is invalid; we propagate that via `||`.
+                if ! COMMITS_FILE="$(validate_output_path "$2" "--commits-output")"; then
+                    exit 2
+                fi
                 shift 2
                 ;;
             --candidates-output)
@@ -184,7 +273,9 @@ main() {
                     echo "Error: --candidates-output requires a path argument" >&2
                     exit 2
                 fi
-                CANDIDATES_FILE="$2"
+                if ! CANDIDATES_FILE="$(validate_output_path "$2" "--candidates-output")"; then
+                    exit 2
+                fi
                 shift 2
                 ;;
             --help|-h)
@@ -225,7 +316,7 @@ main() {
     # can pipe `make extract` runs to confirm endpoint / file-path coverage
     # before touching anything.
     if [[ "${DRY_RUN}" -eq 1 ]]; then
-        BLITZY_BRANCH="${BRANCH}" \
+        BLITZY_REV_SCOPE="${REV_SCOPE}" \
         BLITZY_COMMITS_FILE="${COMMITS_FILE}" \
         BLITZY_CANDIDATES_FILE="${CANDIDATES_FILE}" \
         BLITZY_RUN_ID_SOURCE="${_run_id_source}" \
@@ -233,21 +324,21 @@ main() {
 import json
 import os
 
-branch = os.environ.get("BLITZY_BRANCH", "main")
+rev_scope = os.environ.get("BLITZY_REV_SCOPE", "--all")
 out = {
     "action": "dry_run",
     "script": "02_extract_commits",
     "run_id": os.environ.get("BLITZY_RUN_ID", ""),
     "blitzy_run_id_source": os.environ.get("BLITZY_RUN_ID_SOURCE", "generated"),
-    "branch": branch,
+    "rev_scope": rev_scope,
     "git_commands_read_only": [
         "git rev-parse --git-dir",
         (
-            "git log " + branch
+            "git log " + rev_scope
             + " --pretty=format:'%H|%aE|%aN|%aI|%cE|%cN|%cI|%P|%s'"
         ),
         (
-            "git log " + branch
+            "git log " + rev_scope
             + " --grep='^Revert \"' --extended-regexp"
             + " --pretty=format:'%H|%aI|%s'"
         ),
@@ -279,20 +370,21 @@ PYEOF
         exit 1
     fi
 
-    # Verify the requested branch exists locally (or as a remote-tracking ref).
-    # `git rev-parse --verify` returns 0 iff the ref resolves to an object.
-    # We check both the bare name and `refs/heads/<name>` so that a user who
-    # passes `--branch origin/main` is also accepted.
-    if ! git rev-parse --verify --quiet "${BRANCH}" >/dev/null 2>&1; then
-        log_json error branch_not_found branch "${BRANCH}" \
-            hint "ensure the branch exists locally or pass --branch origin/<name>"
-        exit 1
+    # When `--branch` was supplied as an override (REV_SCOPE != "--all"), verify
+    # the rev resolves. With the default `--all` we skip this check because git
+    # treats `--all` as a positional flag, not a ref.
+    if [[ "${REV_SCOPE}" != "--all" ]]; then
+        if ! git rev-parse --verify --quiet "${REV_SCOPE}" >/dev/null 2>&1; then
+            log_json error rev_not_found rev_scope "${REV_SCOPE}" \
+                hint "ensure the rev exists locally or pass --branch origin/<name>"
+            exit 1
+        fi
     fi
 
     log_json info script_started \
         run_id "${BLITZY_RUN_ID}" \
         run_id_source "${_run_id_source}" \
-        branch "${BRANCH}" \
+        rev_scope "${REV_SCOPE}" \
         commits_file "${COMMITS_FILE}" \
         candidates_file "${CANDIDATES_FILE}"
 
@@ -332,12 +424,15 @@ PYEOF
     local COMMITS_TMP="${COMMITS_FILE}.tmp"
     {
         echo 'sha|author_email|author_name|author_date|committer_email|committer_name|committer_date|parents|subject'
-        # The `git log` invocation is read-only. The trailing `printf '\n'`
-        # ensures the body terminates with a newline (git log --pretty=format
-        # omits the trailing newline by design, which would otherwise concat
-        # the last commit row directly to EOF without a line terminator and
-        # break standard line-counting tools like `wc -l`).
-        git log "${BRANCH}" --pretty=format:'%H|%aE|%aN|%aI|%cE|%cN|%cI|%P|%s'
+        # The `git log` invocation is read-only. Per AAP §0.5.3 and §0.6.2,
+        # default REV_SCOPE is `--all` so that commits on every ref (main,
+        # release/*, blitzy-* feature branches, all remote-tracking refs)
+        # are captured. The trailing `printf '\n'` ensures the body
+        # terminates with a newline (git log --pretty=format omits the
+        # trailing newline by design, which would otherwise concat the last
+        # commit row directly to EOF without a line terminator and break
+        # standard line-counting tools like `wc -l`).
+        git log "${REV_SCOPE}" --pretty=format:'%H|%aE|%aN|%aI|%cE|%cN|%cI|%P|%s'
         printf '\n'
     } > "${COMMITS_TMP}"
     mv "${COMMITS_TMP}" "${COMMITS_FILE}"
@@ -355,9 +450,47 @@ PYEOF
         COMMITS_COUNT=0
     fi
 
+    # -------------------------------------------------------------------------
+    # Commit-count sanity check: cross-verify the extracted row count against
+    # a freshly computed `git rev-list <REV_SCOPE> --count`. The two numbers
+    # MUST agree; a mismatch indicates either a streaming-write race, a
+    # `git log` filter inconsistency, or a commit-message containing a literal
+    # newline that was misclassified as a row separator. A mismatch is logged
+    # as a structured warning (NOT a hard failure) because:
+    #   - the expected size grows organically as the repo accumulates commits;
+    #   - the canonical reference value (538 body rows in this repo at the AAP
+    #     authorship timestamp) is informational, not a contract;
+    #   - downstream readers consume `data/commits.csv` directly and benefit
+    #     from a continued run even when the sanity number drifts.
+    # The structured event surfaces the discrepancy so the analyst can
+    # investigate.
+    # -------------------------------------------------------------------------
+    local EXPECTED_COMMITS_COUNT
+    EXPECTED_COMMITS_COUNT="$(
+        git rev-list "${REV_SCOPE}" --count 2>/dev/null \
+            || printf '0'
+    )"
+    if ! [[ "${EXPECTED_COMMITS_COUNT}" =~ ^[0-9]+$ ]]; then
+        EXPECTED_COMMITS_COUNT=0
+    fi
+    if [[ "${EXPECTED_COMMITS_COUNT}" -ne "${COMMITS_COUNT}" ]]; then
+        log_json warning commits_count_mismatch \
+            extracted_count "${COMMITS_COUNT}" \
+            expected_count "${EXPECTED_COMMITS_COUNT}" \
+            delta $((COMMITS_COUNT - EXPECTED_COMMITS_COUNT)) \
+            rev_scope "${REV_SCOPE}" \
+            hint "extracted row count differs from \`git rev-list ${REV_SCOPE} --count\`; check for newlines in commit messages or rev-scope drift"
+    else
+        log_json info commits_count_verified \
+            count "${COMMITS_COUNT}" \
+            expected_count "${EXPECTED_COMMITS_COUNT}" \
+            rev_scope "${REV_SCOPE}"
+    fi
+
     log_json info commits_extracted \
         count "${COMMITS_COUNT}" \
-        branch "${BRANCH}" \
+        expected_count "${EXPECTED_COMMITS_COUNT}" \
+        rev_scope "${REV_SCOPE}" \
         output "${COMMITS_FILE}"
 
     # -------------------------------------------------------------------------
@@ -388,10 +521,13 @@ PYEOF
         # Capture the body in a subshell so that an empty result (the common
         # case for this repo) does not write a stray newline before the
         # trailing printf. We use `printf '%s'` to avoid `echo`'s
-        # platform-dependent backslash handling.
+        # platform-dependent backslash handling. Per AAP §0.5.3 and §0.6.2,
+        # default REV_SCOPE is `--all` so that reverts on any ref are
+        # discovered and can be attributed to the release that contained
+        # the original commit (Metric 8).
         local _revert_body
         _revert_body="$(
-            git log "${BRANCH}" --grep='^Revert "' --extended-regexp \
+            git log "${REV_SCOPE}" --grep='^Revert "' --extended-regexp \
                 --pretty=format:'%H|%aI|%s' 2>/dev/null \
             || printf ''
         )"
@@ -414,7 +550,7 @@ PYEOF
 
     log_json info revert_candidates_extracted \
         count "${CANDIDATES_COUNT}" \
-        branch "${BRANCH}" \
+        rev_scope "${REV_SCOPE}" \
         output "${CANDIDATES_FILE}"
 
     # -------------------------------------------------------------------------
@@ -425,7 +561,7 @@ PYEOF
         revert_candidates_count "${CANDIDATES_COUNT}" \
         commits_file "${COMMITS_FILE}" \
         candidates_file "${CANDIDATES_FILE}" \
-        branch "${BRANCH}"
+        rev_scope "${REV_SCOPE}"
 }
 
 # -----------------------------------------------------------------------------

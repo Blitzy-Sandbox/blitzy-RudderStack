@@ -2,11 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://blitzy.io/acceleration-report/schemas/metrics.schema.json",
   "title": "Final Metric Values",
-  "description": "Output of 09_compute_metrics.py. The SINGLE SOURCE consumed by 10_render_report.py and 11_render_deck.py -- guarantees Rule 4 (Internal Consistency) by construction. The top-level object must contain EXACTLY the twelve keys m1..m12 -- additionalProperties: false enforces the user-prompt constraint 'MUST NOT add metrics beyond the 12 specified'. Each metric carries confidence, provenance, baseline plus either two-phase (post_introduction) or three-phase (ramp_up + steady_state) breakdowns.",
+  "description": "Output of 09_compute_metrics.py. The SINGLE SOURCE consumed by 10_render_report.py and 11_render_deck.py -- guarantees Rule 4 (Internal Consistency) by construction. The top-level object contains EXACTLY 13 keys: the reserved `_metadata` envelope plus the twelve metric keys m1..m12. The underscore prefix on `_metadata` distinguishes it lexically from the metric keys and signals that it carries renderer/provenance metadata rather than a measured value. `additionalProperties: false` enforces the user-prompt constraint 'MUST NOT add metrics beyond the 12 specified'. Each metric carries confidence, provenance, baseline plus either two-phase (post_introduction) or three-phase (ramp_up + steady_state) breakdowns.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10", "m11", "m12"],
+  "required": ["_metadata", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10", "m11", "m12"],
   "properties": {
+    "_metadata": {"$ref": "#/$defs/metadata"},
     "m1":  {"$ref": "#/$defs/metric"},
     "m2":  {"$ref": "#/$defs/metric"},
     "m3":  {"$ref": "#/$defs/metric"},
@@ -21,6 +22,53 @@
     "m12": {"$ref": "#/$defs/metric"}
   },
   "$defs": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Top-level envelope carrying the renderer/provenance metadata for the metrics.json file. Distinct from per-metric `provenance` blocks because the metadata here describes the document as a whole rather than any single metric. Read by both `10_render_report.py` and `11_render_deck.py` to populate the Executive Summary timestamps and the Reproducibility Appendix preamble.",
+      "required": ["schema_version", "run_id", "extraction_timestamp", "generated_by"],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "SemVer string identifying the metrics.json schema version this document conforms to (e.g., '1.0.0'). Renderers MUST refuse to render a document whose schema_version they do not understand."
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "description": "Per-run UUID4 correlation ID propagated from `00_environment.sh` via the `BLITZY_RUN_ID` environment variable. Joins every log line, every raw artifact, and the final report so a reviewer can trace any number back to the exact run that produced it (Rule 1: Data Provenance)."
+        },
+        "extraction_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "Wall-clock UTC timestamp captured at the moment `09_compute_metrics.py` wrote this file. Distinct from the per-source `fetched_at` timestamps that live in raw artifacts. Strict ISO-8601 Z-form (no fractional seconds, no offset) for renderer consistency."
+        },
+        "generated_by": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Script identifier that produced this file. Always 'scripts/09_compute_metrics.py' in the current pipeline; surfaced as a field so future replacements of the compute step are explicit in the artifact rather than implicit by convention."
+        },
+        "source_artifact_hashes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "description": "Optional map from source-artifact filename (relative to data/, e.g., 'pulls.json', 'commits.csv') to its SHA-256 hex digest captured at the moment `09_compute_metrics.py` read it. Lets the verifier confirm that the rendered report was derived from the exact data artifacts present at compute time. Empty object permitted when hashes were not captured."
+        },
+        "rudder_server_head_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "Optional 40-character SHA-1 hex of the analyzed repository's HEAD at the moment of extraction. Aids cross-referencing the report against the exact commit it describes."
+        },
+        "rudder_server_repo_slug": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?/[A-Za-z0-9._-]+$",
+          "description": "Optional 'owner/repo' slug of the analyzed repository (e.g., 'Blitzy-Sandbox/blitzy-RudderStack'). Surfaced in the report header so a reviewer who sees the rendered document knows which fork it describes."
+        }
+      }
+    },
     "isoDateTime": {
       "type": "string",
       "format": "date-time",

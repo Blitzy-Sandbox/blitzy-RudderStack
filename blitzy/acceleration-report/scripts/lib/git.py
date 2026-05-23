@@ -27,6 +27,13 @@ distinct invariants before any subprocess fork:
    ``git submodule update`` or ``git submodule add`` when the outer verb is
    allowed but the nested verb would mutate state.
 
+Violations of the allow-list / deny-list gate raise
+:class:`GitReadOnlyViolation`, a dedicated exception subclass of
+:class:`ValueError`. Subclassing :class:`ValueError` preserves backward
+compatibility with callers that catch :class:`ValueError` while letting
+new callers pattern-match the precise read-only contract violation. The
+exception is part of the module's public API (see :data:`__all__`).
+
 The single exception to this discipline is :func:`git_version`, which invokes
 ``git --version`` directly because ``--version`` is a top-level git flag and
 not a sub-command — the validator's allow-list contract cannot apply. The
@@ -37,12 +44,23 @@ Subprocess discipline
 ---------------------
 
 Every subprocess invocation uses ``subprocess.run(..., capture_output=True,
-text=True, check=False)``. Non-zero exit codes are surfaced as
-:class:`subprocess.CalledProcessError` by :func:`_run_git_checked` or by the
-specific public helpers that opt-in to that contract; callers that need exit
-codes as semantic information (notably :func:`git_merge_base_is_ancestor` and
-:func:`git_reflog`) call the unchecked :func:`_run_git` and inspect the
-:attr:`returncode` attribute directly.
+text=True, check=False)``. The unchecked :func:`_run_git` wrapper deliberately
+keeps ``check=False`` because two public helpers consume exit codes as
+semantic information rather than as success/failure:
+
+* :func:`git_merge_base_is_ancestor` — exit code ``0`` means "is ancestor",
+  exit code ``1`` means "is not ancestor", and any other exit code is a
+  failure. The helper inspects :attr:`returncode` directly and returns a
+  :class:`bool` rather than raising.
+* :func:`git_reflog` — exit code ``128`` with an ``"unknown revision"``
+  ``stderr`` is the documented "no reflog for this ref" outcome (typical
+  on freshly-cloned bare clones or remote-only refs). The helper returns
+  an empty list in that case rather than raising.
+
+Every other helper opts into the strict-success contract via
+:func:`_run_git_checked`, which raises :class:`subprocess.CalledProcessError`
+on any non-zero exit. New helpers SHOULD use :func:`_run_git_checked` unless
+they have a documented semantic reason to consume the exit code directly.
 
 Dependency surface
 ------------------
@@ -181,11 +199,13 @@ ALLOWED_SUBCOMMANDS: frozenset[str] = frozenset(
 )
 
 
-#: Public export surface. The list is alphabetical within each kind, with
-#: functions first and constants last. This is the contract consumed by the
-#: extraction scripts via ``from lib.git import ...`` (or equivalently
-#: ``from .git import ...`` when referenced as a package submodule).
+#: Public export surface. The list groups exports by kind: exception classes
+#: first, functions next (alphabetical within the group), constants last.
+#: This is the contract consumed by the extraction scripts via
+#: ``from lib.git import ...`` (or equivalently ``from .git import ...`` when
+#: referenced as a package submodule).
 __all__ = [
+    "GitReadOnlyViolation",
     "git_log",
     "git_revlist",
     "git_rev_parse",
@@ -208,6 +228,32 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
+class GitReadOnlyViolation(ValueError):
+    """Raised by :func:`_validate_command` when a git argv violates the gate.
+
+    This exception identifies a specific class of failure — an argument vector
+    that violates the read-only allow-list / deny-list contract enforced by
+    :func:`_validate_command`. Concrete violations include:
+
+    * an empty ``argv``,
+    * an ``argv[0]`` (outer sub-command) that is not in
+      :data:`ALLOWED_SUBCOMMANDS`,
+    * any token in ``argv`` that is in :data:`DENY_FLAGS`, or
+    * an ``argv[1]`` (nested sub-command) that is in :data:`DENY_SUBCOMMANDS`.
+
+    The class subclasses :class:`ValueError` for backward compatibility with
+    callers that broadly catch ``except ValueError`` (such legacy code
+    continues to work unchanged). Callers that need to distinguish a read-only
+    contract violation from any other ``ValueError`` can catch this exception
+    specifically.
+
+    Every error message produced by :func:`_validate_command` includes either
+    the substring ``"allow list"`` or ``"deny list"`` so message-based
+    matching also works for callers that prefer not to import the exception
+    type. The dedicated class is the preferred discriminator.
+    """
+
+
 def _validate_command(argv: Sequence[str]) -> None:
     """Apply the read-only allow-list / deny-list gate to a git argument vector.
 
@@ -219,7 +265,8 @@ def _validate_command(argv: Sequence[str]) -> None:
     * ``argv[1]`` (when present) is not a member of :data:`DENY_SUBCOMMANDS`.
 
     The function returns ``None`` if every invariant holds and raises
-    :class:`ValueError` otherwise. It performs no I/O.
+    :class:`GitReadOnlyViolation` (a :class:`ValueError` subclass) otherwise.
+    It performs no I/O.
 
     Args:
         argv: The git argument vector as it would be passed to
@@ -228,29 +275,34 @@ def _validate_command(argv: Sequence[str]) -> None:
             sub-command (e.g. ``"log"``, ``"rev-list"``).
 
     Raises:
-        ValueError: When ``argv`` is empty, when ``argv[0]`` is not in the
-            allow list, when any token is in :data:`DENY_FLAGS`, or when
-            ``argv[1]`` is in :data:`DENY_SUBCOMMANDS`. Every error message
-            contains either the substring ``"allow list"`` or ``"deny list"``
-            so callers can pattern-match without parsing positional detail.
+        GitReadOnlyViolation: When ``argv`` is empty, when ``argv[0]`` is not
+            in the allow list, when any token is in :data:`DENY_FLAGS`, or
+            when ``argv[1]`` is in :data:`DENY_SUBCOMMANDS`. The exception
+            subclasses :class:`ValueError`, so legacy callers that catch
+            :class:`ValueError` continue to work without modification. Every
+            error message contains either the substring ``"allow list"`` or
+            ``"deny list"`` so callers can pattern-match without parsing
+            positional detail.
     """
     if not argv:
-        raise ValueError("git argv must be non-empty")
+        raise GitReadOnlyViolation("git argv must be non-empty")
 
     subcommand = argv[0]
     if subcommand not in ALLOWED_SUBCOMMANDS:
-        raise ValueError(
+        raise GitReadOnlyViolation(
             f"git sub-command {subcommand!r} is not in the allow list"
         )
 
     for token in argv:
         if token in DENY_FLAGS:
-            raise ValueError(f"git flag {token!r} is in the deny list")
+            raise GitReadOnlyViolation(
+                f"git flag {token!r} is in the deny list"
+            )
 
     if len(argv) >= 2:
         nested = argv[1]
         if nested in DENY_SUBCOMMANDS:
-            raise ValueError(
+            raise GitReadOnlyViolation(
                 f"git nested sub-command {nested!r} is in the deny list"
             )
 
@@ -285,8 +337,10 @@ def _run_git(
         ``str`` (not ``bytes``) because ``text=True`` is passed.
 
     Raises:
-        ValueError: Propagated from :func:`_validate_command` when the
-            argument vector violates the allow-list or deny-list invariants.
+        GitReadOnlyViolation: Propagated from :func:`_validate_command` when
+            the argument vector violates the allow-list or deny-list
+            invariants. This is a :class:`ValueError` subclass, so callers
+            using ``except ValueError`` continue to work.
     """
     _validate_command(argv)
     return subprocess.run(
@@ -318,7 +372,9 @@ def _run_git_checked(
         The captured stdout of the subprocess as a ``str``.
 
     Raises:
-        ValueError: Propagated from :func:`_validate_command`.
+        GitReadOnlyViolation: Propagated from :func:`_validate_command`.
+            This is a :class:`ValueError` subclass, so callers using
+            ``except ValueError`` continue to work.
         subprocess.CalledProcessError: When ``git`` exits with a non-zero
             return code. The ``output`` attribute carries stdout and the
             ``stderr`` attribute carries stderr.
@@ -413,7 +469,9 @@ def git_log(
         matched no commits).
 
     Raises:
-        ValueError: When ``args`` contains a deny-list flag.
+        GitReadOnlyViolation: When ``args`` contains a deny-list flag
+            (subclass of :class:`ValueError`; legacy ``except ValueError``
+            still catches it).
         subprocess.CalledProcessError: When ``git log`` exits non-zero.
     """
     argv: list[str] = ["log", f"--pretty=format:{fmt}", *(args or [])]
@@ -445,7 +503,8 @@ def git_revlist(
         string.
 
     Raises:
-        ValueError: When ``args`` contains a deny-list flag.
+        GitReadOnlyViolation: When ``args`` contains a deny-list flag
+            (subclass of :class:`ValueError`).
         subprocess.CalledProcessError: When ``git rev-list`` exits non-zero.
     """
     argv: list[str] = ["rev-list", *args]
@@ -474,7 +533,8 @@ def git_rev_parse(
         The captured stdout with leading and trailing whitespace stripped.
 
     Raises:
-        ValueError: When ``args`` contains a deny-list flag.
+        GitReadOnlyViolation: When ``args`` contains a deny-list flag
+            (subclass of :class:`ValueError`).
         subprocess.CalledProcessError: When ``git rev-parse`` exits non-zero.
             Common causes include: the requested revision does not exist,
             the current working directory is not inside a git repository,
@@ -507,8 +567,9 @@ def git_rev_parse_toplevel(cwd: Path | None = None) -> Path | None:
         whitespace stripping.
 
     Raises:
-        ValueError: Should not occur in practice — the argument vector
-            constructed by this function is statically known to satisfy the
+        GitReadOnlyViolation: Should not occur in practice — the argument
+            vector constructed by this function is statically known to satisfy
+            the
             validator. The exception is documented for completeness so
             callers can pattern-match on it if needed.
     """
@@ -552,8 +613,9 @@ def git_for_each_ref(
         ref matched the pattern.
 
     Raises:
-        ValueError: When ``pattern`` or ``format`` is a deny-list flag (this
-            would be highly unusual but is enforced for completeness).
+        GitReadOnlyViolation: When ``pattern`` or ``format`` is a deny-list
+            flag (this would be highly unusual but is enforced for
+            completeness; subclass of :class:`ValueError`).
         subprocess.CalledProcessError: When ``git for-each-ref`` exits
             non-zero (typically because the pattern is syntactically
             invalid).
@@ -593,8 +655,9 @@ def git_merge_base_is_ancestor(
         code 0); ``False`` when it is not (git exit code 1).
 
     Raises:
-        ValueError: Cannot occur in practice — the argument vector is
-            statically known to satisfy the validator.
+        GitReadOnlyViolation: Cannot occur in practice — the argument vector
+            is statically known to satisfy the validator (subclass of
+            :class:`ValueError`).
         subprocess.CalledProcessError: When git exits with any code other
             than 0 or 1. The most common cause is an unresolvable
             revision name (for example a SHA that does not exist in the
@@ -641,8 +704,9 @@ def git_reflog(
         or empty; the two cases are not distinguished by this helper.
 
     Raises:
-        ValueError: Cannot occur in practice — the argument vector is
-            statically known to satisfy the validator.
+        GitReadOnlyViolation: Cannot occur in practice — the argument vector
+            is statically known to satisfy the validator (subclass of
+            :class:`ValueError`).
     """
     argv: list[str] = ["reflog", "show", ref]
     result = _run_git(argv, cwd=cwd)
@@ -681,8 +745,9 @@ def git_cat_file(
         and message lines.
 
     Raises:
-        ValueError: When ``kind`` is a deny-list flag (highly unusual but
-            enforced for completeness).
+        GitReadOnlyViolation: When ``kind`` is a deny-list flag (highly
+            unusual but enforced for completeness; subclass of
+            :class:`ValueError`).
         subprocess.CalledProcessError: When ``git cat-file`` exits non-zero
             (typically because the SHA is unknown to the local clone).
     """
@@ -714,7 +779,8 @@ def git_diff_shortstat(
         An empty string indicates no differences in the range.
 
     Raises:
-        ValueError: When ``rev_range`` is a deny-list flag.
+        GitReadOnlyViolation: When ``rev_range`` is a deny-list flag
+            (subclass of :class:`ValueError`).
         subprocess.CalledProcessError: When ``git diff`` exits non-zero
             (typically because the range cannot be resolved).
     """
@@ -746,8 +812,9 @@ def git_show_summary(
         above. Leading and trailing whitespace are stripped.
 
     Raises:
-        ValueError: Cannot occur in practice — the argument vector is
-            statically known to satisfy the validator.
+        GitReadOnlyViolation: Cannot occur in practice — the argument vector
+            is statically known to satisfy the validator (subclass of
+            :class:`ValueError`).
         subprocess.CalledProcessError: When ``git show`` exits non-zero
             (typically because the SHA is unknown).
     """

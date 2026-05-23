@@ -131,6 +131,87 @@ PYEOF
 }
 
 # -----------------------------------------------------------------------------
+# validate_output_path: reject paths that escape the workspace data/ directory
+#
+# Purpose: prevent path traversal via `..` segments and rejection of absolute
+# paths that resolve outside `${DATA_DIR}`. This honours the AAP §0.6.2
+# read-only / data-directory-only output contract for bash extraction scripts.
+#
+# Usage:  validate_output_path PATH ARG_NAME
+#         echoes the normalised absolute path on stdout when valid,
+#         writes an error to stderr and exits non-zero when not.
+#
+# Resolution rules:
+#   - Relative paths anchor to `${DATA_DIR}` (so `--output foo.json` means
+#     `${DATA_DIR}/foo.json`).
+#   - Absolute paths are accepted as-is for resolution but must still
+#     resolve under `${DATA_DIR}` after normalisation.
+#   - `..` segments are normalised by `os.path.realpath`; a path that
+#     resolves outside `${DATA_DIR}` is rejected with exit code 2.
+#   - Symlinks are resolved (`os.path.realpath`) before the boundary check
+#     so a symlink target outside `${DATA_DIR}` is also rejected.
+#   - The path itself must be a file path, not the data directory itself.
+# -----------------------------------------------------------------------------
+validate_output_path() {
+    BLITZY_PATH_CANDIDATE="${1:-}" \
+    BLITZY_PATH_DATA_DIR="${DATA_DIR}" \
+    BLITZY_PATH_ARG_NAME="${2:-output}" \
+    python3 - <<'PYEOF'
+import os
+import sys
+
+candidate = os.environ.get("BLITZY_PATH_CANDIDATE", "")
+data_dir = os.environ.get("BLITZY_PATH_DATA_DIR", "")
+arg = os.environ.get("BLITZY_PATH_ARG_NAME", "output")
+
+if not candidate:
+    sys.stderr.write(f"Error: {arg} requires a non-empty path argument\n")
+    sys.exit(2)
+
+# Relative paths anchor to the workspace data directory. Absolute paths
+# are accepted for resolution but must still land under data_dir.
+if os.path.isabs(candidate):
+    abs_candidate = candidate
+else:
+    abs_candidate = os.path.join(data_dir, candidate)
+
+# realpath resolves symlinks and normalises `..` and `.` segments.
+norm = os.path.realpath(abs_candidate)
+norm_data = os.path.realpath(data_dir)
+
+# Boundary check. commonpath raises ValueError when paths share no root
+# (e.g., different drives on Windows or one path is empty).
+try:
+    common = os.path.commonpath([norm, norm_data])
+except ValueError:
+    sys.stderr.write(
+        f"Error: {arg} path {candidate!r} resolves to {norm!r} which is "
+        f"not comparable to the workspace data directory {norm_data!r}.\n"
+    )
+    sys.exit(2)
+
+if common != norm_data:
+    sys.stderr.write(
+        f"Error: {arg} path {candidate!r} resolves to {norm!r} which is "
+        f"OUTSIDE the workspace data directory {norm_data!r}. The script's "
+        f"read-only contract requires all outputs to live under data/.\n"
+    )
+    sys.exit(2)
+
+# A file path is required; the directory itself is not a valid output.
+if norm == norm_data:
+    sys.stderr.write(
+        f"Error: {arg} path {candidate!r} resolves to the data directory "
+        f"itself ({norm_data!r}); expected a file path under it.\n"
+    )
+    sys.exit(2)
+
+# Emit the validated, normalised absolute path. Caller captures via $(...).
+sys.stdout.write(norm)
+PYEOF
+}
+
+# -----------------------------------------------------------------------------
 # main: Rule-6 environment extraction driver
 # -----------------------------------------------------------------------------
 main() {
@@ -148,7 +229,12 @@ main() {
                     echo "Error: --output requires a path argument" >&2
                     exit 2
                 fi
-                OUTPUT_FILE="$2"
+                # Reject paths that escape ${DATA_DIR}. The validator
+                # writes an error to stderr and exits non-zero if the
+                # candidate path is invalid; we propagate that via `||`.
+                if ! OUTPUT_FILE="$(validate_output_path "$2" "--output")"; then
+                    exit 2
+                fi
                 shift 2
                 ;;
             --help|-h)

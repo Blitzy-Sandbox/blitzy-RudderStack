@@ -118,7 +118,11 @@ A full rerun walkthrough — including offline-mode behaviour, rate-limit handli
 
 ## Rules & Quality Gates
 
-Six rules govern the report deliverable. Each is enforced mechanically by the renderer and re-checked by `make verify`:
+Two rule families govern the workspace. Each rule is enforced mechanically by the renderer or the workspace scaffolding and is re-checked by `make verify`.
+
+### User-Prompt Rules 1–6 (Reproducibility Framework — AAP §0.7.2)
+
+These six rules govern the content and form of the measurement report itself:
 
 1. **Rule 1 — Data Provenance**: every number traces to a command in `acceleration-report.md` §11 Reproducibility Appendix.
 2. **Rule 2 — Factual-Neutral Tone**: zero subjective qualifiers in the report body (blocklist enforced before write).
@@ -127,7 +131,17 @@ Six rules govern the report deliverable. Each is enforced mechanically by the re
 5. **Rule 5 — Reproducibility**: `make verify` re-runs all the rule checks; `make all` re-derives every number from scratch.
 6. **Rule 6 — Environment First**: §2 Environment Verification precedes all Metric Deep-Dives.
 
-Full rule text and enforcement detail live in the Agent Action Plan §0.7.2 and in [`decision-log.md`](./decision-log.md).
+### Engineering Rules (Workspace Quality Standards — AAP §0.7.1)
+
+These five rules govern how the workspace itself is built, documented, observed, and explained:
+
+1. **Observability** (AAP §0.7.1.1) — Structured JSON logging with per-run UUID4 correlation IDs (`BLITZY_RUN_ID`), a `--dry-run` readiness preflight on every script, a metrics surface (counters in stdout summary), and a dashboard template in `diagrams/extraction-pipeline.mmd`. See [`scripts/lib/observability.py`](./scripts/lib/observability.py).
+2. **Onboarding & Continued Development** (AAP §0.7.1.2) — Clean-machine rerun instructions live in [`onboarding/rerun-and-observability.md`](./onboarding/rerun-and-observability.md); suggested next investigations are tracked in [`decision-log.md`](./decision-log.md) §3.
+3. **Explainability** (AAP §0.7.1.3) — Every non-trivial decision is logged in [`decision-log.md`](./decision-log.md) with what was decided, alternatives, rationale, and risk. Rationale lives ONLY in the decision log; code comments do not duplicate it.
+4. **Visual Architecture Documentation** (AAP §0.7.1.4) — All diagrams use Mermaid. Sources under [`diagrams/`](./diagrams/) (data-source topology, temporal phases timeline, engineering-actor framing, acceleration curve, extraction pipeline). Each diagram has a title and legend; each is referenced by name in the report.
+5. **Executive Presentation** (AAP §0.7.1.5) — A single self-contained reveal.js HTML deck at [`executive-summary.html`](./executive-summary.html) covering scope, business value, architecture, risks, and onboarding for non-technical leadership.
+
+Full rule text and enforcement detail live in the Agent Action Plan §0.7.1 (engineering rules) and §0.7.2 (user-prompt rules), and in [`decision-log.md`](./decision-log.md).
 
 ---
 

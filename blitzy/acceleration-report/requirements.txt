@@ -1,11 +1,16 @@
 # Python dependency manifest for blitzy/acceleration-report/scripts/
 # Analysis environment only. Not consumed by rudder-server runtime, build, or CI.
 # Pinned versions per AAP §0.4.2 — match exactly for deterministic re-runs (Rule 5).
+#
+# Security-vetted pins (see decision-log.md DL-014):
+#   - requests==2.32.5 addresses CVE-2024-47081 and CVE-2026-25645 vs 2.32.3
+#   - jinja2==3.1.6 addresses CVE-2024-56201, CVE-2024-56326, and CVE-2025-27516 vs 3.1.4
+# All other pins remain at AAP §0.4.2 baseline; no known critical CVEs at review time.
 
-requests==2.32.3
+requests==2.32.5
 python-dateutil==2.9.0.post0
 tzdata==2024.2
 tabulate==0.9.0
-jinja2==3.1.4
+jinja2==3.1.6
 jsonschema==4.23.0
 gql==3.5.0

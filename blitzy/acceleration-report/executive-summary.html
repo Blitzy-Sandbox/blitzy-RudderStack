@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=1920, height=1080">
   <title>Development Acceleration Report — blitzy-RudderStack</title>
 
+  <!-- CDN-pinned third-party assets (reveal.js, Mermaid, Lucide, Google Fonts).
+       Subresource Integrity (SRI) `integrity=` attributes are intentionally NOT
+       set on these tags. See decision-log.md DL-013 for the full rationale and
+       residual-risk acceptance: the analysis environment cannot fetch the
+       assets to compute SHA-384 hashes offline at render time, the deck is
+       offline-by-design (opened in a controlled browser session, not exposed
+       as a public web property), and the pinned major.minor.patch versions
+       remove the silent-upgrade vector. Future hardening to either compute
+       SRI hashes when outbound HTTPS is available, or self-host the assets,
+       is tracked in decision-log.md §3 Suggested Next Investigations. -->
+
   <!-- reveal.js core CSS (CDN-pinned 5.1.0) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
   <!-- reveal.js theme reset; inline Blitzy CSS below overrides this -->
@@ -1208,6 +1219,7 @@ pie showData
   <!-- =====================================================================
        CDN-pinned libraries (exact versions required by AAP)
        reveal.js 5.1.0  &middot;  Mermaid 11.4.0  &middot;  Lucide 0.460.0
+       SRI hashes are intentionally omitted; see decision-log.md DL-013.
        ===================================================================== -->
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
