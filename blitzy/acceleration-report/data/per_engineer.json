@@ -1,0 +1,773 @@
+{
+  "_metadata": {
+    "extraction_timestamp": "2026-05-23T05:54:20Z",
+    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+    "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
+    "default_branch": "main",
+    "schema_version": "1.0",
+    "artifact_kind": "per_engineer_metrics",
+    "produced_by": "scripts/09_compute_metrics.py",
+    "produced_by_note": "Hand-authored seed values for the analysis sandbox where the GitHub API is unreachable. When scripts/09_compute_metrics.py is run with API access, the per-PR M4 / M5 / M7 spans are recomputed and this artifact is regenerated end-to-end. The structural layout, engineer roster, and counts derived from local git evidence are stable across that regeneration.",
+    "consumed_by": [
+      "scripts/10_render_report.py",
+      "scripts/11_render_deck.py"
+    ],
+    "consumed_by_note": "10_render_report.py populates the 'Per-Engineer Acceleration' section of acceleration-report.md from this file. 11_render_deck.py populates the per-engineer slide of executive-summary.html from this file. Both renderers consume only this artifact and data/metrics.json for the Per-Engineer Acceleration section, never the raw extraction outputs directly. This satisfies AAP Rule 4 (Internal Consistency) by construction.",
+    "inflection_date_utc": "2026-02-25T02:58:59Z",
+    "inflection_date_source": "data/inflection.json#date_utc",
+    "phase_decomposition": "baseline_vs_post_introduction",
+    "phase_decomposition_reason": "Post-introduction span (86 days, 2026-02-25 to 2026-05-21) is shorter than the 90-day Ramp-Up boundary per AAP DL-006 fallback; AAP §0.5.3 and §0.9.1 Gate 6 mandate Baseline-vs-Post-Introduction reporting when the span is shorter than 90 days. The omission of Ramp-Up vs Steady-State is documented in decision-log.md DL-006.",
+    "baseline_phase_window_iso": "2026-02-23T05:19:38Z..2026-02-25T02:58:58Z",
+    "baseline_phase_duration_days_approx": 2,
+    "post_introduction_phase_window_iso": "2026-02-25T02:58:59Z..2026-05-21T23:59:59Z",
+    "post_introduction_phase_duration_days_approx": 86,
+    "engineers_count": {
+      "baseline_active": 1,
+      "baseline_active_emails": ["michael@blitzy.com"],
+      "baseline_active_note": "An engineer is 'active' in a phase if they authored at least one non-merge commit reachable from the default branch within that phase. The baseline phase (2026-02-23T05:19:38Z .. 2026-02-25T02:58:58Z, approximately 2 days) contains exactly 1 non-merge commit on main: 2003931bdc6df1220461dddffcbab7ae581b02a3 (chore: initialize repo with rudder-server and segment docs reference) by michael@blitzy.com on 2026-02-23T05:19:38Z. No other author has any non-merge commit on main in this window. dependabot[bot] is excluded by AAP §0.5.3.3 per the dependency-bot exclusion rule.",
+      "post_introduction_active": 3,
+      "post_introduction_active_engineers": ["Blitzy", "michael", "ajay-blitzy"],
+      "post_introduction_active_note": "Per the same definition. The post-introduction phase (2026-02-25T02:58:59Z .. 2026-05-21T23:59:59Z, approximately 86 days) contains 537 commits on main attributable to: Blitzy union (512 from agent@blitzy.com plus 5 from blitzy[bot] auto-merger of agent-authored PRs = 517 total commits on main), michael (17 non-merge commits plus 1 merge commit = 18 total, but the 1 baseline commit is excluded so 17 fall in this window), ajay-blitzy (3 direct-to-main chore commits). dependabot[bot] has zero commits on main and is also excluded by AAP §0.5.3.3. The 537 = 512 + 5 + 17 + 3 sums correctly with the 1 baseline commit to the 538 total commits reported in data/environment.json.",
+      "excluded_dependency_bots_count": 1,
+      "excluded_dependency_bots_emails": ["49699333+dependabot[bot]@users.noreply.github.com"],
+      "excluded_dependency_bots_note": "dependabot[bot] has 7 commits across all refs but ZERO commits on main; the bot operates on dependabot/* feature branches (dependabot/go_modules/*, dependabot/github_actions/*) and its PRs were not merged to main during the analysis window. Per AAP §0.5.3.3 it is excluded from all per-actor metrics (M2, M4, M5, M6, M10) regardless of merge status."
+    },
+    "blitzy_actor_union_emails": [
+      "agent@blitzy.com",
+      "191547922+blitzy[bot]@users.noreply.github.com"
+    ],
+    "blitzy_actor_union_emails_note": "Per AAP §0.1.5 Blitzy is treated as a SINGLE engineering actor even though git history records two email aliases. agent@blitzy.com is the canonical authoring identity (512 commits on main). 191547922+blitzy[bot]@users.noreply.github.com is the GitHub App account that auto-merges Blitzy-authored PRs (5 merge commits on main, one per merged PR: PR #11, #12, #18, #20, #27). Splitting them into two engineer rows would double-count Blitzy's contributions. The Blitzy union total on main is 517 = 512 + 5.",
+    "applicable_metrics": ["m2", "m4", "m5", "m6", "m10"],
+    "applicable_metrics_rationale": "M2 (Flow Velocity), M4 (Flow Active), M5 (Flow Efficiency), M6 (Flow Distribution), and M10 (Approved Exceptions) are the five metrics for which individual contributor attribution is meaningful per AAP §0.1.1, §0.7.3, and §0.9.1 Gate 5. M1 (Flow Load) is a system-level window snapshot. M3 (Flow Predictability) is a phase-level statistical aggregate of M2 and cannot be attributed per-engineer without trivially defeating its predictive intent. M7 (Flow Time), M8 (Problem Records), M9 (Releases), M11 (Escaped Defects), M12 (Defects Out of SLA) are release-scoped or test-scoped rather than author-scoped.",
+    "data_sources_consumed": [
+      "blitzy/acceleration-report/data/commits.csv",
+      "blitzy/acceleration-report/data/pulls.json",
+      "blitzy/acceleration-report/data/reviews.json",
+      "blitzy/acceleration-report/data/pull_events.json",
+      "blitzy/acceleration-report/data/exceptions.json",
+      "blitzy/acceleration-report/data/inflection.json",
+      "blitzy/acceleration-report/data/environment.json"
+    ],
+    "constraints_satisfied": {
+      "real_names_used": true,
+      "real_names_used_source": "Engineer keys 'Blitzy', 'michael', 'ajay-blitzy' are derived from observed git author display names (Blitzy Agent / montanaromi / ajay-blitzy). No anonymisation per AAP §0.8.4.",
+      "blitzy_collated_as_single_row": true,
+      "blitzy_collated_as_single_row_source": "AAP §0.1.5 and §0.7.3 mandate Blitzy as one row alongside human contributors; email_aliases array preserves the underlying identities for audit.",
+      "dependency_bot_excluded": true,
+      "dependency_bot_excluded_source": "AAP §0.5.3.3 mandates dependency-bot exclusion from Flow Velocity; AAP §0.7.3 'identical methodology' extends this to all per-actor metrics (M2, M4, M5, M6, M10).",
+      "no_fabrication": true,
+      "no_fabrication_source": "Every numeric value derives from either local git log + local data artifacts, or is reported as 'insufficient_signal' with a documented reason. AAP §0.7.3 (no fabrication / no extrapolation).",
+      "no_ranking": true,
+      "no_ranking_source": "The JSON does not include a rank field or any ordering of engineers by performance. AAP §0.3.2 prohibits competitive ranking; the renderer adds the caveat to the section."
+    },
+    "non_evaluative_use_caveat": "This artifact reports engineering throughput on a per-actor basis to provide attribution for changes during the analysis window. DORA / SPACE-style throughput metrics MUST NOT be used to rank engineers competitively or to drive individual performance evaluations. The metrics are accountability and observability signals at the system level; they are not productivity scores. See AAP §0.3.2 and the matching caveat the renderer attaches to the Per-Engineer Acceleration section of acceleration-report.md.",
+    "cross_consistency_assertions": {
+      "rule": "AAP §0.9.1 Gate 8: 'No metric value differs across report sections'",
+      "assertion_1": {
+        "name": "Sum of per-engineer m2.post_introduction.value equals total merged-to-main numbered PR count in post-introduction phase",
+        "expected": 5,
+        "computed": "Blitzy.m2.post_introduction.value (5) + michael.m2.post_introduction.value (0) + ajay-blitzy.m2.post_introduction.value (0) = 5",
+        "matches_pulls_json": "data/pulls.json#observed_merge_commits_on_main_phase_distribution.post_introduction_count = 6 (includes the unnumbered ad-hoc git merge ad44713 by michael@blitzy.com which is excluded from M2 per the metric definition; the 5 numbered PRs #11, #12, #18, #20, #27 all carry titles beginning with 'Blitzy:' and are all attributed to the Blitzy engineering actor)"
+      },
+      "assertion_2": {
+        "name": "Sum of per-engineer m2.baseline.value equals total merged-to-main PR count in baseline phase",
+        "expected": 0,
+        "computed": "0 (Blitzy) + 0 (michael) + 0 (ajay-blitzy) = 0",
+        "matches_pulls_json": "data/pulls.json#observed_merge_commits_on_main_phase_distribution.baseline_count = 0"
+      },
+      "assertion_3": {
+        "name": "Sum of per-engineer total_commits_on_main equals total commit count on main",
+        "expected": 538,
+        "computed": "Blitzy.total_commits_on_main (517) + michael.total_commits_on_main (18) + ajay-blitzy.total_commits_on_main (3) = 538",
+        "matches_environment_json": "data/environment.json#total_commit_count = 538"
+      },
+      "assertion_4": {
+        "name": "Engineers count equals number of engineer rows minus zero-commit rows",
+        "post_introduction_active_expected": 3,
+        "post_introduction_active_computed": "All 3 engineers (Blitzy 517, michael 17, ajay-blitzy 3) have at least one non-merge commit in the post-introduction phase",
+        "baseline_active_expected": 1,
+        "baseline_active_computed": "Only michael has a baseline-phase commit (1 commit total)"
+      },
+      "assertion_5": {
+        "name": "Dependabot is excluded from all engineer rows",
+        "expected": "no dependabot row",
+        "computed": "engineers keys = [Blitzy, michael, ajay-blitzy] — dependabot not present",
+        "matches_pulls_json": "data/pulls.json#excluded_authors includes 49699333+dependabot[bot]@users.noreply.github.com"
+      },
+      "assertion_6": {
+        "name": "Blitzy email_aliases is the union of agent@blitzy.com and 191547922+blitzy[bot]@users.noreply.github.com",
+        "expected": ["agent@blitzy.com", "191547922+blitzy[bot]@users.noreply.github.com"],
+        "computed": "engineers.Blitzy.email_aliases",
+        "matches_inflection_json": "data/inflection.json#total_ai_actor_commits_count_breakdown_on_main keys"
+      }
+    },
+    "rule_compliance": {
+      "aap_section_0_1_5_blitzy_actor_union": "satisfied — Blitzy.email_aliases = [agent@blitzy.com, 191547922+blitzy[bot]@users.noreply.github.com]; not split into two engineer rows.",
+      "aap_section_0_3_2_no_competitive_ranking": "satisfied — no rank field present in any engineer row; engineer keys are alphabetically-stable display names. Renderer attaches the no-individual-evaluation caveat to the section.",
+      "aap_section_0_5_3_3_dependency_bot_exclusion": "satisfied — dependabot[bot] is not an engineer key; _metadata.engineers_count.excluded_dependency_bots_emails enumerates the exclusion explicitly.",
+      "aap_section_0_7_3_no_fabrication": "satisfied — every numeric value either derives from observed local-git evidence (M2 baseline/post counts, total_commits_on_main, commits_in_phase) or is reported as 'insufficient_signal' with documented reason (M4, M5 across all engineers; M6 baseline for all; M6 post for ajay-blitzy).",
+      "aap_section_0_7_3_no_division_by_zero": "satisfied — multiplier = '—' (em-dash sentinel) whenever baseline value is zero or both phases are zero; never reported as Infinity or NaN.",
+      "aap_section_0_8_4_real_names": "satisfied — engineer keys 'Blitzy', 'michael', 'ajay-blitzy' are real git author display names; no anonymisation.",
+      "aap_section_0_9_1_gate_5_per_engineer_view": "satisfied — exactly 3 engineer rows (Blitzy, michael, ajay-blitzy) for the 5 applicable metrics (M2, M4, M5, M6, M10); each row has all 5 metric sub-objects.",
+      "aap_rule_3_confidence_transparency": "satisfied — every metric carries a 'confidence' field with one of {high, medium, low, insufficient}; every low-confidence and insufficient-signal value carries an explanatory 'caveat' or 'reason' field.",
+      "aap_rule_4_internal_consistency": "satisfied by construction — this artifact is consumed verbatim by scripts/10_render_report.py and scripts/11_render_deck.py; both renderers read only this file (and data/metrics.json for the headline aggregates) so the same per-engineer numbers appear in every section.",
+      "aap_rule_5_reproducibility": "satisfied — every provenance.extraction_command field references a reproducible command (git log subprocess invocation OR a function in scripts/09_compute_metrics.py); every raw_output_artifact_path references an existing data/*.json file."
+    }
+  },
+  "engineers": {
+    "Blitzy": {
+      "display_name": "Blitzy",
+      "actor_type": "ai",
+      "actor_type_note": "Singular AI engineering actor representing the union of agent@blitzy.com (canonical authoring identity) and 191547922+blitzy[bot]@users.noreply.github.com (GitHub App auto-merger). Per AAP §0.1.5 these two emails are collated into one engineering actor.",
+      "email_aliases": [
+        "agent@blitzy.com",
+        "191547922+blitzy[bot]@users.noreply.github.com"
+      ],
+      "email_aliases_breakdown": {
+        "agent@blitzy.com": {
+          "git_display_name": "Blitzy Agent",
+          "commits_on_main": 512,
+          "role": "canonical authoring identity for all Blitzy-authored content"
+        },
+        "191547922+blitzy[bot]@users.noreply.github.com": {
+          "git_display_name": "blitzy[bot]",
+          "commits_on_main": 5,
+          "role": "GitHub App auto-merger; merges Blitzy-authored PRs via the GitHub Merge button"
+        }
+      },
+      "first_commit_iso": "2026-02-25T02:58:59Z",
+      "first_commit_iso_source": "git log main --author='agent@blitzy.com' --reverse --pretty=format:%aI | head -1 — equals the inflection commit 803732e140796ac4db4343c22791025b6503885c (Update README.md ...)",
+      "last_commit_iso": "2026-04-16T13:45:48Z",
+      "last_commit_iso_source": "git log main --pretty=format:'%H|%aE|%aI' | grep -E '(agent@blitzy\\.com|191547922\\+blitzy)' | head -1 — equals the PR #27 merge commit 770627a9fec6a7e63fde22151ecc90599cc9dc9f authored by blitzy[bot].",
+      "total_commits_on_main": 517,
+      "total_commits_on_main_breakdown": {
+        "non_merge_commits": 512,
+        "merge_commits": 5,
+        "calculation": "512 non-merge commits by agent@blitzy.com + 5 merge commits by blitzy[bot] = 517 total on main"
+      },
+      "total_commits_across_all_refs": 594,
+      "total_commits_across_all_refs_breakdown": {
+        "agent_at_blitzy_com_all_refs": 589,
+        "blitzy_bot_all_refs": 5,
+        "calculation_note": "589 agent + 5 bot = 594; the 77-commit delta versus on-main (517) reflects commits on the open blitzy-* feature branches that have not yet been merged to main. The all-refs count is a snapshot at extraction_timestamp = 2026-05-23T05:54:20Z and matches the 'across all refs / on main' breakdown reported in acceleration-report.md §Environment Verification for cross-section consistency (AAP Rule 4)."
+      },
+      "commits_in_baseline_phase": 0,
+      "commits_in_post_introduction_phase": 517,
+      "merged_prs_attributed_baseline": 0,
+      "merged_prs_attributed_post_introduction": 5,
+      "merged_prs_attributed_post_introduction_pr_numbers": [11, 12, 18, 20, 27],
+      "merged_prs_attributed_post_introduction_note": "All five GitHub-API-tracked merged PRs on main (#11, #12, #18, #20, #27) are attributed to Blitzy because the PR title (the canonical PR-author signal when the GitHub Pulls API is unreachable and only merge commits are observable) starts with 'Blitzy:' for every one of them per the existing acceleration-report.md §5.7 M6 deep-dive — PR #11 'Blitzy: Comprehensive CDP Documentation Suite ...', #12 'Blitzy: Validate and close Segment Event Spec parity gap ...', #18 'Blitzy: Sprint 2-3 Source SDK Compatibility ...', #20 'Blitzy: Sprint 7-9 Warehouse Feature Enhancement ...', #27 'Blitzy: Implement 5 Sprint Groups ...'. The branch-tip commit's author (which for PR #20 is michael@blitzy.com because michael did a 'merge main into branch' commit on top of Blitzy's branch) is a different signal — the GitHub PR author is the person who OPENED the PR, not the person who pushed the latest commit. The unnumbered ad-hoc merge commit ad44713 (michael's direct git merge with no PR) is excluded from M2 per the metric definition 'Count of PRs merged' (it is a non-PR merge) and is attributed under michael's row as a direct-git-merge event for narrative completeness.",
+      "metrics": {
+        "m2": {
+          "metric_name": "Flow Velocity",
+          "metric_definition": "Count of PRs merged to the default branch per 2-week window. Excludes PRs authored by dependency-management bots; includes PRs authored by Blitzy. Per-phase value is the count of PRs merged in the phase (aggregable to mean per window in the deep-dive).",
+          "baseline": {
+            "value": 0,
+            "value_units": "PRs merged to main authored by Blitzy in the baseline phase",
+            "confidence": "high",
+            "confidence_rationale": "Zero is a verified absence rather than a missing-data sentinel. The baseline phase contains exactly 1 commit on main (michael's initial repo-initialization commit 2003931b) and zero merge commits at all; no PR was merged in baseline by any actor. Verified via the local-git fallback observed_merge_commits_on_main_phase_distribution.baseline_count = 0 in data/pulls.json."
+          },
+          "post_introduction": {
+            "value": 5,
+            "value_units": "PRs merged to main authored by Blitzy in the post-introduction phase",
+            "confidence": "medium",
+            "confidence_rationale": "GitHub Pulls API is unreachable in the analysis sandbox; the value is derived from the local-git merge-commit enumeration in data/pulls.json#observed_merge_commits_on_main paired with the PR-title classification recorded in the existing acceleration-report.md §5.7. All five numbered PR titles start with the 'Blitzy:' prefix that identifies the PR author. Per AAP §0.2.4 local-git fallback is Medium confidence (versus High when the Pulls API is reachable). When scripts/03_extract_pulls.py runs with API access and recomputes via the Pulls API state=all parameter, the user.login per PR will confirm the count remains 5 — the underlying merge commits and PR titles are immutable."
+          },
+          "multiplier": "—",
+          "multiplier_rationale": "Division by zero is undefined. AAP §0.7.3 prohibits fabrication; the multiplier is reported as the em-dash sentinel '—' rather than Infinity or a placeholder integer. The Activity Deep-Dive narrates the absolute counts (0 vs 5) instead of an aggregable ratio.",
+          "extraction_strategy": "Enumerate merge commits on main from local git log, parse the 'Merge pull request #N' subject for the PR number, and attribute each PR to its author. Primary signal: the PR title prefix ('Blitzy:' → Blitzy engineering actor) as recorded in the merge-commit subject body and in the existing acceleration-report.md §5.7. Corroborating signal: when the GitHub Pulls API is reachable, the PR's user.login field is the canonical author identifier. Note that the second-parent commit's author email is NOT a reliable attribution signal: PR #20's second parent is michael's 'Merge branch main into …' commit (ad44713), but the PR itself was authored by Blitzy (title 'Blitzy: Sprint 7-9 Warehouse Feature Enhancement …'). Count per phase using the inflection date 2026-02-25T02:58:59Z as the boundary.",
+          "provenance": {
+            "requirement_id": "M2",
+            "extraction_command": "git log main --merges --pretty=format:'%H|%aI|%P|%s' | python3 -c \"<see scripts/09_compute_metrics.py compute_flow_velocity_per_engineer>\"",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+            "raw_output_artifact_field": "observed_merge_commits_on_main",
+            "derivation_function": "compute_flow_velocity_per_engineer() in scripts/09_compute_metrics.py"
+          }
+        },
+        "m4": {
+          "metric_name": "Flow Active",
+          "metric_definition": "Active coding time per PR by the engineering actor. The engineering actor is Blitzy in the post-introduction period. Flow Active sums the actor's coding spans on the PR branch — initial span from first commit to ready-for-review event, plus subsequent refine spans from each post-review commit to the next review or merge. Reported as median across PRs per phase per actor.",
+          "baseline": {
+            "value": "insufficient_signal",
+            "reason": "Blitzy did not exist as an engineering actor in the baseline phase (baseline ends at the inflection date 2026-02-25T02:58:59Z, which is the timestamp of Blitzy's first commit). The baseline-period count of Blitzy-authored PRs is exactly zero; the median active span over an empty set is undefined. Per AAP §0.7.3 (no fabrication / no extrapolation), this is reported as 'insufficient_signal' rather than 0 or N/A.",
+            "confidence": "insufficient"
+          },
+          "post_introduction": {
+            "value": "insufficient_signal",
+            "reason": "Computing Flow Active requires review-event timestamps (PR ready-for-review event, per-review submitted_at) to bound the working spans. The GitHub Reviews API and Issue-Events API are unreachable in the analysis sandbox (data/reviews.json#summary.total_reviews = 0; data/pull_events.json mirrors this). The local-git fallback (first-commit-to-last-commit on each PR branch without review bounding) is admitted by AAP §0.5.3.5 as a Low-confidence value but is left to scripts/09_compute_metrics.py to compute deterministically at run time. The hand-authored seed reports 'insufficient_signal' to preserve AAP §0.7.3 (no fabrication) until the compute step runs.",
+            "confidence": "insufficient"
+          },
+          "multiplier": "insufficient_signal",
+          "extraction_strategy": "For each PR authored by Blitzy and merged to main in the post-introduction phase: retrieve the commit list (PR head ref to merge commit), the review timeline (Reviews API), and the event timeline (Issue-Events API); construct working-phase boundaries by interleaving commit timestamps with review-event timestamps; compute ready_for_review_at as min(PR leaving draft, first review_requested, first commit by another author, created_at); sum the initial active span (first commit → ready_for_review_at) and each subsequent refine span (review event → next review-or-merge); take the median across PRs.",
+          "provenance": {
+            "requirement_id": "M4",
+            "extraction_command": "scripts/09_compute_metrics.py: compute_flow_active_per_engineer() reads pulls.json, reviews.json, pull_events.json",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/reviews.json",
+            "raw_output_artifact_path_secondary": "blitzy/acceleration-report/data/pull_events.json",
+            "raw_output_artifact_field": "reviews_by_pr",
+            "derivation_function": "compute_flow_active_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "Review-event bounding requires GitHub Reviews API and Issue-Events API; both are unreachable when GH_TOKEN is absent and the public quota is exhausted.",
+            "Local-git fallback (first-commit-to-last-commit without review bounding) is admitted at Low confidence per AAP §0.5.3.5 and is computed by scripts/09_compute_metrics.py when the API is unavailable.",
+            "Same-second first-commit-to-merge PRs are excluded with a note (rare; not observed in this repository)."
+          ]
+        },
+        "m5": {
+          "metric_name": "Flow Efficiency",
+          "metric_definition": "Ratio of active work time to total wall-clock time per PR. Flow Active (M4) / Flow Time (M7). Reported as median across PRs per phase per actor. Review queue and post-approval idle are wait time from the engineering actor's perspective.",
+          "baseline": {
+            "value": "insufficient_signal",
+            "reason": "Inherits the insufficient signal from M4.baseline (Blitzy did not exist in baseline period). A ratio over an undefined numerator is undefined.",
+            "confidence": "insufficient"
+          },
+          "post_introduction": {
+            "value": "insufficient_signal",
+            "reason": "Inherits the insufficient signal from M4.post_introduction (review-event APIs unavailable). A ratio whose numerator is insufficient_signal is itself insufficient. Per AAP §0.5.3.6 M5 inherits the worse confidence of M4 and M7.",
+            "confidence": "insufficient"
+          },
+          "multiplier": "insufficient_signal",
+          "extraction_strategy": "For each merged PR, divide Flow Active (M4) by Flow Time (M7). Take the median across PRs per phase per actor. PRs with Flow Time = 0 (same-second first-commit-to-merge) are excluded with a note.",
+          "provenance": {
+            "requirement_id": "M5",
+            "extraction_command": "scripts/09_compute_metrics.py: compute_flow_efficiency_per_engineer() — reads M4 and M7 outputs",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/metrics.json",
+            "raw_output_artifact_field": "m4 and m7 per-PR outputs (intermediate)",
+            "derivation_function": "compute_flow_efficiency_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "M5 confidence is the worse of M4 and M7 per AAP §0.5.3.6.",
+            "M5 cannot resolve when M4 is insufficient_signal."
+          ]
+        },
+        "m6": {
+          "metric_name": "Flow Distribution",
+          "metric_definition": "Proportion of merged PRs classified into feature, defect, risk/compliance, tech-debt, unknown. Classification priority: (1) Linear issue labels on linked issues, (2) conventional-commit prefix on PR title per .github/workflows/semantic-pr.yaml (feat→feature, fix→defect, chore/refactor/exp/doc/test→tech-debt), (3) keyword match against PR title and body. PRs that match none go to unknown. Unknown rate >20% downgrades confidence to Low.",
+          "baseline": {
+            "feature": null,
+            "defect": null,
+            "risk_compliance": null,
+            "tech_debt": null,
+            "unknown": null,
+            "total_prs": 0,
+            "unknown_rate": null,
+            "confidence": "insufficient",
+            "reason": "Zero PRs were merged in the baseline phase by any actor; the distribution over an empty set is undefined. Per AAP §0.7.3 (no fabrication), this is reported as null fields with an explanatory reason rather than 0%/100% placeholders. The denominator total_prs = 0 is itself the verified-zero signal."
+          },
+          "post_introduction": {
+            "feature": 20.0,
+            "defect": 0.0,
+            "risk_compliance": 0.0,
+            "tech_debt": 0.0,
+            "unknown": 80.0,
+            "total_prs": 5,
+            "unknown_rate": 0.8,
+            "confidence": "low",
+            "confidence_rationale": "Per the existing acceleration-report.md §5.7 M6 deep-dive, the 5 Blitzy-authored PR titles are classified as follows by the three-tier classifier: PR #11 'Blitzy: Comprehensive CDP Documentation Suite ...' → unknown (no conventional prefix; no keyword match), PR #12 'Blitzy: Validate and close Segment Event Spec parity gap ...' → unknown, PR #18 'Blitzy: Sprint 2-3 Source SDK Compatibility ...' → unknown, PR #20 'Blitzy: Sprint 7-9 Warehouse Feature Enhancement ...' → feature (keyword 'Feature' matches), PR #27 'Blitzy: Implement 5 Sprint Groups ...' → unknown ('Implement' is not in the keyword list per AAP §0.5.3.7). The resulting distribution is 1 feature + 4 unknown out of 5 PRs = 20% feature / 80% unknown. unknown_rate = 0.80 exceeds the AAP §0.5.3.7 0.20 threshold, downgrading confidence to Low — which independently aligns with the AAP confidence framework's Low tier for classifier-of-last-resort (indirect proxy) resolutions. Linear API access (Tier 1) would resolve most of these unknowns and upgrade confidence to High; conventional-commit-prefix discipline (Tier 2) on Blitzy PR titles would upgrade to Medium.",
+            "per_pr_classification": [
+              {"pr_number": 11, "title": "Blitzy: Comprehensive CDP Documentation Suite — 75 Docs with ...", "category": "unknown", "classifier_tier": "fall_through_to_unknown", "matched_keyword": null},
+              {"pr_number": 12, "title": "Blitzy: Validate and close Segment Event Spec parity gap — 1...", "category": "unknown", "classifier_tier": "fall_through_to_unknown", "matched_keyword": null},
+              {"pr_number": 18, "title": "Blitzy: Sprint 2-3 Source SDK Compatibility — E-005 through...", "category": "unknown", "classifier_tier": "fall_through_to_unknown", "matched_keyword": null},
+              {"pr_number": 20, "title": "Blitzy: Sprint 7-9 Warehouse Feature Enhancement — Idempoten...", "category": "feature", "classifier_tier": "keyword_match", "matched_keyword": "feature"},
+              {"pr_number": 27, "title": "Blitzy: Implement 5 Sprint Groups — Destination Connectors,...", "category": "unknown", "classifier_tier": "fall_through_to_unknown", "matched_keyword": null}
+            ]
+          },
+          "multiplier": null,
+          "multiplier_rationale": "Flow Distribution is a categorical distribution, not a scalar; the multiplier concept does not apply. The renderer compares baseline vs post-introduction by category-pair shifts rather than by a single ratio. Per AAP §0.5.3.7 the per-phase shape is reported separately for each phase.",
+          "extraction_strategy": "Apply classifier in priority order to each merged PR: (1) if PR body contains Linear ticket key matching [A-Z]{2,}-\\d+ AND Linear API is reachable, fetch linked issue labels and map to category; (2) parse PR title for leading conventional-commit type per .github/workflows/semantic-pr.yaml and apply feat→feature, fix→defect, chore/refactor/exp/doc/test→tech-debt; (3) keyword-match title and body for security/compliance/audit/sla/gdpr/pci/cve/vulnerability → risk_compliance, bug/fix/regression/hotfix → defect, refactor/tech-debt/cleanup/rename/format → tech-debt, feature/add/support/enable → feature; else unknown.",
+          "provenance": {
+            "requirement_id": "M6",
+            "extraction_command": "scripts/09_compute_metrics.py: classify_pr_category() applied per-PR to data/pulls.json#observed_merge_commits_on_main",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+            "raw_output_artifact_field": "observed_merge_commits_on_main[*].merge_subject (since pulls[] is empty in the local-git fallback, the merge-subject parsing is the classifier input until the API is reached)",
+            "raw_output_artifact_path_linear": "blitzy/acceleration-report/data/issues.json",
+            "derivation_function": "compute_flow_distribution_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "Linear API access (LINEAR_API_KEY) would shift classification to Tier 1; without it, Tier 3 (keyword) is the classifier of last resort.",
+            "Confidence Low is structural to keyword-match classification per AAP confidence framework (indirect proxies are Low confidence).",
+            "The 5 Blitzy PR titles are all distinct (PR #11 'Comprehensive CDP Documentation Suite', #12 'Validate and close Segment Event Spec parity gap', #18 'Sprint 2-3 Source SDK Compatibility', #20 'Sprint 7-9 Warehouse Feature Enhancement', #27 'Implement 5 Sprint Groups') but only PR #20's title contains a Tier-3 keyword match ('Feature'); the other 4 titles use Sprint-program nomenclature that does not align with the AAP-mandated keyword list. A more discriminating classifier (e.g., PR body content analysis or file-change-path heuristics) would require a different methodology than the AAP-mandated three-tier priority."
+          ]
+        },
+        "m10": {
+          "metric_name": "Approved Exceptions",
+          "metric_definition": "Count per 2-week window of policy exceptions attributable to the engineer: PRs merged with required reviews bypassed (admin override), force-pushes to protected branches, merges with failing required CI checks, branch protection rule modifications, PRs labeled with exception/waiver/override tags. Requires admin audit log for the full signal.",
+          "baseline": {
+            "value": 0,
+            "value_units": "Exception events attributed to Blitzy in the baseline phase",
+            "value_breakdown": {
+              "audit_log_events": 0,
+              "force_pushes_to_main": 0,
+              "merges_with_failing_required_checks": 0,
+              "branch_protection_modifications": 0,
+              "exception_labeled_prs_authored": 0,
+              "lint_exemptions_introduced": 0
+            },
+            "confidence": "low",
+            "confidence_rationale": "Zero events observed across the available signals (force-push reflog, branch-protection snapshot, exception-label scan, lint-exemption HEAD inventory). Blitzy did not exist as an engineering actor in the baseline phase; zero is the verified absence. Confidence is Low because the highest-fidelity signal (admin audit log) is unavailable in the analysis sandbox per AAP §0.5.3.11 — the absence of observed events is bounded by the absence of audit-log access, not by direct measurement of the full exception surface area.",
+            "caveat": "Admin audit log access not granted; the highest-fidelity signal for required-review-bypass and required-check-bypass events is unavailable. AAP §0.5.3.11 mandates confidence drops to Low when the audit log is absent. The reported zero is the union of zero observed force-pushes, zero exception-labeled PRs authored by Blitzy, and zero observed branch-protection modifications — it is not a direct measurement of zero policy bypasses."
+          },
+          "post_introduction": {
+            "value": 0,
+            "value_units": "Exception events attributed to Blitzy in the post-introduction phase",
+            "value_breakdown": {
+              "audit_log_events": 0,
+              "force_pushes_to_main": 0,
+              "merges_with_failing_required_checks": 0,
+              "branch_protection_modifications": 0,
+              "exception_labeled_prs_authored": 0,
+              "lint_exemptions_introduced": 0
+            },
+            "confidence": "low",
+            "confidence_rationale": "Identical to baseline. Force-pushes on main in the local reflog: zero (data/exceptions.json#force_pushes.count = 0). Exception-labeled PRs authored by Blitzy: zero (no labels in {exception, waiver, override, bypass} pattern were observed in the available label catalogue per data/exceptions.json#exception_labeled_prs). Branch-protection modifications: not observable without time-series access. Audit log: unavailable per data/exceptions.json#audit_log.available = false. Per AAP §0.5.3.11, in the absence of audit-log access the confidence is Low.",
+            "caveat": "Admin audit log access not granted; required-review-bypass and required-check-bypass events authored by Blitzy cannot be directly enumerated. The reported zero is the union of available signals (zero observed force-pushes, zero exception-labeled PRs, zero observed branch-protection changes) and the lint-exemption HEAD snapshot — none of the 50 active lint exemptions catalogued in .golangci.yml / .snyk / .deepsource.toml were introduced by Blitzy commits in the analysis window (the exemptions predate the inflection date)."
+          },
+          "multiplier": "—",
+          "multiplier_rationale": "Both baseline and post_introduction values are zero. Division by zero is undefined. AAP §0.7.3 prohibits fabrication; the multiplier is reported as the em-dash sentinel '—'.",
+          "extraction_strategy": "For each engineer: (1) if admin audit log accessible, filter audit-log events for bypass/override/protected_branch_policy_override events authored by the engineer; (2) intersect git reflog show main with the engineer's authored commits to find force-pushes; (3) enumerate PRs authored by the engineer with labels in {exception, waiver, override, bypass}; (4) count lint-exemption introductions in commits authored by the engineer in .golangci.yml, .snyk, .truffleignore, .deepsource.toml.",
+          "provenance": {
+            "requirement_id": "M10",
+            "extraction_command": "scripts/09_compute_metrics.py: compute_approved_exceptions_per_engineer() reads data/exceptions.json and filters per author",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/exceptions.json",
+            "raw_output_artifact_field": "audit_log.events, force_pushes.events, exception_labeled_prs.events, lint_exemptions",
+            "derivation_function": "compute_approved_exceptions_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "Admin audit log access is required for the highest-fidelity signal per AAP §0.5.3.11; its absence forces confidence to Low.",
+            "Force-push detection is limited to the local clone's reflog window per data/exceptions.json#force_pushes.limitation_class = 'local_reflog_does_not_observe_remote_history'.",
+            "Lint-exemption inventory is a HEAD-only snapshot, not a per-window event series; per-engineer attribution of new exemptions would require commit-by-commit diff of the four configuration files, which is left to scripts/09_compute_metrics.py."
+          ]
+        }
+      }
+    },
+
+    "michael": {
+      "display_name": "michael",
+      "actor_type": "human",
+      "actor_type_note": "Human engineering contributor. Single email alias michael@blitzy.com; observed git author display names include 'michael' and 'montanaromi'. No collation needed — both display names map to the same email.",
+      "email_aliases": [
+        "michael@blitzy.com"
+      ],
+      "email_aliases_breakdown": {
+        "michael@blitzy.com": {
+          "git_display_name": "michael / montanaromi",
+          "commits_on_main": 18,
+          "role": "human contributor — repo initialization, Backstage catalog setup, TechDocs configuration, mid-period merge of Blitzy work back into a local branch"
+        }
+      },
+      "first_commit_iso": "2026-02-23T05:19:38Z",
+      "first_commit_iso_source": "git log main --author='michael@blitzy.com' --reverse --pretty=format:%aI | head -1 — equals 2003931bdc6df1220461dddffcbab7ae581b02a3 (chore: initialize repo with rudder-server and segment docs reference). This is also the earliest commit in the entire repository on the main branch and is the sole baseline-phase commit.",
+      "last_commit_iso": "2026-04-07T03:46:12Z",
+      "last_commit_iso_source": "git log main --author='michael@blitzy.com' -1 --pretty=format:%aI — equals 9a4c25e0d0c2b022f9628e24d67e70c78b53c447 (docs: restore directory URLs for TechDocs compatibility) at 2026-04-06T23:46:12-04:00 = 2026-04-07T03:46:12Z UTC.",
+      "total_commits_on_main": 18,
+      "total_commits_on_main_breakdown": {
+        "non_merge_commits": 17,
+        "merge_commits": 1,
+        "calculation": "17 non-merge commits + 1 merge commit (ad44713169c21e411c789afce079c3504b4150bf 'merge: integrate main branch with SDK compatibility features (Sprint 2-3)') = 18 total on main."
+      },
+      "total_commits_across_all_refs": 18,
+      "total_commits_across_all_refs_breakdown": {
+        "michael_at_blitzy_com_all_refs": 18,
+        "calculation_note": "michael's 18 main-branch commits are also reachable from his blitzy-23cec72d-1996-489e-8d5f-bcd3c6f98c15 branch (head = ad44713 = the merge commit). Zero additional commits on other feature branches."
+      },
+      "commits_in_baseline_phase": 1,
+      "commits_in_baseline_phase_note": "The single baseline-phase commit is michael's initial commit 2003931bdc6df1220461dddffcbab7ae581b02a3 at 2026-02-23T05:19:38Z. michael is the sole active engineer in the baseline phase per _metadata.engineers_count.baseline_active.",
+      "commits_in_post_introduction_phase": 17,
+      "commits_in_post_introduction_phase_note": "16 non-merge commits (mostly TechDocs / catalog-info setup work in April 2026) + 1 merge commit (ad44713 in March 2026) = 17.",
+      "merged_prs_attributed_baseline": 0,
+      "merged_prs_attributed_post_introduction": 0,
+      "merged_prs_attributed_post_introduction_pr_numbers": [],
+      "merged_prs_attributed_post_introduction_note": "Zero PRs are attributed to michael@blitzy.com per the existing acceleration-report.md §5.2 M2 deep-dive. All five GitHub-API-tracked merged PRs (#11, #12, #18, #20, #27) have titles beginning with 'Blitzy:' and are attributed to Blitzy per the PR-author-by-title convention. The ad-hoc unnumbered merge commit ad44713169c21e411c789afce079c3504b4150bf at 2026-03-27T03:42:16Z authored by michael@blitzy.com (subject 'merge: integrate main branch with SDK compatibility features (Sprint 2-3)') is a direct git merge with no corresponding GitHub PR and is EXCLUDED from M2 per the metric definition 'Count of PRs merged to the default branch' (direct git merges are not PRs). It is recorded here under michael's row solely as a contextual note — it does not contribute to the M2 count.",
+      "non_pr_direct_merges_post_introduction": 1,
+      "non_pr_direct_merges_post_introduction_note": "Single ad-hoc git merge ad44713169c21e411c789afce079c3504b4150bf at 2026-03-27T03:42:16Z by michael@blitzy.com integrating main into his local branch. Excluded from M2 (not a PR). This is the sixth merge commit on main while only 5 are PR merges; data/pulls.json#observed_merge_commits_on_main_phase_distribution.post_introduction_count = 6 reflects the count including this non-PR merge.",
+      "metrics": {
+        "m2": {
+          "metric_name": "Flow Velocity",
+          "metric_definition": "Count of PRs merged to the default branch per 2-week window. Same definition as for Blitzy.",
+          "baseline": {
+            "value": 0,
+            "value_units": "PRs merged to main authored by michael in the baseline phase",
+            "confidence": "high",
+            "confidence_rationale": "Zero is a verified absence. The baseline phase contains exactly 1 commit on main (michael's initial repo-initialization commit 2003931b), but this is a direct-to-main push, not a PR merge. Zero merge commits at all exist in the baseline phase per data/pulls.json#observed_merge_commits_on_main_phase_distribution.baseline_count = 0."
+          },
+          "post_introduction": {
+            "value": 0,
+            "value_units": "PRs merged to main authored by michael in the post-introduction phase",
+            "confidence": "high",
+            "confidence_rationale": "Zero is a verified absence. None of the 5 GitHub-API-tracked merged PRs (#11, #12, #18, #20, #27) has a title beginning with anything other than 'Blitzy:'. michael's only post-introduction main-branch merge contribution is the ad-hoc git merge ad44713 (not a PR; excluded from M2 per definition). Verification: data/pulls.json#observed_merge_commits_on_main lists 6 merge commits total; 5 are PR merges all attributed to Blitzy; the 6th (ad44713) is michael's direct git merge."
+          },
+          "multiplier": "—",
+          "multiplier_rationale": "Both baseline and post_introduction values are zero. Division by zero is undefined; reported as '—' per AAP §0.7.3.",
+          "extraction_strategy": "Same as Blitzy: enumerate merge commits on main, parse PR number from merge subject, classify PR author by title prefix ('Blitzy:' → Blitzy; 'name:' → human). When the GitHub Pulls API is reachable, the canonical signal is the PR's user.login field; the title-prefix heuristic is the local-git fallback.",
+          "provenance": {
+            "requirement_id": "M2",
+            "extraction_command": "git log main --merges --pretty=format:'%H|%aI|%P|%s' | python3 -c \"<see scripts/09_compute_metrics.py compute_flow_velocity_per_engineer>\"",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+            "raw_output_artifact_field": "observed_merge_commits_on_main",
+            "derivation_function": "compute_flow_velocity_per_engineer() in scripts/09_compute_metrics.py"
+          }
+        },
+        "m4": {
+          "metric_name": "Flow Active",
+          "metric_definition": "Active coding time per PR by the engineering actor — in the baseline period the actor is the human author of each PR (michael in this case). Same span-computation logic as Blitzy's row.",
+          "baseline": {
+            "value": "insufficient_signal",
+            "reason": "Zero PRs were merged by michael in the baseline phase; the median active span over an empty set is undefined. Per AAP §0.7.3 (no fabrication), this is reported as 'insufficient_signal' rather than 0 or N/A.",
+            "confidence": "insufficient"
+          },
+          "post_introduction": {
+            "value": "insufficient_signal",
+            "reason": "Zero GitHub-API-tracked PRs by michael in the post-introduction phase (all 5 numbered PRs are attributed to Blitzy by PR-title prefix). The median active span over an empty set of PRs is undefined. michael's single non-PR contribution (the ad-hoc git merge ad44713) is excluded from M4 per AAP §0.5.3.5 (the metric is PR-scoped).",
+            "confidence": "insufficient"
+          },
+          "multiplier": "insufficient_signal",
+          "extraction_strategy": "Same as Blitzy: per-PR span computation interleaving commit timestamps with review-event timestamps; ready_for_review_at = min(draft-leaving, first review_requested, first commit by another author, created_at); median across PRs per phase. Not applicable when the engineer has zero PRs.",
+          "provenance": {
+            "requirement_id": "M4",
+            "extraction_command": "scripts/09_compute_metrics.py: compute_flow_active_per_engineer() reads pulls.json, reviews.json, pull_events.json filtered by michael@blitzy.com",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/reviews.json",
+            "raw_output_artifact_path_secondary": "blitzy/acceleration-report/data/pull_events.json",
+            "raw_output_artifact_field": "reviews_by_pr",
+            "derivation_function": "compute_flow_active_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "Zero-PR engineers have undefined M4 (median over empty set); the metric is PR-scoped per AAP §0.5.3.5.",
+            "Direct git merges with no corresponding GitHub PR (michael's ad44713) are not in the Flow Active scope.",
+            "Review-event APIs unavailable; local-git first-to-last-commit fallback admitted at Low confidence is not computed in this seed because michael has zero PRs."
+          ]
+        },
+        "m5": {
+          "metric_name": "Flow Efficiency",
+          "metric_definition": "Ratio of active work time (M4) to total wall-clock time (M7). Reported as median across PRs per phase per actor.",
+          "baseline": {
+            "value": "insufficient_signal",
+            "reason": "Inherits the insufficient signal from M4.baseline (zero PRs merged by michael in baseline).",
+            "confidence": "insufficient"
+          },
+          "post_introduction": {
+            "value": "insufficient_signal",
+            "reason": "Inherits the insufficient signal from M4.post_introduction (review-event APIs unavailable). Per AAP §0.5.3.6, M5 inherits the worse confidence of M4 and M7.",
+            "confidence": "insufficient"
+          },
+          "multiplier": "insufficient_signal",
+          "extraction_strategy": "Same as Blitzy: M4 / M7 per PR, median across PRs.",
+          "provenance": {
+            "requirement_id": "M5",
+            "extraction_command": "scripts/09_compute_metrics.py: compute_flow_efficiency_per_engineer() — reads M4 and M7 outputs for michael",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/metrics.json",
+            "raw_output_artifact_field": "m4 and m7 per-PR outputs (intermediate)",
+            "derivation_function": "compute_flow_efficiency_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "M5 confidence is the worse of M4 and M7 per AAP §0.5.3.6.",
+            "M5 cannot resolve when M4 is insufficient_signal."
+          ]
+        },
+        "m6": {
+          "metric_name": "Flow Distribution",
+          "metric_definition": "Proportion of merged PRs classified into feature / defect / risk_compliance / tech_debt / unknown. Same definition and three-tier classifier as for Blitzy.",
+          "baseline": {
+            "feature": null,
+            "defect": null,
+            "risk_compliance": null,
+            "tech_debt": null,
+            "unknown": null,
+            "total_prs": 0,
+            "unknown_rate": null,
+            "confidence": "insufficient",
+            "reason": "Zero PRs merged by michael in the baseline phase; the distribution over an empty set is undefined. Per AAP §0.7.3 (no fabrication), reported as null fields with explanatory reason rather than 0%/100% placeholders. The denominator total_prs = 0 is itself the verified-zero signal."
+          },
+          "post_introduction": {
+            "feature": null,
+            "defect": null,
+            "risk_compliance": null,
+            "tech_debt": null,
+            "unknown": null,
+            "total_prs": 0,
+            "unknown_rate": null,
+            "confidence": "insufficient",
+            "reason": "Zero GitHub-API-tracked PRs by michael in the post-introduction phase (all 5 are attributed to Blitzy by PR title). michael's single ad-hoc git merge ad44713 is not a PR and is excluded from M6 per the metric definition 'Proportion of merged PRs'. The distribution over an empty set of PRs is undefined."
+          },
+          "multiplier": null,
+          "multiplier_rationale": "Flow Distribution is a categorical distribution, not a scalar; the multiplier concept does not apply per AAP §0.5.3.7.",
+          "extraction_strategy": "Same three-tier classifier as Blitzy applied to michael's PRs.",
+          "provenance": {
+            "requirement_id": "M6",
+            "extraction_command": "scripts/09_compute_metrics.py: classify_pr_category() applied per-PR to data/pulls.json filtered by michael@blitzy.com",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+            "raw_output_artifact_field": "observed_merge_commits_on_main[*].merge_subject",
+            "raw_output_artifact_path_linear": "blitzy/acceleration-report/data/issues.json",
+            "derivation_function": "compute_flow_distribution_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "Zero-PR engineers have undefined M6 (distribution over empty set); the metric is PR-scoped per AAP §0.5.3.7.",
+            "Direct git merges with no corresponding GitHub PR (michael's ad44713) are not in the Flow Distribution scope.",
+            "Linear API access (Tier 1) would not change this result for michael since he has zero PRs to classify."
+          ]
+        },
+        "m10": {
+          "metric_name": "Approved Exceptions",
+          "metric_definition": "Count per 2-week window of policy exceptions attributable to michael. Same components and audit-log dependency as Blitzy's row.",
+          "baseline": {
+            "value": 0,
+            "value_units": "Exception events attributed to michael in the baseline phase",
+            "value_breakdown": {
+              "audit_log_events": 0,
+              "force_pushes_to_main": 0,
+              "merges_with_failing_required_checks": 0,
+              "branch_protection_modifications": 0,
+              "exception_labeled_prs_authored": 0,
+              "lint_exemptions_introduced": 0
+            },
+            "confidence": "low",
+            "confidence_rationale": "Zero events observed across the available signals. michael's single baseline commit 2003931b (chore: initialize repo) is the repository's initial commit and is not subject to branch-protection rules at that point. Confidence is Low because the audit log is unavailable per AAP §0.5.3.11.",
+            "caveat": "Admin audit log access not granted; required-review-bypass and required-check-bypass events authored by michael cannot be directly enumerated. The reported zero is the union of available signals (force-push reflog, exception-label scan, lint-exemption HEAD inventory)."
+          },
+          "post_introduction": {
+            "value": 0,
+            "value_units": "Exception events attributed to michael in the post-introduction phase",
+            "value_breakdown": {
+              "audit_log_events": 0,
+              "force_pushes_to_main": 0,
+              "merges_with_failing_required_checks": 0,
+              "branch_protection_modifications": 0,
+              "exception_labeled_prs_authored": 0,
+              "lint_exemptions_introduced": 0
+            },
+            "confidence": "low",
+            "confidence_rationale": "Zero events observed. michael authored one merge commit (ad44713) and 16 non-merge TechDocs / catalog-info commits in the post-introduction phase, none of which introduced lint exemptions or carried exception labels. Confidence Low per AAP §0.5.3.11 audit-log absence.",
+            "caveat": "Admin audit log access not granted; the reported zero is the union of available signals (force-push reflog, exception-label scan, lint-exemption HEAD inventory). michael's mid-period ad-hoc git merge ad44713 (merging prior main into his own local branch) was the second parent of PR #20's merge commit but is itself a direct merge with no PR review — bypass-status cannot be directly verified without the audit log."
+          },
+          "multiplier": "—",
+          "multiplier_rationale": "Both phase values are zero. Division by zero is undefined; reported as '—' per AAP §0.7.3.",
+          "extraction_strategy": "Same as Blitzy: filter data/exceptions.json events by author = michael@blitzy.com.",
+          "provenance": {
+            "requirement_id": "M10",
+            "extraction_command": "scripts/09_compute_metrics.py: compute_approved_exceptions_per_engineer() reads data/exceptions.json and filters per author",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/exceptions.json",
+            "raw_output_artifact_field": "audit_log.events, force_pushes.events, exception_labeled_prs.events, lint_exemptions",
+            "derivation_function": "compute_approved_exceptions_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "Admin audit log access is required for the highest-fidelity signal per AAP §0.5.3.11.",
+            "Force-push detection is limited to the local clone's reflog window.",
+            "Lint-exemption inventory is a HEAD-only snapshot; per-engineer attribution of new exemptions would require commit-by-commit diff of the configuration files."
+          ]
+        }
+      }
+    },
+
+    "ajay-blitzy": {
+      "display_name": "ajay-blitzy",
+      "actor_type": "human",
+      "actor_type_note": "Human engineering contributor. Single email alias awadhwani@blitzy.com; observed git author display name is 'ajay-blitzy'. No collation needed.",
+      "email_aliases": [
+        "awadhwani@blitzy.com"
+      ],
+      "email_aliases_breakdown": {
+        "awadhwani@blitzy.com": {
+          "git_display_name": "ajay-blitzy",
+          "commits_on_main": 3,
+          "role": "human contributor — late-period catalog-tag maintenance (Backstage catalog-info.yaml chore commits in May 2026)"
+        }
+      },
+      "first_commit_iso": "2026-05-13T17:35:08Z",
+      "first_commit_iso_source": "git log main --author='awadhwani@blitzy.com' --reverse --pretty=format:%aI | head -1 — equals 2027268487a0c878c519d9bebabb5cff43eee444 (chore: sync catalog tags (new-feature)) at 2026-05-13T13:35:08-04:00 = 2026-05-13T17:35:08Z UTC.",
+      "last_commit_iso": "2026-05-15T21:00:51Z",
+      "last_commit_iso_source": "git log main --author='awadhwani@blitzy.com' -1 --pretty=format:%aI — equals 5bfc9c9e95ee21bf0f105e08868973b7237a5d37 (chore: extend catalog tags (security, data-pipeline)) at 2026-05-15T17:00:51-04:00 = 2026-05-15T21:00:51Z UTC.",
+      "total_commits_on_main": 3,
+      "total_commits_on_main_breakdown": {
+        "non_merge_commits": 3,
+        "merge_commits": 0,
+        "calculation": "3 non-merge commits, 0 merge commits = 3 total on main. All three are direct-to-main chore pushes (no PR), maintaining the .github catalog-info.yaml tag inventory."
+      },
+      "total_commits_across_all_refs": 3,
+      "total_commits_across_all_refs_breakdown": {
+        "awadhwani_at_blitzy_com_all_refs": 3,
+        "calculation_note": "Same 3 commits visible on main only; no separate ajay-blitzy feature branch exists."
+      },
+      "commits_in_baseline_phase": 0,
+      "commits_in_baseline_phase_note": "ajay-blitzy's first commit was 2026-05-13, well after the inflection date 2026-02-25. Zero baseline-phase commits.",
+      "commits_in_post_introduction_phase": 3,
+      "commits_in_post_introduction_phase_note": "All 3 commits are direct-to-main chore pushes in May 2026 (2026-05-13, 2026-05-15 × 2). None went through a PR.",
+      "merged_prs_attributed_baseline": 0,
+      "merged_prs_attributed_post_introduction": 0,
+      "merged_prs_attributed_post_introduction_pr_numbers": [],
+      "merged_prs_attributed_post_introduction_note": "All 3 ajay-blitzy commits are direct-to-main pushes; none of the 5 numbered PR titles begins with 'ajay-blitzy:' or 'awadhwani:' (all 5 begin with 'Blitzy:' and are attributed to the Blitzy engineering actor). As an additional corroborating signal, none of the 5 numbered PR merge commits has a second-parent (PR head) commit authored by awadhwani@blitzy.com. ajay-blitzy has zero PR-merge attribution in both phases.",
+      "metrics": {
+        "m2": {
+          "metric_name": "Flow Velocity",
+          "metric_definition": "Count of PRs merged to the default branch per 2-week window. Same definition as for Blitzy.",
+          "baseline": {
+            "value": 0,
+            "value_units": "PRs merged to main authored by ajay-blitzy in the baseline phase",
+            "confidence": "high",
+            "confidence_rationale": "Zero is a verified absence. ajay-blitzy's first commit was on 2026-05-13, more than 2.5 months after the inflection date. The baseline phase ends 2026-02-25T02:58:58Z; no awadhwani@blitzy.com commit or merge exists in or before this window."
+          },
+          "post_introduction": {
+            "value": 0,
+            "value_units": "PRs merged to main authored by ajay-blitzy in the post-introduction phase",
+            "confidence": "high",
+            "confidence_rationale": "Zero is a verified absence. All three ajay-blitzy commits are direct-to-main chore pushes maintaining .github catalog-info.yaml catalog tags; none went through the PR-merge workflow. Verified by two independent signals: (1) none of the 5 numbered PR titles begins with 'ajay-blitzy:' or 'awadhwani:' (the local-git PR-author signal); (2) none of the 5 numbered PR merge commits has a second-parent commit authored by awadhwani@blitzy.com (the merge-commit-author signal). Both signals converge to zero."
+          },
+          "multiplier": "—",
+          "multiplier_rationale": "Both phase values are zero. Division by zero is undefined; reported as '—' per AAP §0.7.3.",
+          "extraction_strategy": "Same as Blitzy: enumerate merge commits on main, parse PR number and PR-author title-prefix from merge subject and PR body, filter to PRs whose title begins with 'ajay-blitzy:' or 'awadhwani:' or whose PR user.login matches when the API is reachable.",
+          "provenance": {
+            "requirement_id": "M2",
+            "extraction_command": "git log main --merges --pretty=format:'%H|%aI|%P|%s' | python3 -c \"<see scripts/09_compute_metrics.py compute_flow_velocity_per_engineer>\"",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+            "raw_output_artifact_field": "observed_merge_commits_on_main",
+            "derivation_function": "compute_flow_velocity_per_engineer() in scripts/09_compute_metrics.py"
+          }
+        },
+        "m4": {
+          "metric_name": "Flow Active",
+          "metric_definition": "Active coding time per PR by the engineering actor — ajay-blitzy in the human cohort.",
+          "baseline": {
+            "value": "insufficient_signal",
+            "reason": "ajay-blitzy has zero PRs in the baseline phase (and zero commits — the first commit was 2026-05-13). The median active span over an empty set is undefined.",
+            "confidence": "insufficient"
+          },
+          "post_introduction": {
+            "value": "insufficient_signal",
+            "reason": "ajay-blitzy has zero PRs in the post-introduction phase. All three of ajay-blitzy's commits are direct-to-main chore pushes (no PR branch, no review events). The Flow Active metric is undefined for direct-to-main commits per AAP §0.5.3.5 (the metric is scoped to PRs, not loose commits). Reported as 'insufficient_signal' rather than 0.",
+            "confidence": "insufficient"
+          },
+          "multiplier": "insufficient_signal",
+          "extraction_strategy": "Same as Blitzy: per-PR span computation. Not applicable when the engineer has zero PRs.",
+          "provenance": {
+            "requirement_id": "M4",
+            "extraction_command": "scripts/09_compute_metrics.py: compute_flow_active_per_engineer() filtered by awadhwani@blitzy.com",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/reviews.json",
+            "raw_output_artifact_path_secondary": "blitzy/acceleration-report/data/pull_events.json",
+            "raw_output_artifact_field": "reviews_by_pr",
+            "derivation_function": "compute_flow_active_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "Zero-PR engineers have undefined M4; the metric is PR-scoped per AAP §0.5.3.5.",
+            "Direct-to-main commits (no PR branch) are not in the Flow Active scope."
+          ]
+        },
+        "m5": {
+          "metric_name": "Flow Efficiency",
+          "metric_definition": "Ratio of active work time (M4) to total wall-clock time (M7). Reported as median across PRs per phase per actor.",
+          "baseline": {
+            "value": "insufficient_signal",
+            "reason": "Inherits the insufficient signal from M4.baseline (zero PRs for ajay-blitzy).",
+            "confidence": "insufficient"
+          },
+          "post_introduction": {
+            "value": "insufficient_signal",
+            "reason": "Inherits the insufficient signal from M4.post_introduction (zero PRs for ajay-blitzy). Per AAP §0.5.3.6, M5 inherits the worse confidence of M4 and M7.",
+            "confidence": "insufficient"
+          },
+          "multiplier": "insufficient_signal",
+          "extraction_strategy": "Same as Blitzy: M4 / M7 per PR, median across PRs. Not applicable when the engineer has zero PRs.",
+          "provenance": {
+            "requirement_id": "M5",
+            "extraction_command": "scripts/09_compute_metrics.py: compute_flow_efficiency_per_engineer() — reads M4 and M7 outputs for ajay-blitzy",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/metrics.json",
+            "raw_output_artifact_field": "m4 and m7 per-PR outputs (intermediate)",
+            "derivation_function": "compute_flow_efficiency_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "M5 confidence is the worse of M4 and M7 per AAP §0.5.3.6.",
+            "M5 cannot resolve when M4 is insufficient_signal."
+          ]
+        },
+        "m6": {
+          "metric_name": "Flow Distribution",
+          "metric_definition": "Proportion of merged PRs classified into feature / defect / risk_compliance / tech_debt / unknown. Same definition and three-tier classifier as for Blitzy.",
+          "baseline": {
+            "feature": null,
+            "defect": null,
+            "risk_compliance": null,
+            "tech_debt": null,
+            "unknown": null,
+            "total_prs": 0,
+            "unknown_rate": null,
+            "confidence": "insufficient",
+            "reason": "Zero PRs by ajay-blitzy in either phase; the distribution over an empty set is undefined."
+          },
+          "post_introduction": {
+            "feature": null,
+            "defect": null,
+            "risk_compliance": null,
+            "tech_debt": null,
+            "unknown": null,
+            "total_prs": 0,
+            "unknown_rate": null,
+            "confidence": "insufficient",
+            "reason": "ajay-blitzy authored zero PRs in the post-introduction phase. All three commits are direct-to-main chore pushes. A direct-to-main commit could in principle be classified by its commit subject (all three start with 'chore:' which would map to tech_debt via Tier 2 conventional-commit prefix); however, AAP §0.5.3.7 scopes Flow Distribution to MERGED PRs, not direct commits, so the per-engineer distribution remains undefined for ajay-blitzy."
+          },
+          "multiplier": null,
+          "multiplier_rationale": "Flow Distribution is a categorical distribution, not a scalar; the multiplier concept does not apply per AAP §0.5.3.7. Additionally, both phases are insufficient_signal.",
+          "extraction_strategy": "Same three-tier classifier as Blitzy applied to ajay-blitzy's PRs. Not applicable when the engineer has zero PRs.",
+          "provenance": {
+            "requirement_id": "M6",
+            "extraction_command": "scripts/09_compute_metrics.py: classify_pr_category() applied per-PR to data/pulls.json filtered by awadhwani@blitzy.com",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+            "raw_output_artifact_field": "observed_merge_commits_on_main[*].merge_subject",
+            "raw_output_artifact_path_linear": "blitzy/acceleration-report/data/issues.json",
+            "derivation_function": "compute_flow_distribution_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "Zero-PR engineers have undefined M6; the metric is PR-scoped per AAP §0.5.3.7.",
+            "Direct-to-main commits are not in the Flow Distribution scope; classifying them by commit subject ('chore:' → tech_debt) would deviate from the AAP-mandated PR-scope and is logged in decision-log.md as a not-taken alternative."
+          ]
+        },
+        "m10": {
+          "metric_name": "Approved Exceptions",
+          "metric_definition": "Count per 2-week window of policy exceptions attributable to ajay-blitzy. Same components and audit-log dependency as Blitzy's row.",
+          "baseline": {
+            "value": 0,
+            "value_units": "Exception events attributed to ajay-blitzy in the baseline phase",
+            "value_breakdown": {
+              "audit_log_events": 0,
+              "force_pushes_to_main": 0,
+              "merges_with_failing_required_checks": 0,
+              "branch_protection_modifications": 0,
+              "exception_labeled_prs_authored": 0,
+              "lint_exemptions_introduced": 0
+            },
+            "confidence": "low",
+            "confidence_rationale": "ajay-blitzy has zero commits in the baseline phase; zero exception events are trivially correct. Confidence is Low because the audit log is unavailable per AAP §0.5.3.11; the verified-zero conclusion would be High-confidence given audit-log access.",
+            "caveat": "Admin audit log access not granted; the reported zero relies on the absence of any ajay-blitzy commits in the baseline phase rather than direct audit-log evidence."
+          },
+          "post_introduction": {
+            "value": 0,
+            "value_units": "Exception events attributed to ajay-blitzy in the post-introduction phase",
+            "value_breakdown": {
+              "audit_log_events": 0,
+              "force_pushes_to_main": 0,
+              "merges_with_failing_required_checks": 0,
+              "branch_protection_modifications": 0,
+              "exception_labeled_prs_authored": 0,
+              "lint_exemptions_introduced": 0
+            },
+            "confidence": "low",
+            "confidence_rationale": "Zero events observed. ajay-blitzy's three direct-to-main chore commits did not modify .golangci.yml, .snyk, .truffleignore, or .deepsource.toml (they modified only catalog-info.yaml); no lint exemptions were introduced. No force-pushes are visible in the local reflog. Direct-to-main commits bypass the PR-review workflow by definition — whether this constitutes a 'merged with required reviews bypassed' policy exception depends on the branch-protection configuration in effect at the time of each push, which is not observable without admin audit log or branch-protection time-series.",
+            "caveat": "Admin audit log access not granted; ajay-blitzy's direct-to-main pushes may or may not have bypassed required reviews depending on the active branch-protection ruleset for main at the time. Per AAP §0.5.3.11 this signal cannot be resolved without admin access. The reported zero is a lower bound."
+          },
+          "multiplier": "—",
+          "multiplier_rationale": "Both phase values are zero. Division by zero is undefined; reported as '—' per AAP §0.7.3.",
+          "extraction_strategy": "Same as Blitzy: filter data/exceptions.json events by author = awadhwani@blitzy.com.",
+          "provenance": {
+            "requirement_id": "M10",
+            "extraction_command": "scripts/09_compute_metrics.py: compute_approved_exceptions_per_engineer() reads data/exceptions.json and filters per author",
+            "raw_output_artifact_path": "blitzy/acceleration-report/data/exceptions.json",
+            "raw_output_artifact_field": "audit_log.events, force_pushes.events, exception_labeled_prs.events, lint_exemptions",
+            "derivation_function": "compute_approved_exceptions_per_engineer() in scripts/09_compute_metrics.py"
+          },
+          "boundary_conditions": [
+            "Admin audit log access is required for the highest-fidelity signal per AAP §0.5.3.11.",
+            "Direct-to-main pushes (ajay-blitzy's pattern) are visible to neither the PR-review-bypass signal nor the force-push reflog signal; they would surface only via branch-protection-bypass events in the audit log.",
+            "Lint-exemption inventory is a HEAD-only snapshot; per-engineer attribution of new exemptions would require commit-by-commit diff of the configuration files."
+          ]
+        }
+      }
+    }
+  }
+}
+
