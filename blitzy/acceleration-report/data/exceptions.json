@@ -1,0 +1,285 @@
+{
+  "_metadata": {
+    "extraction_timestamp": "2026-05-23T05:54:20Z",
+    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+    "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
+    "default_branch": "main",
+    "analysis_period_start": "2026-02-23T00:00:00Z",
+    "analysis_period_end": "2026-05-21T23:59:59Z",
+    "schema_version": "1.0.0",
+    "artifact_kind": "hand_authored_seed",
+    "artifact_kind_note": "Hand-authored seed artifact produced for the no-network-access analysis sandbox. The audit_log.events[], branch_protection.snapshot, exception_labeled_prs.events[], and summary.per_window_events[] arrays are empty because scripts/07_extract_exceptions.py could not reach the GitHub Audit Log, Branch Protection, or Pulls APIs from the offline sandbox. The lint_exemptions.* sub-object is fully populated from direct reads of the in-repo policy files (.golangci.yml, .snyk, .truffleignore, .deepsource.toml) at HEAD and is accurate at the documented extraction_timestamp regardless of API availability. The force_pushes.events[] array is empty as verified against the local clone's git reflog. When the script is re-run with GH_TOKEN set and network reachable, it overwrites this file with the populated audit-log, branch-protection, and exception-labeled-PR inventories; the run_id and extraction_timestamp will then reflect that execution.",
+    "source_files_referenced": [
+      ".golangci.yml",
+      ".snyk",
+      ".truffleignore",
+      ".deepsource.toml",
+      ".github/labeler.yml"
+    ],
+    "feeds_metric": "m10",
+    "feeds_metric_name": "Approved Exceptions",
+    "aap_section": "0.5.3.11"
+  },
+  "audit_log": {
+    "available": false,
+    "unavailable_reason": "GitHub admin audit log requires organisation-level admin access; the read-only analysis sandbox does not have admin scope on Blitzy-Sandbox/blitzy-RudderStack",
+    "api_endpoint_attempted": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/audit-log",
+    "auth_required": "admin-level GitHub PAT with the audit_log scope, or GitHub App installation with audit log read permission at the organisation level",
+    "consequence": "Without admin audit log access, the bulk of Metric 10's signal (required-check bypasses, branch protection rule changes, manual merge overrides) is invisible. This drives metrics.json#m10.confidence to 'low' and is surfaced in the Risk Assessment section of acceleration-report.md.",
+    "events": []
+  },
+  "branch_protection": {
+    "branch": "main",
+    "snapshot_at": "2026-05-23T05:54:20Z",
+    "available": false,
+    "snapshot": {
+      "protected": null,
+      "required_status_checks": null,
+      "enforce_admins": null,
+      "required_pull_request_reviews": null,
+      "restrictions": null
+    },
+    "unavailable_reason": "github_api_unauthenticated_or_unreachable",
+    "unavailable_reason_detail": "The read-only analysis sandbox has no network access to https://api.github.com and no GH_TOKEN is set. Branch protection settings could not be retrieved via GET /repos/Blitzy-Sandbox/blitzy-RudderStack/branches/main/protection. When the script is re-run with GH_TOKEN set and network reachable, the snapshot object will be populated.",
+    "api_endpoint_attempted": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/branches/main/protection",
+    "time_series_available": false,
+    "time_series_note": "Branch protection settings are visible only as a current snapshot via the public Branches API; historical changes to the protection rules (additions, removals, requirement-toggling) require admin audit log access. The historical signal is therefore tied to the same admin-access gap that disables the audit_log sub-object above."
+  },
+  "force_pushes": {
+    "source": "git_reflog_local_clone",
+    "search_command": "git reflog show main",
+    "events": [],
+    "count": 0,
+    "reflog_total_entries_observed": 1,
+    "reflog_first_entry_observed": "5bfc9c9 main@{0}: clone: from https://github.com/Blitzy-Sandbox/blitzy-RudderStack.git",
+    "note": "Local clone's reflog may not contain force-push events that occurred on the remote before the clone was created. Reflog availability is limited to push events that this clone observed. The only entry in the local reflog is the initial clone operation, which is not a force-push. To detect force-pushes that occurred on the remote main branch outside of this clone's reflog window, admin audit log access is required (see audit_log sub-object).",
+    "limitation_class": "local_reflog_does_not_observe_remote_history"
+  },
+  "exception_labeled_prs": {
+    "label_patterns_searched": [
+      "exception",
+      "waiver",
+      "override",
+      "bypass"
+    ],
+    "available_labels_in_repo": [
+      "with tests",
+      "server-team",
+      "warehouse-team",
+      "ack: ready for review",
+      "Type: Bug",
+      "Type: Improvement",
+      "Type: New Feature",
+      "Type: Refactor"
+    ],
+    "available_labels_source": {
+      "labeler_auto_applied": [
+        "with tests",
+        "server-team",
+        "warehouse-team"
+      ],
+      "labeler_auto_applied_source_file": ".github/labeler.yml",
+      "human_applied_observed_on_prs": [
+        "ack: ready for review",
+        "Type: Bug",
+        "Type: Improvement",
+        "Type: New Feature",
+        "Type: Refactor"
+      ],
+      "human_applied_observed_on_prs_source": "data/pulls.json (PR label inventory at HEAD)"
+    },
+    "exception_pattern_match_count": 0,
+    "exception_pattern_match_note": "The repository's labeler.yml + observed PR labels do not include any exception/waiver/override/bypass markers; this signal is structurally zero unless new labels are introduced. The semantic-pr.yaml workflow constrains PR titles to the conventional-commit prefix set (fix, feat, chore, refactor, exp, doc, test) which does not provide an exception channel either.",
+    "events": []
+  },
+  "lint_exemptions": {
+    "extraction_timestamp": "2026-05-23T05:54:20Z",
+    "head_only_snapshot": true,
+    "head_only_snapshot_note": "All lint-exemption counts below are HEAD-only snapshots derived from direct reads of the in-repo policy files at the analysis commit. They are NOT per-window time-series counts. Historical changes to these policy files would require walking git log -p .golangci.yml .snyk .truffleignore .deepsource.toml and parsing each historical version, which is out of scope for Metric 10's primary extraction strategy in AAP §0.5.3.11.",
+    "golangci": {
+      "available": true,
+      "source_file": ".golangci.yml",
+      "source_file_extraction_command": "cat .golangci.yml",
+      "gosec_excludes_count": 18,
+      "gosec_excludes": [
+        "G101",
+        "G104",
+        "G107",
+        "G110",
+        "G115",
+        "G201",
+        "G202",
+        "G204",
+        "G301",
+        "G302",
+        "G304",
+        "G305",
+        "G306",
+        "G401",
+        "G402",
+        "G404",
+        "G501",
+        "G602"
+      ],
+      "gosec_excludes_verification_command": "grep -E '^\\s+- G[0-9]+' .golangci.yml | wc -l",
+      "gosec_excludes_findings_inline_comments_preserved": true,
+      "gosec_excludes_findings_inline_comments_preserved_note": "Each excluded rule in .golangci.yml carries an inline-comment-tagged finding count (e.g., G101 has '6 findings', G304 has '68 findings'). The findings counts represent the volume of code that would be flagged by each rule absent the exclusion; they are an indicator of the suppression's blast radius and are reproduced as-is from the source file rather than being aggregated here.",
+      "depguard_deny_count": 6,
+      "depguard_deny_packages": [
+        "github.com/gofrs/uuid",
+        "golang.org/x/exp/slices",
+        "github.com/json-iterator/go",
+        "github.com/rudderlabs/sonnet",
+        "github.com/aws/aws-sdk-go$",
+        "github.com/aws/aws-sdk-go/"
+      ],
+      "depguard_deny_packages_with_descs": [
+        {"pkg": "github.com/gofrs/uuid", "desc": "use github.com/google/uuid instead"},
+        {"pkg": "golang.org/x/exp/slices", "desc": "use \"slices\" instead"},
+        {"pkg": "github.com/json-iterator/go", "desc": "use \"jsonrs\" instead"},
+        {"pkg": "github.com/rudderlabs/sonnet", "desc": "use \"jsonrs\" instead"},
+        {"pkg": "github.com/aws/aws-sdk-go$", "desc": "use \"aws-sdk-go-v2\" instead"},
+        {"pkg": "github.com/aws/aws-sdk-go/", "desc": "use \"aws-sdk-go-v2\" instead"}
+      ],
+      "depguard_deny_verification_command": "grep -E '^\\s+- pkg: ' .golangci.yml | wc -l",
+      "forbidigo_patterns_count": 14,
+      "forbidigo_patterns": [
+        "^json\\.Marshal.*$",
+        "^json\\.Unmarshal$",
+        "^json\\.NewDecoder.*$",
+        "^json\\.NewEncoder.*$",
+        "Logger.Debug(f|w)?$",
+        "Logger\\.Info(f|w)?$",
+        "Logger.Warn(f|w)?$",
+        "Logger.Error(f|w)?$",
+        "Logger.Fatal(f|w)?$",
+        "Logger.With$",
+        "NewField$",
+        "NewErrorField$",
+        "^backoff\\..*$",
+        "^backoff\\..*$"
+      ],
+      "forbidigo_patterns_verification_command": "grep -E '^\\s+- pattern: ' .golangci.yml | wc -l",
+      "forbidigo_patterns_note": "Pattern 13 targets the root github.com/cenkalti/backoff package and pattern 14 targets github.com/cenkalti/backoff/v[1-4]; the two share the same regex but are scoped to different package roots in the pkg constraint and therefore represent two distinct enforcement rules.",
+      "bodyclose_path_exclusions_count": 4,
+      "bodyclose_path_exclusions": [
+        "gateway/webhook/webhook_test.go",
+        "processor/transformer/transformer.go",
+        "gateway/gateway_test.go",
+        "cmd/rudder-cli/status/status.go"
+      ],
+      "bodyclose_path_exclusions_verification_command": "awk '/- linters:/{f=1; next} f && /path:/{print; f=0}' .golangci.yml | wc -l"
+    },
+    "snyk": {
+      "available": true,
+      "source_file": ".snyk",
+      "source_file_extraction_command": "cat .snyk",
+      "snyk_policy_version": "v1.22.1",
+      "active_count": 5,
+      "active_count_verification_command": "grep -E '^\\s+SNYK-' .snyk | wc -l",
+      "expired_count": 5,
+      "expired_count_note": "All 5 active exceptions have expiry `2025-01-01T00:00:00.000Z` which is in the past relative to the 2026 analysis period; the exceptions are present at HEAD but their declared expiry date has passed. This is a notable governance signal and is surfaced as a factual observation in the m10 deep-dive without subjective qualification (Rule 2).",
+      "expired_count_reference_date": "2026-05-23T05:54:20Z",
+      "entries": [
+        {
+          "id": "SNYK-GOLANG-GITHUBCOMOPENCONTAINERSRUNCLIBCONTAINER-3339620",
+          "reason": "Not using opencontainers/runc in rudder-server binary",
+          "expires": "2025-01-01T00:00:00.000Z",
+          "expired_at_analysis_timestamp": true,
+          "scope": "*"
+        },
+        {
+          "id": "SNYK-GOLANG-GITHUBCOMDOCKERDOCKER-5411366",
+          "reason": "Not using docker in rudder-server binary",
+          "expires": "2025-01-01T00:00:00.000Z",
+          "expired_at_analysis_timestamp": true,
+          "scope": "*"
+        },
+        {
+          "id": "SNYK-GOLANG-GITHUBCOMEMICKLEIGORESTFULV3-2859829",
+          "reason": "Not using go-restful in rudder-server binary",
+          "expires": "2025-01-01T00:00:00.000Z",
+          "expired_at_analysis_timestamp": true,
+          "scope": "*"
+        },
+        {
+          "id": "SNYK-GOLANG-GITHUBCOMEMICKLEIGORESTFUL-2435653",
+          "reason": "Not using go-restful in rudder-server binary",
+          "expires": "2025-01-01T00:00:00.000Z",
+          "expired_at_analysis_timestamp": true,
+          "scope": "*"
+        },
+        {
+          "id": "SNYK-GOLANG-GITHUBCOMEMICKLEIGORESTFULV3-2435654",
+          "reason": "Not using go-restful in rudder-server binary",
+          "expires": "2025-01-01T00:00:00.000Z",
+          "expired_at_analysis_timestamp": true,
+          "scope": "*"
+        }
+      ],
+      "patch_count": 0,
+      "patch_count_note": "The .snyk file declares `patch: {}` (empty); no Snyk patches are applied."
+    },
+    "truffleignore": {
+      "available": true,
+      "source_file": ".truffleignore",
+      "source_file_extraction_command": "cat .truffleignore",
+      "source_file_byte_size": 0,
+      "entry_count": 0,
+      "entries": [],
+      "note": "File exists and is empty; zero secret-scanner exemptions.",
+      "verification_command": "grep -cvE '^(#|$)' .truffleignore"
+    },
+    "deepsource": {
+      "available": true,
+      "source_file": ".deepsource.toml",
+      "source_file_extraction_command": "cat .deepsource.toml",
+      "deepsource_config_version": 1,
+      "exclude_patterns_count": 2,
+      "exclude_patterns": [
+        "**/mock_*.go",
+        "**/*.pb.go"
+      ],
+      "test_patterns_count": 2,
+      "test_patterns": [
+        "**/*_test.go",
+        "tests/**"
+      ],
+      "test_patterns_note": "test_patterns are the files DeepSource considers tests; they are not exemptions but they govern which files are analysed under test-aware rules. They are reported here for completeness but are NOT counted in exclude_patterns_count or in the lint_exemptions_total summary.",
+      "analyzers_enabled": [
+        {"name": "go", "enabled": true, "import_paths": ["github.com/rudderlabs/rudder-server"]}
+      ],
+      "analyzers_enabled_count": 1,
+      "analyzers_meta_import_paths_count": 1,
+      "analyzers_meta_import_paths_note": "The [analyzers.meta] section pins import_paths to github.com/rudderlabs/rudder-server, scoping the analyser's view to the canonical module path. Counted as 1 entry under the AAP's deepsource-meta-config-implied bucket in the summary arithmetic."
+    }
+  },
+  "summary": {
+    "audit_log_events_count": 0,
+    "force_push_events_count": 0,
+    "exception_labeled_pr_count": 0,
+    "lint_exemptions_total": 50,
+    "lint_exemptions_total_breakdown": {
+      "gosec_excludes": 18,
+      "depguard_deny": 6,
+      "forbidigo_patterns": 14,
+      "bodyclose_path_exclusions": 4,
+      "snyk_active": 5,
+      "truffleignore_entries": 0,
+      "deepsource_exclude_patterns": 2,
+      "deepsource_meta_config_implied": 1
+    },
+    "lint_exemptions_total_note": "Sum of 18 gosec + 6 depguard + 14 forbidigo + 4 bodyclose-path + 5 snyk + 0 truffleignore + 2 deepsource + 1 deepsource-meta-config-implied = 50. These are HEAD-only counts, not events per 2-week window.",
+    "snyk_expired_at_head_count": 5,
+    "per_window_events": [],
+    "per_window_events_note": "Per-window time-series events are zero because: (a) audit log not accessible, (b) local reflog has no force-push entries for the analysis period. Static-analysis exemptions are HEAD snapshots and do not contribute per-window event counts.",
+    "confidence_implication_for_m10": "low",
+    "confidence_implication_for_m10_rationale": "The two highest-fidelity signals (admin audit log, branch-protection time series) are unavailable. The remaining signals (force-push reflog, exception-labeled PRs, lint-exemption HEAD inventory) cover only a fraction of the policy-exception surface area defined by the user-prompt's Metric 10 definition. AAP §0.5.3.11 mandates confidence drops to Low when admin audit log access is absent.",
+    "boundary_conditions_for_m10": [
+      "Per-window event counts are unobserved for the audit-log and branch-protection signals; the report must state 'Insufficient signal — admin audit log unavailable' rather than imply zero events occurred.",
+      "Force-push reflog observability is bounded by what THIS clone observed; force-pushes that occurred on the remote main branch before the clone was created are invisible.",
+      "Lint-exemption counts are HEAD-only snapshots and do not move per window; they are reported as a current inventory and not as a per-window event series.",
+      "All 5 Snyk exceptions have a declared expiry of 2025-01-01 (past the analysis window); the entries remain in the policy file at HEAD."
+    ]
+  }
+}
