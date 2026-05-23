@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/pulls.schema.json",
+  "title": "Pull Request Inventory",
+  "description": "Output of 03_extract_pulls.py. Records every pull request observed for the target repository plus the commit list, review timeline, and event timeline referenced from this artifact. Consumed by 09_compute_metrics.py for Metrics 1, 2, 4, 5, 6, 7.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fetched_at", "repo_slug", "api_available", "pulls"],
+  "properties": {
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "description": "Wall-clock timestamp at which the GitHub Pulls API (or local-git fallback) was queried."
+    },
+    "repo_slug": {
+      "type": "string",
+      "pattern": "^[^/\\s]+/[^/\\s]+$",
+      "description": "GitHub repository slug in 'owner/name' form (e.g., 'Blitzy-Sandbox/blitzy-RudderStack')."
+    },
+    "api_available": {
+      "type": "boolean",
+      "description": "True when the GitHub Pulls API responded successfully; false when 03_extract_pulls.py fell back to local-git PR reconstruction. Drives Metric 1/2/4/5/6/7 confidence downgrade from High to Medium per AAP §0.2.4."
+    },
+    "pulls": {
+      "type": "array",
+      "description": "Inventory of pull requests. May be empty if api_available is true but the repository has no PRs in the queried date range.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "number",
+          "state",
+          "title",
+          "body",
+          "created_at",
+          "closed_at",
+          "merged_at",
+          "merge_commit_sha",
+          "draft",
+          "user",
+          "head",
+          "base",
+          "labels",
+          "requested_reviewers",
+          "linked_linear_keys",
+          "pr_commits"
+        ],
+        "properties": {
+          "number": {"type": "integer", "minimum": 1},
+          "state": {"type": "string", "enum": ["open", "closed"]},
+          "title": {"type": "string"},
+          "body": {"type": ["string", "null"]},
+          "created_at": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+          "closed_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+          "merged_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+          "merge_commit_sha": {"type": ["string", "null"], "pattern": "^[0-9a-fA-F]{7,40}$"},
+          "draft": {"type": "boolean"},
+          "user": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["login", "email"],
+            "properties": {
+              "login": {"type": "string", "minLength": 1},
+              "email": {"type": ["string", "null"]}
+            }
+          },
+          "head": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["ref", "sha"],
+            "properties": {
+              "ref": {"type": "string", "minLength": 1},
+              "sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"}
+            }
+          },
+          "base": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["ref", "sha"],
+            "properties": {
+              "ref": {"type": "string", "minLength": 1},
+              "sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"}
+            }
+          },
+          "labels": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "requested_reviewers": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "linked_linear_keys": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^[A-Z]{2,}-\\d+$"},
+            "description": "Linear issue keys extracted from the PR body and title (e.g., ENG-1234). Empty array if none found."
+          },
+          "pr_commits": {
+            "type": "array",
+            "description": "Commit list for this PR. May be empty if the PR has no commits (rare).",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "required": ["sha", "author_email", "author_name", "author_date"],
+              "properties": {
+                "sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
+                "author_email": {"type": ["string", "null"]},
+                "author_name": {"type": "string"},
+                "author_date": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
