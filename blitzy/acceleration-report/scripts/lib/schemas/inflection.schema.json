@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/inflection.schema.json",
+  "title": "AI Inflection-Point Detection Result",
+  "description": "Output of 01_detect_inflection.py. Records which of the three detection tiers (trailer / ai_actor_email / velocity_inflection -- AAP §0.5.3.1) yielded the AI introduction date that partitions every metric into baseline and after periods.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tier_used",
+    "date_utc",
+    "evidence",
+    "justification",
+    "alternatives_considered",
+    "run_id",
+    "fetched_at"
+  ],
+  "properties": {
+    "tier_used": {
+      "type": "string",
+      "enum": ["trailer", "ai_actor_email", "velocity_inflection"],
+      "description": "Which of the three detection tiers actually produced the signal. Tier 1 (trailer) wins first, then Tier 2 (ai_actor_email), then Tier 3 (velocity_inflection)."
+    },
+    "date_utc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "description": "The chosen inflection date in ISO-8601 UTC (e.g., 2026-02-25T02:58:59Z)."
+    },
+    "evidence": {
+      "type": "object",
+      "description": "Structured evidence supporting the chosen tier. Shape varies by tier; the oneOf clause enforces per-tier shape.",
+      "oneOf": [
+        {
+          "title": "trailer evidence",
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["commit_sha", "trailer_value", "author_date"],
+          "properties": {
+            "commit_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
+            "trailer_value": {"type": "string", "minLength": 1},
+            "author_date": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"}
+          }
+        },
+        {
+          "title": "ai_actor_email evidence",
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["commit_sha", "author_email", "author_date"],
+          "properties": {
+            "commit_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
+            "author_email": {"type": "string", "minLength": 1},
+            "author_date": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"}
+          }
+        },
+        {
+          "title": "velocity_inflection evidence",
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["week_start", "pre_window_mean", "post_window_mean", "ratio"],
+          "properties": {
+            "week_start": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+            "pre_window_mean": {"type": "number", "minimum": 0},
+            "post_window_mean": {"type": "number", "minimum": 0},
+            "ratio": {"type": "number", "minimum": 0}
+          }
+        }
+      ]
+    },
+    "justification": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Single-paragraph rationale for the tier choice and the chosen date. Renderable in the report's Methodology section."
+    },
+    "alternatives_considered": {
+      "type": "array",
+      "description": "Tiers that were tried but did not yield a signal. May be empty.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["tier", "reason_rejected"],
+        "properties": {
+          "tier": {"type": "string", "enum": ["trailer", "ai_actor_email", "velocity_inflection"]},
+          "reason_rejected": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      "description": "Per-run correlation ID (UUID4) from BLITZY_RUN_ID."
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "description": "Wall-clock timestamp of detection."
+    }
+  }
+}
