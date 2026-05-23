@@ -1,23 +1,27 @@
-%% Title: Acceleration Curve — Per-Metric Trajectory (Baseline vs Post-Introduction)
-%% Legend: Each metric's value plotted across the two phases. Metric values rendered in their natural units.
-%% Insufficient-Signal phases are not plotted (gap in the line). Multipliers presented in §1 Executive Summary.
-%% Note: post-introduction span 86 days < 90 days → no Ramp-Up vs Steady-State split per DL-006.
-
+%% Title: Acceleration Curve: Per-Metric After/Before Multiplier
+%% Legend:
+%%   X-axis = metric identifier (M1..M12, in canonical order).
+%%   Y-axis = after/before multiplier where Baseline = 1.0 reference.
+%%            Values > 1.0 indicate the after period exceeded the baseline;
+%%            values < 1.0 indicate the after period fell below the baseline.
+%%   Single bar series = per-metric multiplier extracted from data/metrics.json
+%%                       at render time (10_render_report.py substitutes the
+%%                       placeholder 1.0 values with actual multipliers).
+%%   NOTE: this file is a SOURCE TEMPLATE. All bar values below are placeholders
+%%   (1.0 for every metric, representing "Baseline ratio"). The renderer
+%%   reads data/metrics.json and substitutes each placeholder with the actual
+%%   after/before multiplier for the corresponding metric. Metrics with
+%%   "insufficient_signal" or zero-variance baseline (Metric 3) are rendered as
+%%   0.0 in the bar AND a footnote is added below the chart in the report body.
+%%   Per AAP §0.5.6 fallback (post-introduction span < 90 days), the chart shows
+%%   the Post-Introduction multiplier only; no Ramp-Up vs Steady-State split.
+%%   For the metric-name legend mapping:
+%%     M1=Flow Load            M2=Flow Velocity     M3=Flow Predictability
+%%     M4=Flow Active          M5=Flow Efficiency   M6=Flow Distribution
+%%     M7=Flow Time            M8=Problem Records   M9=Releases
+%%     M10=Approved Exceptions M11=Escaped Defects  M12=Defects Out of SLA
 xychart-beta
-    title "Acceleration Curve — Selected Quantitative Metrics"
-    x-axis ["Baseline (2026-02-23 to 2026-02-24)", "Post-Introduction (2026-02-25 to 2026-05-23)"]
-    y-axis "Value (mixed units; see Methodology)" 0 --> 10
-    bar "M2 Flow Velocity (PRs/window)" [0.0, 0.67]
-    bar "M3 Flow Predictability (1/CV)" [0.0, 0.82]
-    bar "M9 Releases (count)" [0.0, 0.0]
-    bar "M8 Reverts (count)" [0.0, 0.0]
-
-%% Notes on omitted metrics:
-%% M1 Flow Load: baseline insufficient signal — not plotted
-%% M4 Flow Active: baseline insufficient signal; post=9.26 days (different unit) — not plotted in this composite
-%% M5 Flow Efficiency: baseline insufficient signal; post=85.8% — not plotted in this composite
-%% M6 Flow Distribution: categorical not scalar — not plotted
-%% M7 Flow Time: baseline insufficient signal; post=9.26 days — not plotted in this composite
-%% M10 Approved Exceptions: baseline N/A; post snapshot of static exemption inventory — not plotted as time-series
-%% M11 Escaped Defects: insufficient signal — not plotted
-%% M12 Defects Out of SLA: insufficient signal — not plotted
+    title "Acceleration Curve: After/Before Multiplier per Metric (Baseline = 1.0)"
+    x-axis ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12"]
+    y-axis "After/Before Multiplier" 0 --> 8
+    bar [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
