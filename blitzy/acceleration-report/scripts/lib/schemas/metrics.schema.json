@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/metrics.schema.json",
+  "title": "Final Metric Values",
+  "description": "Output of 09_compute_metrics.py. The SINGLE SOURCE consumed by 10_render_report.py and 11_render_deck.py -- guarantees Rule 4 (Internal Consistency) by construction. The top-level object must contain EXACTLY the twelve keys m1..m12 -- additionalProperties: false enforces the user-prompt constraint 'MUST NOT add metrics beyond the 12 specified'. Each metric carries confidence, provenance, baseline plus either two-phase (post_introduction) or three-phase (ramp_up + steady_state) breakdowns.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10", "m11", "m12"],
+  "properties": {
+    "m1":  {"$ref": "#/$defs/metric"},
+    "m2":  {"$ref": "#/$defs/metric"},
+    "m3":  {"$ref": "#/$defs/metric"},
+    "m4":  {"$ref": "#/$defs/metric"},
+    "m5":  {"$ref": "#/$defs/metric"},
+    "m6":  {"$ref": "#/$defs/metric"},
+    "m7":  {"$ref": "#/$defs/metric"},
+    "m8":  {"$ref": "#/$defs/metric"},
+    "m9":  {"$ref": "#/$defs/metric"},
+    "m10": {"$ref": "#/$defs/metric"},
+    "m11": {"$ref": "#/$defs/metric"},
+    "m12": {"$ref": "#/$defs/metric"}
+  },
+  "$defs": {
+    "isoDateTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "phaseBreakdown": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["value"],
+      "properties": {
+        "value": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string", "const": "insufficient_signal"}
+          ]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "insufficient"]
+        },
+        "multiplier": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string", "const": "\u2014"},
+            {"type": "null"}
+          ]
+        },
+        "windows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of 2-week windows that fell within this phase. Drives the 'fewer than 4 windows' insufficient-signal rule for Metric 3 (predictability)."
+        },
+        "multiplier_basis": {"type": ["string", "null"]}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["requirement_id", "extraction_command", "raw_output_artifact_path", "derivation_function"],
+      "properties": {
+        "requirement_id": {"type": "string", "minLength": 1, "description": "User-prompt requirement identifier (e.g., 'M1-FlowLoad'). Used by the Traceability Matrix renderer."},
+        "extraction_command": {"type": "string", "minLength": 1, "description": "Authoritative shell or git command that produced the raw data -- must be syntactically valid bash for the Rule 5 (Reproducibility) verify gate."},
+        "raw_output_artifact_path": {"type": "string", "minLength": 1, "description": "Path to the raw artifact under data/ that the derivation read from."},
+        "derivation_function": {"type": "string", "minLength": 1, "description": "Fully-qualified Python function name in 09_compute_metrics.py that produced this metric (e.g., 'compute_m1_flow_load')."}
+      }
+    },
+    "perWindowPoint": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["start", "end", "value"],
+      "properties": {
+        "start": {"$ref": "#/$defs/isoDateTime"},
+        "end": {"$ref": "#/$defs/isoDateTime"},
+        "value": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "value", "confidence", "baseline", "provenance"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable metric name (e.g., 'Flow Load', 'Flow Velocity')."
+        },
+        "value": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string", "const": "insufficient_signal"}
+          ],
+          "description": "Final headline value for the after period (or post_introduction in two-phase fallback). The literal string 'insufficient_signal' is the only non-numeric value permitted; this satisfies the user-prompt constraint 'MUST NOT fabricate, estimate, or extrapolate'."
+        },
+        "after_before_multiplier": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string", "const": "\u2014"},
+            {"type": "null"}
+          ],
+          "description": "After/before multiplier (e.g., 4.7). The em-dash '\u2014' string indicates the multiplier is not computable (baseline or after is insufficient_signal or zero)."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "insufficient"],
+          "description": "Per AAP \u00a70.2.4, the data-source-driven confidence tier. 'insufficient' indicates value == 'insufficient_signal'."
+        },
+        "caveat": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required when confidence == 'low'. Rendered inline with the metric wherever it appears (Rule 3)."
+        },
+        "boundary_conditions": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required when confidence != 'high'. Documents the constraints that lowered confidence (e.g., 'GitHub API unavailable -- fallback to local git')."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required when value == 'insufficient_signal'. The reason string used in the Rule-stipulated 'Insufficient signal -- [reason]' rendering."
+        },
+        "extraction_strategy": {
+          "type": "string",
+          "description": "Short prose describing how the metric was extracted, for the Methodology section."
+        },
+        "per_window": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/perWindowPoint"},
+          "description": "Per-2-week-window values for the Acceleration Curve diagram (Rule: no selective omission)."
+        },
+        "baseline": {"$ref": "#/$defs/phaseBreakdown"},
+        "ramp_up": {"$ref": "#/$defs/phaseBreakdown"},
+        "steady_state": {"$ref": "#/$defs/phaseBreakdown"},
+        "post_introduction": {"$ref": "#/$defs/phaseBreakdown"},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      },
+      "allOf": [
+        {
+          "description": "Temporal-phase decomposition: EITHER three-phase (ramp_up + steady_state) OR two-phase (post_introduction). Per AAP \u00a70.5.6 two-phase fallback when fewer than 90 days of post-introduction data exist.",
+          "oneOf": [
+            {
+              "required": ["ramp_up", "steady_state"],
+              "not": {"required": ["post_introduction"]}
+            },
+            {
+              "required": ["post_introduction"],
+              "allOf": [
+                {"not": {"required": ["ramp_up"]}},
+                {"not": {"required": ["steady_state"]}}
+              ]
+            }
+          ]
+        },
+        {
+          "description": "Rule 3 enforcement: caveat REQUIRED when confidence == 'low'.",
+          "if": {"properties": {"confidence": {"const": "low"}}, "required": ["confidence"]},
+          "then": {"required": ["caveat"]}
+        },
+        {
+          "description": "Confidence transparency: boundary_conditions REQUIRED when confidence != 'high' (covers medium / low / insufficient).",
+          "if": {"properties": {"confidence": {"not": {"const": "high"}}}, "required": ["confidence"]},
+          "then": {"required": ["boundary_conditions"]}
+        },
+        {
+          "description": "Insufficient-signal rendering: reason REQUIRED when value == 'insufficient_signal'.",
+          "if": {"properties": {"value": {"const": "insufficient_signal"}}, "required": ["value"]},
+          "then": {"required": ["reason"]}
+        }
+      ]
+    }
+  }
+}
