@@ -52,16 +52,25 @@
 #   honours a pre-set BLITZY_RUN_ID per its own contract; Make's exported
 #   value flows through unchanged.
 #
-# Topological order of the extract stage (AAP section 0.5.2):
+# Topological order of the extract stage (AAP section 0.5.2, with the
+# 02 -> 01 dependency edge restored per decision-log entry DL-029):
 #   00_environment.sh        -> data/environment.json
-#   01_detect_inflection.py  -> data/inflection.json
 #   02_extract_commits.sh    -> data/commits.csv + data/revert_candidates.csv
+#   01_detect_inflection.py  -> data/inflection.json
 #   03_extract_pulls.py      -> data/pulls.json + data/reviews.json + data/pull_events.json
 #   04_extract_releases.py   -> data/releases.json
 #   05_extract_reverts.sh    -> data/reverts.json
 #   06_extract_ci_history.py -> data/ci_runs.json + data/test_transitions.json
 #   07_extract_exceptions.py -> data/exceptions.json
 #   08_extract_linear.py     -> data/issues.json + data/slas.json
+#
+# IMPORTANT (DL-029): 02_extract_commits.sh MUST run BEFORE
+# 01_detect_inflection.py. The Tier-3 velocity-inflection fallback in
+# 01_detect_inflection.py reads commits.csv when the Tier-1 trailer search
+# and the Tier-2 AI-actor email match both yield no signal. In this
+# repository the Tier-2 path succeeds for `agent@blitzy.com` so the
+# dependency is currently masked, but the AAP-documented invariant must
+# be honoured regardless of repository specifics.
 #
 # Quick reference:
 #   make help     - show all targets (default goal)
@@ -78,7 +87,7 @@
 # for a full clean-machine rerun walkthrough.
 # ============================================================================
 
-.PHONY: help default setup extract compute render all clean lint verify
+.PHONY: help default setup extract compute render all clean distclean lint verify
 
 # ----------------------------------------------------------------------------
 # GNU make detection guard
@@ -201,12 +210,41 @@ help: ## Show this help message
 # The order-only-like behaviour is preserved through the sentinel pattern
 # because Make compares timestamps: .touch is newer than requirements.txt
 # after install, so re-running setup is fast.
+#
+# Venv provisioning fallback (DL-030):
+#   The recipe first attempts `$(PYTHON) -m venv $(VENV)`. On some
+#   Linux base images (notably Ubuntu 24+ minimal containers) the
+#   system Python's bundled `ensurepip` is broken or absent, so the
+#   stdlib venv module fails with an opaque subprocess error. When
+#   that happens, the recipe falls back to the standalone `virtualenv`
+#   tool, which is the documented workaround in onboarding/rerun-and-
+#   observability.md §2 Step 4. If BOTH paths fail, the recipe exits
+#   non-zero with an actionable error message naming the installation
+#   command for the standalone virtualenv tool. The fallback uses an
+#   `||` chain inside a single recipe line so Make's strict-mode
+#   contract (every recipe runs under `bash -eu -o pipefail`) still
+#   sees a single subprocess exit code.
 
 setup: $(VENV)/.touch ## Create venv and install pinned Python dependencies
 
 $(VENV)/.touch: requirements.txt
 	@echo "[setup] Provisioning $(VENV) using $(PYTHON)..."
-	$(PYTHON) -m venv $(VENV)
+	@# Three-tier venv-creation: stdlib venv -> standalone virtualenv -> fatal error.
+	@# The `command -v` check on virtualenv runs before the invocation so the
+	@# error message can distinguish "venv broken AND virtualenv missing" from
+	@# "venv broken AND virtualenv failed".
+	@if ! $(PYTHON) -m venv $(VENV) 2>/dev/null; then \
+		echo "[setup] python -m venv failed; trying standalone virtualenv..."; \
+		if command -v virtualenv >/dev/null 2>&1; then \
+			virtualenv --python=$(PYTHON) $(VENV); \
+		else \
+			echo "[setup] FATAL: both 'python3 -m venv' and 'virtualenv' are unavailable." >&2; \
+			echo "[setup]        Install the standalone virtualenv tool:" >&2; \
+			echo "[setup]            pip install --user virtualenv" >&2; \
+			echo "[setup]        Then re-run 'make setup'. See decision-log.md DL-030 for context." >&2; \
+			exit 1; \
+		fi; \
+	fi
 	$(VENV_PIP) install --upgrade pip
 	$(VENV_PIP) install -r requirements.txt
 	@touch $(VENV)/.touch
@@ -224,8 +262,8 @@ extract: setup ## Run extraction scripts 00-08 in topological order
 	@mkdir -p $(DATA_DIR)
 	@echo "[extract] Run ID: $(BLITZY_RUN_ID)"
 	bash $(SCRIPTS_DIR)/00_environment.sh
-	$(VENV_PY) $(SCRIPTS_DIR)/01_detect_inflection.py
 	bash $(SCRIPTS_DIR)/02_extract_commits.sh
+	$(VENV_PY) $(SCRIPTS_DIR)/01_detect_inflection.py
 	$(VENV_PY) $(SCRIPTS_DIR)/03_extract_pulls.py
 	$(VENV_PY) $(SCRIPTS_DIR)/04_extract_releases.py
 	bash $(SCRIPTS_DIR)/05_extract_reverts.sh
@@ -265,20 +303,55 @@ render: compute ## Render acceleration-report.md and executive-summary.html
 all: render ## End-to-end pipeline: setup -> extract -> compute -> render
 	@echo "[all] Pipeline complete. Run ID: $(BLITZY_RUN_ID)"
 
-# ---- clean -----------------------------------------------------------------
-# Remove the workspace virtualenv and the regenerable data artifacts.
-# Does NOT remove the source-controlled scripts, diagrams, onboarding
-# documents, rendered report, decision log, or README - these are part
-# of the committed deliverable and survive `make clean`. The rendered
-# acceleration-report.md and executive-summary.html ARE committed per
-# the workspace .gitignore policy, so they are intentionally NOT removed
-# either: a `make clean && make all` round trip overwrites them in place
-# with byte-identical output (modulo the extraction timestamp).
+# ---- clean / distclean -----------------------------------------------------
+# Per decision-log entry DL-031, this workspace ships its 16 deliverable
+# data artifacts as committed seed files. The original `clean` target's
+# glob `rm -f $(DATA_DIR)/*.json *.csv *.jsonl` matched the committed
+# seed AND any freshly generated artifacts indistinguishably, deleting
+# both. An analyst running `make clean` to clear cache state would
+# unexpectedly lose the committed baseline (recoverable via
+# `git checkout -- data/` but a surprise nonetheless).
+#
+# The fix splits the destructive behaviour across two targets:
+#   * `clean`     — preserves the committed seed; removes only the venv
+#                   and the append-only journal `data/run.log.jsonl`,
+#                   plus the cursor file `data/.cursor.json` and any
+#                   `.tmp` write-buffer remnant. The 16 REQUIRED_ARTIFACTS
+#                   files (committed seed) are LEFT IN PLACE. Re-running
+#                   `make all` after `make clean` will overwrite them
+#                   with byte-identical contents modulo the extraction
+#                   timestamp; until then `make verify` will still pass
+#                   against the committed seed.
+#   * `distclean` — the previous behaviour: full wipe of venv AND every
+#                   `data/*.json|csv|jsonl` file. Use when explicitly
+#                   trying to reproduce the live-pipeline path from
+#                   scratch. The recipe echoes a clear warning about
+#                   the destructive effect on committed seed data and
+#                   points to `git checkout -- data/` for recovery.
+#
+# A small helper script computes the exclusion set so the clean glob is
+# auditable: REQUIRED_ARTIFACTS is the same module-level constant the
+# verify target consults, ensuring the two targets stay in sync.
 
-clean: ## Remove venv and data artifacts (keep scripts/diagrams/docs)
+clean: ## Remove venv + log + cursor; PRESERVE the committed data/ seed artifacts (use distclean for full wipe)
 	rm -rf $(VENV)
+	rm -f $(DATA_DIR)/run.log.jsonl
+	rm -f $(DATA_DIR)/.cursor.json
+	@# Remove any .tmp atomic-write buffers left behind by a crash.
+	@find $(DATA_DIR) -maxdepth 1 -name '*.tmp' -type f -delete 2>/dev/null || true
+	@echo "[clean] Virtualenv, run log, cursor, and *.tmp buffers removed."
+	@echo "[clean] The 16 committed seed artifacts under $(DATA_DIR)/ were PRESERVED."
+	@echo "[clean] Run 'make distclean' for a full wipe (deletes committed seed too)."
+
+distclean: clean ## Full wipe: remove venv AND every data artifact (committed seed included)
+	@# This target is intentionally destructive: it removes the committed
+	@# seed artifacts as well as the regenerable ones. The diagnostic
+	@# echo line names the git-checkout recovery path so an analyst who
+	@# runs distclean accidentally has a one-line recovery.
 	rm -f $(DATA_DIR)/*.json $(DATA_DIR)/*.csv $(DATA_DIR)/*.jsonl
-	@echo "[clean] Virtualenv and data artifacts removed."
+	@echo "[distclean] WARNING: also removed the 16 committed seed artifacts under $(DATA_DIR)/."
+	@echo "[distclean] Recover the committed seed via: git checkout -- $(DATA_DIR)/"
+	@echo "[distclean] See decision-log.md DL-031 for the seed/regenerable split rationale."
 
 # ---- lint ------------------------------------------------------------------
 # Lightweight syntactic validation:

@@ -62,6 +62,11 @@ WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DATA_DIR="${WORKSPACE_ROOT}/data"
 COMMITS_FILE="${DATA_DIR}/commits.csv"
 CANDIDATES_FILE="${DATA_DIR}/revert_candidates.csv"
+# Path to the canonical structured-JSON log feed (DL-032). Bash extraction
+# scripts append every log_json event to this file in addition to stderr,
+# so the run.log.jsonl feed is a complete record of every script's events
+# (matching the Python scripts' behaviour via lib.observability.get_logger).
+LOG_FILE="${DATA_DIR}/run.log.jsonl"
 
 # Default DRY_RUN to 0 but honour a pre-existing DRY_RUN env var (consistent
 # with the workspace .env.example contract; the CLI --dry-run flag also
@@ -132,17 +137,34 @@ EOF
 }
 
 # -----------------------------------------------------------------------------
-# log_json: emit a single-line structured JSON event to stderr
+# log_json: emit a single-line structured JSON event to BOTH stderr and the
+# canonical run-log file at data/run.log.jsonl (DL-032).
 #
 # Usage:  log_json LEVEL EVENT [key value [key value ...]]
 #
 # Values are passed via argv (NOT shell-interpolated into the Python source),
 # so embedded quotes, backslashes, and newlines are safe. The BLITZY_RUN_ID
 # from the surrounding script context is included automatically via env.
-# Output goes to stderr; stdout is reserved for --dry-run JSON output.
+#
+# Persistence to data/run.log.jsonl (DL-032):
+#   The CP-FIN-1 QA review (finding FIN-1-005) observed that Bash scripts
+#   00/02/05 emitted JSON events ONLY to stderr, so the run.log.jsonl feed
+#   was incomplete — only the 9 Python scripts (which use lib.observability)
+#   appeared in the journal. The fix mirrors every event to the file in
+#   addition to stderr, so the journal is now a complete record of every
+#   script's events regardless of language. The file is opened in append
+#   mode with UTF-8 encoding inside the same Python heredoc so a single
+#   process writes both destinations atomically with respect to the event.
+#   The file path is taken from $BLITZY_LOG_FILE (exported below) so the
+#   recipe-side caller can override it for tests; failure to open the
+#   file (e.g., read-only filesystem) is silently swallowed at the Python
+#   layer rather than aborting the recipe — losing the journal entry is
+#   strictly less harmful than failing the extraction. Stderr writing is
+#   always attempted regardless of file-write success.
 # -----------------------------------------------------------------------------
 log_json() {
     BLITZY_LOG_SCRIPT="${SCRIPT_NAME}" \
+    BLITZY_LOG_FILE="${LOG_FILE:-}" \
     python3 - "$@" <<'PYEOF'
 import json
 import os
@@ -166,7 +188,25 @@ event_obj = {
     "event": event,
 }
 event_obj.update(extras)
-sys.stderr.write(json.dumps(event_obj, default=str) + "\n")
+line = json.dumps(event_obj, default=str) + "\n"
+
+# Persist to the canonical run-log file when BLITZY_LOG_FILE is set and
+# non-empty. The parent directory is created if missing so a fresh
+# invocation (where data/ does not yet exist) still records its events.
+# Any I/O error during persistence is intentionally swallowed: losing a
+# log line is strictly less harmful than failing the extraction.
+log_file = os.environ.get("BLITZY_LOG_FILE", "")
+if log_file:
+    try:
+        parent = os.path.dirname(log_file)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(log_file, "a", encoding="utf-8") as fh:
+            fh.write(line)
+    except (OSError, ValueError):
+        pass
+
+sys.stderr.write(line)
 sys.stderr.flush()
 PYEOF
 }

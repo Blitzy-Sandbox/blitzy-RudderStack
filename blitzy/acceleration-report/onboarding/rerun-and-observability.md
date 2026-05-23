@@ -67,7 +67,7 @@ This is the workspace root for everything that follows. The analyzed repository'
 make setup
 ```
 
-Behind the scenes, `make setup` runs `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`. On Ubuntu 24+ systems where `python3 -m venv` may fail because of a broken `ensurepip` (the system Python ships without `pip` and you encounter `error: externally-managed-environment`), the fallback is `virtualenv --python=python3.13 .venv && ./.venv/bin/pip install -r requirements.txt`.
+Behind the scenes, `make setup` first tries `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`. On Ubuntu 24+ systems where `python3 -m venv` may fail because of a broken `ensurepip` (the system Python ships without `pip` and you encounter `error: externally-managed-environment`), the recipe automatically falls back to the standalone `virtualenv` tool (`virtualenv --python=python3 .venv && ./.venv/bin/pip install -r requirements.txt`). If neither path is available, `make setup` exits 1 with a FATAL diagnostic naming the exact install command (`pip install --user virtualenv`) to recover. See decision-log row `DL-030` for the rationale.
 
 **Step 5 — Populate the `.env` file with optional secrets.**
 
@@ -291,6 +291,8 @@ Unauthenticated requests are limited to 60 requests per hour, which is insuffici
 
 **Mitigation**: Set `GH_TOKEN` in `.env` (see Section 1 above). If a run fails with rate-limit errors, rerun `make extract` — the client persists last-success cursors at `data/.cursor.json` so the rerun resumes cleanly from the last successful page.
 
+**Offline mode (no `GH_TOKEN`):** `03_extract_pulls.py` now constructs the `GithubClient` with `offline_fallback=True` when no token is set. This caps the acceptable rate-limit sleep at 120 seconds (`RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE` in `lib/github.py`); when the projected wait exceeds the cap, the client raises `RateLimitExhausted` rather than blocking, and the per-PR loop catches the exception and switches to a local-git reconstruction of the PR list. The resulting `data/pulls.json` carries `_fallback: "local_git_reconstruction"` markers and the `github_api.error_reason` field records `rate_limit_exhausted_offline:stopped_at_pr_<N>_projected_sleep_<S>s`. Reviews and events are empty in the fallback path (local git does not have review events). See decision-log row `DL-033` for the rationale. Authenticated runs preserve the prior wait-for-reset behaviour because `offline_fallback` is False when `GH_TOKEN` is set.
+
 #### Linear API Unavailable
 
 When `LINEAR_API_KEY` is absent OR the Linear API is unreachable, **Metric 12 (Defects Out of SLA)** reports `"Insufficient signal — no SLA source"` and **Metric 6 (Flow Distribution)** falls back to conventional-commit-prefix classification only (no Linear issue-label classification) [`blitzy/acceleration-report/data/issues.json:unavailable_reason`].
@@ -344,6 +346,14 @@ The 2-week windows are anchored to Monday 00:00 UTC. If the host machine's clock
 
 **Mitigation**: Ensure `date -u` returns the actual current UTC time on the host.
 
+#### `make clean` vs `make distclean`
+
+`make clean` is **non-destructive of committed data**: it removes `.venv/`, `data/run.log.jsonl`, `data/.cursor.json`, and any `data/*.tmp` buffers, but it preserves the 16 committed seed artifacts under `data/*.json` / `data/*.csv`. This is the right target for clearing transient state (build cache, journal, cursor) without touching the reproducible baseline.
+
+`make distclean` is **destructive of every generated artifact** (including committed seeds): it depends on `clean` and additionally wipes every `data/*.json`, `data/*.csv`, and `data/*.jsonl` file. Use this only when you intend to regenerate everything from scratch via `make all`. The recipe echoes the exact recovery command (`git checkout -- data/`) so an analyst who runs it accidentally has a one-line restore path.
+
+**Mitigation**: Default to `make clean` for routine reset; reach for `make distclean` only when testing the full extract-from-zero pipeline. See decision-log row `DL-031` for the rationale and the Autoconf/CMake parallel.
+
 ---
 
 ## 7. Observability Surfaces of the Analysis Pipeline
@@ -352,7 +362,7 @@ The analysis pipeline is itself observable. Per Rule 1 (Observability, AAP §0.7
 
 ### 7.1 Structured JSON Log Feed
 
-Every extraction, compute, and render script imports `lib.observability.get_logger(run_id)` and emits single-line JSON events to `data/run.log.jsonl`. Each event carries the schema:
+Every extraction, compute, and render script emits single-line JSON events to `data/run.log.jsonl`. The nine Python scripts use `lib.observability.get_logger(run_id)` which attaches a `FileHandler` to the canonical path. The three Bash scripts (`00_environment.sh`, `02_extract_commits.sh`, `05_extract_reverts.sh`) write through an inline Python heredoc in their `log_json` function that opens the file in append mode and writes the JSON line directly; this mirroring is the resolution of CP-FIN-1 QA finding FIN-1-005 and is documented in decision-log row `DL-032`. Each event carries the schema:
 
 ```json
 {

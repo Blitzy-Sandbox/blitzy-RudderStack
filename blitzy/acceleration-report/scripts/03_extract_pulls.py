@@ -119,7 +119,7 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 from lib.observability import get_logger  # noqa: E402
-from lib.github import GithubClient  # noqa: E402
+from lib.github import GithubClient, RateLimitExhausted  # noqa: E402
 from lib.git import git_log, git_revlist  # noqa: E402
 from lib.paths import (  # noqa: E402
     atomic_write_text,
@@ -530,6 +530,14 @@ def _fetch_pr_commits(
                 params={"per_page": PAGE_SIZE},
             )
         ]
+    except RateLimitExhausted:
+        # Offline-fallback escape (DL-033): re-raise so the caller can
+        # abandon the per-PR loop and switch to local-git reconstruction.
+        # Without this re-raise, the broad ``except Exception`` below
+        # would swallow the typed signal and the caller would believe
+        # this single PR failed in isolation rather than the rate-limit
+        # being globally exhausted.
+        raise
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "pr_commits_failed",
@@ -576,6 +584,9 @@ def _fetch_pr_reviews(
                 }
             )
         return revs
+    except RateLimitExhausted:
+        # Offline-fallback escape (DL-033): re-raise to the per-PR loop.
+        raise
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "pr_reviews_failed",
@@ -630,6 +641,9 @@ def _fetch_pr_events(
                 }
             )
         return evs
+    except RateLimitExhausted:
+        # Offline-fallback escape (DL-033): re-raise to the per-PR loop.
+        raise
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "pr_events_failed",
@@ -882,7 +896,11 @@ def _process_pr_details(
     repo_slug: str,
     pulls: list[dict[str, Any]],
     logger: Any,
-) -> tuple[dict[int, list[dict[str, Any]]], dict[int, list[dict[str, Any]]]]:
+) -> tuple[
+    dict[int, list[dict[str, Any]]],
+    dict[int, list[dict[str, Any]]],
+    dict[str, Any] | None,
+]:
     """Fetch per-PR commits, reviews, and events for every PR.
 
     Iterates over PRs in ascending number order. For each PR, fetches
@@ -897,6 +915,16 @@ def _process_pr_details(
     fresh run). After every :data:`CURSOR_INTERVAL` PRs processed, the
     cursor is updated atomically.
 
+    Offline-fallback handling (DL-033, resolves FIN-1-003):
+        When the :class:`GithubClient` was constructed with
+        ``offline_fallback=True`` and the rate-limit window cannot
+        accommodate the remaining requests within the cap, the per-PR
+        loop catches :class:`RateLimitExhausted` and returns early with
+        a third tuple element describing where the loop stopped and
+        why. The caller (``main``) uses this to decide whether to
+        switch to a local-git reconstruction of the missing PR data
+        rather than blocking the pipeline for the rate-limit reset.
+
     Args:
         gh: The configured :class:`GithubClient` instance.
         repo_slug: The ``owner/repo`` slug.
@@ -905,11 +933,14 @@ def _process_pr_details(
         logger: The structured-JSON logger.
 
     Returns:
-        Tuple of ``(reviews_by_pr, events_by_pr)`` mappings keyed by PR
-        number (integer).
+        Tuple of ``(reviews_by_pr, events_by_pr, exhaustion_info)``
+        mappings keyed by PR number (integer). ``exhaustion_info`` is
+        ``None`` on a complete run and is a small dict describing the
+        rate-limit exhaustion when the loop stopped early.
     """
     reviews_by_pr: dict[int, list[dict[str, Any]]] = {}
     events_by_pr: dict[int, list[dict[str, Any]]] = {}
+    exhaustion_info: dict[str, Any] | None = None
 
     start = _resume_cursor(CURSOR_PATH)
     if start > 0:
@@ -937,18 +968,54 @@ def _process_pr_details(
         # consumer-expected ``pr_commits_first_at_iso`` /
         # ``pr_commits_last_at_iso``) are emitted in parallel so that
         # callers using either convention work without translation.
-        pr_commits = _fetch_pr_commits(gh, repo_slug, pr_number, logger)
-        pr["pr_commits"] = pr_commits
-        pr["pr_commits_count"] = len(pr_commits)
-        first_commit_date = pr_commits[0]["author_date"] if pr_commits else None
-        last_commit_date = pr_commits[-1]["author_date"] if pr_commits else None
-        pr["pr_commits_first_at_iso"] = first_commit_date
-        pr["pr_commits_last_at_iso"] = last_commit_date
-        pr["first_commit_at"] = first_commit_date
-        pr["last_commit_at"] = last_commit_date
+        #
+        # Each of the three per-PR API calls is wrapped against
+        # RateLimitExhausted so the loop degrades gracefully when the
+        # offline-mode cap is reached mid-stream. The PR dict is left
+        # in whatever state the prior assignments left it (often with
+        # empty pr_commits / no derived dates), and the loop returns
+        # the partial maps to the caller along with the exhaustion
+        # info. The caller switches to the local-git fallback path.
+        try:
+            pr_commits = _fetch_pr_commits(gh, repo_slug, pr_number, logger)
+            pr["pr_commits"] = pr_commits
+            pr["pr_commits_count"] = len(pr_commits)
+            first_commit_date = (
+                pr_commits[0]["author_date"] if pr_commits else None
+            )
+            last_commit_date = (
+                pr_commits[-1]["author_date"] if pr_commits else None
+            )
+            pr["pr_commits_first_at_iso"] = first_commit_date
+            pr["pr_commits_last_at_iso"] = last_commit_date
+            pr["first_commit_at"] = first_commit_date
+            pr["last_commit_at"] = last_commit_date
 
-        reviews_by_pr[pr_number] = _fetch_pr_reviews(gh, repo_slug, pr_number, logger)
-        events_by_pr[pr_number] = _fetch_pr_events(gh, repo_slug, pr_number, logger)
+            reviews_by_pr[pr_number] = _fetch_pr_reviews(
+                gh, repo_slug, pr_number, logger
+            )
+            events_by_pr[pr_number] = _fetch_pr_events(
+                gh, repo_slug, pr_number, logger
+            )
+        except RateLimitExhausted as exc:
+            # Offline-mode escape: record the boundary and break out of
+            # the loop. The caller inspects exhaustion_info to decide
+            # whether to switch to local-git fallback.
+            exhaustion_info = {
+                "stopped_at_pr": pr_number,
+                "processed_count": processed,
+                "projected_sleep_seconds": exc.sleep_seconds,
+                "source": exc.source,
+                "url": exc.url,
+            }
+            logger.warning(
+                "pr_details_aborted_rate_limit",
+                extra={
+                    "event": "pr_details_aborted_rate_limit",
+                    **exhaustion_info,
+                },
+            )
+            break
 
         processed += 1
         if processed % CURSOR_INTERVAL == 0:
@@ -982,9 +1049,10 @@ def _process_pr_details(
             "processed_count": processed,
             "reviews_count": sum(len(v) for v in reviews_by_pr.values()),
             "events_count": sum(len(v) for v in events_by_pr.values()),
+            "rate_limit_exhausted": exhaustion_info is not None,
         },
     )
-    return reviews_by_pr, events_by_pr
+    return reviews_by_pr, events_by_pr, exhaustion_info
 
 
 # ---------------------------------------------------------------------------
@@ -1186,18 +1254,61 @@ def main() -> int:
         "commit_volume_source": "git rev-list",
     }
 
+    gh_token = os.environ.get("GH_TOKEN")
+    # Offline-fallback opt-in (DL-033, resolves FIN-1-003):
+    # When no GH_TOKEN is set, the GitHub public quota of 60 requests/hr
+    # is insufficient for the per-PR fan-out (3 endpoints × dozens of
+    # PRs typically exceeds the quota). Without the offline-fallback
+    # flag, the client would silently sleep up to ~58 minutes for the
+    # rate-limit window to reset, blocking the pipeline. With the flag
+    # enabled, the client raises ``RateLimitExhausted`` after a small
+    # cap (120s), which the per-PR loop and the initial _fetch_pulls
+    # call both treat as a signal to switch to local-git reconstruction.
+    # Authenticated runs (GH_TOKEN set) preserve the prior wait-for-reset
+    # behaviour because waiting for an authenticated reset is rare and
+    # short, and skipping data is never preferable when a quota refill
+    # is plausibly seconds away.
+    offline_fallback = gh_token is None
     gh = GithubClient(
-        token=os.environ.get("GH_TOKEN"),
+        token=gh_token,
         logger=logger,
+        offline_fallback=offline_fallback,
     )
     pulls, api_available, api_error = _fetch_pulls(gh, args.repo_slug, logger)
     reviews_by_pr: dict[int, list[dict[str, Any]]] = {}
     events_by_pr: dict[int, list[dict[str, Any]]] = {}
+    # Tracks why the API path was abandoned mid-stream so the JSON
+    # output can record the degradation in ``github_api.error_reason``.
+    api_partial_reason: str | None = None
 
     if api_available:
-        reviews_by_pr, events_by_pr = _process_pr_details(
+        reviews_by_pr, events_by_pr, exhaustion_info = _process_pr_details(
             gh, args.repo_slug, pulls, logger
         )
+        if exhaustion_info is not None:
+            # The per-PR loop was aborted by the offline-mode escape
+            # hatch. Switch to local-git reconstruction so the pipeline
+            # produces a complete-shaped pulls.json rather than a
+            # partially-hydrated one. The reviews and events maps are
+            # discarded because they would be inconsistent with the
+            # local-git PRs anyway (which have no reviews/events).
+            logger.warning(
+                "switching_to_local_git_fallback",
+                extra={
+                    "event": "switching_to_local_git_fallback",
+                    "reason": "rate_limit_exhausted_offline",
+                    **exhaustion_info,
+                },
+            )
+            pulls = _fallback_local_git(logger)
+            reviews_by_pr = {}
+            events_by_pr = {}
+            api_available = False
+            api_partial_reason = (
+                f"rate_limit_exhausted_offline:"
+                f"stopped_at_pr_{exhaustion_info['stopped_at_pr']}_"
+                f"projected_sleep_{exhaustion_info['projected_sleep_seconds']:.0f}s"
+            )
     else:
         # Local-git fallback. The synthetic PRs include the
         # ``_fallback`` marker; reviews and events are not available in
@@ -1207,8 +1318,8 @@ def main() -> int:
     github_api_block = {
         "available": api_available,
         "endpoint": f"https://api.github.com/repos/{args.repo_slug}/pulls",
-        "authenticated": bool(os.environ.get("GH_TOKEN")),
-        "error_reason": api_error,
+        "authenticated": bool(gh_token),
+        "error_reason": api_error if api_error else api_partial_reason,
     }
 
     pulls_payload: dict[str, Any] = {

@@ -156,6 +156,20 @@ RATE_LIMIT_LOW_THRESHOLD: int = 10
 #: request lands inside the reset window rather than racing the boundary.
 RATE_LIMIT_BUFFER_SECONDS: int = 5
 
+#: Maximum acceptable rate-limit sleep duration (in seconds) when the
+#: client was constructed with ``offline_fallback=True``. The GitHub
+#: unauthenticated rate-limit window is one hour (60 requests/hour at the
+#: time of writing); waiting up to ~58 minutes for the reset is a poor
+#: user experience for a one-shot pipeline run. When ``offline_fallback``
+#: is enabled and the projected sleep exceeds this cap, the client raises
+#: :class:`RateLimitExhausted` so the caller can switch to a local-git
+#: fallback path (per AAP §0.8.5 network optionality) rather than
+#: blocking. The default value of 120 seconds is long enough to absorb a
+#: brief rate-limit reset for an authenticated client (rarely triggered)
+#: but short enough that no analyst will mistake the wait for a hang.
+#: Resolves CP-FIN-1 QA finding FIN-1-003 (decision-log entry DL-033).
+RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE: float = 120.0
+
 #: Per-request timeout in seconds passed to :meth:`requests.Session.request`.
 #: GitHub responses for paginated list endpoints typically arrive in well
 #: under one second; thirty seconds is a wide safety margin that still
@@ -208,6 +222,68 @@ _BODY_EXCERPT_MAX_CHARS: int = 512
 
 
 # ---------------------------------------------------------------------------
+# Typed exceptions
+# ---------------------------------------------------------------------------
+
+
+class RateLimitExhausted(Exception):
+    """Raised when the GitHub rate-limit sleep exceeds the offline-mode cap.
+
+    The :class:`GithubClient` raises this exception in place of a long
+    ``time.sleep`` call when (a) the constructor was invoked with
+    ``offline_fallback=True`` and (b) the projected sleep duration exceeds
+    :data:`RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE`. The exception is
+    *not* raised in the default (``offline_fallback=False``) mode — that
+    preserves the prior rate-limit-respecting behaviour for runs that
+    have a token and prefer waiting for the reset over skipping data.
+
+    Callers should catch :class:`RateLimitExhausted` and switch to a
+    local-data fallback path. The attributes :attr:`sleep_seconds` and
+    :attr:`url` are exposed so the caller can record the exact projected
+    wait and the URL that triggered the exhaustion for diagnostic
+    logging. The :attr:`source` attribute disambiguates the trigger:
+
+    * ``"preemptive_low_remaining"`` — the ``X-RateLimit-Remaining`` header
+      on a successful (2xx) response dropped below
+      :data:`RATE_LIMIT_LOW_THRESHOLD` and the projected wait until reset
+      exceeds the cap.
+    * ``"http_429"`` — GitHub returned 429 Too Many Requests and the
+      ``Retry-After`` / ``X-RateLimit-Reset`` header indicates the wait
+      exceeds the cap.
+
+    See decision-log entry DL-033 for the design rationale.
+
+    Args:
+        sleep_seconds: The projected sleep duration in seconds that
+            triggered the exhaustion check (always greater than
+            :data:`RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE`).
+        url: The (redacted) URL that triggered the exhaustion. May be
+            ``None`` when the exception is constructed without URL
+            context (e.g. by a unit test).
+        source: One of ``"preemptive_low_remaining"`` or ``"http_429"``.
+    """
+
+    def __init__(
+        self,
+        sleep_seconds: float,
+        url: str | None = None,
+        source: str = "preemptive_low_remaining",
+    ) -> None:
+        # The message stored on the base Exception serialises cleanly into
+        # both stack traces and structured-log ``error`` fields. Callers
+        # that want a richer payload should read the typed attributes
+        # directly rather than re-parse the message string.
+        super().__init__(
+            f"GitHub rate-limit sleep ({sleep_seconds:.1f}s) exceeds the "
+            f"offline-mode cap of {RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE:.1f}s "
+            f"(source={source}, url={url or '<unknown>'})"
+        )
+        self.sleep_seconds: float = sleep_seconds
+        self.url: str | None = url
+        self.source: str = source
+
+
+# ---------------------------------------------------------------------------
 # GithubClient class
 # ---------------------------------------------------------------------------
 
@@ -252,6 +328,7 @@ class GithubClient:
         logger: Any,
         base_url: str = DEFAULT_BASE_URL,
         cursor_path: Path | None = None,
+        offline_fallback: bool = False,
     ) -> None:
         """Initialise the client.
 
@@ -278,11 +355,26 @@ class GithubClient:
                 to resume pagination from the recorded checkpoint. ``None``
                 disables persistence (the default behaviour for one-shot
                 runs that do not need resume-on-failure).
+            offline_fallback: When ``True``, the client raises
+                :class:`RateLimitExhausted` instead of sleeping when the
+                projected rate-limit wait would exceed
+                :data:`RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE`. This gives
+                callers a deterministic escape hatch to switch to a
+                local-data fallback path (per AAP §0.8.5 network
+                optionality) rather than blocking on a multi-minute
+                sleep that a one-shot pipeline cannot afford. The
+                default ``False`` preserves the prior rate-limit-
+                respecting behaviour for runs where waiting is preferable
+                to skipping data — notably any run that has a
+                ``GH_TOKEN`` and is therefore unlikely to ever trigger
+                the cap. Resolves CP-FIN-1 QA finding FIN-1-003
+                (decision-log entry DL-033).
         """
         self._token: str | None = token
         self._logger: Any = logger
         self._base_url: str = base_url.rstrip("/")
         self._cursor_path: Path | None = cursor_path
+        self._offline_fallback: bool = offline_fallback
 
         self._session: requests.Session = requests.Session()
         self._session.headers.update(
@@ -303,6 +395,7 @@ class GithubClient:
                 "base_url": self._base_url,
                 "authenticated": token is not None,
                 "cursor_persisted": cursor_path is not None,
+                "offline_fallback": offline_fallback,
             },
         )
 
@@ -467,8 +560,24 @@ class GithubClient:
         special-case the 429 path. The decision and duration are logged
         under the sentinel event ``github_api_rate_limit_low``.
 
+        Offline-mode escape hatch (DL-033, resolves FIN-1-003):
+            When the client was constructed with
+            ``offline_fallback=True`` and the projected sleep duration
+            exceeds :data:`RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE`, the
+            method raises :class:`RateLimitExhausted` instead of
+            sleeping. Callers can catch the exception and switch to a
+            local-data path (per AAP §0.8.5) rather than blocking the
+            pipeline on a multi-minute wait. The event
+            ``github_api_rate_limit_exhausted`` is logged before the
+            exception is raised so the diagnostic trail is preserved.
+
         Args:
             response: The most recent successful response.
+
+        Raises:
+            RateLimitExhausted: Only when ``offline_fallback=True`` was
+                passed to the constructor AND the projected sleep exceeds
+                the offline cap.
         """
         remaining_str = response.headers.get("X-RateLimit-Remaining")
         if remaining_str is None:
@@ -480,6 +589,32 @@ class GithubClient:
         if remaining >= RATE_LIMIT_LOW_THRESHOLD:
             return
         sleep_seconds = self._rate_limit_reset_seconds(response) or 0.0
+        # Offline-fallback escape hatch (DL-033): if the client has been
+        # told to prefer fallback over waiting, and the projected sleep
+        # is large enough to materially block the pipeline, raise the
+        # typed exception so the caller can degrade gracefully. The
+        # request that produced this response has already succeeded — we
+        # are deciding whether to wait BEFORE the next request, not
+        # whether to retry the current one.
+        if (
+            self._offline_fallback
+            and sleep_seconds > RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE
+        ):
+            self._logger.warning(
+                "github_api_rate_limit_exhausted",
+                extra={
+                    "rate_limit_remaining": remaining,
+                    "projected_sleep_seconds": sleep_seconds,
+                    "offline_cap_seconds": RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE,
+                    "source": "preemptive_low_remaining",
+                    "url": redact_url(response.url) if response.url else None,
+                },
+            )
+            raise RateLimitExhausted(
+                sleep_seconds=sleep_seconds,
+                url=redact_url(response.url) if response.url else None,
+                source="preemptive_low_remaining",
+            )
         self._logger.warning(
             "github_api_rate_limit_low",
             extra={
@@ -679,6 +814,39 @@ class GithubClient:
                         reset_seconds
                         if reset_seconds is not None
                         else self._exponential_backoff_seconds(attempt)
+                    )
+                # Offline-fallback escape hatch (DL-033, resolves
+                # FIN-1-003): if the caller asked for fast-fail behaviour
+                # and the projected sleep is long, raise the typed
+                # exception. Without the cap, the unauthenticated
+                # 60-req/hr quota would force a ~58 minute sleep here.
+                if (
+                    self._offline_fallback
+                    and sleep_seconds > RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE
+                ):
+                    self._logger.warning(
+                        "github_api_rate_limit_exhausted",
+                        extra={
+                            "attempt": attempt + 1,
+                            "max_retries": MAX_RETRIES,
+                            "url": redact_url(url),
+                            "projected_sleep_seconds": sleep_seconds,
+                            "offline_cap_seconds": (
+                                RATE_LIMIT_MAX_SLEEP_SECONDS_OFFLINE
+                            ),
+                            "source": "http_429",
+                            "rate_limit_remaining": resp.headers.get(
+                                "X-RateLimit-Remaining"
+                            ),
+                            "rate_limit_reset": resp.headers.get(
+                                "X-RateLimit-Reset"
+                            ),
+                        },
+                    )
+                    raise RateLimitExhausted(
+                        sleep_seconds=sleep_seconds,
+                        url=redact_url(url),
+                        source="http_429",
                     )
                 self._logger.warning(
                     "github_api_rate_limited",
