@@ -31,7 +31,7 @@ The pipeline runs on Linux and macOS. Windows is supported under WSL2. The bulle
 - **GitHub Personal Access Token (`GH_TOKEN`)** — Required for higher API rate limits (5,000 requests/hour authenticated vs. 60/hour unauthenticated). Generate at https://github.com/settings/tokens with scopes:
   - `repo:read` (for reading PRs, commits, releases, issues)
   - `actions:read` (for reading workflow runs and artifacts)
-  - Provide via the `.env` file: `GH_TOKEN=ghp_yourTokenHere`
+  - Provide via the `.env` file: `GH_TOKEN=<github-personal-access-token>` (NEVER paste the literal token value into a tracked file; use a placeholder of the form `<github-personal-access-token>` only, per the CP2 review Security Hygiene finding. The literal value is loaded at runtime from your `.env` which is gitignored.)
   - When absent, the pipeline runs in offline mode using only local-git data; confidence tiers may drop accordingly. Risk Assessment in the rendered report documents the degradation.
 - **Linear API key (`LINEAR_API_KEY`)** — Required for Metric 6 issue-label classification and Metric 12 SLA-tier resolution. Generate at https://linear.app/settings/api.
   - When absent, Metric 12 reports "Insufficient signal — no SLA source" and Metric 6 falls back to conventional-commit-prefix classification only.
@@ -42,7 +42,59 @@ The workspace ships a template at [`../.env.example`](../.env.example) listing e
 
 ---
 
-## 3. One-Command Rerun
+## 3. Clone-and-Setup
+
+This section walks through the exact steps to take a clean machine from "nothing installed" to "ready to run `make all`". Every command is read-only with respect to the analyzed repository (no commits, pushes, or external system writes). Section 4 below shows the one-command rerun that uses the workspace built here.
+
+**Step 1 — Clone the repository.** The analyzed repository lives at `Blitzy-Sandbox/blitzy-RudderStack` on GitHub. Clone via HTTPS (no special credentials needed for read-only clone of the public-or-org-readable repo) [`catalog-info.yaml:metadata.annotations.github.com/project-slug`]:
+
+```bash
+git clone https://github.com/Blitzy-Sandbox/blitzy-RudderStack.git
+cd blitzy-RudderStack
+```
+
+Alternatively, if you have SSH set up, `git clone git@github.com:Blitzy-Sandbox/blitzy-RudderStack.git`. The analysis pipeline reads only the local clone's git history (`.git/`) plus the in-repo workflow and config files; nothing is pushed back to the remote.
+
+**Step 2 — Check out the working branch.** The CP2 work lives on the per-session feature branch. To re-run the same analysis on the exact same state, check out the matching branch (e.g., `git checkout blitzy-721d7d10-a0c0-47d3-b010-cfb636cb8bd8`). To re-run against the latest `main`, stay on `main` (the default after clone) [`blitzy/acceleration-report/data/environment.json:default_branch`].
+
+**Step 3 — Enter the analysis workspace.**
+
+```bash
+cd blitzy/acceleration-report
+```
+
+This is the workspace root for everything that follows. The analyzed repository's source tree (`admin/`, `app/`, `gateway/`, … `warehouse/`) is read-only context for the extraction scripts; the workspace files (`scripts/`, `data/`, `diagrams/`, `onboarding/`, this document) are the analysis pipeline.
+
+**Step 4 — Create and activate the Python virtual environment.** The workspace ships a pinned `requirements.txt` [`blitzy/acceleration-report/requirements.txt`] with 7 dependencies (requests, python-dateutil, tzdata, tabulate, jinja2, jsonschema, gql). The `setup` Makefile target wraps this in one command:
+
+```bash
+make setup
+```
+
+Behind the scenes, `make setup` runs `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`. On Ubuntu 24+ systems where `python3 -m venv` may fail because of a broken `ensurepip` (the system Python ships without `pip` and you encounter `error: externally-managed-environment`), the fallback is `virtualenv --python=python3.13 .venv && ./.venv/bin/pip install -r requirements.txt`.
+
+**Step 5 — Populate the `.env` file with optional secrets.**
+
+```bash
+cp .env.example .env
+# Edit .env with your editor; uncomment and fill in GH_TOKEN and LINEAR_API_KEY if desired.
+```
+
+The `.env.example` template [`blitzy/acceleration-report/.env.example`] documents the safe placeholder syntax for every supported environment variable. NEVER paste a literal token value; use the `<github-personal-access-token>` and `<linear-api-key>` placeholders and load the actual values via your shell environment. The `.env` file itself is gitignored, so committing your local `.env` is impossible by accident.
+
+**Step 6 — Run the readiness preflight (recommended).**
+
+```bash
+DRY_RUN=1 make extract
+```
+
+This invokes every extraction script with the `--dry-run` flag, printing the exact set of HTTP endpoints and git commands the pipeline would issue, then exiting without performing them. The dry-run is the analytics equivalent of a readiness gate (see Section 8.3 below) and validates that every required tool and token is configured before the actual run.
+
+After Step 6 succeeds with zero errors, jump to Section 4 (One-Command Rerun) below.
+
+---
+
+## 4. One-Command Rerun
 
 After Section 2 prerequisites are installed, the complete pipeline runs in four commands:
 
@@ -73,7 +125,7 @@ The complete target catalogue lives in the workspace [`../Makefile`](../Makefile
 
 ---
 
-## 4. Domain Context (rudder-server)
+## 5. Domain Context (rudder-server)
 
 This section summarizes the analyzed system at a level sufficient to interpret the metrics. The two long-form references that ground this summary are `blitzy/documentation/Project Guide.md` (operational status and coordination record across 25 epics) and `blitzy/documentation/Technical Specifications.md` (sequenced engineering plan and authoritative design reference). Read those if you need deeper context than this section provides — but you do NOT need to read them to re-run the pipeline.
 
@@ -93,11 +145,11 @@ The active engineering-actor roster across `main` is four human authors plus one
 
 ---
 
-## 5. Pipeline Overview
+## 6. Pipeline Stages
 
-The pipeline is a deterministic three-stage extract → compute → render flow. Each stage is independently invocable, idempotent, and produces a checkpointable artifact that downstream stages consume. The separation enforces Rule 1 (Data Provenance) by persisting raw output before any derivation, and Rule 4 (Internal Consistency) by ensuring both renderers consume only the compute outputs. The canonical full description lives in [`acceleration-report.md`](../acceleration-report.md) §4 Methodology.
+The pipeline is a deterministic three-stage extract → compute → render flow. Each stage is independently invocable, idempotent, and produces a checkpointable artifact that downstream stages consume. The separation enforces Rule 1 (Data Provenance) by persisting raw output before any derivation [`blitzy/acceleration-report/scripts/lib/observability.py:_redact_value`], and Rule 4 (Internal Consistency) by ensuring both renderers consume only the compute outputs. The canonical full description lives in [`acceleration-report.md`](../acceleration-report.md) §4 Methodology.
 
-### 5.1 Extract Stage (scripts 00–08)
+### 6.1 Extract Stage (scripts 00–08)
 
 The extract stage consults nine sources of signal and writes a raw data artifact per source. Scripts are independent; failure of one does not block the others, but each failure is logged with the structured-JSON logger and surfaces in the Risk Assessment of the report.
 
@@ -111,13 +163,13 @@ The extract stage consults nine sources of signal and writes a raw data artifact
 - `07_extract_exceptions.py` — audit log, force-pushes, label scan, and lint-config exemptions; emits `data/exceptions.json`
 - `08_extract_linear.py` — Linear GraphQL (no-op without `LINEAR_API_KEY`); emits `data/issues.json` and `data/slas.json`
 
-### 5.2 Compute Stage (script 09)
+### 6.2 Compute Stage (script 09)
 
 The compute stage is pure (no I/O beyond reading and writing the named files) so that it is exactly reproducible from the data artifacts:
 
 - `09_compute_metrics.py` — deterministic compute step for all 12 metrics plus per-engineer breakdown, temporal phase aggregation, and multi-module aggregation; emits `data/metrics.json` and `data/per_engineer.json` with `{value, confidence, caveat, provenance, boundary_conditions}` fields per metric per phase
 
-### 5.3 Render Stage (scripts 10, 11)
+### 6.3 Render Stage (scripts 10, 11)
 
 The render stage consumes ONLY the compute outputs — never the raw extraction artifacts directly. This enforces Rule 4 (Internal Consistency) mechanically: both renderers see the same `metrics.json`:
 
@@ -128,11 +180,76 @@ See [`../diagrams/extraction-pipeline.mmd`](../diagrams/extraction-pipeline.mmd)
 
 ---
 
-## 6. Observability Surfaces of the Analysis Pipeline
+## 7. Common Pitfalls
+
+This section lists the failure modes most commonly encountered on first-time runs and their mitigations. The placement of Common Pitfalls BEFORE Observability is intentional: an analyst hitting an issue typically wants the troubleshooting catalogue first, then turns to the observability surfaces to confirm the fix worked. Per the CP2 review item, this section moved from its prior position after observability to its required position before observability.
+
+#### GitHub API Rate Limits
+
+Unauthenticated requests are limited to 60 requests per hour, which is insufficient for the ~538-commit roster plus PR-merge histories plus workflow runs plus releases. With `GH_TOKEN`, the limit rises to 5,000 requests per hour, which is adequate for the full pipeline. The shared `lib/github.py` client implements exponential back-off on `403 Rate Limit Exceeded` responses but may still time out on cold caches [`blitzy/acceleration-report/scripts/lib/github.py`].
+
+**Mitigation**: Set `GH_TOKEN` in `.env` (see Section 2 above). If a run fails with rate-limit errors, rerun `make extract` — the client persists last-success cursors at `data/.cursor.json` so the rerun resumes cleanly from the last successful page.
+
+#### Linear API Unavailable
+
+When `LINEAR_API_KEY` is absent OR the Linear API is unreachable, **Metric 12 (Defects Out of SLA)** reports `"Insufficient signal — no SLA source"` and **Metric 6 (Flow Distribution)** falls back to conventional-commit-prefix classification only (no Linear issue-label classification) [`blitzy/acceleration-report/data/issues.json:unavailable_reason`].
+
+**Mitigation**: Provision `LINEAR_API_KEY` per Section 2 above. When unavailable, this fallback is documented as [`decision-log.md`](../decision-log.md) entry `DL-007` and surfaces in the Risk Assessment section of the rendered report.
+
+#### Admin Audit Log Inaccessible
+
+**Metric 10 (Approved Exceptions)** requires admin audit-log access for the full signal. With a read-only token, only force-pushes (from `git reflog`), label-based exception markers, and HEAD snapshots of `.golangci.yml`, `.snyk`, `.truffleignore`, and `.deepsource.toml` exemptions are available. Confidence drops to Low and a caveat is appended at every appearance [`blitzy/acceleration-report/data/exceptions.json:audit_log.available`].
+
+**Mitigation**: Provision an admin token if higher-fidelity Metric 10 is desired. When unavailable, the degradation is documented as [`decision-log.md`](../decision-log.md) entry `DL-008` and surfaces in the Risk Assessment.
+
+#### History Rewrites (PRs with Force-Pushed-Away First Commits)
+
+PRs whose first commit was force-pushed away cannot be located in the local clone. Metric 7 (Flow Time) reports the exclusion rate; the affected PR numbers appear in `data/pulls.json` with `excluded_reason: "first_commit_unreachable"`.
+
+**Mitigation**: None — this is an artifact of the upstream PR workflow. The exclusion rate is reported transparently per the user's "no fabrication" rule.
+
+#### macOS System Bash (Version 3.2)
+
+The system `/bin/bash` on macOS is version 3.2 (BSD-licensed). The pipeline requires bash 5.0 or later for features such as `[[ -v VAR ]]` existence checks, `${var,,}` lowercase expansion, and associative arrays. Running `make all` with bash 3.2 produces `bad substitution` errors.
+
+**Mitigation**: Install bash 5.x via Homebrew (`brew install bash`) and ensure `/opt/homebrew/bin` (Apple Silicon) or `/usr/local/bin` (Intel) appears in `PATH` BEFORE `/bin`. Verify with `which bash` — it should print the Homebrew path.
+
+#### `jq` Absence
+
+Some pretty-print steps in the documentation and validation scripts use `jq`. When `jq` is not installed, the scripts fall back to `python3 -m json.tool`. The functional behavior is identical; the output formatting may differ slightly.
+
+**Mitigation**: Install `jq` if desired (`brew install jq` or `sudo apt install jq`). It is not required for any extraction, compute, or render step.
+
+#### Submodule Absence
+
+The analyzed rudder-server repository has no git submodules; `git submodule status` returns empty output. This is recorded in `data/environment.json` as `"submodule_state": "no_submodules"` [`blitzy/acceleration-report/data/environment.json:submodule_state`]. If submodules are introduced in the future, the environment snapshot will reflect that change automatically.
+
+**Mitigation**: None — the current state is "no submodules" which the pipeline handles correctly.
+
+#### Python Virtual Environment Not Activated
+
+If you invoke `python scripts/03_extract_pulls.py` directly without activating `.venv/`, you may get `ModuleNotFoundError: No module named 'requests'`. The Makefile invokes scripts via `.venv/bin/python` (referred to as `$(VENV_PY)` in the Makefile) to avoid this; if you bypass the Makefile, activate the venv first.
+
+**Mitigation**: Run scripts via `make extract`, `make compute`, or `make render` (which use `.venv/bin/python`), OR activate the venv before running scripts directly:
+
+```bash
+source .venv/bin/activate
+python scripts/03_extract_pulls.py
+```
+
+#### Clock Skew During Window Boundary Computation
+
+The 2-week windows are anchored to Monday 00:00 UTC. If the host machine's clock is misaligned with UTC (for example, running in a stale Docker container with a frozen clock), the window-end snapshots used for Metric 1 (Flow Load) may misalign. The pipeline does NOT rely on the host clock for any window math — all window boundaries are derived from git and API timestamps which are UTC ISO-8601. The host clock only affects the `extraction_timestamp` field in `data/environment.json`.
+
+**Mitigation**: Ensure `date -u` returns the actual current UTC time on the host.
+
+---
+
+## 8. Observability Surfaces of the Analysis Pipeline
 
 The analysis pipeline is itself observable. Per Rule 1 (Observability, AAP §0.7.1.1), the interpretation for an analytics deliverable comprises four surfaces: a structured JSON log feed (the analytics equivalent of distributed tracing), a pipeline counters summary (the analytics equivalent of a metrics endpoint), a readiness preflight (the analytics equivalent of a health gate), and a dashboard template (the analytics equivalent of a Grafana dashboard).
 
-### 6.1 Structured JSON Log Feed
+### 8.1 Structured JSON Log Feed
 
 Every extraction, compute, and render script imports `lib.observability.get_logger(run_id)` and emits single-line JSON events to `data/run.log.jsonl`. Each event carries the schema:
 
@@ -163,7 +280,7 @@ tail -F data/run.log.jsonl | while read -r line; do echo "$line" | python3 -m js
 
 Sensitive fields are REDACTED by the logger: any key matching `*token*` or `*key*` is replaced with `"[REDACTED]"` before serialization. The `GH_TOKEN` and `LINEAR_API_KEY` values therefore never appear in `data/run.log.jsonl` or in any other committed artifact.
 
-### 6.2 Pipeline Counters Summary
+### 8.2 Pipeline Counters Summary
 
 On completion, each script prints a stdout summary block. Examples:
 
@@ -173,7 +290,7 @@ On completion, each script prints a stdout summary block. Examples:
 
 These stdout summaries are the analytics-pipeline equivalent of a metrics surface. They are designed to be skimmed at the end of a run for a rapid health check; the structured JSON log feed (Section 6.1) is the source of truth for detailed inspection.
 
-### 6.3 Readiness Preflight (`--dry-run` flag)
+### 8.3 Readiness Preflight (`--dry-run` flag)
 
 Every script supports a `--dry-run` flag that lists every external endpoint and every git command it WOULD invoke, then exits 0 without performing any of them. This is the analytics-pipeline equivalent of a readiness or health gate.
 
@@ -196,7 +313,7 @@ A dry-run produces an output report (to stdout AND to `data/run.log.jsonl` with 
 
 Use the dry-run BEFORE running the full extraction on a new machine to validate that all required tooling and tokens are configured.
 
-### 6.4 Dashboard Template
+### 8.4 Dashboard Template
 
 The Mermaid diagram at [`../diagrams/extraction-pipeline.mmd`](../diagrams/extraction-pipeline.mmd) is the analytics-pipeline equivalent of a Grafana dashboard. Render it to SVG via the Mermaid CLI:
 
@@ -212,21 +329,21 @@ The diagram shows: data sources (GitHub APIs, Linear API, local git, in-repo fil
 
 ---
 
-## 7. rudder-server's Own Observability Stack (Existing, Reused for Context)
+## 9. rudder-server's Own Observability Stack (Existing, Reused for Context)
 
 Per the Observability rule's "Check if the project already has logging, tracing, metrics, or health checks. Use what exists. Document what you reused and what you added." directive (AAP §0.7.1.1), this section documents the EXISTING observability stack of the analyzed rudder-server. The measurement pipeline does NOT exercise these endpoints; they are READ-ONLY context for analysts who wish to stand up rudder-server locally to gather Metric 11 signal or inspect runtime metrics directly.
 
-### 7.1 Three Wire Formats
+### 9.1 Three Wire Formats
 
 - **Prometheus** — scrape endpoint at `http://localhost:9102/metrics` (pull HTTP, `prometheus/client_golang` v1.23.2). Example series names: `gateway_event_latency_seconds`, `router_destination_delivery_total`, `processor_pipeline_duration_seconds`.
 - **StatsD** — UDP datagram listener on port `9125`, bridged to Prometheus on `9102` via `prom/statsd-exporter` v0.22.4. Used for legacy compatibility with existing dashboards.
 - **OpenTelemetry OTLP** — trace and metric export via `go.opentelemetry.io/otel` v1.40.0. Configurable OTLP receiver endpoint.
 
-### 7.2 Structured Logging
+### 9.2 Structured Logging
 
 `rudder-observability-kit` (`obskit`) v0.0.6 — the canonical structured logger across the codebase. It provides field-tagged log lines with standardized keys such as `destination_id`, `source_id`, `workspace_id`, and `job_id`.
 
-### 7.3 HTTP Endpoints
+### 9.3 HTTP Endpoints
 
 - `GET /health` — liveness probe (returns `200 OK` with JSON `{"server":"UP", "db":"UP", "acceptingEvents":"TRUE"}` when healthy). Mounted at `gateway/handle_lifecycle.go`.
 - Six bearer-protected internal endpoints (all require Bearer-token auth):
@@ -237,7 +354,7 @@ Per the Observability rule's "Check if the project already has logging, tracing,
   - `/alerts` — alerting-rule state
   - `/replay` — advanced replay control
 
-### 7.4 Alert Routing
+### 9.4 Alert Routing
 
 `services/alert/` wraps four notification backends:
 
@@ -248,7 +365,7 @@ Per the Observability rule's "Check if the project already has logging, tracing,
 
 Configuration lives in `config/config.yaml` and is propagated via backend-config subscription.
 
-### 7.5 How to Exercise Locally
+### 9.5 How to Exercise Locally
 
 If you wish to inspect the runtime metrics surface to corroborate Metric 11 signal:
 
@@ -267,72 +384,114 @@ The analysis pipeline does NOT depend on rudder-server being running. The pipeli
 
 ---
 
-## 8. Common Pitfalls
+## 10. Reference Map
 
-This section lists the failure modes most commonly encountered on first-time runs and their mitigations.
+The Reference Map is the cross-walk between the entities a new analyst will encounter (data artifacts, scripts, schemas, decisions, rules) and the canonical location of each. Use this as the lookup index when a section of the rendered report references "see X" — the locator here resolves "X" to a file path with line- or section-locator. Every row uses the `[<path>:<locator>]` citation discipline mandated by AAP §0.10.1.
 
-#### GitHub API Rate Limits
+### 10.1 Data Artifacts (the provenance trail per Rule 1)
 
-Unauthenticated requests are limited to 60 requests per hour, which is insufficient for the ~538-commit roster plus PR-merge histories plus workflow runs plus releases. With `GH_TOKEN`, the limit rises to 5,000 requests per hour, which is adequate for the full pipeline. The shared `lib/github.py` client implements exponential back-off on `403 Rate Limit Exceeded` responses but may still time out on cold caches.
+| Artifact | Canonical Path | Produced By | Consumed By |
+|---|---|---|---|
+| Environment snapshot (Rule 6) | [`blitzy/acceleration-report/data/environment.json`] | `scripts/00_environment.sh` | every downstream script for `BLITZY_RUN_ID` plus the renderer for the Environment Verification section |
+| Inflection result | [`blitzy/acceleration-report/data/inflection.json`] | `scripts/01_detect_inflection.py` | every downstream script for the inflection date plus the renderer for the Methodology section |
+| Full commit roster | [`blitzy/acceleration-report/data/commits.csv`] | `scripts/02_extract_commits.sh` | `scripts/09_compute_metrics.py` (Flow Velocity, multi-module aggregation) |
+| Revert-candidate commits | [`blitzy/acceleration-report/data/revert_candidates.csv`] | `scripts/02_extract_commits.sh` | `scripts/05_extract_reverts.sh` |
+| PR inventory | [`blitzy/acceleration-report/data/pulls.json`] | `scripts/03_extract_pulls.py` (API) or local-git fallback | `scripts/09_compute_metrics.py` (Metrics 1, 2, 4, 5, 6, 7, 10) |
+| PR review timelines | [`blitzy/acceleration-report/data/reviews.json`] | `scripts/03_extract_pulls.py` | `scripts/09_compute_metrics.py` (Metric 4 ready-for-review bounds) |
+| PR event timelines | [`blitzy/acceleration-report/data/pull_events.json`] | `scripts/03_extract_pulls.py` | `scripts/09_compute_metrics.py` (Metric 4) |
+| Release inventory | [`blitzy/acceleration-report/data/releases.json`] | `scripts/04_extract_releases.py` | `scripts/09_compute_metrics.py` (Metric 9), `scripts/05_extract_reverts.sh` |
+| Revert resolutions | [`blitzy/acceleration-report/data/reverts.json`] | `scripts/05_extract_reverts.sh` | `scripts/09_compute_metrics.py` (Metric 8) |
+| CI workflow run history | [`blitzy/acceleration-report/data/ci_runs.json`] | `scripts/06_extract_ci_history.py` | `scripts/09_compute_metrics.py` (Metric 11) |
+| Test transitions | [`blitzy/acceleration-report/data/test_transitions.json`] | `scripts/06_extract_ci_history.py` | `scripts/09_compute_metrics.py` (Metric 11) |
+| Exception inventory | [`blitzy/acceleration-report/data/exceptions.json`] | `scripts/07_extract_exceptions.py` | `scripts/09_compute_metrics.py` (Metric 10) |
+| Linear issue inventory | [`blitzy/acceleration-report/data/issues.json`] | `scripts/08_extract_linear.py` (or empty with reason) | `scripts/09_compute_metrics.py` (Metric 6 Linear-label classifier, Metric 12) |
+| Linear SLA targets | [`blitzy/acceleration-report/data/slas.json`] | `scripts/08_extract_linear.py` (or empty with reason) | `scripts/09_compute_metrics.py` (Metric 12) |
+| Computed metrics | [`blitzy/acceleration-report/data/metrics.json`] | `scripts/09_compute_metrics.py` | `scripts/10_render_report.py`, `scripts/11_render_deck.py` |
+| Per-engineer breakdown | [`blitzy/acceleration-report/data/per_engineer.json`] | `scripts/09_compute_metrics.py` | `scripts/10_render_report.py`, `scripts/11_render_deck.py` |
+| Run log feed | [`blitzy/acceleration-report/data/run.log.jsonl`] | every script via `lib/observability.py` | analyst live-tail; CI verify target |
 
-**Mitigation**: Set `GH_TOKEN` in `.env` (see Section 2 above). If a run fails with rate-limit errors, rerun `make extract` — the client persists last-success cursors at `data/.cursor.json` so the rerun resumes cleanly from the last successful page.
+### 10.2 Extraction Scripts
 
-#### Linear API Unavailable
+| Script | Path | Purpose |
+|---|---|---|
+| Environment preamble | [`blitzy/acceleration-report/scripts/00_environment.sh`] | Rule 6 Environment Verification preamble |
+| Inflection detector | [`blitzy/acceleration-report/scripts/01_detect_inflection.py`] | Three-tier AI inflection point detection |
+| Commit roster | [`blitzy/acceleration-report/scripts/02_extract_commits.sh`] | Full commit and revert-candidate roster |
+| PR + review + events | [`blitzy/acceleration-report/scripts/03_extract_pulls.py`] | GitHub Pulls + Reviews + Events APIs |
+| Releases | [`blitzy/acceleration-report/scripts/04_extract_releases.py`] | GitHub Releases API + tag scan |
+| Reverts | [`blitzy/acceleration-report/scripts/05_extract_reverts.sh`] | Revert-to-original resolution + release attribution |
+| CI history | [`blitzy/acceleration-report/scripts/06_extract_ci_history.py`] | Actions Runs API + JUnit XML |
+| Exceptions | [`blitzy/acceleration-report/scripts/07_extract_exceptions.py`] | Branch protection + audit log + label scan |
+| Linear | [`blitzy/acceleration-report/scripts/08_extract_linear.py`] | Linear GraphQL (no-op when key absent) |
+| Compute | [`blitzy/acceleration-report/scripts/09_compute_metrics.py`] | Deterministic metric computation |
+| Report renderer | [`blitzy/acceleration-report/scripts/10_render_report.py`] | Markdown report generation |
+| Deck renderer | [`blitzy/acceleration-report/scripts/11_render_deck.py`] | reveal.js HTML generation |
+| Observability lib | [`blitzy/acceleration-report/scripts/lib/observability.py`] | Structured JSON logger with redaction |
+| GitHub client lib | [`blitzy/acceleration-report/scripts/lib/github.py`] | Paginated, rate-limit-aware REST client |
+| Git helpers lib | [`blitzy/acceleration-report/scripts/lib/git.py`] | `subprocess`-based git helpers |
 
-When `LINEAR_API_KEY` is absent OR the Linear API is unreachable, **Metric 12 (Defects Out of SLA)** reports `"Insufficient signal — no SLA source"` and **Metric 6 (Flow Distribution)** falls back to conventional-commit-prefix classification only (no Linear issue-label classification).
+### 10.3 JSON Schemas
 
-**Mitigation**: Provision `LINEAR_API_KEY` per Section 2 above. When unavailable, this fallback is documented as [`decision-log.md`](../decision-log.md) entry `DL-007` and surfaces in the Risk Assessment section of the rendered report.
+| Schema | Path |
+|---|---|
+| Environment | [`blitzy/acceleration-report/scripts/lib/schemas/environment.schema.json`] |
+| Inflection | [`blitzy/acceleration-report/scripts/lib/schemas/inflection.schema.json`] |
+| Pulls | [`blitzy/acceleration-report/scripts/lib/schemas/pulls.schema.json`] |
+| Releases | [`blitzy/acceleration-report/scripts/lib/schemas/releases.schema.json`] |
+| Metrics | [`blitzy/acceleration-report/scripts/lib/schemas/metrics.schema.json`] |
 
-#### Admin Audit Log Inaccessible
+### 10.4 Decision Log Entries (Why Each Non-Trivial Choice)
 
-**Metric 10 (Approved Exceptions)** requires admin audit-log access for the full signal. With a read-only token, only force-pushes (from `git reflog`), label-based exception markers, and HEAD snapshots of `.golangci.yml`, `.snyk`, `.truffleignore`, and `.deepsource.toml` exemptions are available. Confidence drops to Low and a caveat is appended at every appearance.
+The full table lives in [`decision-log.md`](../decision-log.md). Key entries:
 
-**Mitigation**: Provision an admin token if higher-fidelity Metric 10 is desired. When unavailable, the degradation is documented as [`decision-log.md`](../decision-log.md) entry `DL-008` and surfaces in the Risk Assessment.
+| ID | Subject | Section |
+|---|---|---|
+| DL-001 | No-write contract (read-only) | [`decision-log.md:DL-001`] |
+| DL-002 | Inflection-point detection precedence (Tier 2 used) | [`decision-log.md:DL-002`] |
+| DL-003 | Blitzy identity union (agent@blitzy.com + blitzy[bot]) | [`decision-log.md:DL-003`] |
+| DL-004 | dependabot[bot] exclusion from Flow Velocity | [`decision-log.md:DL-004`] |
+| DL-006 | Two-phase fallback when post-introduction < 90 days | [`decision-log.md:DL-006`] |
+| DL-007 | Linear API unavailability handling | [`decision-log.md:DL-007`] |
+| DL-008 | Admin audit log unavailability handling | [`decision-log.md:DL-008`] |
+| DL-009 | M6 classifier priority order | [`decision-log.md:DL-009`] |
+| DL-010 | Factual-neutral-tone blocklist | [`decision-log.md:DL-010`] |
+| DL-011 | Multi-module attribution strategy | [`decision-log.md:DL-011`] |
+| DL-012 | Engineering-actor substitution as the only baseline/after difference | [`decision-log.md:DL-012`] |
+| DL-013 | Executive deck SRI handling | [`decision-log.md:DL-013`] |
 
-#### History Rewrites (PRs with Force-Pushed-Away First Commits)
+### 10.5 Rule Anchors (Cross-Reference to AAP §0.7)
 
-PRs whose first commit was force-pushed away cannot be located in the local clone. Metric 7 (Flow Time) reports the exclusion rate; the affected PR numbers appear in `data/pulls.json` with `excluded_reason: "first_commit_unreachable"`.
+| Rule | AAP Section | Enforcement Location |
+|---|---|---|
+| Observability | AAP §0.7.1.1 | [`scripts/lib/observability.py`] + this onboarding doc Section 8 |
+| Onboarding | AAP §0.7.1.2 | This document itself |
+| Explainability | AAP §0.7.1.3 | [`decision-log.md`] |
+| Visual Architecture | AAP §0.7.1.4 | [`diagrams/*.mmd`] referenced in [`acceleration-report.md`] |
+| Executive Presentation | AAP §0.7.1.5 | [`executive-summary.html`] |
+| Rule 1 Data Provenance | AAP §0.7.2 row 1 | Every `provenance` field in [`data/metrics.json`] |
+| Rule 2 Factual-Neutral Tone | AAP §0.7.2 row 2 | Pre-write blocklist in `scripts/10_render_report.py` |
+| Rule 3 Confidence Transparency | AAP §0.7.2 row 3 | `confidence` + `caveat` fields in `metrics.json` |
+| Rule 4 Internal Consistency | AAP §0.7.2 row 4 | Single-source rendering from `metrics.json` |
+| Rule 5 Reproducibility | AAP §0.7.2 row 5 | `extraction_command` field on every provenance + Reproducibility Appendix |
+| Rule 6 Environment First | AAP §0.7.2 row 6 | [`data/environment.json`] + renderer section-order constant |
 
-**Mitigation**: None — this is an artifact of the upstream PR workflow. The exclusion rate is reported transparently per the user's "no fabrication" rule.
+### 10.6 Analyzed Repository Anchors
 
-#### macOS System Bash (Version 3.2)
-
-The system `/bin/bash` on macOS is version 3.2 (BSD-licensed). The pipeline requires bash 5.0 or later for features such as `[[ -v VAR ]]` existence checks, `${var,,}` lowercase expansion, and associative arrays. Running `make all` with bash 3.2 produces `bad substitution` errors.
-
-**Mitigation**: Install bash 5.x via Homebrew (`brew install bash`) and ensure `/opt/homebrew/bin` (Apple Silicon) or `/usr/local/bin` (Intel) appears in `PATH` BEFORE `/bin`. Verify with `which bash` — it should print the Homebrew path.
-
-#### `jq` Absence
-
-Some pretty-print steps in the documentation and validation scripts use `jq`. When `jq` is not installed, the scripts fall back to `python3 -m json.tool`. The functional behavior is identical; the output formatting may differ slightly.
-
-**Mitigation**: Install `jq` if desired (`brew install jq` or `sudo apt install jq`). It is not required for any extraction, compute, or render step.
-
-#### Submodule Absence
-
-The analyzed rudder-server repository has no git submodules; `git submodule status` returns empty output. This is recorded in `data/environment.json` as `"submodule_state": "none"`. If submodules are introduced in the future, the environment snapshot will reflect that change automatically.
-
-**Mitigation**: None — the current state is "no submodules" which the pipeline handles correctly.
-
-#### Python Virtual Environment Not Activated
-
-If you invoke `python scripts/03_extract_pulls.py` directly without activating `.venv/`, you may get `ModuleNotFoundError: No module named 'requests'`. The Makefile invokes scripts via `.venv/bin/python` (referred to as `$(VENV_PY)` in the Makefile) to avoid this; if you bypass the Makefile, activate the venv first.
-
-**Mitigation**: Run scripts via `make extract`, `make compute`, or `make render` (which use `.venv/bin/python`), OR activate the venv before running scripts directly:
-
-```bash
-source .venv/bin/activate
-python scripts/03_extract_pulls.py
-```
-
-#### Clock Skew During Window Boundary Computation
-
-The 2-week windows are anchored to Monday 00:00 UTC. If the host machine's clock is misaligned with UTC (for example, running in a stale Docker container with a frozen clock), the window-end snapshots used for Metric 1 (Flow Load) may misalign. The pipeline does NOT rely on the host clock for any window math — all window boundaries are derived from git and API timestamps which are UTC ISO-8601. The host clock only affects the `extraction_timestamp` field in `data/environment.json`.
-
-**Mitigation**: Ensure `date -u` returns the actual current UTC time on the host.
+| Subject | Path with Locator |
+|---|---|
+| Go module version | [`go.mod:L3`] |
+| Default branch | [`blitzy/acceleration-report/data/environment.json:default_branch`] |
+| Repository slug | [`catalog-info.yaml:metadata.annotations.github.com/project-slug`] |
+| Allowed conventional-commit types | [`.github/workflows/semantic-pr.yaml:types`] |
+| Release configuration | [`.github/workflows/release-please.yaml:release-type: go`] |
+| Lint exemption catalogue | [`.golangci.yml:linters-settings.gosec.excludes`] |
+| Security exception catalogue | [`.snyk:exclude`] |
+| Test target inventory | [`Makefile:test`] |
+| `/health` endpoint | [`gateway/handle.go`] |
 
 ---
 
-## 9. Extending the Pipeline (Out of Scope but Admitted)
+## 11. Extending the Pipeline (Out of Scope but Admitted)
 
 Extensions to the pipeline fall into three categories: disallowed, allowed, and methodology-preserving.
 
@@ -354,7 +513,7 @@ Any change MUST preserve identical methodology across baseline and after periods
 
 ---
 
-## 10. Suggested Next Investigations
+## 12. Suggested Next Investigations
 
 Out-of-scope tasks discovered during preparation but worth pursuing later:
 
