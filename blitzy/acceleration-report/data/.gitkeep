@@ -1,0 +1,2 @@
+# Preserves the data/ directory for the extraction pipeline's output artifacts.
+# Per-run JSON/CSV files are git-ignored; see ../.gitignore.

@@ -1,0 +1,2 @@
+# Preserves the scripts/lib/ directory. Shared modules (observability.py,
+# github.py, git.py) are produced by the implementation agent per AAP §0.6.2.

@@ -1,0 +1,25 @@
+# Pinned Python dependency manifest for the blitzy-RudderStack acceleration-report
+# analysis pipeline. See AAP §0.4.2.
+#
+# Install into the workspace-local venv:
+#     python3 -m venv .venv
+#     . .venv/bin/activate
+#     pip install -r requirements.txt
+#
+# Every package below is consumed only by the extraction / compute / render scripts
+# under blitzy/acceleration-report/scripts/. The analyzed rudder-server runtime is
+# unaffected; these packages do not enter the rudder-server build or any external
+# system.
+
+requests==2.32.3
+python-dateutil==2.9.0.post0
+tzdata==2024.2
+tabulate==0.9.0
+jinja2==3.1.4
+jsonschema==4.23.0
+# gql is consumed via its RequestsHTTPTransport (scripts/lib/linear.py path), which
+# requires the `requests` extra to pull in `requests-toolbelt`. Selecting the
+# `[requests]` extra is documented in decision-log.md (rather than embedded as a
+# code comment per AAP §0.7.1.3) and keeps the pinned core version (3.5.0)
+# unchanged from AAP §0.4.2.
+gql[requests]==3.5.0

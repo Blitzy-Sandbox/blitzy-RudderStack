@@ -1,0 +1,49 @@
+# blitzy/acceleration-report/ workspace .gitignore
+#
+# This file is scoped to the acceleration-report workspace. The repository-root
+# .gitignore is not modified by this deliverable.
+#
+# The data/ directory is the per-run output area for extraction scripts. The
+# JSON/CSV artifacts inside it are reproducible from the scripts and are NOT
+# committed; subsequent agents regenerate them by running `make all`. The
+# directory itself is preserved via .gitkeep so the path exists on a fresh clone.
+
+# --- Python virtual environment (workspace-local) ---
+.venv/
+venv/
+.python-version
+
+# --- Local environment overrides (never commit secrets) ---
+.env
+.env.local
+*.env.local
+
+# --- Python bytecode and caches ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# --- Per-run extraction artifacts (regenerable) ---
+data/*.json
+data/*.csv
+data/*.jsonl
+data/.cursor.json
+!data/.gitkeep
+
+# --- Rendered intermediate artifacts (deterministic; regenerable) ---
+# The final acceleration-report.md and executive-summary.html ARE committed.
+# Intermediate caches used during rendering are not.
+.render_cache/
+
+# --- OS / editor noise ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
