@@ -20,7 +20,7 @@ The pipeline runs on Linux and macOS. Windows is supported under WSL2. The bulle
   - macOS: `brew install git`
   - Debian/Ubuntu: `sudo apt install git`
 - **bash 5.0 or later** — Verify with `bash --version`. **macOS users**: the system `/bin/bash` is version 3.2. Install bash 5.x via `brew install bash` and ensure `/opt/homebrew/bin` (Apple Silicon) or `/usr/local/bin` (Intel) appears in your `PATH` BEFORE `/bin`.
-- **make** — Verify with `make --version`. Pre-installed on macOS with Xcode Command Line Tools; install via `sudo apt install make` on Debian/Ubuntu.
+- **GNU make 4.0 or later (NOT BSD make)** — Verify with `make --version`; the first line of output must contain "GNU Make". The workspace [`../Makefile`](../Makefile) uses GNU-make-specific constructs (`$(wildcard)`, `$(shell)`, `$(MAKEFILE_LIST)`, `.DEFAULT_GOAL`, `MAKEFLAGS += --warn-undefined-variables`) and refuses to run under non-GNU make with a clear error message — see [decision-log.md DL-022](../decision-log.md). On Linux/CI, the system `make` is already GNU make 4.x. **macOS users**: the bundled `/usr/bin/make` is GNU make 3.81 (too old for `MAKEFLAGS += --warn-undefined-variables` warnings to behave correctly even though parsing succeeds) — install via `brew install make` and use `gmake` instead of `make`, OR alias `make` to `gmake` in your shell profile. **Debian/Ubuntu**: install via `sudo apt install make` (this is GNU make).
 
 ### Optional
 

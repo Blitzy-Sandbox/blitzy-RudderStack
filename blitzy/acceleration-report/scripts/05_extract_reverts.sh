@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # =============================================================================
 # 05_extract_reverts.sh — Revert → Original → Release Attribution
 # =============================================================================
@@ -99,7 +100,10 @@
 #   2  invalid command-line argument
 # =============================================================================
 
-set -euo pipefail
+# Strict mode (`set -euo pipefail`) is enabled on line 2 immediately after the
+# shebang per the CP4 checkpoint requirement. This is duplicated as a no-op
+# documentation marker below for readers scrolling past the header banner:
+# the call has already taken effect by the time control reaches this point.
 
 # -----------------------------------------------------------------------------
 # Module-level constants
@@ -219,9 +223,19 @@ while i + 1 < len(argv):
     extras[str(argv[i])] = argv[i + 1]
     i += 2
 
+# Timestamp format: ISO-8601 UTC with MILLISECOND precision (CP4 observability
+# contract). `isoformat(timespec='milliseconds')` produces a string like
+# "2026-05-23T20:48:22.165+00:00"; we replace the trailing "+00:00" zone offset
+# with the canonical "Z" zone designator so the result matches RFC 3339 §5.6
+# "date-time" production exactly: e.g., "2026-05-23T20:48:22.165Z". The prior
+# implementation used "%Y-%m-%dT%H:%M:%S.%fZ" which emitted 6-digit microsecond
+# precision (e.g. "2026-05-23T20:48:22.165039Z") and therefore did not match the
+# millisecond-precision contract required by the CP4 observability rule. The
+# Python standard library is the source of truth for both forms; this change
+# is a pure formatting fix and has no effect on any other timestamp consumer.
 event_obj = {
     "run_id": os.environ.get("BLITZY_RUN_ID", ""),
-    "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+    "ts": datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
     "script": os.environ.get("BLITZY_LOG_SCRIPT", ""),
     "level": level,
     "event": event,
@@ -836,9 +850,24 @@ PYEOF
     # a `grep` build that emits a usage message on stderr+stdout); the
     # `printf '%d'` pass strips whitespace and leading zeros, so "00", " 5 ",
     # and "0\n0" all collapse to the correct decimal representation.
+    #
+    # SECURITY: The previous implementation used `eval` for indirect read/write
+    # of the loop variable, which is a banned construct per the CP4 security
+    # checklist (no `eval`, no `bash -c "$VAR"`). The current implementation
+    # uses bash's safe indirect-expansion (`${!var}`) for reads and `printf -v`
+    # for writes. Both are bash-builtin operations that do not invoke a fresh
+    # parser pass on the variable's contents, so they are immune to the
+    # command-injection class of attacks that `eval` exposes. The four loop
+    # variables (SV_PRIMARY, SV_SECONDARY, SV_TERTIARY, SV_BROADEST) are all
+    # local to this function and assigned only from `wc -l`/`grep -c`
+    # output, so the values are already constrained to non-negative integer
+    # strings; the safe-indirection pattern preserves that invariant without
+    # introducing a re-parse step.
     for var in SV_PRIMARY SV_SECONDARY SV_TERTIARY SV_BROADEST; do
-        # shellcheck disable=SC2154,SC2086
-        eval "value=\${$var}"
+        # Safe indirect read: ${!var} expands "${SV_PRIMARY}" when var=SV_PRIMARY.
+        # This is a bash builtin, not a parser pass, so it cannot execute code
+        # embedded in the referenced variable's value.
+        value="${!var}"
         # Collapse interior whitespace (newlines, tabs, spaces) so a multi-line
         # value like "0\n0" becomes "00" which is then handled by printf %d.
         value="${value//[$' \t\r\n']/}"
@@ -847,7 +876,12 @@ PYEOF
         else
             value=0
         fi
-        eval "$var=\${value}"
+        # Safe indirect write: `printf -v <varname>` assigns the formatted
+        # output to the variable named by the first argument. This is a bash
+        # builtin (since bash 3.1) and, like ${!var}, does not invoke a fresh
+        # parser pass on the value being written. It is the canonical
+        # eval-free alternative for dynamic variable assignment.
+        printf -v "$var" '%s' "$value"
     done
 
     log_json info search_verification_complete \

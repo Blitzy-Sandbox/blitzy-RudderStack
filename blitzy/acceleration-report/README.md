@@ -82,6 +82,7 @@ Files that are generated per run (`data/*.json`, `data/*.csv`, `data/run.log.jso
 - Python 3.12 or later
 - git 2.43.0 or later
 - bash 5.0 or later
+- GNU make 4.0 or later (NOT BSD make or nmake — see [`decision-log.md`](./decision-log.md) DL-022). On macOS install via `brew install make` and use `gmake` in place of `make`; the Makefile has a guard that fails immediately with a clear error message on non-GNU make.
 - (Optional) `GH_TOKEN` — GitHub Personal Access Token with `repo:read` and `actions:read` scope, for higher API rate limits. The pipeline falls back to local-git when absent and reduces confidence tiers per metric accordingly.
 - (Optional) `LINEAR_API_KEY` — Linear API token, for Metric 6 issue-label classification and Metric 12 SLA-tier resolution. The pipeline falls back to repository-only signals when absent; Metric 12 reports `"Insufficient signal — no SLA source"` when no policy document is found in the repository either.
 

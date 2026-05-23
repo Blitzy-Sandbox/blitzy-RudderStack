@@ -9,6 +9,21 @@
 # API, the Linear GraphQL API (when LINEAR_API_KEY is available), and
 # in-repository configuration files.
 #
+# REQUIRES GNU MAKE 4.0 OR LATER:
+#   This Makefile intentionally uses GNU-make-specific constructs (per
+#   decision-log entry DL-022) that are NOT POSIX or BSD-make compatible:
+#     - `.DEFAULT_GOAL`  (the help-as-default-target idiom)
+#     - `MAKEFLAGS += --warn-undefined-variables`  (typo-safety guard)
+#     - `$(wildcard ...)`  (optional .env include detection)
+#     - `$(shell ...)`     (BLITZY_RUN_ID generation)
+#     - `$(MAKEFILE_LIST)` (help target auto-discovery)
+#   The portable alternatives are documented in decision-log DL-022 and were
+#   evaluated; the chosen course preserves readability, observability, and
+#   the per-recipe strict-mode contract while requiring GNU make. On macOS,
+#   install via `brew install make` and invoke as `gmake`; on Linux/CI the
+#   system `make` is GNU make 4.x. A guard near the top of the file refuses
+#   to proceed with a clear error message if a non-GNU make is detected.
+#
 # Read-only contract (AAP section 0.3.2):
 #   "Read-only operations only. MUST NOT modify the repository or external
 #    systems." Running any target in this Makefile has ZERO effect on the
@@ -64,6 +79,23 @@
 # ============================================================================
 
 .PHONY: help default setup extract compute render all clean lint verify
+
+# ----------------------------------------------------------------------------
+# GNU make detection guard
+# ----------------------------------------------------------------------------
+# The constructs immediately below (.DEFAULT_GOAL, MAKEFLAGS+=, $(wildcard),
+# $(shell), $(MAKEFILE_LIST)) are GNU-specific. On a non-GNU make (BSD make,
+# nmake) Make would either fail with a parse error or silently produce
+# different behaviour. The `$(MAKE_VERSION)` variable is provided only by
+# GNU make; on other implementations it expands to the empty string. The
+# guard below fails the build immediately with a clear diagnostic when a
+# non-GNU make is detected, so the user installs `gmake` on macOS or the
+# appropriate package on their platform. This is the runtime safety net
+# that accompanies the documented DL-022 decision to require GNU make.
+ifeq ($(MAKE_VERSION),)
+$(error This Makefile requires GNU make 4.0 or later. Detected non-GNU make. See decision-log.md DL-022. On macOS: brew install make; then run `gmake` instead of `make`.)
+endif
+
 .DEFAULT_GOAL := help
 
 SHELL := /bin/bash
@@ -89,6 +121,36 @@ SCHEMAS_DIR := $(SCRIPTS_DIR)/lib/schemas
 DIAGRAMS_DIR := diagrams
 REPORT_FILE := acceleration-report.md
 DECK_FILE := executive-summary.html
+
+# REQUIRED_ARTIFACTS - the canonical set of data/ files that MUST exist for
+# the deliverable to be considered complete and reproducible (Rule 1 Data
+# Provenance, Rule 5 Reproducibility, AAP Quality Gate 1). The `verify`
+# target asserts every name in this list is present in $(DATA_DIR) and exits
+# non-zero with a clear error message if any is missing. Every artifact in
+# this list also has a corresponding schema under $(SCHEMAS_DIR) when it is
+# JSON, and that schema is run against the artifact during verify. There
+# is currently NO optional-artifact category in this deliverable: every
+# data file produced by the extract+compute pipeline is required for the
+# report and deck to render fully. If a future change introduces a truly
+# optional artifact, it goes in a separate OPTIONAL_ARTIFACTS list (not
+# defined here yet) and is documented as optional in decision-log.md.
+REQUIRED_ARTIFACTS := \
+	environment.json \
+	inflection.json \
+	commits.csv \
+	revert_candidates.csv \
+	pulls.json \
+	reviews.json \
+	pull_events.json \
+	releases.json \
+	reverts.json \
+	ci_runs.json \
+	test_transitions.json \
+	exceptions.json \
+	issues.json \
+	slas.json \
+	metrics.json \
+	per_engineer.json
 
 # Optional workspace-local .env (gitignored). Variables defined here are
 # included into the Make scope AND exported to recipes via `export`. The
@@ -258,19 +320,37 @@ lint: setup ## Lint Python and Bash scripts (syntactic validation)
 # .gitignore policy).
 
 verify: setup ## Re-run all Rules 1-6 checks and quality gates (idempotent)
+	@echo "[verify] Required-artifact presence check (Quality Gate 1, Rule 5)..."
+	@missing_count=0; \
+	for artifact in $(REQUIRED_ARTIFACTS); do \
+		if [ -f "$(DATA_DIR)/$$artifact" ]; then \
+			echo "  [ok]   $$artifact"; \
+		else \
+			echo "  [FAIL] REQUIRED artifact $(DATA_DIR)/$$artifact is missing"; \
+			missing_count=$$((missing_count + 1)); \
+		fi; \
+	done; \
+	if [ "$$missing_count" -gt 0 ]; then \
+		echo "  [FAIL] $$missing_count required artifact(s) missing — verify cannot proceed."; \
+		echo "         Run 'make all' (or at minimum 'make compute') to regenerate the missing artifacts."; \
+		echo "         If an artifact is intentionally absent, see decision-log.md DL-025 for the required/optional contract."; \
+		exit 1; \
+	fi
 	@echo "[verify] JSON schema validation (data/*.json against $(SCHEMAS_DIR)/*.schema.json)..."
 	@for schema in $(SCHEMAS_DIR)/*.schema.json; do \
 		artifact=$$(basename "$$schema" .schema.json).json; \
-		if [ -f "$(DATA_DIR)/$$artifact" ]; then \
-			if $(VENV_PY) -c "import json,jsonschema; jsonschema.validate(json.load(open('$(DATA_DIR)/'+'$$artifact')), json.load(open('$$schema')))" 2>/dev/null; then \
-				echo "  [ok]   $$artifact"; \
-			else \
-				echo "  [FAIL] $$artifact failed schema validation against $$schema"; \
-				echo "         Re-run for details: $(VENV_PY) -c \"import json,jsonschema; jsonschema.validate(json.load(open('$(DATA_DIR)/$$artifact')), json.load(open('$$schema')))\""; \
-				exit 1; \
-			fi; \
+		if [ ! -f "$(DATA_DIR)/$$artifact" ]; then \
+			echo "  [FAIL] schema $$schema exists but $(DATA_DIR)/$$artifact is missing"; \
+			echo "         Schemas under $(SCHEMAS_DIR) implicitly require the matching artifact."; \
+			echo "         If a schema is intended to be a forward-looking placeholder without a current artifact, document it in decision-log.md DL-025 and remove the schema until the artifact exists."; \
+			exit 1; \
+		fi; \
+		if $(VENV_PY) -c "import json,jsonschema; jsonschema.validate(json.load(open('$(DATA_DIR)/'+'$$artifact')), json.load(open('$$schema')))" 2>/dev/null; then \
+			echo "  [ok]   $$artifact"; \
 		else \
-			echo "  [skip] $$artifact (not present)"; \
+			echo "  [FAIL] $$artifact failed schema validation against $$schema"; \
+			echo "         Re-run for details: $(VENV_PY) -c \"import json,jsonschema; jsonschema.validate(json.load(open('$(DATA_DIR)/$$artifact')), json.load(open('$$schema')))\""; \
+			exit 1; \
 		fi; \
 	done
 	@echo "[verify] Factual-neutral-tone blocklist check (Rule 2)..."
