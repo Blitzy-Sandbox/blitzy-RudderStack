@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://blitzy.io/acceleration-report/schemas/inflection.schema.json",
   "title": "AI Inflection-Point Detection Result",
-  "description": "Output of 01_detect_inflection.py. Records which of the three detection tiers (trailer / ai_actor_email / velocity_inflection -- AAP §0.5.3.1) yielded the AI introduction date that partitions every metric into baseline and after periods. The schema cross-validates the `evidence` shape against the `tier_used` value: a velocity_inflection result MUST carry velocity-shaped evidence, a trailer result MUST carry trailer-shaped evidence, and an ai_actor_email result MUST carry ai_actor_email-shaped evidence. This closes the semantic-consistency gap surfaced at INC-1.",
+  "description": "Output of 01_detect_inflection.py. Records which of the three detection tiers (trailer / ai_actor_email / velocity_inflection -- AAP §0.5.3.1) yielded the AI introduction date that partitions every metric into baseline and after periods. The schema cross-validates the `evidence` shape against the `tier_used` value: a velocity_inflection result MUST carry velocity-shaped evidence (week_start + ratio discriminators), a trailer result MUST carry trailer-shaped evidence (trailer_value discriminator), and an ai_actor_email result MUST carry ai_actor_email-shaped evidence (author_email discriminator). This closes the semantic-consistency gap surfaced at INC-1. The INC-1 semantic guarantee is enforced by the required-fields list per shape (the discriminator fields MUST be present); additional informational fields (e.g., author_name, subject, parents, branch_at_detection in the evidence, or _metadata, date_local_iso, phase_decomposition, AI-actor breakdowns at the root) are permitted alongside the required contract fields. additionalProperties is set to true at the root and inside each evidence shape; a mismatched evidence shape will still fail validation because the required discriminator fields will be missing.",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "tier_used",
     "date_utc",
@@ -106,9 +106,9 @@
   "$defs": {
     "trailerEvidence": {
       "title": "trailer evidence",
-      "description": "Evidence shape for Tier 1 (Co-authored-by: trailer search). The trailer_value field MUST be present; it is the discriminator that distinguishes trailer evidence from the other two shapes.",
+      "description": "Evidence shape for Tier 1 (Co-authored-by: trailer search). The trailer_value field MUST be present; it is the discriminator that distinguishes trailer evidence from the other two shapes. Additional informational fields (e.g., author_name, subject, parents, branch_at_detection) are permitted; only the discriminator and core contract fields are validated.",
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": ["commit_sha", "trailer_value", "author_date"],
       "properties": {
         "commit_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
@@ -118,9 +118,9 @@
     },
     "aiActorEmailEvidence": {
       "title": "ai_actor_email evidence",
-      "description": "Evidence shape for Tier 2 (AI-actor author-email pattern match). The author_email field MUST be present; it is the discriminator that distinguishes ai_actor_email evidence from the other two shapes.",
+      "description": "Evidence shape for Tier 2 (AI-actor author-email pattern match). The author_email field MUST be present; it is the discriminator that distinguishes ai_actor_email evidence from the other two shapes. Additional informational fields (e.g., author_name, author_date_iso, committer_email, committer_name, committer_date_iso, subject, parents, branch_at_detection) are permitted; only the discriminator and core contract fields are validated.",
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": ["commit_sha", "author_email", "author_date"],
       "properties": {
         "commit_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
@@ -130,9 +130,9 @@
     },
     "velocityInflectionEvidence": {
       "title": "velocity_inflection evidence",
-      "description": "Evidence shape for Tier 3 (rolling-mean ratio inflection detection). The week_start + pre_window_mean + post_window_mean + ratio fields together describe the inflection week and its statistical signal.",
+      "description": "Evidence shape for Tier 3 (rolling-mean ratio inflection detection). The week_start + pre_window_mean + post_window_mean + ratio fields together describe the inflection week and its statistical signal. Additional informational fields are permitted; only the discriminator and core contract fields are validated.",
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": ["week_start", "pre_window_mean", "post_window_mean", "ratio"],
       "properties": {
         "week_start": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},

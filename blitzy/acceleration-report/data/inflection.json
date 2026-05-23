@@ -1,0 +1,88 @@
+{
+  "_metadata": {
+    "extraction_timestamp": "2026-05-23T05:54:20Z",
+    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+    "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
+    "default_branch": "main"
+  },
+  "tier_used": "ai_actor_email",
+  "date_utc": "2026-02-25T02:58:59Z",
+  "date_local_iso": "2026-02-25T02:58:59+00:00",
+  "evidence": {
+    "commit_sha": "803732e140796ac4db4343c22791025b6503885c",
+    "author_email": "agent@blitzy.com",
+    "author_name": "Blitzy Agent",
+    "author_date": "2026-02-25T02:58:59Z",
+    "author_date_iso": "2026-02-25T02:58:59+00:00",
+    "committer_email": "agent@blitzy.com",
+    "committer_name": "Blitzy Agent",
+    "committer_date_iso": "2026-02-25T02:58:59+00:00",
+    "subject": "Update README.md: Add documentation section, gap report references, and architecture doc links",
+    "parents": "2003931bdc6df1220461dddffcbab7ae581b02a3",
+    "branch_at_detection": "main"
+  },
+  "justification": "Tier 2 (AI-actor email pattern) was used because Tier 1 (Co-authored-by trailer search) yielded zero matches across all refs. The earliest commit whose author email matches the AI-actor pattern '@blitzy.com' is 803732e140796ac4db4343c22791025b6503885c, authored by 'Blitzy Agent <agent@blitzy.com>' at 2026-02-25T02:58:59Z. The author email pattern was matched against the configured set: '@blitzy.com', 'blitzy[bot]@users.noreply.github.com', 'copilot@github.com', 'noreply@anthropic.com'. This commit is the second commit on main; it is the FIRST agent-authored commit, marking the inflection from human-only (baseline, michael@blitzy.com) to AI-authored development.",
+  "alternatives_considered": [
+    {
+      "tier": "trailer",
+      "tier_number": 1,
+      "method": "git log --all --grep='[Cc]o-authored-by:' --pretty=format:'%H'",
+      "matches_found": 0,
+      "patterns_searched_for_in_body": [
+        "Co-authored-by:.*claude",
+        "Co-authored-by:.*copilot",
+        "Co-authored-by:.*cursor",
+        "Co-authored-by:.*aider",
+        "Co-authored-by:.*blitzy",
+        "Co-authored-by:.*noreply@anthropic.com",
+        "Co-authored-by:.*copilot@github.com",
+        "Assisted-by:.*",
+        "Generated-by:.*"
+      ],
+      "result": "no_signal",
+      "result_detail": "Zero commits across all refs (refs/heads/, refs/remotes/, refs/tags/) contain any Co-authored-by, Assisted-by, or Generated-by trailer matching an AI-tool pattern. Verified via 'git log --all --grep=Co-authored-by: | wc -l' returning 0.",
+      "reason_rejected": "No signal: zero commits across all refs contain any AI-tool Co-authored-by, Assisted-by, or Generated-by trailer."
+    },
+    {
+      "tier": "velocity_inflection",
+      "tier_number": 3,
+      "method": "Two-sided rolling-mean ratio of weekly commit counts (4-week windows on each side), seeking the first week where ratio >= 4.0x sustained above 2.0x for >= 4 subsequent weeks",
+      "result": "not_evaluated",
+      "result_detail": "Tier 3 (velocity inflection) was not evaluated because Tier 2 (ai_actor_email) yielded a definitive signal. Documented here for transparency: weekly commit counts on main in this repository are 1 (week of 2026-02-22), 31 (week of 2026-02-23), then increasing — a clear inflection consistent with the Tier 2 date but reported with lower confidence than the direct author-email signal.",
+      "reason_rejected": "Not evaluated: Tier 2 (ai_actor_email) yielded a definitive signal, so Tier 3 was skipped per the precedence rule. Tier 3 would have identified the same week (2026-02-23) but with lower confidence than the direct author-email match."
+    }
+  ],
+  "ai_actor_email_patterns_matched": [
+    "@blitzy.com"
+  ],
+  "ai_actor_email_patterns_configured": [
+    "@blitzy.com",
+    "blitzy[bot]@users.noreply.github.com",
+    "copilot@github.com",
+    "noreply@anthropic.com"
+  ],
+  "total_ai_actor_commits_count_on_main": 517,
+  "total_ai_actor_commits_count_breakdown_on_main": {
+    "agent@blitzy.com": 512,
+    "191547922+blitzy[bot]@users.noreply.github.com": 5
+  },
+  "non_ai_actor_commits_count_on_main": 21,
+  "non_ai_actor_commits_count_breakdown_on_main": {
+    "michael@blitzy.com": 18,
+    "awadhwani@blitzy.com": 3
+  },
+  "phase_decomposition": {
+    "baseline_start_iso": "2026-02-23T05:19:38Z",
+    "baseline_end_iso": "2026-02-25T02:58:58Z",
+    "baseline_duration_days_approx": 2,
+    "baseline_commit_count": 1,
+    "post_introduction_start_iso": "2026-02-25T02:58:59Z",
+    "post_introduction_end_iso": "2026-05-21T23:59:59Z",
+    "post_introduction_duration_days_approx": 86,
+    "post_introduction_commit_count_on_main": 537,
+    "ramp_up_steady_state_split_applied": false,
+    "ramp_up_steady_state_split_reason": "Per DL-006 fallback: post-introduction span (86 days) is shorter than 90 days; AAP §0.5.3 mandates baseline/post-introduction-only reporting in this case. See decision-log.md DL-006."
+  },
+  "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+  "fetched_at": "2026-05-23T05:54:20Z"
+}
