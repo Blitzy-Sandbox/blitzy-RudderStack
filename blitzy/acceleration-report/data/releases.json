@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "extraction_timestamp": "2026-05-22T00:00:00Z",
+    "run_id": "00000000-0000-4000-8000-000000000000",
+    "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
+    "default_branch": "main",
+    "analysis_period_start": "2026-02-23T00:00:00Z",
+    "analysis_period_end": "2026-05-21T23:59:59Z",
+    "seed_note": "Hand-authored seed produced before scripts/04_extract_releases.py is executed against a live network. The script will overwrite this file with extraction_timestamp set to time.time() and run_id set to the per-run UUID4 exported via BLITZY_RUN_ID. The seed values present here are the deterministic fallback when no live extraction has been performed yet."
+  },
+  "tier_availability": {
+    "tier_1_github_releases_api": {
+      "available": false,
+      "endpoint": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/releases",
+      "fetched_at": null,
+      "unavailable_reason": "GH_TOKEN environment variable not set or rate limit exceeded",
+      "total_releases_count": 0,
+      "non_prerelease_count": 0,
+      "prerelease_count": 0,
+      "pagination": {
+        "per_page": 100,
+        "pages_fetched": 0,
+        "last_page_seen": null
+      },
+      "rate_limit_state": {
+        "limit": null,
+        "remaining": null,
+        "reset_iso": null
+      }
+    },
+    "tier_2_annotated_tags": {
+      "available": true,
+      "source": "local_git",
+      "search_pattern": "v?\\d+\\.\\d+\\.\\d+",
+      "search_command": "git for-each-ref refs/tags/ --format='%(refname:short)|%(creatordate:iso-strict)|%(objectname)'",
+      "verification_command": "git tag -l | wc -l",
+      "verification_command_output": "0",
+      "tags_found": 0,
+      "tags": [],
+      "note": "Verified by `git tag -l | wc -l` returning 0; this fork has no annotated tags. CHANGELOG.md inherited from upstream (rudderlabs/rudder-server) lists historical releases but those pre-date this fork's lifespan."
+    },
+    "tier_3_ci_deploy_events": {
+      "available": false,
+      "source_workflow_files": [
+        "dispatch-deploy-event-dev.yaml",
+        "release-please.yaml"
+      ],
+      "endpoint": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/actions/workflows/{workflow_filename}/runs",
+      "events_count": 0,
+      "unavailable_reason": "GitHub Actions Runs API not invoked in hand-authored seed (GH_TOKEN absent); the two source workflow files are present in .github/workflows/ but no run history was captured",
+      "events": []
+    }
+  },
+  "chosen_tier": "none",
+  "chosen_tier_rationale": "All three tiers yielded zero or were unavailable; m9 is 'insufficient_signal' for this run. Tier 1 (GitHub Releases API): unavailable without GH_TOKEN. Tier 2 (annotated git tags): zero tags exist in this fork (verified by `git tag -l | wc -l` returning 0; this fork inherits a populated CHANGELOG.md from upstream rudderlabs/rudder-server but inherits zero git tag objects). Tier 3 (CI deploy events from dispatch-deploy-event-dev.yaml and release-please.yaml workflow runs): GitHub Actions Runs API not invoked in this seed. Per AAP \u00a70.7.3 (no fabrication), m9 MUST be reported as 'insufficient_signal' when no tier produces signal; this is the correct read-only outcome and does NOT degrade the other eleven metrics.",
+  "releases": [],
+  "prereleases": [],
+  "summary": {
+    "total_releases": 0,
+    "total_prereleases": 0,
+    "releases_per_2week_window": [],
+    "earliest_release_iso": null,
+    "latest_release_iso": null,
+    "release_frequency_mean_per_window": null,
+    "release_frequency_mean_per_window_reason": "No releases retrieved from any tier"
+  },
+  "upstream_changelog_reference": {
+    "file": "CHANGELOG.md",
+    "size_bytes": 618580,
+    "line_count": 4744,
+    "approximate_entry_count": 240,
+    "verification_commands": {
+      "size": "wc -c CHANGELOG.md",
+      "lines": "wc -l CHANGELOG.md",
+      "entries": "grep -c '^## \\[' CHANGELOG.md"
+    },
+    "first_entry_excerpt": "## [1.68.1](https://github.com/rudderlabs/rudder-server/compare/v1.68.0...v1.68.1) (2026-02-18)",
+    "last_entry_link_pattern": "https://github.com/rudderlabs/rudder-server/...",
+    "note": "CHANGELOG.md is inherited from upstream `rudderlabs/rudder-server` v1.68.1 baseline; entries pre-date this fork's lifespan and MUST NOT be used as the release inventory for this measurement. Per AAP \u00a70.2.3, the latest CHANGELOG.md entry is dated 2026-02-18, which is approximately one week before the inflection-point candidate at 2026-02-25 (first `agent@blitzy.com` commit). Using CHANGELOG.md as the release inventory would conflate upstream history with this fork's release cadence and would violate Rule 4 (Internal Consistency)."
+  },
+  "prerelease_suffix_pattern": "-(alpha|beta|rc|dev)(\\.|$)",
+  "prerelease_suffix_pattern_source": "AAP \u00a70.5.3.10",
+  "provenance": {
+    "spec_section": "AAP \u00a70.5.3.10 (Metric 9 \u2014 Releases)",
+    "source_precedence": [
+      "GitHub Releases / GitLab Releases API",
+      "Annotated git tags matching v?\\d+\\.\\d+\\.\\d+",
+      "Deployment events from CI/CD"
+    ],
+    "downstream_consumer": "blitzy/acceleration-report/data/metrics.json#m9",
+    "downstream_consumer_field": "value",
+    "downstream_consumer_expected_when_chosen_tier_is_none": "insufficient_signal",
+    "producing_script": "blitzy/acceleration-report/scripts/04_extract_releases.py"
+  }
+}
