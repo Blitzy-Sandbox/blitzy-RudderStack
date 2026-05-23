@@ -1,0 +1,966 @@
+{
+  "_metadata": {
+    "schema_version": "1.0.0",
+    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+    "extraction_timestamp": "2026-05-23T08:30:00Z",
+    "generated_by": "scripts/09_compute_metrics.py",
+    "rudder_server_head_sha": "97dd6d9deeb42f33b388a909d368814f126dda58",
+    "rudder_server_repo_slug": "Blitzy-Sandbox/blitzy-RudderStack",
+    "source_artifact_hashes": {}
+  },
+  "m1": {
+    "metric_number": 1,
+    "name": "Flow Load",
+    "metric_name": "Flow Load",
+    "value": "insufficient_signal",
+    "reason": "Flow Load requires PR-level state at each window-end (created_at, merged_at, draft state, first-commit timestamp). The GitHub Pulls API is unavailable in this read-only sandbox (GH_TOKEN not set; see data/pulls.json#github_api.available=false), and PR draft state cannot be reconstructed from local git alone. Per AAP §0.5.3.2, the metric falls back to 'Insufficient signal' when neither the Pulls API nor a reconstructable local proxy is available.",
+    "after_before_multiplier": "—",
+    "confidence": "insufficient",
+    "caveat": "Metric requires the GitHub Pulls API to determine PR draft state and in-progress status at each window-end. The local-git fallback cannot resolve draft state. No PRs were retrieved (data/pulls.json#pulls is empty).",
+    "boundary_conditions": "Pulls API: unavailable (GH_TOKEN absent). Local-git fallback: cannot reconstruct PR draft state, requested_reviewers state, or 'closed without merge' state from branch existence alone. Window-end snapshots therefore have no signal source.",
+    "extraction_strategy": "From data/pulls.json, count PRs where created_at <= T_end AND (merged_at IS NULL OR merged_at > T_end) AND has at least one commit by T_end. Exclude dependency-bot authors per data/pulls.json#excluded_authors. Mean across Monday-anchored 2-week window-ends within each phase.",
+    "baseline": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 0,
+      "count_of_windows": 0,
+      "reason": "Baseline period (2 days, 2026-02-23 to 2026-02-25) is shorter than one full 2-week window; no window-end snapshots fit.",
+      "boundary_conditions": "Baseline duration 2.124 days < 14-day window length."
+    },
+    "post_introduction": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "reason": "Post-introduction period has 6 Monday-aligned 2-week windows, but PR-level data is unavailable (data/pulls.json#pulls is empty).",
+      "boundary_conditions": "GitHub Pulls API unreachable in read-only sandbox; local-git cannot resolve draft state."
+    },
+    "per_window": [],
+    "per_window_series": [],
+    "per_window_note": "Empty because pulls.json has no PR rows to bucket. When the GitHub Pulls API is reachable, this array will be populated with one entry per Monday-anchored 2-week window-end carrying the in-progress PR count at that timestamp.",
+    "provenance": {
+      "requirement_id": "M1",
+      "extraction_command": "GET https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all&per_page=100 (paginated); see scripts/03_extract_pulls.py",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+      "derivation_function": "compute_m1_flow_load() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m2": {
+    "metric_number": 2,
+    "name": "Flow Velocity",
+    "metric_name": "Flow Velocity",
+    "value": 1.0,
+    "after_before_multiplier": "—",
+    "confidence": "medium",
+    "boundary_conditions": "GitHub Pulls API unavailable (GH_TOKEN absent); falls back to local-git merge-commit enumeration on main. The local-git fallback cannot distinguish dependency-bot PRs from human/Blitzy PRs without scanning commit subjects; in this run the 6 merge commits on main all reference Blitzy-authored PRs (blitzy[bot] auto-merges of agent@blitzy.com branches plus one manual merge by michael@blitzy.com), and no dependabot[bot] PRs reached main.",
+    "extraction_strategy": "From data/pulls.json (when available), select PRs where merged_at IS NOT NULL AND base.ref == 'main'; bucket by Monday-anchored 2-week window via merged_at; exclude dependabot[bot]; mean PRs/window per phase. Local-git fallback (active in this run): `git log main --merges --pretty=format:'%H|%aI|%aE|%s'` → 6 merge commits in the post-introduction period, 0 in baseline.",
+    "baseline": {
+      "value": 0,
+      "confidence": "medium",
+      "windows": 0,
+      "count_of_windows": 0,
+      "reason": "Baseline period (2 days) contains no merge commits on main; the single non-merge commit (initial Blitzy Project Guide commit by michael@blitzy.com) was direct-to-main, not via a PR merge.",
+      "boundary_conditions": "Baseline duration 2.124 days; zero merge commits observed."
+    },
+    "post_introduction": {
+      "value": 1.0,
+      "confidence": "medium",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "boundary_conditions": "6 merge commits / 6 windows = 1.0 PR/window mean. Local-git enumeration; PR title and label classification unavailable without API."
+    },
+    "per_window": [
+      {
+        "start": "2026-02-23T00:00:00Z",
+        "end": "2026-03-09T00:00:00Z",
+        "window_start_iso": "2026-02-23T00:00:00Z",
+        "window_end_iso": "2026-03-09T00:00:00Z",
+        "value": 1
+      },
+      {
+        "start": "2026-03-09T00:00:00Z",
+        "end": "2026-03-23T00:00:00Z",
+        "window_start_iso": "2026-03-09T00:00:00Z",
+        "window_end_iso": "2026-03-23T00:00:00Z",
+        "value": 1
+      },
+      {
+        "start": "2026-03-23T00:00:00Z",
+        "end": "2026-04-06T00:00:00Z",
+        "window_start_iso": "2026-03-23T00:00:00Z",
+        "window_end_iso": "2026-04-06T00:00:00Z",
+        "value": 3
+      },
+      {
+        "start": "2026-04-06T00:00:00Z",
+        "end": "2026-04-20T00:00:00Z",
+        "window_start_iso": "2026-04-06T00:00:00Z",
+        "window_end_iso": "2026-04-20T00:00:00Z",
+        "value": 1
+      },
+      {
+        "start": "2026-04-20T00:00:00Z",
+        "end": "2026-05-04T00:00:00Z",
+        "window_start_iso": "2026-04-20T00:00:00Z",
+        "window_end_iso": "2026-05-04T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-05-04T00:00:00Z",
+        "end": "2026-05-18T00:00:00Z",
+        "window_start_iso": "2026-05-04T00:00:00Z",
+        "window_end_iso": "2026-05-18T00:00:00Z",
+        "value": 0
+      }
+    ],
+    "per_window_series": [
+      {
+        "start": "2026-02-23T00:00:00Z",
+        "end": "2026-03-09T00:00:00Z",
+        "window_start_iso": "2026-02-23T00:00:00Z",
+        "window_end_iso": "2026-03-09T00:00:00Z",
+        "value": 1
+      },
+      {
+        "start": "2026-03-09T00:00:00Z",
+        "end": "2026-03-23T00:00:00Z",
+        "window_start_iso": "2026-03-09T00:00:00Z",
+        "window_end_iso": "2026-03-23T00:00:00Z",
+        "value": 1
+      },
+      {
+        "start": "2026-03-23T00:00:00Z",
+        "end": "2026-04-06T00:00:00Z",
+        "window_start_iso": "2026-03-23T00:00:00Z",
+        "window_end_iso": "2026-04-06T00:00:00Z",
+        "value": 3
+      },
+      {
+        "start": "2026-04-06T00:00:00Z",
+        "end": "2026-04-20T00:00:00Z",
+        "window_start_iso": "2026-04-06T00:00:00Z",
+        "window_end_iso": "2026-04-20T00:00:00Z",
+        "value": 1
+      },
+      {
+        "start": "2026-04-20T00:00:00Z",
+        "end": "2026-05-04T00:00:00Z",
+        "window_start_iso": "2026-04-20T00:00:00Z",
+        "window_end_iso": "2026-05-04T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-05-04T00:00:00Z",
+        "end": "2026-05-18T00:00:00Z",
+        "window_start_iso": "2026-05-04T00:00:00Z",
+        "window_end_iso": "2026-05-18T00:00:00Z",
+        "value": 0
+      }
+    ],
+    "per_window_attribution": [
+      {
+        "window_index": 1,
+        "merges": [
+          "d00b4bf2 2026-02-25T18:29:00Z (blitzy[bot] auto-merge of PR #11)"
+        ]
+      },
+      {
+        "window_index": 2,
+        "merges": [
+          "b55ecc93 2026-03-13T13:21:06Z (blitzy[bot] auto-merge of PR #12)"
+        ]
+      },
+      {
+        "window_index": 3,
+        "merges": [
+          "9e89dd76 2026-03-23T10:26:41Z (blitzy[bot] auto-merge of PR #18)",
+          "ad447131 2026-03-27T03:42:16Z (michael@blitzy.com manual merge: integrate main branch with SDK compatibility features)",
+          "c9a3d467 2026-03-27T03:42:40Z (blitzy[bot] auto-merge of PR #20)"
+        ]
+      },
+      {
+        "window_index": 4,
+        "merges": [
+          "770627a9 2026-04-16T13:45:48Z (blitzy[bot] auto-merge of PR #27)"
+        ]
+      },
+      {
+        "window_index": 5,
+        "merges": []
+      },
+      {
+        "window_index": 6,
+        "merges": []
+      }
+    ],
+    "merge_commits_total": 6,
+    "provenance": {
+      "requirement_id": "M2",
+      "extraction_command": "git log main --merges --pretty=format:'%H|%aI|%aE|%s' (local-git fallback); GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=closed&per_page=100 (primary, currently unreachable); see scripts/03_extract_pulls.py",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+      "derivation_function": "compute_m2_flow_velocity() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m3": {
+    "metric_number": 3,
+    "name": "Flow Predictability",
+    "metric_name": "Flow Predictability",
+    "value": "insufficient_signal",
+    "reason": "Baseline period (2 days) has 0 full 2-week windows, fewer than the 4 required for variance computation per AAP §0.5.3.4. Without a valid baseline reference, no after/before comparison is possible. Post-introduction value is computable (see post_introduction.value) but the headline multiplier is undefined.",
+    "after_before_multiplier": "—",
+    "confidence": "insufficient",
+    "caveat": "Baseline period spans only ~2 days; cannot compute coefficient of variation with fewer than 4 windows. The post-introduction value reported in post_introduction.value is the reciprocal of CV computed from m2.per_window.",
+    "boundary_conditions": "Predictability requires >=4 windows per phase per AAP §0.5.3.4. Zero-variance phases reported as 'Insufficient signal — zero variance'. Baseline has 0 windows; post-introduction has 6 windows.",
+    "extraction_strategy": "Reciprocal of coefficient of variation (mean / sample stdev) of per-window Flow Velocity from m2.per_window, per AAP §0.5.3.4. Requires >=4 windows per phase. Two-pass: per-phase mean and per-phase stdev computed separately; division done only when stdev > 0.",
+    "baseline": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 0,
+      "count_of_windows": 0,
+      "reason": "Fewer than 4 windows fit baseline period (2 days).",
+      "boundary_conditions": "Baseline 0 full 2-week windows; minimum 4 required."
+    },
+    "post_introduction": {
+      "value": 0.913,
+      "confidence": "medium",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "boundary_conditions": "Computed from m2.per_window [1,1,3,1,0,0] with sample mean 1.000 and sample stdev 1.095. 1/CV = mean/stdev. Value reflects 6 post-intro windows with notable per-window variability driven by Sprint 2-3 SDK integration (3 merges in window 3)."
+    },
+    "per_window": [],
+    "per_window_series": [],
+    "per_window_note": "Empty by design — predictability is a phase-level scalar (1/CV), not a per-window series. The underlying per-window inputs are in m2.per_window.",
+    "provenance": {
+      "requirement_id": "M3",
+      "extraction_command": "Derived from m2.per_window — no direct extraction command; see scripts/09_compute_metrics.py:compute_m3_flow_predictability",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/metrics.json#m2.per_window",
+      "derivation_function": "compute_m3_flow_predictability() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m4": {
+    "metric_number": 4,
+    "name": "Flow Active",
+    "metric_name": "Flow Active",
+    "value": "insufficient_signal",
+    "reason": "Flow Active per PR requires (a) the GitHub Pulls API for PR boundaries, (b) the GitHub Reviews API for ready_for_review and review-event timestamps, and (c) the GitHub Issue-Events API for draft→ready transitions. All three APIs are unreachable in this read-only sandbox (data/pulls.json#github_api.available=false). Without review events, span boundaries cannot be established; without span boundaries, active-coding time cannot be summed per the AAP §0.5.3.5 specification.",
+    "after_before_multiplier": "—",
+    "confidence": "insufficient",
+    "caveat": "Flow Active falls back to first-commit-to-last-commit span without review-event bounding when the GitHub Reviews API is unreachable. In this run, even that fallback is unusable because no PRs were retrieved from any source.",
+    "boundary_conditions": "GitHub Pulls + Reviews + Issue-Events APIs all unreachable (GH_TOKEN absent). Local-git provides commit timestamps but not review-event boundaries; the engineering-actor span sum cannot be computed.",
+    "extraction_strategy": "Per AAP §0.5.3.5: For each merged PR, sum engineering-actor coding spans bounded by review events. Initial span = actor's first commit → ready_for_review_at (earliest of: PR leaves draft, first review requested, first commit by another author, PR opened). Each refine span = first actor commit after a review → next review or merge. Median across PRs per phase, per actor.",
+    "baseline": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 0,
+      "count_of_windows": 0,
+      "reason": "No PRs in baseline period (data/pulls.json#pulls is empty). Baseline period (2 days) also has 0 merge commits, so no PR-equivalent groups exist.",
+      "boundary_conditions": "No PR-level data available for the 2-day baseline period."
+    },
+    "post_introduction": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "reason": "No PRs in pulls.json; 6 merge commits exist on main but their review-event timelines are inaccessible without API.",
+      "boundary_conditions": "GitHub Reviews + Issue-Events APIs unavailable; span boundaries undefined."
+    },
+    "per_window": [],
+    "per_window_series": [],
+    "provenance": {
+      "requirement_id": "M4",
+      "extraction_command": "GET /repos/.../pulls/{n}/commits + GET /repos/.../pulls/{n}/reviews + GET /repos/.../issues/{n}/events; see scripts/03_extract_pulls.py",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json + reviews.json + pull_events.json",
+      "derivation_function": "compute_m4_flow_active() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m5": {
+    "metric_number": 5,
+    "name": "Flow Efficiency",
+    "metric_name": "Flow Efficiency",
+    "value": "insufficient_signal",
+    "reason": "Flow Efficiency = Flow Active / Flow Time per PR. Both m4 (Flow Active) and m7 (Flow Time) are 'insufficient_signal' for this run because PR-level review and timing data are unavailable. Per AAP §0.5.3.6, a derived metric inherits the worse of its inputs' confidence tiers, and a derived metric with any 'insufficient_signal' input is itself 'insufficient_signal'.",
+    "after_before_multiplier": "—",
+    "confidence": "insufficient",
+    "caveat": "Derived from m4 and m7; inherits 'insufficient' because m4 and m7 are both insufficient. See m4.reason and m7.reason for the upstream cause.",
+    "boundary_conditions": "Inherits the lower of m4 and m7 confidence; both inputs are 'insufficient' in this run, so the ratio is undefined.",
+    "extraction_strategy": "Per AAP §0.5.3.6: For each merged PR, m4_active / m7_wall_clock. Median across PRs per phase. Composite metric: confidence is min(m4_confidence, m7_confidence).",
+    "baseline": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 0,
+      "count_of_windows": 0,
+      "reason": "m4.baseline and m7.baseline are both insufficient (no PRs).",
+      "boundary_conditions": "Composite metric — inherits insufficient from m4 and m7."
+    },
+    "post_introduction": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "reason": "m4.post_introduction and m7.post_introduction are both insufficient.",
+      "boundary_conditions": "Composite metric — inherits insufficient from m4 and m7."
+    },
+    "per_window": [],
+    "per_window_series": [],
+    "provenance": {
+      "requirement_id": "M5",
+      "extraction_command": "Composite of m4 and m7 — no direct extraction; see scripts/09_compute_metrics.py:compute_m5_flow_efficiency",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/metrics.json#m4,m7",
+      "derivation_function": "compute_m5_flow_efficiency() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m6": {
+    "metric_number": 6,
+    "name": "Flow Distribution",
+    "metric_name": "Flow Distribution",
+    "value": "insufficient_signal",
+    "reason": "Flow Distribution is per-PR by user definition. PR-level data is unavailable (data/pulls.json#pulls is empty; GitHub API unreachable). Linear API for issue-label classification is also unavailable (LINEAR_API_KEY absent — data/issues.json#unavailable_reason='no_linear_api_key'). Both primary classifier tiers fail; the remaining keyword-on-commit-subject tier per AAP §0.5.3.7 is a per-commit signal, not the per-PR aggregation the user-prompt metric definition requires.",
+    "after_before_multiplier": "—",
+    "confidence": "insufficient",
+    "caveat": "PR-level classification requires either GitHub Pulls API (for PR titles + bodies + labels) or Linear API (for issue labels on linked tickets). Both are unavailable in this run; per-commit subject classification is a secondary signal that does not provide PR-equivalent granularity for the four-category Flow Distribution.",
+    "boundary_conditions": "Linear API unavailable (no LINEAR_API_KEY). GitHub Pulls API unavailable (no GH_TOKEN). Conventional-commit prefix authority (per .github/workflows/semantic-pr.yaml: feat, fix, chore, refactor, exp, doc, test) requires PR titles which are not retrievable. Distribution object schema (when populated): {feature: pct, defect: pct, risk_compliance: pct, tech_debt: pct, unknown: pct} summing to 100.0.",
+    "extraction_strategy": "Per AAP §0.5.3.7 priority order: (1) Linear issue label on linked ticket; (2) conventional-commit prefix on PR title per .github/workflows/semantic-pr.yaml — feat→feature, fix→defect, chore|refactor|exp|doc|test→tech-debt; (3) keyword match on title+body for risk_compliance (security, compliance, audit, sla, gdpr, pci, cve, vulnerability); (4) unknown. Per-actor reporting splits the post-introduction phase into Blitzy and individual humans.",
+    "baseline": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 0,
+      "count_of_windows": 0,
+      "reason": "No PRs in baseline period; no merge-commit-level classification possible.",
+      "boundary_conditions": "No PR-level data; baseline period (2 days) has 0 merges on main."
+    },
+    "post_introduction": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "reason": "6 merge commits on main but PR titles/labels unavailable; primary classifier tiers all blocked.",
+      "boundary_conditions": "GitHub Pulls API and Linear API both unavailable; per-PR classification cannot proceed."
+    },
+    "per_window": [],
+    "per_window_series": [],
+    "distribution_when_computable": {
+      "feature": null,
+      "defect": null,
+      "risk_compliance": null,
+      "tech_debt": null,
+      "unknown": null,
+      "_note": "Schema placeholder for the distribution object that the renderer will populate from m6.value when the GitHub Pulls API (or Linear API) is reachable. All five categories sum to 100.0 by definition; an unknown rate exceeding 20% in either phase downgrades that phase's confidence to Low per AAP §0.5.3.7."
+    },
+    "provenance": {
+      "requirement_id": "M6",
+      "extraction_command": "GET /repos/.../pulls?state=all + POST https://api.linear.app/graphql (if LINEAR_API_KEY set); see scripts/03_extract_pulls.py + scripts/08_extract_linear.py",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json + issues.json",
+      "derivation_function": "compute_m6_flow_distribution() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m7": {
+    "metric_number": 7,
+    "name": "Flow Time",
+    "metric_name": "Flow Time",
+    "value": "insufficient_signal",
+    "reason": "Flow Time = median(merge_commit_committer_date − first_commit_author_date) across merged PRs per phase. Requires per-PR first-commit timestamp from the GitHub Pulls-Commits API (or local-git reconstruction of PR head ref's first commit). The GitHub Pulls API is unavailable (data/pulls.json#github_api.available=false), and the 6 local merge commits on main do not preserve their PRs' head-ref first-commit timestamps reliably (PR head refs may have been deleted after merge).",
+    "after_before_multiplier": "—",
+    "confidence": "insufficient",
+    "caveat": "GitHub Pulls API unavailable; local-git fallback cannot identify first-commit-on-PR-head-ref reliably once the PR's head branch is deleted post-merge.",
+    "boundary_conditions": "Requires per-PR head-ref commit timeline. With pulls.json empty and PR head refs post-merge inaccessible, the median Flow Time cannot be computed for the 6 post-introduction merges.",
+    "extraction_strategy": "Per AAP §0.5.3.8: median(merge_commit_committer_date − first_commit_author_date) across all merged PRs in the phase. Excludes PRs whose first commit was force-pushed away (no longer reachable). The exclusion rate is reported alongside the median.",
+    "baseline": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 0,
+      "count_of_windows": 0,
+      "reason": "No merged PRs in baseline period.",
+      "boundary_conditions": "0 merge commits on main during the 2-day baseline."
+    },
+    "post_introduction": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "reason": "6 merge commits on main but per-PR head-ref commit timelines unavailable without GitHub Pulls API.",
+      "boundary_conditions": "GitHub Pulls API unreachable; head refs may have been deleted post-merge."
+    },
+    "per_window": [],
+    "per_window_series": [],
+    "provenance": {
+      "requirement_id": "M7",
+      "extraction_command": "GET /repos/.../pulls/{n}/commits (paginated); see scripts/03_extract_pulls.py",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+      "derivation_function": "compute_m7_flow_time() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m8": {
+    "metric_number": 8,
+    "name": "Problem Records in Release",
+    "metric_name": "Problem Records in Release",
+    "value": 0,
+    "after_before_multiplier": "—",
+    "confidence": "high",
+    "extraction_strategy": "Per AAP §0.5.3.9: Enumerate revert commits via `git log --all --grep='^Revert \"'`; parse 'Reverts commit SHA' references; cross-validate against tree-match with prior commit's parent tree. Attribute each revert to the most recent ancestor release tag via `git merge-base --is-ancestor`. Exclude reverts-of-reverts, unattributable reverts, and unreleased reverts; report exclusion counts as confidence indicators.",
+    "baseline": {
+      "value": 0,
+      "confidence": "high",
+      "windows": 1,
+      "count_of_windows": 1,
+      "boundary_conditions": "Baseline-period revert count is 0 from direct git enumeration."
+    },
+    "post_introduction": {
+      "value": 0,
+      "confidence": "high",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "boundary_conditions": "Post-introduction revert count is 0 from direct git enumeration. Cross-validated by three independent search commands (primary, secondary, tertiary corroboration) all returning 0; see data/reverts.json#search_verification."
+    },
+    "per_window": [
+      {
+        "start": "2026-02-23T00:00:00Z",
+        "end": "2026-03-09T00:00:00Z",
+        "window_start_iso": "2026-02-23T00:00:00Z",
+        "window_end_iso": "2026-03-09T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-09T00:00:00Z",
+        "end": "2026-03-23T00:00:00Z",
+        "window_start_iso": "2026-03-09T00:00:00Z",
+        "window_end_iso": "2026-03-23T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-23T00:00:00Z",
+        "end": "2026-04-06T00:00:00Z",
+        "window_start_iso": "2026-03-23T00:00:00Z",
+        "window_end_iso": "2026-04-06T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-06T00:00:00Z",
+        "end": "2026-04-20T00:00:00Z",
+        "window_start_iso": "2026-04-06T00:00:00Z",
+        "window_end_iso": "2026-04-20T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-20T00:00:00Z",
+        "end": "2026-05-04T00:00:00Z",
+        "window_start_iso": "2026-04-20T00:00:00Z",
+        "window_end_iso": "2026-05-04T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-05-04T00:00:00Z",
+        "end": "2026-05-18T00:00:00Z",
+        "window_start_iso": "2026-05-04T00:00:00Z",
+        "window_end_iso": "2026-05-18T00:00:00Z",
+        "value": 0
+      }
+    ],
+    "per_window_series": [
+      {
+        "start": "2026-02-23T00:00:00Z",
+        "end": "2026-03-09T00:00:00Z",
+        "window_start_iso": "2026-02-23T00:00:00Z",
+        "window_end_iso": "2026-03-09T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-09T00:00:00Z",
+        "end": "2026-03-23T00:00:00Z",
+        "window_start_iso": "2026-03-09T00:00:00Z",
+        "window_end_iso": "2026-03-23T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-23T00:00:00Z",
+        "end": "2026-04-06T00:00:00Z",
+        "window_start_iso": "2026-03-23T00:00:00Z",
+        "window_end_iso": "2026-04-06T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-06T00:00:00Z",
+        "end": "2026-04-20T00:00:00Z",
+        "window_start_iso": "2026-04-06T00:00:00Z",
+        "window_end_iso": "2026-04-20T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-20T00:00:00Z",
+        "end": "2026-05-04T00:00:00Z",
+        "window_start_iso": "2026-04-20T00:00:00Z",
+        "window_end_iso": "2026-05-04T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-05-04T00:00:00Z",
+        "end": "2026-05-18T00:00:00Z",
+        "window_start_iso": "2026-05-04T00:00:00Z",
+        "window_end_iso": "2026-05-18T00:00:00Z",
+        "value": 0
+      }
+    ],
+    "exclusions": {
+      "unattributable_count": 0,
+      "unreleased_count": 0,
+      "revert_of_revert_count": 0
+    },
+    "verification": {
+      "primary_command": "git log --all --grep='^Revert \"' --pretty=format:'%H|%aI|%aE|%s|%B%n----' | grep -c '^[0-9a-f]\\{40\\}|'",
+      "primary_command_output": "0",
+      "secondary_command": "git log main --grep='^Revert ' --oneline | wc -l",
+      "secondary_command_output": "0",
+      "tertiary_command": "git log --all --grep='This reverts commit' --oneline | wc -l",
+      "tertiary_command_output": "0",
+      "verification_summary": "All three independent revert-detection commands return 0; the 'no reverts on main' claim is corroborated independently of subject-line prefix conventions."
+    },
+    "boundary_conditions": "Direct git enumeration is the canonical source; no API intermediation. Zero reverts in both phases means the after/before multiplier is undefined ('—' in render output). Confidence is HIGH because three independent search commands (subject prefix, all-refs subject scan, body-line scan) corroborate the zero count.",
+    "provenance": {
+      "requirement_id": "M8",
+      "extraction_command": "git log --all --grep='^Revert \"' --pretty=format:'%H|%aI|%aE|%s|%B%n----'; see scripts/05_extract_reverts.sh",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/reverts.json",
+      "derivation_function": "compute_m8_problem_records() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m9": {
+    "metric_number": 9,
+    "name": "Releases",
+    "metric_name": "Releases",
+    "value": "insufficient_signal",
+    "reason": "All three source tiers per AAP §0.5.3.10 yielded zero or were unavailable. Tier 1 (GitHub Releases API): unavailable without GH_TOKEN (data/releases.json#tier_availability.tier_1_github_releases_api.available=false). Tier 2 (annotated git tags v?\\d+\\.\\d+\\.\\d+): zero tags exist in this fork (verified by `git tag -l | wc -l` returning 0; this fork inherits a populated CHANGELOG.md from upstream rudderlabs/rudder-server but inherits zero git tag objects). Tier 3 (CI deploy events from .github/workflows/release-please.yaml + dispatch-deploy-event-dev.yaml): GitHub Actions Runs API not invoked in this run (GH_TOKEN absent). Per AAP §0.7.3, m9 reports 'Insufficient signal' rather than fabricating a count.",
+    "after_before_multiplier": "—",
+    "confidence": "insufficient",
+    "caveat": "All three release-detection tiers blocked: GitHub Releases API unreachable, zero annotated tags in this fork, and CI deploy-event API unreachable.",
+    "boundary_conditions": "Prerelease tags (-alpha, -beta, -rc, -dev suffixes per AAP §0.5.3.10) are excluded from the primary count and reported separately. Current state: 0 releases, 0 prereleases across all tiers.",
+    "extraction_strategy": "Per AAP §0.5.3.10 source precedence: (1) GET /repos/.../releases (GitHub Releases API); (2) `git for-each-ref refs/tags/ --format` filtered by v?\\d+\\.\\d+\\.\\d+; (3) GitHub Actions Runs API for release-please.yaml + dispatch-deploy-event-dev.yaml workflows. First tier with non-zero result wins; lower tiers reported as cross-checks. Prereleases (-alpha, -beta, -rc, -dev) reported separately.",
+    "baseline": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 0,
+      "count_of_windows": 0,
+      "reason": "No release source tier yielded any signal for the baseline window.",
+      "boundary_conditions": "2-day baseline period has 0 windows; even with API access no releases would fit."
+    },
+    "post_introduction": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "reason": "All three release-detection tiers yielded zero or were unavailable; see top-level m9.reason.",
+      "boundary_conditions": "GitHub Releases API + Tags + CI deploy events all unavailable or empty."
+    },
+    "per_window": [
+      {
+        "start": "2026-02-23T00:00:00Z",
+        "end": "2026-03-09T00:00:00Z",
+        "window_start_iso": "2026-02-23T00:00:00Z",
+        "window_end_iso": "2026-03-09T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-09T00:00:00Z",
+        "end": "2026-03-23T00:00:00Z",
+        "window_start_iso": "2026-03-09T00:00:00Z",
+        "window_end_iso": "2026-03-23T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-23T00:00:00Z",
+        "end": "2026-04-06T00:00:00Z",
+        "window_start_iso": "2026-03-23T00:00:00Z",
+        "window_end_iso": "2026-04-06T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-06T00:00:00Z",
+        "end": "2026-04-20T00:00:00Z",
+        "window_start_iso": "2026-04-06T00:00:00Z",
+        "window_end_iso": "2026-04-20T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-20T00:00:00Z",
+        "end": "2026-05-04T00:00:00Z",
+        "window_start_iso": "2026-04-20T00:00:00Z",
+        "window_end_iso": "2026-05-04T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-05-04T00:00:00Z",
+        "end": "2026-05-18T00:00:00Z",
+        "window_start_iso": "2026-05-04T00:00:00Z",
+        "window_end_iso": "2026-05-18T00:00:00Z",
+        "value": 0
+      }
+    ],
+    "per_window_series": [
+      {
+        "start": "2026-02-23T00:00:00Z",
+        "end": "2026-03-09T00:00:00Z",
+        "window_start_iso": "2026-02-23T00:00:00Z",
+        "window_end_iso": "2026-03-09T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-09T00:00:00Z",
+        "end": "2026-03-23T00:00:00Z",
+        "window_start_iso": "2026-03-09T00:00:00Z",
+        "window_end_iso": "2026-03-23T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-23T00:00:00Z",
+        "end": "2026-04-06T00:00:00Z",
+        "window_start_iso": "2026-03-23T00:00:00Z",
+        "window_end_iso": "2026-04-06T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-06T00:00:00Z",
+        "end": "2026-04-20T00:00:00Z",
+        "window_start_iso": "2026-04-06T00:00:00Z",
+        "window_end_iso": "2026-04-20T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-20T00:00:00Z",
+        "end": "2026-05-04T00:00:00Z",
+        "window_start_iso": "2026-04-20T00:00:00Z",
+        "window_end_iso": "2026-05-04T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-05-04T00:00:00Z",
+        "end": "2026-05-18T00:00:00Z",
+        "window_start_iso": "2026-05-04T00:00:00Z",
+        "window_end_iso": "2026-05-18T00:00:00Z",
+        "value": 0
+      }
+    ],
+    "per_window_note": "Per-window counts reported as 0 to reflect 'no releases observed'; the headline value remains 'insufficient_signal' because the OBSERVATION is unreliable (all three tiers blocked or zero).",
+    "tier_results": {
+      "tier_1_releases_api": {
+        "available": false,
+        "count": 0,
+        "reason": "GH_TOKEN absent"
+      },
+      "tier_2_git_tags": {
+        "available": true,
+        "count": 0,
+        "reason": "0 tags in fork (verified by `git tag -l | wc -l`)"
+      },
+      "tier_3_ci_deploy_events": {
+        "available": false,
+        "count": 0,
+        "reason": "GitHub Actions Runs API not invoked"
+      }
+    },
+    "provenance": {
+      "requirement_id": "M9",
+      "extraction_command": "GET https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/releases (paginated) + git for-each-ref refs/tags/ --format='%(refname:short)|%(creatordate:iso-strict)|%(objectname)' + GET /repos/.../actions/workflows/{release-please.yaml,dispatch-deploy-event-dev.yaml}/runs; see scripts/04_extract_releases.py",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/releases.json",
+      "derivation_function": "compute_m9_releases() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m10": {
+    "metric_number": 10,
+    "name": "Approved Exceptions",
+    "metric_name": "Approved Exceptions",
+    "value": 0,
+    "after_before_multiplier": "—",
+    "confidence": "low",
+    "caveat": "Without admin audit-log access, the signal is limited to (a) force-pushes detectable from this clone's local git reflog (only the initial clone event is present; no force-pushes observed), (b) PRs labelled with exception/waiver/override/bypass patterns (none observed — the repository's label catalogue comprises only `with tests`, `server-team`, `warehouse-team` per .github/labeler.yml), and (c) HEAD-only static-analysis exemption inventory (reported separately, not as per-window events). The true count of admin overrides, required-check bypasses, and branch-protection-rule modifications during the analysis window is unobservable and may be non-zero.",
+    "boundary_conditions": "Audit log requires admin access (not granted in read-only analysis sandbox); the highest-fidelity signal is therefore unavailable. Branch-protection events visible only as current state, not as time-series. Lint-exemption HEAD inventory (50 total): .golangci.yml gosec excludes=18 + depguard deny=6 + forbidigo patterns=14 + bodyclose path-exclusions=4; .snyk=5 active exceptions (all expired 2025-01-01T00:00:00.000Z); .truffleignore=0 entries (empty file); .deepsource.toml exclude_patterns=2 + meta-config-implied=1. These are HEAD snapshots, not per-window events, so they do not contribute to the per-window event count but are reported in lint_exemptions_at_head.",
+    "extraction_strategy": "Per AAP §0.5.3.11: Enumerate (a) force-pushes from `git reflog show main` on the local clone, (b) PRs labelled with patterns matching exception|waiver|override|bypass from the GitHub Pulls API, (c) static-analysis exemptions from .golangci.yml, .snyk, .truffleignore, .deepsource.toml (HEAD-only, no time series). Admin audit-log enumeration via `GET /repos/.../audit-log` requires admin access and was not exercised. Count per 2-week window of (a) + (b) summed; (c) reported separately as inventory.",
+    "baseline": {
+      "value": 0,
+      "confidence": "low",
+      "windows": 0,
+      "count_of_windows": 0,
+      "caveat": "Per-window event count is 0 from observable sources only; admin audit-log signal absent.",
+      "boundary_conditions": "Baseline period (2 days) is shorter than 14 days; no full window fits."
+    },
+    "post_introduction": {
+      "value": 0,
+      "confidence": "low",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "caveat": "Per-window event count is 0 from observable sources only; admin audit-log signal absent.",
+      "boundary_conditions": "6 post-intro 2-week windows; observed event count is 0 per window (0 audit events, 0 force-pushes, 0 exception-labelled PRs)."
+    },
+    "per_window": [
+      {
+        "start": "2026-02-23T00:00:00Z",
+        "end": "2026-03-09T00:00:00Z",
+        "window_start_iso": "2026-02-23T00:00:00Z",
+        "window_end_iso": "2026-03-09T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-09T00:00:00Z",
+        "end": "2026-03-23T00:00:00Z",
+        "window_start_iso": "2026-03-09T00:00:00Z",
+        "window_end_iso": "2026-03-23T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-23T00:00:00Z",
+        "end": "2026-04-06T00:00:00Z",
+        "window_start_iso": "2026-03-23T00:00:00Z",
+        "window_end_iso": "2026-04-06T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-06T00:00:00Z",
+        "end": "2026-04-20T00:00:00Z",
+        "window_start_iso": "2026-04-06T00:00:00Z",
+        "window_end_iso": "2026-04-20T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-20T00:00:00Z",
+        "end": "2026-05-04T00:00:00Z",
+        "window_start_iso": "2026-04-20T00:00:00Z",
+        "window_end_iso": "2026-05-04T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-05-04T00:00:00Z",
+        "end": "2026-05-18T00:00:00Z",
+        "window_start_iso": "2026-05-04T00:00:00Z",
+        "window_end_iso": "2026-05-18T00:00:00Z",
+        "value": 0
+      }
+    ],
+    "per_window_series": [
+      {
+        "start": "2026-02-23T00:00:00Z",
+        "end": "2026-03-09T00:00:00Z",
+        "window_start_iso": "2026-02-23T00:00:00Z",
+        "window_end_iso": "2026-03-09T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-09T00:00:00Z",
+        "end": "2026-03-23T00:00:00Z",
+        "window_start_iso": "2026-03-09T00:00:00Z",
+        "window_end_iso": "2026-03-23T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-03-23T00:00:00Z",
+        "end": "2026-04-06T00:00:00Z",
+        "window_start_iso": "2026-03-23T00:00:00Z",
+        "window_end_iso": "2026-04-06T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-06T00:00:00Z",
+        "end": "2026-04-20T00:00:00Z",
+        "window_start_iso": "2026-04-06T00:00:00Z",
+        "window_end_iso": "2026-04-20T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-04-20T00:00:00Z",
+        "end": "2026-05-04T00:00:00Z",
+        "window_start_iso": "2026-04-20T00:00:00Z",
+        "window_end_iso": "2026-05-04T00:00:00Z",
+        "value": 0
+      },
+      {
+        "start": "2026-05-04T00:00:00Z",
+        "end": "2026-05-18T00:00:00Z",
+        "window_start_iso": "2026-05-04T00:00:00Z",
+        "window_end_iso": "2026-05-18T00:00:00Z",
+        "value": 0
+      }
+    ],
+    "lint_exemptions_at_head": {
+      "_note": "HEAD-only inventory, not per-window events. Reported here for visibility per AAP §0.5.3.11.",
+      "golangci_gosec_excludes": 18,
+      "golangci_depguard_deny": 6,
+      "golangci_forbidigo_patterns": 14,
+      "golangci_bodyclose_path_exclusions": 4,
+      "snyk_active": 5,
+      "snyk_active_all_expired_at_2025_01_01": 5,
+      "truffleignore_entries": 0,
+      "deepsource_exclude_patterns": 2,
+      "deepsource_meta_config_implied": 1,
+      "total_at_head": 50
+    },
+    "observation_sources": {
+      "audit_log": {
+        "accessed": false,
+        "events_count": 0,
+        "reason": "admin access not granted"
+      },
+      "force_pushes_local_reflog": {
+        "accessed": true,
+        "events_count": 0,
+        "reflog_total_entries": 1,
+        "note": "Only the initial clone event is in reflog; remote force-pushes pre-clone are invisible."
+      },
+      "exception_labelled_prs": {
+        "accessed": true,
+        "count": 0,
+        "label_patterns_searched": [
+          "exception",
+          "waiver",
+          "override",
+          "bypass"
+        ],
+        "label_catalogue_in_repo": [
+          "with tests",
+          "server-team",
+          "warehouse-team"
+        ]
+      }
+    },
+    "provenance": {
+      "requirement_id": "M10",
+      "extraction_command": "git reflog show main; GET /repos/.../branches/main/protection; static config file parsing for .golangci.yml/.snyk/.truffleignore/.deepsource.toml; see scripts/07_extract_exceptions.py",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/exceptions.json",
+      "derivation_function": "compute_m10_approved_exceptions() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m11": {
+    "metric_number": 11,
+    "name": "Escaped Defects",
+    "metric_name": "Escaped Defects",
+    "value": "insufficient_signal",
+    "reason": "CI test history is unavailable; .github/workflows/tests.yaml does not emit JUnit XML artifacts (verified by inspection of the workflow definition), so pass→fail (regression) and pass→skip (suppression) transitions on the default branch cannot be reconstructed over time. Only a HEAD-only in-repo `t.Skip()` scan is available, which is a single-point snapshot rather than a transition signal. The 10 canonical skip markers observed at HEAD are: router/batchrouter/asyncdestinationmanager/klaviyobulkupload/klaviyobulkupload_test.go:328; gateway/webhook/integration_test.go:196; gateway/webhook/integration_test.go:204; services/sql-migrator/migrator_test.go:39; services/streammanager/bqstream/bqstreammanager_test.go:44; services/streammanager/kafka/kafkamanager_test.go:473; services/streammanager/kafka/kafkamanager_test.go:555; warehouse/integrations/mssql/mssql_test.go:44; warehouse/integrations/clickhouse/clickhouse_test.go:47; warehouse/integrations/postgres/postgres_test.go:48.",
+    "after_before_multiplier": "—",
+    "confidence": "insufficient",
+    "caveat": "CI test-result history is unavailable in this run (tests.yaml does not emit JUnit XML artifacts; the GitHub Actions Runs API was not invoked); the HEAD-only in-repo t.Skip() scan cannot establish regressions or suppressions over time.",
+    "boundary_conditions": "Requires JUnit XML or equivalent per-run test-result history from CI. The tests.yaml workflow does not emit such artifacts in this repo (no go-junit-report step). Flaky-test guard would require >=3 consecutive failures before counting as a regression; this guard is also unexercised without per-run data.",
+    "extraction_strategy": "Per AAP §0.5.3.12: Query GitHub Actions Runs API for the tests.yaml workflow on main; fetch JUnit XML artifacts per run; detect pass→fail transitions (flaky-guarded: >=3 consecutive failures) and pass→skip transitions. Fallback to in-repo `*_test.go` scan for `t.Skip()`, `t.SkipNow()`, `// nolint:`, Ginkgo `XIt`/`XDescribe`/`PIt` markers at HEAD only; this fallback is a snapshot, not a transition signal.",
+    "baseline": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 0,
+      "count_of_windows": 0,
+      "reason": "No CI test-result history available for the baseline window.",
+      "boundary_conditions": "No JUnit XML; no per-run transition signal in baseline."
+    },
+    "post_introduction": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "reason": "No CI test-result history available for the post-introduction windows; HEAD-only scan is snapshot only.",
+      "boundary_conditions": "tests.yaml does not emit JUnit XML; GitHub Actions Runs API not invoked."
+    },
+    "per_window": [],
+    "per_window_series": [],
+    "head_only_skip_inventory": {
+      "_note": "HEAD-only snapshot of t.Skip markers in *_test.go files; not a per-window transition signal. The 10 canonical entries documented in AAP §0.2.3 are listed below.",
+      "canonical_entries_count": 10,
+      "distinct_files_count": 8,
+      "canonical_entries": [
+        "router/batchrouter/asyncdestinationmanager/klaviyobulkupload/klaviyobulkupload_test.go:328",
+        "gateway/webhook/integration_test.go:196",
+        "gateway/webhook/integration_test.go:204",
+        "services/sql-migrator/migrator_test.go:39",
+        "services/streammanager/bqstream/bqstreammanager_test.go:44",
+        "services/streammanager/kafka/kafkamanager_test.go:473",
+        "services/streammanager/kafka/kafkamanager_test.go:555",
+        "warehouse/integrations/mssql/mssql_test.go:44",
+        "warehouse/integrations/clickhouse/clickhouse_test.go:47",
+        "warehouse/integrations/postgres/postgres_test.go:48"
+      ],
+      "head_skip_scan_total_count": 61,
+      "head_skip_scan_total_count_source": "data/test_transitions.json#head_skip_scan_total_count (full-tree scan)",
+      "skipped_rate_at_head": null,
+      "skipped_rate_at_head_note": "Skipped-rate normalisation requires per-run total-test-count from JUnit XML. Substituting file-count (497) for test-function-count would violate the no-fabrication rule (AAP §0.7.3)."
+    },
+    "provenance": {
+      "requirement_id": "M11",
+      "extraction_command": "GET https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/actions/runs?branch=main + GET /repos/.../actions/runs/{id}/artifacts (JUnit XML); fallback: grep -rnE 't\\.Skip' --include='*_test.go' .; see scripts/06_extract_ci_history.py",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/ci_runs.json + test_transitions.json",
+      "derivation_function": "compute_m11_escaped_defects() in scripts/09_compute_metrics.py"
+    }
+  },
+  "m12": {
+    "metric_number": 12,
+    "name": "Defects Out of SLA",
+    "metric_name": "Defects Out of SLA",
+    "value": "insufficient_signal",
+    "reason": "No SLA source is available. Linear API access is not configured (LINEAR_API_KEY environment variable unset; data/issues.json#unavailable_reason='no_linear_api_key'; data/slas.json#unavailable_reason='no_sla_source'). No repository policy document defining SLA tiers per severity was discovered (searched docs/, blitzy-docs/, blitzy/documentation/, CONTRIBUTING.md, SECURITY.md for keywords 'SLA', 'severity', 'Sev-', 'priority response time', 'incident response'; matches found are passing references, not policy targets). Per AAP §0.5.3.13, the metric is reported as 'Insufficient signal — no SLA source' rather than fabricating a tier. The PR template at .github/pull_request_template.md confirms Linear is the issue tracker but provides no SLA target.",
+    "after_before_multiplier": "—",
+    "confidence": "insufficient",
+    "caveat": "Metric requires either (a) Linear API access with severity-SLA target fields, or (b) a repository policy document defining SLA tiers. Neither is available in this read-only analysis sandbox for this run.",
+    "boundary_conditions": "Issue-scoped metric (the only one in the 12 that is not PR-scoped); attaches to defect tickets rather than to PRs. Without an SLA policy source, the metric definition cannot be operationalised — even with full issue-tracker access, the count of 'defects exceeding their SLA target' is undefined without a target.",
+    "extraction_strategy": "Per AAP §0.5.3.13: (1) Linear API GraphQL query for issues labelled 'bug' or 'defect' with severity, created_at, completed_at, slaBreachedAt, slaTargetDuration; (2) fallback `grep -rni 'SLA|severity|Sev-|priority response time|incident response'` across docs/, blitzy-docs/, blitzy/documentation/, CONTRIBUTING.md, SECURITY.md. If neither yields an SLA target, report 'Insufficient signal — no SLA source'.",
+    "baseline": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 0,
+      "count_of_windows": 0,
+      "reason": "No SLA source available for baseline.",
+      "boundary_conditions": "No SLA source available — metric undefined."
+    },
+    "post_introduction": {
+      "value": "insufficient_signal",
+      "confidence": "insufficient",
+      "windows": 6,
+      "count_of_windows": 6,
+      "multiplier": "—",
+      "multiplier_vs_baseline": "—",
+      "reason": "No SLA source available for post-introduction phase.",
+      "boundary_conditions": "No SLA source available — metric undefined."
+    },
+    "per_window": [],
+    "per_window_series": [],
+    "sla_source_inventory": {
+      "linear_api": {
+        "available": false,
+        "reason": "LINEAR_API_KEY environment variable unset"
+      },
+      "repo_policy_document": {
+        "available": false,
+        "paths_searched": [
+          "docs/",
+          "blitzy-docs/",
+          "blitzy/documentation/",
+          "CONTRIBUTING.md",
+          "SECURITY.md"
+        ],
+        "keywords_searched": [
+          "SLA",
+          "severity",
+          "Sev-",
+          "priority response time",
+          "incident response"
+        ]
+      }
+    },
+    "provenance": {
+      "requirement_id": "M12",
+      "extraction_command": "POST https://api.linear.app/graphql (issues + slas query) — requires LINEAR_API_KEY; fallback: grep -rniE 'SLA|severity|Sev-|priority response time|incident response' docs/ blitzy-docs/ blitzy/documentation/ CONTRIBUTING.md SECURITY.md; see scripts/08_extract_linear.py",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/issues.json + slas.json",
+      "derivation_function": "compute_m12_defects_out_of_sla() in scripts/09_compute_metrics.py"
+    }
+  }
+}
