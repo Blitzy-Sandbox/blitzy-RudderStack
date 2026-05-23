@@ -1,25 +1,24 @@
-%% Title: Engineering Actor Substitution — Baseline vs Post-Introduction
-%% Legend: The same compute function is invoked twice with different (date_range, actor) parameters.
-%% Baseline actor = human PR author. Post-Introduction actor = Blitzy (union of agent@blitzy.com + blitzy[bot]).
-%% This is the SOLE difference between baseline and post-introduction metric computation; all other inputs are module-scope constants.
-%% Cross-reference: DL-012 in decision-log.md.
-
+%% Title: Engineering Actor Substitution: Baseline = Human Author; After = Blitzy
+%% Legend:
+%%   Shows the same compute function called twice with different (period, actor) parameters.
+%%   This is the mechanical guarantee of identical methodology required by the user prompt:
+%%     "MUST use identical methodology for before and after periods —
+%%      same window alignment, same extraction logic, different date range."
+%%   The only differences between baseline and after extraction are:
+%%     1. period (the date range)
+%%     2. actor (the engineering actor parameter — human author of each PR in baseline;
+%%        Blitzy in after)
+%%   All other inputs (window alignment, bot exclusion list, classifier order,
+%%   span-bounding logic) are module-scope CONSTANTS and cannot diverge between periods.
+%%   See AAP §0.5.6 and decision-log.md DL-012 for the rationale.
 sequenceDiagram
-    autonumber
-    participant R as Renderer (10_render_report.py)
-    participant C as Compute (09_compute_metrics.py)
-    participant D as Raw Data Artifacts (data/*.json)
-
-    Note over R,C: Same code path invoked twice — only (range, actor) differs
-
-    R->>C: compute(range=baseline, actor=human_PR_author)
-    C->>D: read pulls.json + commits.csv + ...
-    D-->>C: filtered to baseline range
-    C-->>R: metrics.json baseline rows
-
-    R->>C: compute(range=post_introduction, actor=Blitzy)
-    C->>D: read pulls.json + commits.csv + ...
-    D-->>C: filtered to post range, actor=Blitzy
-    C-->>R: metrics.json post-introduction rows
-
-    Note over R: Window alignment, bot exclusion, classification map = module-scope constants — never re-parameterised
+    participant Pipeline as 09_compute_metrics.py
+    participant Compute as compute_phase(period, actor)
+    participant Data as data/metrics.json
+    Note over Pipeline,Data: Identical extraction logic, parameterized by (date range, actor)
+    Pipeline->>Compute: compute_phase(period=baseline, actor=human_author_of_each_PR)
+    Compute-->>Data: baseline metric values (per-actor breakdown by human author)
+    Pipeline->>Compute: compute_phase(period=after, actor=Blitzy)
+    Compute-->>Data: after metric values (Blitzy as single row + humans alongside)
+    Note over Compute,Data: Same compute function, same module-scope constants
+    Note over Compute,Data: (windows, exclusions, classifier, span-bounding logic)
