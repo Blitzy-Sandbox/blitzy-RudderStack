@@ -115,6 +115,7 @@ import json
 import os
 import re
 import sys
+import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -128,6 +129,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 from lib.observability import get_logger  # noqa: E402
 from lib.github import GithubClient  # noqa: E402
 from lib.git import git_reflog, git_rev_parse_toplevel  # noqa: E402
+from lib.paths import (  # noqa: E402
+    atomic_write_text,
+    safe_output_path,
+    OutputPathError,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -641,9 +647,14 @@ def parse_snyk(path: Path, reference_ts: str) -> dict[str, Any]:
             "unavailable_reason": f"read_error: {exc.__class__.__name__}",
         }
 
-    # Try the structural YAML parse first. PyYAML is not a hard
-    # dependency of the analysis-environment requirements.txt so we
-    # gracefully fall back to regex.
+    # Try the structural YAML parse first. PyYAML is a declared
+    # dependency in requirements.txt (pinned 6.0.2) and is therefore
+    # expected to be importable in any environment provisioned from the
+    # workspace venv. The fallback regex path remains for environments
+    # where an operator has intentionally trimmed the manifest (e.g., a
+    # minimal sandbox without YAML support); the fallback logs the
+    # degradation via ``parse_method`` so a reviewer can see which code
+    # path actually ran.
     policy_version: str | None = None
     entries: list[dict[str, Any]] = []
     parse_method: str
@@ -820,11 +831,12 @@ def parse_deepsource(path: Path) -> dict[str, Any]:
     ``test_patterns`` array (the latter governs which files DeepSource
     treats as test files; they are reported separately because they
     are not exemptions but they affect analysis coverage). The
-    function uses regex matching on the TOML source rather than a
-    structural TOML parse to avoid requiring tomllib for Python
-    3.10 compatibility (the analysis sandbox runs Python 3.13, so
-    tomllib is available, but the regex approach keeps the module
-    side-effect-free at import time).
+    function uses Python's standard-library ``tomllib`` (available
+    natively in Python 3.11+) to parse the TOML source structurally
+    rather than matching against the raw text with regular expressions.
+    The structural parse correctly handles inline tables, nested arrays,
+    multi-line strings, comments, and any future schema evolution that
+    a regex-based extractor would silently misinterpret.
 
     Args:
         path: Filesystem path to ``.deepsource.toml``.
@@ -833,6 +845,10 @@ def parse_deepsource(path: Path) -> dict[str, Any]:
         A dictionary with ``available``, ``exclude_patterns_count``,
         ``exclude_patterns`` (the raw glob list), ``test_patterns_count``,
         ``test_patterns``, and the source-file provenance fields.
+        When the file is missing, unreadable, or syntactically invalid
+        TOML, the returned ``available`` field is ``False`` and an
+        ``unavailable_reason`` field captures the failure mode for the
+        Risk Assessment section of the report.
     """
     if not path.exists():
         return {
@@ -849,26 +865,49 @@ def parse_deepsource(path: Path) -> dict[str, Any]:
             "unavailable_reason": f"read_error: {exc.__class__.__name__}",
         }
 
-    config_version_match = re.search(
-        r"^\s*version\s*=\s*(\d+)\s*$", text, flags=re.MULTILINE
-    )
-    config_version = (
-        int(config_version_match.group(1)) if config_version_match else None
-    )
+    # Structural TOML parse. ``tomllib.loads`` raises
+    # ``tomllib.TOMLDecodeError`` on malformed input; we catch that
+    # specifically and downgrade the metric to "unavailable" with a
+    # precise reason rather than aborting the entire run.
+    try:
+        parsed = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as exc:
+        return {
+            "available": False,
+            "source_file": ".deepsource.toml",
+            "unavailable_reason": f"toml_parse_error: {exc}",
+            "file_byte_size": len(text),
+        }
 
-    exclude_patterns = _extract_toml_array(text, "exclude_patterns")
-    test_patterns = _extract_toml_array(text, "test_patterns")
+    # ``version`` is a top-level key per the DeepSource schema. The
+    # parsed value may be int (canonical), float, str, or absent.
+    raw_version = parsed.get("version")
+    config_version: int | None
+    if isinstance(raw_version, int):
+        config_version = raw_version
+    elif isinstance(raw_version, str):
+        try:
+            config_version = int(raw_version)
+        except ValueError:
+            config_version = None
+    else:
+        config_version = None
+
+    exclude_patterns = _coerce_string_list(parsed.get("exclude_patterns"))
+    test_patterns = _coerce_string_list(parsed.get("test_patterns"))
 
     return {
         "available": True,
         "source_file": ".deepsource.toml",
         "source_file_extraction_command": "cat .deepsource.toml",
+        "parse_method": "tomllib",
         "deepsource_config_version": config_version,
         "exclude_patterns_count": len(exclude_patterns),
         "exclude_patterns": exclude_patterns,
         "exclude_patterns_verification_command": (
-            "awk '/^exclude_patterns/,/^\\]/' .deepsource.toml | "
-            "grep -cE '^\\s+\"[^\"]+\"'"
+            "python3 -c \"import tomllib, pathlib; "
+            "print(len(tomllib.loads(pathlib.Path('.deepsource.toml')"
+            ".read_text()).get('exclude_patterns', [])))\""
         ),
         "test_patterns_count": len(test_patterns),
         "test_patterns": test_patterns,
@@ -881,33 +920,31 @@ def parse_deepsource(path: Path) -> dict[str, Any]:
     }
 
 
-def _extract_toml_array(text: str, key: str) -> list[str]:
-    """Return the string entries of a top-level TOML array literal.
+def _coerce_string_list(value: Any) -> list[str]:
+    """Coerce a parsed TOML value into a list of strings.
 
-    Matches a block of the form ``key = [\\n  "foo",\\n  "bar"\\n]`` and
-    extracts every quoted string between the brackets. The matcher is
-    permissive with respect to whitespace and trailing commas. This is
-    a deliberate regex parse rather than a tomllib parse to keep this
-    module's dependency footprint to the standard library plus the
-    pipeline's existing lib/ helpers.
+    DeepSource's ``exclude_patterns`` and ``test_patterns`` are TOML
+    arrays of strings by schema, but operators occasionally store
+    them as inline-table entries or as a single string. This helper
+    accepts any list-like or scalar-string input and returns a flat
+    list of strings, skipping non-string members to avoid leaking
+    nested objects into the artifact.
 
     Args:
-        text: The full file contents.
-        key: The TOML key whose array value should be extracted.
+        value: The parsed TOML value. May be a list, a single string,
+            or ``None`` when the key is absent.
 
     Returns:
-        A list of the string literals inside the array. An empty list
-        is returned when the key is absent or the array is empty.
+        A list of string members. Returns ``[]`` when ``value`` is
+        ``None`` or not coercible.
     """
-    block_match = re.search(
-        rf"^\s*{re.escape(key)}\s*=\s*\[(.*?)\]",
-        text,
-        flags=re.MULTILINE | re.DOTALL,
-    )
-    if not block_match:
+    if value is None:
         return []
-    body = block_match.group(1)
-    return [m.group(1) for m in re.finditer(r'"([^"]+)"', body)]
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value if isinstance(item, (str, int, float))]
+    return []
 
 
 
@@ -1842,12 +1879,33 @@ def main(argv: list[str] | None = None) -> int:
     # ------------------------------------------------------------------
     # Write the output artifact.
     # ------------------------------------------------------------------
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    # Validate the output path against the workspace boundary. Writes
+    # are confined to ``blitzy/acceleration-report/`` so a misconfigured
+    # ``--output`` cannot corrupt files elsewhere on the host. The
+    # default ``data/exceptions.json`` always resolves inside the
+    # workspace; an operator passing an explicit path that escapes the
+    # workspace receives a structured error and exit code 4.
+    try:
+        output_path = safe_output_path(args.output)
+    except OutputPathError as exc:
+        logger.error(
+            "exceptions_output_path_rejected",
+            extra={
+                "event": "exceptions_output_path_rejected",
+                "requested_path": str(args.output),
+                "error": str(exc),
+            },
+        )
+        print(str(exc), file=sys.stderr)
+        return 4
+
     serialised = json.dumps(payload, indent=2, default=str, ensure_ascii=False)
-    # Append a trailing newline to satisfy POSIX line-termination
-    # conventions and to keep the file diff-clean.
-    output_path.write_text(serialised + "\n")
+    # Atomic write: temp-file in the destination directory + os.replace
+    # ensures the operator either sees the previous artifact or the new
+    # one, never a half-written file. Append a trailing newline to
+    # satisfy POSIX line-termination conventions and to keep the file
+    # diff-clean.
+    atomic_write_text(output_path, serialised + "\n")
 
     logger.info(
         "script_complete",

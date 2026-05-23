@@ -26,11 +26,12 @@ Detection precedence (the first tier that yields a signal wins):
   :data:`SUSTAIN_WEEKS` weeks (sustained inflection). The Monday of that
   week is the inflection point.
 
-The script is read-only: it invokes only ``git log`` (via the validated
-:func:`lib.git.git_log` wrapper for Tier 2/3 and via a hard-coded subprocess
-call for Tier 1 because the trailer search requires a multi-line record
-format not exposed by :mod:`lib.git`). It never modifies any git ref,
-working tree, or external system.
+The script is read-only: every ``git log`` invocation goes through the
+validated :mod:`lib.git` wrappers (``git_log`` for single-line formats,
+``git_log_raw`` for the multi-line body format used by Tier 1). The
+deny-list gate centrally rejects mutating switches; no subprocess call
+in this script bypasses the gate. It never modifies any git ref, working
+tree, or external system.
 
 The output payload conforms to ``scripts/lib/schemas/inflection.schema.json``.
 Required top-level fields: ``tier_used``, ``date_utc``, ``evidence``,
@@ -68,7 +69,17 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from lib.observability import get_logger  # noqa: E402  (intentional after sys.path tweak)
-from lib.git import git_log  # noqa: E402  (intentional after sys.path tweak)
+from lib.git import git_log, git_log_raw  # noqa: E402  (intentional after sys.path tweak)
+from lib.paths import (  # noqa: E402
+    atomic_write_text,
+    safe_output_path,
+    OutputPathError,
+)
+
+try:
+    import jsonschema  # noqa: E402
+except ImportError:  # pragma: no cover - manifest pins jsonschema 4.23.0
+    jsonschema = None  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -326,18 +337,15 @@ def detect_tier_1(logger) -> Optional[dict]:
     # below can reject commits where the author IS the trailered AI actor
     # (self-attribution is not evidence of human-credits-AI co-authoring).
     pretty_fmt = f"%H|%aI|%aE|%aN|%s%n%B%n{record_terminator}"
+    # Use the validated lib.git.git_log_raw wrapper so the read-only
+    # deny-list gate centrally enforces the contract. The multi-line body
+    # (%B) requires the *_raw variant — git_log() splits by newline and
+    # would destroy record boundaries. Any deny-listed flag in the args
+    # raises GitReadOnlyViolation (a ValueError subclass).
     try:
-        result = subprocess.run(
-            [
-                "git",
-                "log",
-                "--all",
-                "--grep=[Cc]o-authored-by:",
-                f"--pretty=format:{pretty_fmt}",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
+        stdout = git_log_raw(
+            pretty_fmt,
+            ["--all", "--grep=[Cc]o-authored-by:"],
         )
     except subprocess.CalledProcessError as exc:
         logger.warning(
@@ -352,8 +360,16 @@ def detect_tier_1(logger) -> Optional[dict]:
         # ``git`` is not on PATH. Surface as a warning and degrade gracefully.
         logger.warning("tier_1_git_not_found", extra={"error": str(exc)})
         return None
+    except ValueError as exc:
+        # GitReadOnlyViolation is a ValueError subclass. Should not occur
+        # unless the format/args are mis-edited in the future; surface as
+        # a warning and fall through to Tier 2 so detection still runs.
+        logger.warning(
+            "tier_1_read_only_violation",
+            extra={"error": str(exc)},
+        )
+        return None
 
-    stdout = result.stdout or ""
     if not stdout.strip():
         logger.info("tier_1_no_candidates", extra={"reason": "git log returned no records"})
         return None
@@ -1256,12 +1272,83 @@ def main() -> int:
         phase_decomposition=phase_decomposition,
     )
 
-    output_path = Path(args.output)
+    # Resolve the caller-supplied output path under workspace path
+    # confinement. The default lives inside data/, and a caller that
+    # supplies an alternative path MUST keep it inside the workspace
+    # tree (lib.paths.WORKSPACE_ROOT). Paths outside that scope are
+    # rejected so a misconfigured --output cannot scribble outside the
+    # analysis workspace.
     try:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
+        output_path = safe_output_path(args.output)
+    except OutputPathError as exc:
+        logger.error(
+            "inflection_output_path_rejected",
+            extra={"path": str(args.output), "error": str(exc)},
+        )
+        print(str(exc), file=sys.stderr)
+        return 4
+
+    # Pre-write schema validation: load inflection.schema.json and validate
+    # the payload before serializing/writing. Schema-driven validation is a
+    # Rule-1 (Data Provenance) and AAP §0.9.2 obligation; we abort the
+    # write on any violation so a corrupt artifact cannot reach downstream
+    # consumers.
+    schema_path = (
+        WORKSPACE_ROOT / "scripts" / "lib" / "schemas" / "inflection.schema.json"
+    )
+    if jsonschema is None:
+        # The pinned manifest requires jsonschema 4.23.0; surface a clear
+        # error so the operator fixes the analysis environment rather than
+        # silently skipping validation.
+        logger.error(
+            "jsonschema_unavailable",
+            extra={"requirements_pin": "jsonschema==4.23.0"},
+        )
+        print(
+            "jsonschema package not importable; "
+            "run `pip install -r requirements.txt` and retry.",
+            file=sys.stderr,
+        )
+        return 5
+    try:
+        schema_doc = json.loads(schema_path.read_text(encoding="utf-8"))
+        jsonschema.validate(instance=payload, schema=schema_doc)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.error(
+            "inflection_schema_load_failed",
+            extra={"path": str(schema_path), "error": str(exc)},
+        )
+        print(f"schema load failed: {exc}", file=sys.stderr)
+        return 6
+    except jsonschema.ValidationError as exc:
+        # Schema violation: the constructed payload does not match the
+        # inflection.schema.json contract. Emit a structured log line that
+        # names the violating path so the operator can locate it.
+        logger.error(
+            "inflection_schema_validation_failed",
+            extra={
+                "path": list(exc.absolute_path),
+                "validator": exc.validator,
+                "message": exc.message,
+            },
+        )
+        print(
+            f"inflection.json schema validation failed at "
+            f"{'.'.join(str(p) for p in exc.absolute_path) or '<root>'}: "
+            f"{exc.message}",
+            file=sys.stderr,
+        )
+        return 7
+
+    # Atomic write: serialise to a sibling temp file under data/, then
+    # os.replace() onto the destination. A partial write interrupted by
+    # SIGINT or disk exhaustion leaves the temp file orphaned but never
+    # corrupts the canonical inflection.json artifact downstream consumers
+    # read at load time.
+    try:
+        atomic_write_text(
+            output_path,
             json.dumps(payload, indent=2, default=str, ensure_ascii=False),
-            encoding="utf-8",
         )
     except OSError as exc:
         logger.error(

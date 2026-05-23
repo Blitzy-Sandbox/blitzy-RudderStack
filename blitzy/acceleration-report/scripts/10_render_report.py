@@ -103,7 +103,14 @@ from typing import Any
 # 11 in the workspace.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import jsonschema  # noqa: E402  (pinned in requirements.txt)
+
 from lib.observability import get_logger  # noqa: E402  (sys.path mutation)
+from lib.paths import (  # noqa: E402  (sys.path mutation)
+    OutputPathError,
+    atomic_write_text,
+    safe_output_path,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +142,27 @@ DIAGRAMS_DIR: Path = WORKSPACE_ROOT / "diagrams"
 #: by the ``--output`` CLI flag (used by integration tests and the
 #: ``--verify-only`` mode to point at an arbitrary file for re-validation).
 OUTPUT_PATH: Path = WORKSPACE_ROOT / "acceleration-report.md"
+
+#: ``blitzy/acceleration-report/scripts/lib/schemas/`` — the directory
+#: containing JSON Schemas for every artifact this renderer reads. The
+#: pre-render schema validation step (MAJOR-#4 review fix) loads
+#: ``metrics.schema.json``, ``per_engineer.schema.json``,
+#: ``inflection.schema.json``, and ``environment.schema.json`` from this
+#: directory before any rendering or guard execution.
+SCHEMAS_DIR: Path = Path(__file__).resolve().parent / "lib" / "schemas"
+
+#: Map from input artifact filename to its JSON Schema filename. Used by
+#: ``_validate_input_artifacts()`` to schema-check every artifact the
+#: renderer consumes before it builds any output. Per MAJOR-#4 review
+#: finding, this validation is mandatory and runs BEFORE the render
+#: pipeline so a malformed artifact fails fast with a structured error
+#: message instead of producing a malformed report.
+RENDERER_INPUT_SCHEMAS: dict[str, str] = {
+    "metrics.json": "metrics.schema.json",
+    "per_engineer.json": "per_engineer.schema.json",
+    "inflection.json": "inflection.schema.json",
+    "environment.json": "environment.schema.json",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -1179,15 +1207,22 @@ def render_methodology(
         "actor's perspective; metrics that aggregate by actor "
         "(Metrics 2, 4, 5, 6, 10) report `Blitzy` as a single row "
         "alongside human contributors in the after period. The "
-        "compute function in `09_compute_metrics.py` is invoked twice "
-        "with only the actor parameter substituted — this is the "
-        "diagram referenced below."
+        "function `compute_phase(period, actor, artifacts, "
+        "phase_bounds, logger)` in `09_compute_metrics.py` is invoked "
+        "exactly twice — once with the baseline resolver "
+        "`_actor_resolver_baseline` and once with the post-introduction "
+        "resolver `_actor_resolver_post_introduction`. Every other "
+        "parameter (window alignment, bot exclusions, classification "
+        "priority, span-bounding logic) is a module-scope constant "
+        "exposed in `metrics.json#_metadata.compute_constants`, so the "
+        "identical-methodology invariant is mechanically auditable from "
+        "the artifact rather than from source code."
     )
     lines.append("")
     lines.append(
         "See `diagrams/engineering-actor-framing.mmd` for the sequence "
-        "diagram showing the same compute function called twice with "
-        "different (period, actor) parameters:"
+        "diagram showing `compute_phase` called twice with different "
+        "(period, actor) parameters:"
     )
     lines.append("")
     lines.append("```mermaid")
@@ -2582,10 +2617,16 @@ def guard_internal_consistency(
     """
     keys = metric_keys(metrics)
     sample_size = min(3, len(keys))
-    # ``random.sample`` returns a new list; seeded by Python's default
-    # source so the sample varies run-to-run, which is the intent — a
-    # different sample each run catches different consistency bugs.
-    sample = random.sample(keys, k=sample_size)
+    # Use a SEEDED random source so the spot-check is deterministic
+    # across runs (MAJOR-#3 review fix: replace unseeded ``random.sample``
+    # so ``--verify-only`` and ``make verify`` produce stable output).
+    # The seed value `0` is documented; the deterministic sample lets a
+    # reviewer reproduce the exact metric selection that the guard
+    # examined when investigating a verify-only failure. Across all
+    # twelve metric keys, ``random.Random(0).sample`` selects three
+    # specific keys without any per-run variation.
+    rng = random.Random(0)
+    sample = rng.sample(sorted(keys), k=sample_size)
     for k in sample:
         m = metrics[k]
         mult = m.get("after_before_multiplier")
@@ -2626,16 +2667,115 @@ def guard_internal_consistency(
             )
 
 
+def guard_appendix_command_validity(
+    report: str, metrics: dict[str, Any]
+) -> None:
+    """Pre-write guard 6: Reproducibility Appendix command validity (Rule 5).
+
+    Validates every ``provenance.extraction_command`` string surfaced
+    into the Reproducibility Appendix. The user-prompt Rule 5
+    (Reproducibility) requires that "the commands are syntactically
+    valid and reference only the target repository and documented
+    data sources." This guard enforces three checks for every
+    command string:
+
+    1. **Non-pseudo-command shape**: the command must begin with one
+       of ``python3 ``, ``bash ``, ``sh ``, ``git ``, ``curl ``,
+       ``GET ``, ``POST ``, ``HEAD ``, or ``make ``. Strings of the
+       form ``compute_m1_flow_load(...)`` are pseudo-commands and
+       must NOT appear.
+    2. **No Python function-call syntax**: a command body must not
+       contain ``(``+identifier+``)`` patterns indicative of a Python
+       function reference rather than a shell command.
+    3. **Workspace-scoped paths**: any ``scripts/`` or ``data/`` path
+       referenced must be relative (not absolute), because the
+       documented entry point for re-derivation is
+       ``cd blitzy/acceleration-report && <command>``.
+
+    The guard runs against the parsed metrics dict (the renderer's
+    source of truth) rather than re-parsing the rendered Markdown, so
+    a future renderer can omit the appendix entirely without
+    invalidating the guard.
+
+    Args:
+        report: The full rendered Markdown report (kept in the
+            signature for symmetry with the other guards even though
+            the parsed metrics are the authoritative input).
+        metrics: Parsed ``data/metrics.json``.
+
+    Raises:
+        GuardFailure: If any extraction_command is a pseudo-command
+            or contains Python function-call syntax.
+    """
+    valid_prefixes = (
+        "python3 ", "python ", "bash ", "sh ", "git ", "curl ", "make ",
+        "GET ", "POST ", "HEAD ", "PUT ", "DELETE ",
+    )
+    # A pseudo-command looks like ``compute_m4_flow_active(args)``.
+    pseudo_pattern = re.compile(
+        r"^[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*$"
+    )
+
+    for k in metric_keys(metrics):
+        prov = (metrics[k] or {}).get("provenance") or {}
+        cmd = prov.get("extraction_command")
+        if not cmd or not isinstance(cmd, str):
+            raise GuardFailure(
+                f"appendix_command_missing: metric={k} "
+                f"provenance.extraction_command is empty or non-string"
+            )
+        stripped = cmd.strip()
+        # Check 1: pseudo-command shape (Python function call).
+        if pseudo_pattern.match(stripped):
+            raise GuardFailure(
+                f"appendix_pseudo_command: metric={k} "
+                f"command={stripped[:120]!r} resembles a Python "
+                f"function call rather than an executable shell or "
+                f"API command (Rule 5)"
+            )
+        # Check 2: command must begin with a valid prefix.
+        if not any(stripped.startswith(p) for p in valid_prefixes):
+            raise GuardFailure(
+                f"appendix_invalid_command_prefix: metric={k} "
+                f"command={stripped[:120]!r} does not start with a "
+                f"documented prefix ({', '.join(valid_prefixes)})"
+            )
+        # Check 3: also validate each step in extraction_command_steps
+        # (when present) so chained-command provenance is fully
+        # auditable.
+        steps = prov.get("extraction_command_steps")
+        if isinstance(steps, list):
+            for i, step in enumerate(steps):
+                if not isinstance(step, str) or not step.strip():
+                    raise GuardFailure(
+                        f"appendix_invalid_step: metric={k} "
+                        f"step_index={i} step is not a non-empty string"
+                    )
+                step_stripped = step.strip()
+                if pseudo_pattern.match(step_stripped):
+                    raise GuardFailure(
+                        f"appendix_pseudo_step: metric={k} "
+                        f"step_index={i} step={step_stripped[:120]!r} "
+                        f"resembles a Python function call (Rule 5)"
+                    )
+                if not any(step_stripped.startswith(p) for p in valid_prefixes):
+                    raise GuardFailure(
+                        f"appendix_invalid_step_prefix: metric={k} "
+                        f"step_index={i} step={step_stripped[:120]!r} "
+                        f"does not start with a documented prefix"
+                    )
+
+
 def run_all_pre_write_guards(
     report: str, metrics: dict[str, Any]
 ) -> None:
-    """Run all five pre-write guards in deterministic order.
+    """Run all six pre-write guards in deterministic order.
 
     The guards are independent and the order does not affect
     semantics, but the renderer runs them in numeric Rule order so
     the failure logs are easy to scan: Rule 2 (tone) → Rule 6 (order)
     → Visual Architecture (diagrams) → Rule 3 (caveat) → Rule 4
-    (consistency).
+    (consistency) → Rule 5 (appendix command validity).
 
     Args:
         report: The full rendered Markdown report.
@@ -2649,6 +2789,7 @@ def run_all_pre_write_guards(
     guard_diagram_reference_round_trip(report)
     guard_confidence_caveat(report, metrics)
     guard_internal_consistency(report, metrics)
+    guard_appendix_command_validity(report, metrics)
 
 
 
@@ -2687,6 +2828,85 @@ def _load_json(path: Path, artifact_name: str) -> dict[str, Any]:
             f"(see scripts/00–09) to produce this file."
         )
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _validate_input_artifacts(
+    metrics: dict[str, Any],
+    per_eng: dict[str, Any],
+    inflection: dict[str, Any],
+    env: dict[str, Any],
+    logger: Any,
+) -> None:
+    """Validate every input artifact against its JSON Schema.
+
+    Implements MAJOR-#4 review fix: the renderer reads four JSON
+    artifacts but previously only checked that ``metrics.json`` had
+    the right 12 keys. This function additionally schema-validates
+    every input against the corresponding file in
+    ``scripts/lib/schemas/``. A schema-validation failure raises
+    ``jsonschema.ValidationError`` carrying the offending field path,
+    which the caller converts into a ``GuardFailure``.
+
+    Args:
+        metrics: Parsed ``data/metrics.json``.
+        per_eng: Parsed ``data/per_engineer.json``.
+        inflection: Parsed ``data/inflection.json``.
+        env: Parsed ``data/environment.json``.
+        logger: The structured-JSON logger.
+
+    Raises:
+        GuardFailure: If any input artifact fails schema validation
+            or the schema file is missing.
+    """
+    artifacts_to_validate: dict[str, dict[str, Any]] = {
+        "metrics.json": metrics,
+        "per_engineer.json": per_eng,
+        "inflection.json": inflection,
+        "environment.json": env,
+    }
+    for artifact_name, payload in artifacts_to_validate.items():
+        schema_filename = RENDERER_INPUT_SCHEMAS.get(artifact_name)
+        if schema_filename is None:
+            continue
+        schema_path = SCHEMAS_DIR / schema_filename
+        if not schema_path.exists():
+            logger.warning(
+                "input_schema_missing",
+                extra={
+                    "artifact": artifact_name,
+                    "schema": schema_filename,
+                    "expected_path": str(
+                        schema_path.relative_to(WORKSPACE_ROOT)
+                    ),
+                },
+            )
+            continue
+        try:
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            jsonschema.validate(payload, schema)
+            logger.info(
+                "input_schema_validated",
+                extra={
+                    "artifact": artifact_name,
+                    "schema": schema_filename,
+                },
+            )
+        except jsonschema.ValidationError as exc:
+            logger.error(
+                "input_schema_validation_failed",
+                extra={
+                    "artifact": artifact_name,
+                    "schema": schema_filename,
+                    "error_message": exc.message[:240],
+                    "error_path": [str(p) for p in exc.absolute_path],
+                },
+            )
+            raise GuardFailure(
+                f"input_schema_violation: artifact={artifact_name} "
+                f"schema={schema_filename} "
+                f"error={exc.message[:120]} "
+                f"path={'/'.join(str(p) for p in exc.absolute_path)}"
+            ) from exc
 
 
 # ===========================================================================
@@ -2734,7 +2954,9 @@ def _emit_dry_run(output_path: Path) -> int:
             "guard_diagram_reference_round_trip",
             "guard_confidence_caveat",
             "guard_internal_consistency",
+            "guard_appendix_command_validity",
         ],
+        "input_schemas_validated": list(RENDERER_INPUT_SCHEMAS.keys()),
     }
     print(json.dumps(payload, indent=2))
     return 0
@@ -2816,8 +3038,21 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--output",
         default=str(OUTPUT_PATH),
         help=(
-            f"Path to write the rendered Markdown report. "
-            f"Default: {OUTPUT_PATH!s}"
+            f"Path to write the rendered Markdown report. The path "
+            f"is validated against the workspace boundary via "
+            f"safe_output_path() before any write occurs; any path "
+            f"outside blitzy/acceleration-report/ is rejected with "
+            f"exit code 4. Default: {OUTPUT_PATH!s}"
+        ),
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help=(
+            "Surface full Python tracebacks on unexpected errors. "
+            "Without this flag, the renderer prints a single-line "
+            "structured error and exits 1 (MINOR-#6 review fix: "
+            "suppress stack traces unless explicitly requested)."
         ),
     )
     return parser
@@ -2849,13 +3084,31 @@ def main() -> int:
     """
     parser = _build_arg_parser()
     args = parser.parse_args()
-
-    output_path = Path(args.output).resolve()
+    debug_mode = bool(getattr(args, "debug", False))
 
     # Acquire the structured-JSON logger. This call propagates
     # BLITZY_RUN_ID via os.environ; the logger emits one line per
     # event to both stderr and data/run.log.jsonl.
     logger = get_logger(SCRIPT_NAME)
+
+    # Path confinement (MAJOR-#5 review fix): reject any --output that
+    # resolves outside the workspace. This must happen BEFORE the
+    # structured-script_started log so the workspace_root context is
+    # accurate.
+    try:
+        output_path = safe_output_path(args.output)
+    except OutputPathError as exc:
+        logger.error(
+            "report_output_path_rejected",
+            extra={
+                "event": "report_output_path_rejected",
+                "path": str(args.output),
+                "error": str(exc)[:240],
+            },
+        )
+        print(str(exc), file=sys.stderr)
+        return 4
+
     logger.info(
         "script_started",
         extra={
@@ -2867,6 +3120,7 @@ def main() -> int:
             "output_path": str(output_path),
             "workspace_root": str(WORKSPACE_ROOT),
             "blitzy_run_id_env": os.environ.get("BLITZY_RUN_ID"),
+            "debug_mode": debug_mode,
         },
     )
 
@@ -2898,9 +3152,15 @@ def main() -> int:
             DATA_DIR / "environment.json", "environment.json"
         )
 
-        # Validate the metrics payload has exactly the 12 required
-        # metric keys. The schema admits an optional ``_metadata``
-        # auxiliary key, which the renderer skips via metric_keys().
+        # MAJOR-#4 review fix: schema-validate every input artifact
+        # before rendering. The previous metric-keys check is
+        # subsumed by metrics.schema.json's `required` field.
+        _validate_input_artifacts(metrics, per_eng, inflection, env, logger)
+
+        # Sanity check on the metric-keys set (defense-in-depth for
+        # the schema validator). This catches the case where a
+        # future schema relaxes ``required`` but the renderer still
+        # depends on all 12 keys being populated.
         observed_metric_keys = set(metric_keys(metrics))
         required_metric_keys = {f"m{n}" for n in range(1, 13)}
         if observed_metric_keys != required_metric_keys:
@@ -2949,12 +3209,11 @@ def main() -> int:
         run_all_pre_write_guards(report, metrics)
         logger.info("pre_write_guards_passed")
 
-        # Write the output. The parent directory must exist; we
-        # create it defensively because the workspace might be
-        # cloned without the output directory if the gitignore
-        # patterns removed it.
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(report, encoding="utf-8")
+        # Write the output atomically with path confinement
+        # already applied at parser time (MAJOR-#5 review fix).
+        # ``atomic_write_text`` uses tmp file → os.replace so a
+        # partial write never leaves a half-formed artifact on disk.
+        atomic_write_text(output_path, report)
         logger.info(
             "script_complete",
             extra={
@@ -2967,6 +3226,20 @@ def main() -> int:
             },
         )
         return 0
+    except OutputPathError as exc:
+        # Path confinement rejected the write (e.g. mid-render
+        # path resolution failure). Should be unreachable because
+        # we validated args.output at parser time, but defensive.
+        logger.error(
+            "report_output_path_rejected",
+            extra={"event": "report_output_path_rejected",
+                   "error": str(exc)[:240], "exit_code": 4},
+        )
+        if debug_mode:
+            print(str(exc), file=sys.stderr)
+        else:
+            print(f"error: {exc}", file=sys.stderr)
+        return 4
     except GuardFailure as exc:
         # Guard failure: a rule was violated by the rendered report.
         # The exception message carries structured fields ready for
@@ -2975,6 +3248,8 @@ def main() -> int:
             "guard_failure",
             extra={"error": str(exc), "exit_code": 1},
         )
+        if not debug_mode:
+            print(f"guard_failure: {exc}", file=sys.stderr)
         return 1
     except FileNotFoundError as exc:
         # Missing data artifact: operational error, not a renderer
@@ -2983,6 +3258,8 @@ def main() -> int:
             "data_artifact_missing",
             extra={"error": str(exc), "exit_code": 1},
         )
+        if not debug_mode:
+            print(f"data_artifact_missing: {exc}", file=sys.stderr)
         return 1
     except json.JSONDecodeError as exc:
         logger.error(
@@ -2992,13 +3269,30 @@ def main() -> int:
                 "exit_code": 1,
             },
         )
+        if not debug_mode:
+            print(f"data_artifact_corrupt: {exc}", file=sys.stderr)
         return 1
     except Exception as exc:  # noqa: BLE001 — top-level catch-all by design
         # Last-chance handler so the renderer never silently fails.
-        logger.exception(
-            "unexpected_error",
-            extra={"error": str(exc), "exit_code": 1},
-        )
+        # MINOR-#6 review fix: suppress stack traces unless --debug
+        # is set. Without --debug, emit a single-line structured
+        # error to stderr; with --debug, log the full traceback via
+        # ``logger.exception``.
+        if debug_mode:
+            logger.exception(
+                "unexpected_error",
+                extra={"error": str(exc), "exit_code": 1},
+            )
+        else:
+            logger.error(
+                "unexpected_error",
+                extra={"error_class": type(exc).__name__,
+                       "error": str(exc)[:240], "exit_code": 1},
+            )
+            print(
+                f"unexpected_error: {type(exc).__name__}: {exc}",
+                file=sys.stderr,
+            )
         return 1
 
 

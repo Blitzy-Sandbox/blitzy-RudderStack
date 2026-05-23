@@ -120,6 +120,11 @@ if str(_SCRIPT_DIR) not in sys.path:
 from lib.observability import get_logger  # noqa: E402
 from lib.github import GithubClient  # noqa: E402
 from lib.git import git_log, git_revlist  # noqa: E402
+from lib.paths import (  # noqa: E402
+    atomic_write_text,
+    safe_output_path,
+    OutputPathError,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -987,7 +992,7 @@ def _process_pr_details(
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    """Write ``payload`` to ``path`` as pretty-printed JSON.
+    """Write ``payload`` to ``path`` as pretty-printed JSON atomically.
 
     Pretty-printing keeps the artifacts diffable by a human reviewer
     (Rule 1 — Data Provenance, where the analyst inspects raw artifacts).
@@ -995,15 +1000,19 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     ``default=str`` makes the writer tolerant to ``Path`` and ``datetime``
     values that some helpers may inadvertently emit.
 
+    Uses :func:`lib.paths.atomic_write_text` so a SIGINT or disk-full
+    failure mid-write does not leave a corrupt artifact on disk;
+    downstream consumers either see the prior contents or the newly
+    written contents.
+
     Args:
         path: Destination file path. The parent directory is created if
             missing.
         payload: The JSON-serialisable mapping to write.
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
+    atomic_write_text(
+        path,
         json.dumps(payload, indent=2, ensure_ascii=False, default=str),
-        encoding="utf-8",
     )
 
 
@@ -1228,9 +1237,29 @@ def main() -> int:
     }
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    _write_json(Path(args.pulls_output), pulls_payload)
-    _write_json(Path(args.reviews_output), reviews_payload)
-    _write_json(Path(args.events_output), events_payload)
+    # Resolve and confine every caller-supplied output path before
+    # writing. ``safe_output_path`` rejects any path outside the workspace
+    # tree; the rejection surfaces as an :class:`OutputPathError`
+    # (ValueError subclass) and exits the script non-zero.
+    try:
+        pulls_path = safe_output_path(args.pulls_output)
+        reviews_path = safe_output_path(args.reviews_output)
+        events_path = safe_output_path(args.events_output)
+    except OutputPathError as exc:
+        logger.error(
+            "output_path_rejected",
+            extra={
+                "pulls_output": args.pulls_output,
+                "reviews_output": args.reviews_output,
+                "events_output": args.events_output,
+                "error": str(exc),
+            },
+        )
+        print(str(exc), file=sys.stderr)
+        return 4
+    _write_json(pulls_path, pulls_payload)
+    _write_json(reviews_path, reviews_payload)
+    _write_json(events_path, events_payload)
 
     # Cursor cleanup. On clean completion we remove the cursor file so
     # the next invocation starts at PR 1 rather than resuming from a

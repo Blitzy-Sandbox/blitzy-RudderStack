@@ -4,1234 +4,346 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=1920, height=1080">
   <title>Development Acceleration Report — blitzy-RudderStack</title>
-
-  <!-- CDN-pinned third-party assets (reveal.js, Mermaid, Lucide, Google Fonts).
-       Subresource Integrity (SRI) `integrity=` attributes are intentionally NOT
-       set on these tags. See decision-log.md DL-013 for the full rationale and
-       residual-risk acceptance: the analysis environment cannot fetch the
-       assets to compute SHA-384 hashes offline at render time, the deck is
-       offline-by-design (opened in a controlled browser session, not exposed
-       as a public web property), and the pinned major.minor.patch versions
-       remove the silent-upgrade vector. Future hardening to either compute
-       SRI hashes when outbound HTTPS is available, or self-host the assets,
-       is tracked in decision-log.md §3 Suggested Next Investigations. -->
-
-  <!-- reveal.js core CSS (CDN-pinned 5.1.0) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
-  <!-- reveal.js theme reset; inline Blitzy CSS below overrides this -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" id="theme">
-
-  <!-- Google Fonts: Inter (body), Space Grotesk (headings), Fira Code (mono/eyebrow) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-
   <style>
-    /* =====================================================================
-       Blitzy reveal.js Theme — Inline (per AAP §0.7.1.5 Executive Presentation)
-       Brand palette, gradients, typography, slide types, KPI cards, tables.
-       ===================================================================== */
-
     :root {
-      /* Brand palette — primaries */
-      --blitzy-primary: #5B39F3;       /* Blitzy purple */
-      --blitzy-dark: #2D1C77;          /* Dark primary — headings, dark dividers */
-      --blitzy-mint: #94FAD5;          /* Accent green */
-      --blitzy-navy: #1A105F;          /* Closing slide background */
-      --blitzy-light-purple: #7A6DEC;  /* Gradient interpolation */
-      --blitzy-vivid: #4101DB;         /* Gradient start, bold accents */
-
+      /* Brand palette (AAP §0.7.1.5 — all six MUST appear) */
+      --blitzy-primary: #5B39F3;
+      --blitzy-dark: #2D1C77;
+      --blitzy-mint: #94FAD5;
+      --blitzy-navy: #1A105F;
+      --blitzy-light-purple: #7A6DEC;
+      --blitzy-vivid: #4101DB;
       /* Neutrals */
-      --neutral-text: #333333;         /* Body text */
-      --neutral-muted: #999999;        /* Muted, captions */
-      --neutral-border: #D9D9D9;       /* Borders, dividers */
-      --neutral-bg-subtle: #F4EFF6;    /* Subtle background tint */
-      --neutral-bg-alt: #F5F5F5;       /* Alternate background */
-      --neutral-white: #FFFFFF;        /* Cards, surfaces */
-
-      /* Confidence palette (state semantics) */
-      --confidence-high: #94FAD5;
-      --confidence-medium: #FFC107;
-      --confidence-low: #FF6B6B;
-      --confidence-insufficient: #999999;
-
+      --neutral-text: #333333;
+      --neutral-muted: #999999;
+      --neutral-border: #D9D9D9;
+      --neutral-bg-subtle: #F4EFF6;
+      --neutral-bg-alt: #F5F5F5;
+      --neutral-white: #FFFFFF;
       /* Gradients */
       --gradient-hero: linear-gradient(135deg, #4101DB 0%, #5B39F3 50%, #7A6DEC 100%);
       --gradient-divider: linear-gradient(135deg, #2D1C77 0%, #5B39F3 100%);
       --gradient-accent-bar: linear-gradient(90deg, #5B39F3 0%, #94FAD5 100%);
-
-      /* Spacing scale (multiples of 4px) */
-      --space-1: 0.25rem;
-      --space-2: 0.5rem;
-      --space-3: 0.75rem;
-      --space-4: 1rem;
-      --space-6: 1.5rem;
-      --space-8: 2rem;
-      --space-12: 3rem;
-      --space-16: 4rem;
     }
-
-    /* ----- Reveal global typography ----- */
-    .reveal {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      color: var(--neutral-text);
-      font-weight: 400;
-    }
-
-    .reveal h1, .reveal h2, .reveal h3, .reveal h4, .reveal h5, .reveal h6 {
-      font-family: 'Space Grotesk', 'Inter', sans-serif;
+    /* Reveal global typography */
+    .reveal { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color: var(--neutral-text); font-weight: 400; }
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      font-family: 'Space Grotesk', sans-serif;
       color: var(--blitzy-dark);
       letter-spacing: -0.01em;
       font-weight: 600;
-      text-transform: none;
     }
-
-    .reveal h1 { font-size: 3.2em; font-weight: 700; }
-    .reveal h2 { font-size: 2.2em; }
-    .reveal h3 { font-size: 1.5em; }
-
-    .reveal code,
-    .reveal pre.mermaid,
-    .reveal .mono {
-      font-family: 'Fira Code', 'Courier New', monospace;
+    .reveal code, .reveal pre.mermaid {
+      font-family: 'Fira Code', 'SF Mono', Monaco, monospace;
     }
-
-    .reveal code {
-      background: var(--neutral-bg-subtle);
-      color: var(--blitzy-vivid);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.9em;
-    }
-
+    .reveal code { background: var(--neutral-bg-subtle); padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.85em; color: var(--blitzy-dark); }
     .reveal .eyebrow {
       font-family: 'Fira Code', monospace;
       font-size: 0.65em;
       text-transform: uppercase;
       letter-spacing: 0.18em;
       color: var(--blitzy-primary);
-      font-weight: 500;
-      margin-bottom: var(--space-3);
+      margin-bottom: 0.75rem;
     }
-
-    .reveal section.slide-title .eyebrow,
-    .reveal section.slide-divider .eyebrow,
-    .reveal section.slide-closing .eyebrow {
-      color: var(--blitzy-mint);
-    }
-
-    /* ----- Slide type: title (hero gradient) ----- */
+    /* Slide type — title (hero gradient) */
     .reveal section.slide-title {
       background: var(--gradient-hero);
       color: var(--neutral-white);
       text-align: left;
-      padding: 0 var(--space-16);
+      padding: 4rem 6rem;
     }
-    .reveal section.slide-title h1 {
-      color: var(--neutral-white);
-      font-size: 4.2em;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: var(--space-4);
-    }
-    .reveal section.slide-title h2 {
-      color: var(--blitzy-mint);
-      font-weight: 500;
-      font-size: 1.6em;
-      margin-bottom: var(--space-8);
-    }
-    /* Scope to direct content, not Mermaid-emitted <p>/<li> inside SVGs. */
-    .reveal section.slide-title > p,
-    .reveal section.slide-title > ul > li,
-    .reveal section.slide-title > div > p,
-    .reveal section.slide-title > div > ul > li {
-      color: var(--neutral-white);
-    }
-    .reveal section.slide-title .title-icon {
-      display: flex;
-      align-items: center;
-      gap: var(--space-4);
-      margin-bottom: var(--space-6);
-    }
-    .reveal section.slide-title .title-icon i[data-lucide],
-    .reveal section.slide-title .title-icon svg[data-lucide],
-    .reveal section.slide-title .title-icon svg.lucide {
-      width: 96px !important;
-      height: 96px !important;
-      color: var(--blitzy-mint);
-      flex-shrink: 0;
-    }
-
-    /* ----- Slide type: divider (gradient or dark) ----- */
+    .reveal section.slide-title h1 { color: var(--neutral-white); font-size: 3.2em; font-weight: 700; line-height: 1.1; }
+    .reveal section.slide-title h2 { color: var(--blitzy-mint); font-weight: 500; font-size: 1.3em; margin-top: 1rem; }
+    .reveal section.slide-title .eyebrow { color: var(--blitzy-mint); }
+    .reveal section.slide-title p, .reveal section.slide-title code { color: var(--neutral-white); }
+    .reveal section.slide-title code { background: rgba(148,250,213,0.18); color: var(--blitzy-mint); }
+    /* Slide type — divider (dark purple gradient) */
     .reveal section.slide-divider {
       background: var(--gradient-divider);
       color: var(--neutral-white);
+      text-align: center;
+      padding: 4rem 6rem;
     }
-    .reveal section.slide-divider h1,
-    .reveal section.slide-divider h2,
-    .reveal section.slide-divider h3 {
-      color: var(--neutral-white);
-    }
-    /* Apply light text to <p>/<li> ONLY in slide-divider's direct body content
-       (not nested inside SVGs / foreignObjects emitted by Mermaid). */
-    .reveal section.slide-divider > p,
-    .reveal section.slide-divider > ul > li,
-    .reveal section.slide-divider > ol > li,
-    .reveal section.slide-divider > div > p,
-    .reveal section.slide-divider > div > ul > li,
-    .reveal section.slide-divider > div > ol > li {
-      color: var(--neutral-bg-subtle);
-    }
-    .reveal section.slide-divider .kpi-card {
-      background: rgba(255, 255, 255, 0.96);
-    }
-
-    /* ----- Slide type: closing (deep navy) ----- */
+    .reveal section.slide-divider h1 { color: var(--neutral-white); font-size: 2.6em; font-weight: 700; }
+    .reveal section.slide-divider .eyebrow { color: var(--blitzy-mint); }
+    .reveal section.slide-divider p, .reveal section.slide-divider li { color: var(--neutral-bg-subtle); }
+    /* Slide type — default content (white background) */
+    .reveal section { background: var(--neutral-white); color: var(--neutral-text); text-align: left; padding: 3rem 5rem; }
+    .reveal section h1 { font-size: 2em; margin-bottom: 0.5rem; }
+    .reveal section h2 { font-size: 1.4em; color: var(--blitzy-primary); }
+    /* Slide type — closing (navy) */
     .reveal section.slide-closing {
       background: var(--blitzy-navy);
       color: var(--neutral-white);
+      text-align: center;
+      padding: 4rem 6rem;
     }
-    .reveal section.slide-closing h1 {
-      color: var(--blitzy-mint);
-    }
-    .reveal section.slide-closing h2,
-    .reveal section.slide-closing > p,
-    .reveal section.slide-closing > div > p {
-      color: var(--neutral-white);
-    }
-    .reveal section.slide-closing code {
-      background: rgba(148, 250, 213, 0.15);
-      color: var(--blitzy-mint);
-    }
-
-    /* ----- KPI cards ----- */
-    .kpi-grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: var(--space-6);
-      margin: var(--space-6) 0;
-    }
+    .reveal section.slide-closing h1 { color: var(--blitzy-mint); font-size: 2.8em; }
+    .reveal section.slide-closing .eyebrow { color: var(--blitzy-mint); }
+    .reveal section.slide-closing p { color: var(--neutral-bg-subtle); font-size: 1.05em; line-height: 1.5; }
+    .reveal section.slide-closing code { background: rgba(148,250,213,0.18); color: var(--blitzy-mint); }
+    /* KPI card */
     .kpi-card {
       background: var(--neutral-white);
-      border-radius: 12px;
-      padding: var(--space-6) var(--space-8);
-      box-shadow: 0 4px 24px rgba(91, 57, 243, 0.18);
-      border-top: 4px solid var(--blitzy-primary);
-      flex: 1 1 0;
-      min-width: 320px;
-      max-width: 720px;
-      text-align: left;
       color: var(--neutral-text);
-    }
-    .kpi-card .kpi-icon {
-      display: flex;
-      align-items: center;
-      gap: var(--space-3);
-      margin-bottom: var(--space-3);
-    }
-    .kpi-card .kpi-icon i[data-lucide],
-    .kpi-card .kpi-icon svg[data-lucide],
-    .kpi-card .kpi-icon svg.lucide {
-      width: 32px !important;
-      height: 32px !important;
-      color: var(--blitzy-primary);
-      flex-shrink: 0;
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      box-shadow: 0 4px 20px rgba(91,57,243,0.15);
+      border-top: 4px solid var(--blitzy-primary);
+      display: inline-flex;
+      flex-direction: column;
+      min-width: 16rem;
+      max-width: 22rem;
+      margin: 0.75rem;
+      vertical-align: top;
+      text-align: left;
     }
     .kpi-card .kpi-label {
       font-family: 'Fira Code', monospace;
-      font-size: 0.75em;
+      font-size: 0.7em;
       color: var(--neutral-muted);
       text-transform: uppercase;
       letter-spacing: 0.12em;
-      font-weight: 500;
+      margin-bottom: 0.5rem;
     }
     .kpi-card .kpi-value {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 3.4em;
+      font-size: 2.6em;
       font-weight: 700;
       color: var(--blitzy-dark);
-      margin: var(--space-2) 0;
       line-height: 1;
+      margin: 0.25rem 0 0.5rem 0;
     }
     .kpi-card .kpi-sub {
-      font-size: 0.8em;
+      font-size: 0.75em;
       color: var(--neutral-muted);
-      margin-bottom: var(--space-3);
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
     }
     .kpi-card .kpi-confidence {
       display: inline-block;
-      padding: 4px 14px;
-      border-radius: 16px;
-      font-size: 0.7em;
+      padding: 0.2rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.65em;
       font-weight: 600;
-      font-family: 'Fira Code', monospace;
-      text-transform: uppercase;
       letter-spacing: 0.08em;
+      text-transform: uppercase;
+      align-self: flex-start;
     }
-    .kpi-confidence.confidence-high {
-      background: var(--confidence-high);
-      color: var(--blitzy-dark);
-    }
-    .kpi-confidence.confidence-medium {
-      background: var(--confidence-medium);
-      color: var(--blitzy-dark);
-    }
-    .kpi-confidence.confidence-low {
-      background: var(--confidence-low);
-      color: var(--neutral-white);
-      font-style: italic;
-    }
-    .kpi-confidence.confidence-insufficient {
-      background: var(--confidence-insufficient);
-      color: var(--neutral-white);
-    }
-    .kpi-card .caveat {
+    .kpi-confidence.confidence-high { background: var(--blitzy-mint); color: var(--blitzy-dark); }
+    .kpi-confidence.confidence-medium { background: #FFC107; color: var(--blitzy-dark); }
+    .kpi-confidence.confidence-low { background: #FF6B6B; color: var(--neutral-white); font-style: italic; }
+    .kpi-confidence.confidence-insufficient { background: var(--neutral-muted); color: var(--neutral-white); }
+    .kpi-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch; margin-top: 1.5rem; }
+    /* Caveat (always italic muted) */
+    .caveat {
       font-style: italic;
       color: var(--neutral-muted);
-      font-size: 0.75em;
-      margin-top: var(--space-3);
+      font-size: 0.7em;
+      margin-top: 0.5rem;
       line-height: 1.4;
     }
-
-    /* ----- Tables ----- */
+    /* Tables */
     .reveal table {
       border-collapse: collapse;
-      margin: var(--space-6) auto;
+      margin: 1.5rem auto;
+      font-size: 0.7em;
+      width: 90%;
       background: var(--neutral-white);
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-      border-radius: 8px;
-      overflow: hidden;
-      font-size: 0.78em;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     }
     .reveal table th {
       background: var(--blitzy-dark);
       color: var(--neutral-white);
-      padding: var(--space-2) var(--space-4);
+      padding: 0.75rem 1rem;
       text-align: left;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 600;
-      letter-spacing: 0.02em;
-      border: none;
+      letter-spacing: 0.04em;
     }
     .reveal table td {
-      padding: var(--space-2) var(--space-4);
+      padding: 0.6rem 1rem;
       border-bottom: 1px solid var(--neutral-border);
+      vertical-align: middle;
+      background: var(--neutral-white);
       color: var(--neutral-text);
-      vertical-align: middle;
     }
-    .reveal table tr:nth-child(even) td {
-      background: var(--neutral-bg-subtle);
-    }
-    .reveal table tr:last-child td {
-      border-bottom: none;
-    }
-    .reveal table .metric-icon {
-      color: var(--blitzy-primary);
-      vertical-align: middle;
-      margin-right: var(--space-2);
-    }
-    .reveal table .metric-icon i[data-lucide],
-    .reveal table .metric-icon svg[data-lucide],
-    .reveal table .metric-icon svg.lucide {
-      width: 18px !important;
-      height: 18px !important;
-      vertical-align: middle;
-    }
-    .reveal table .confidence-cell {
-      font-family: 'Fira Code', monospace;
-      font-size: 0.9em;
-      font-weight: 600;
-    }
-    .reveal table .confidence-cell.high { color: #2D7548; }
-    .reveal table .confidence-cell.medium { color: #B07B00; }
-    .reveal table .confidence-cell.low { color: #C0392B; font-style: italic; }
-    .reveal table .confidence-cell.insufficient { color: var(--neutral-muted); }
-
-    /* ----- Lucide icons (default sizing) ----- */
-    /* Lucide replaces <i data-lucide> with <svg data-lucide class="lucide">.
-       Both forms must be styled so dimensions persist after createIcons(). */
-    .reveal i[data-lucide],
-    .reveal svg[data-lucide],
-    .reveal svg.lucide {
-      width: 64px;
-      height: 64px;
-      color: var(--blitzy-primary);
-      stroke-width: 1.6;
-    }
-    .reveal .slide-divider i[data-lucide],
-    .reveal .slide-divider svg[data-lucide],
-    .reveal .slide-divider svg.lucide,
-    .reveal .slide-closing i[data-lucide],
-    .reveal .slide-closing svg[data-lucide],
-    .reveal .slide-closing svg.lucide {
-      color: var(--blitzy-mint);
-    }
-    .reveal .icon-large i[data-lucide],
-    .reveal .icon-large svg[data-lucide],
-    .reveal .icon-large svg.lucide {
-      width: 128px !important;
-      height: 128px !important;
-    }
-    .reveal .icon-inline i[data-lucide],
-    .reveal .icon-inline svg[data-lucide],
-    .reveal .icon-inline svg.lucide {
-      width: 32px !important;
-      height: 32px !important;
-      vertical-align: middle;
-    }
-
-    /* ----- Mermaid blocks ----- */
+    .reveal table tr:nth-child(even) td { background: var(--neutral-bg-subtle); }
+    .reveal table tr:last-child td { border-bottom: none; }
+    /* On dark slide backgrounds the table itself is a light "card" — text inside
+       table body cells must stay dark (overriding the slide-level white color),
+       and Lucide icons inside cells revert to the primary purple instead of mint. */
+    .reveal section.slide-divider table td,
+    .reveal section.slide-title table td,
+    .reveal section.slide-closing table td { color: var(--neutral-text); }
+    .reveal section.slide-divider table td i[data-lucide],
+    .reveal section.slide-title table td i[data-lucide],
+    .reveal section.slide-closing table td i[data-lucide] { color: var(--blitzy-primary); }
+    .reveal section.slide-divider table td code,
+    .reveal section.slide-title table td code,
+    .reveal section.slide-closing table td code { color: var(--blitzy-dark); }
+    /* Lucide icon colours per slide-type */
+    .reveal i[data-lucide] { color: var(--blitzy-primary); vertical-align: middle; }
+    .reveal section.slide-title i[data-lucide],
+    .reveal section.slide-divider i[data-lucide],
+    .reveal section.slide-closing i[data-lucide] { color: var(--blitzy-mint); }
+    /* Mermaid container */
     .reveal pre.mermaid {
       background: var(--neutral-white);
       border-radius: 8px;
-      padding: var(--space-4);
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-      margin: var(--space-4) auto;
-      max-width: 1600px;
-      display: block;
+      padding: 1rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      margin: 1rem auto;
+      max-width: 90%;
       text-align: center;
-      font-size: 0.6em;
-      overflow: visible;
+      font-size: 0.7em;
     }
-    .reveal pre.mermaid svg {
-      max-width: 100%;
-      max-height: 680px; /* leave room for heading + footer on 1080-tall slide */
-      height: auto;
-      width: auto;
-    }
-    /* Override Mermaid's default block fonts so nodes can render at small size */
-    .reveal pre.mermaid svg foreignObject p,
-    .reveal pre.mermaid svg foreignObject span,
-    .reveal pre.mermaid svg foreignObject div {
-      font-family: 'Inter', -apple-system, sans-serif !important;
-    }
-    /* Mermaid pie-chart legend + title sit on the white slide background and
-       must render in dark text; slice labels (rendered ON the colored slices)
-       stay white. */
-    .reveal pre.mermaid svg g.legend text,
-    .reveal pre.mermaid svg text.pieTitleText {
-      fill: var(--blitzy-dark) !important;
-      font-family: 'Space Grotesk', sans-serif !important;
-      font-weight: 600;
-    }
-    .reveal pre.mermaid svg text.slice {
-      fill: #FFFFFF !important;
-      font-weight: 600;
-    }
-
-    /* ----- Accent bar ----- */
+    /* Accent bar (used on title, dividers) */
     .accent-bar {
       height: 4px;
       background: var(--gradient-accent-bar);
-      width: 80px;
-      margin: var(--space-4) 0;
+      width: 5rem;
+      margin: 1rem 0;
       border-radius: 2px;
     }
     .reveal section.slide-title .accent-bar,
     .reveal section.slide-divider .accent-bar,
-    .reveal section.slide-closing .accent-bar {
-      width: 120px;
-      height: 6px;
-    }
-
-    /* ----- Bullets ----- */
-    .reveal ul {
-      list-style: none;
-      padding-left: 0;
-      margin: var(--space-6) 0;
-    }
+    .reveal section.slide-closing .accent-bar { background: var(--blitzy-mint); }
+    /* Bullets */
+    .reveal ul { margin: 1rem 0 1rem 1.5rem; list-style: none; padding: 0; }
     .reveal ul li {
-      margin: var(--space-4) 0;
+      margin: 0.6rem 0;
       line-height: 1.5;
-      padding-left: var(--space-8);
+      padding-left: 1.25rem;
       position: relative;
-      font-size: 0.92em;
     }
     .reveal ul li::before {
-      content: '';
+      content: "";
       position: absolute;
-      left: 0;
-      top: 0.6em;
-      width: 24px;
-      height: 3px;
-      background: var(--gradient-accent-bar);
-      border-radius: 2px;
+      left: 0; top: 0.6em;
+      width: 0.5em;
+      height: 0.5em;
+      border-radius: 50%;
+      background: var(--blitzy-primary);
     }
-    .reveal section.slide-divider ul li::before {
-      background: var(--blitzy-mint);
-    }
-
-    /* ----- Layout helpers ----- */
-    .two-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--space-8);
-      align-items: start;
-      margin: var(--space-4) 0;
-    }
-    .three-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: var(--space-6);
-      align-items: start;
-      margin: var(--space-4) 0;
-    }
-    .center { text-align: center; }
+    .reveal section.slide-title ul li::before,
+    .reveal section.slide-divider ul li::before,
+    .reveal section.slide-closing ul li::before { background: var(--blitzy-mint); }
+    /* Pills (status chips) */
     .pill {
       display: inline-block;
-      padding: 4px 12px;
-      border-radius: 16px;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
       background: var(--neutral-bg-subtle);
       color: var(--blitzy-dark);
-      font-family: 'Fira Code', monospace;
-      font-size: 0.7em;
+      font-size: 0.75em;
       font-weight: 500;
-      letter-spacing: 0.06em;
+      margin: 0.15rem;
     }
-    .pill.pill-mint {
-      background: var(--blitzy-mint);
-      color: var(--blitzy-dark);
-    }
-    .pill.pill-primary {
-      background: var(--blitzy-primary);
-      color: var(--neutral-white);
-    }
-
-    /* ----- Caveat block (Insufficient signal) ----- */
-    .caveat-block {
-      background: rgba(255, 107, 107, 0.08);
-      border-left: 4px solid var(--confidence-low);
-      padding: var(--space-3) var(--space-4);
-      margin: var(--space-4) 0;
-      border-radius: 0 6px 6px 0;
-      font-style: italic;
-      color: var(--neutral-text);
-      font-size: 0.82em;
-    }
-    .caveat-block.caveat-insufficient {
-      background: rgba(153, 153, 153, 0.08);
-      border-left-color: var(--confidence-insufficient);
-    }
-    .caveat-block strong {
-      font-style: normal;
-      color: var(--blitzy-dark);
-    }
-
-    /* ----- Code/command box ----- */
-    .cmd-box {
-      background: var(--blitzy-dark);
-      color: var(--blitzy-mint);
-      font-family: 'Fira Code', monospace;
-      padding: var(--space-4) var(--space-6);
-      border-radius: 6px;
-      font-size: 0.85em;
-      display: inline-block;
-      margin: var(--space-3) 0;
-      border-left: 4px solid var(--blitzy-mint);
-    }
-    .cmd-box .cmd-prompt {
-      color: var(--blitzy-light-purple);
-      margin-right: var(--space-2);
-    }
-
-    /* ----- Scope/metadata blocks ----- */
-    .meta-block {
-      background: var(--neutral-bg-alt);
-      padding: var(--space-4) var(--space-6);
-      border-radius: 6px;
-      margin: var(--space-4) 0;
-      font-size: 0.85em;
-      border-left: 3px solid var(--blitzy-primary);
-    }
-    .meta-block dl {
-      display: grid;
-      grid-template-columns: max-content 1fr;
-      gap: var(--space-2) var(--space-6);
-      margin: 0;
-    }
-    .meta-block dt {
-      font-family: 'Fira Code', monospace;
-      font-size: 0.85em;
-      color: var(--neutral-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-    .meta-block dd {
-      margin: 0;
-      color: var(--neutral-text);
-    }
-
-    /* ----- Slide content padding ----- */
-    .reveal .slides section {
-      padding: var(--space-8);
-      box-sizing: border-box;
-    }
-
-    /* ----- Footer line ----- */
-    .reveal .slide-footer {
+    .pill-mint { background: var(--blitzy-mint); color: var(--blitzy-dark); }
+    /* Footer strip on every slide (slide number/context).
+       Right padding accounts for reveal.js's slide-controls cluster in the
+       lower-right corner of every slide (~5rem worth of arrow buttons). */
+    .slide-footer {
       position: absolute;
-      bottom: var(--space-6);
-      left: var(--space-8);
-      right: var(--space-8);
+      bottom: 1rem;
+      left: 5rem;
+      right: 10rem;
       display: flex;
       justify-content: space-between;
-      align-items: center;
       font-family: 'Fira Code', monospace;
       font-size: 0.55em;
       color: var(--neutral-muted);
-      letter-spacing: 0.06em;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
+      pointer-events: none;
     }
     .reveal section.slide-title .slide-footer,
     .reveal section.slide-divider .slide-footer,
-    .reveal section.slide-closing .slide-footer {
-      color: rgba(255, 255, 255, 0.6);
-    }
-  </style>
+    .reveal section.slide-closing .slide-footer { color: var(--blitzy-mint); }
+      </style>
 </head>
 <body>
   <div class="reveal">
     <div class="slides">
-
-      <!-- =================================================================
-           SLIDE 1 — TITLE (slide-title)
-           Hero gradient. Title + subtitle + inflection date eyebrow.
-           ================================================================= -->
-      <section class="slide-title">
-        <div class="eyebrow">Acceleration Measurement &middot; blitzy-RudderStack</div>
-        <div class="title-icon">
-          <i data-lucide="gauge"></i>
-          <h1>Development<br>Acceleration Report</h1>
-        </div>
-        <div class="accent-bar"></div>
-        <h2>After/Before Multipliers Across 12 Flow and Operational Metrics</h2>
-        <p style="margin-top: 2rem; font-size: 0.9em;">
-          <span class="pill pill-mint">AI Inflection: 2026-02-25 02:58:59 UTC</span>
-          &nbsp;
-          <span class="pill" style="background: rgba(148,250,213,0.15); color: var(--blitzy-mint);">Tier 2 — AI-actor email pattern</span>
-        </p>
-        <div class="slide-footer">
-          <span>Blitzy Acceleration Measurement</span>
-          <span>1 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 2 — HEADLINE FINDINGS (slide-divider)
-           Three KPI cards. Top observations with confidence tags.
-           ================================================================= -->
-      <section class="slide-divider">
-        <div class="eyebrow">Headline Findings</div>
-        <h1>What the data shows</h1>
-        <div class="accent-bar"></div>
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="git-commit"></i>
-              <div class="kpi-label">M8 Problem Records</div>
-            </div>
-            <div class="kpi-value">0</div>
-            <div class="kpi-sub">Revert commits on <code>main</code> &mdash; both periods</div>
-            <span class="kpi-confidence confidence-high">High</span>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="git-pull-request"></i>
-              <div class="kpi-label">M2 Post-Introduction</div>
-            </div>
-            <div class="kpi-value">5</div>
-            <div class="kpi-sub">PR merges on <code>main</code> over 6 windows</div>
-            <span class="kpi-confidence confidence-medium">Medium</span>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="users"></i>
-              <div class="kpi-label">Engineering Actor</div>
-            </div>
-            <div class="kpi-value">96%</div>
-            <div class="kpi-sub">Of post-inflection commits authored by <code>Blitzy</code></div>
-            <span class="kpi-confidence confidence-high">High</span>
-          </div>
-        </div>
-        <p style="margin-top: 1.5rem; font-size: 0.85em; color: var(--neutral-bg-subtle);">
-          Baseline = pre-inflection (1 commit, 1 author). Post-Introduction = 86 days of Blitzy-led development.
-        </p>
-        <div class="slide-footer">
-          <span>Headline Findings</span>
-          <span>2 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 3 — SCOPE & METHOD (content)
-           4 bullets. Calendar-clock icon. Period spans + actor framing.
-           ================================================================= -->
-      <section>
-        <div class="eyebrow">Scope &amp; Method</div>
-        <h2><i data-lucide="calendar-clock" class="icon-inline"></i> Period spans and methodology</h2>
-        <div class="accent-bar"></div>
-        <div class="two-col">
-          <div>
-            <ul>
-              <li><strong>Baseline:</strong> pre-inflection, 2 days, 1 commit by <code>michael</code></li>
-              <li><strong>Post-Introduction:</strong> 86 days; Steady State fallback applied (&lt; 90 days)</li>
-              <li><strong>Window:</strong> 2-week, Monday-anchored UTC</li>
-              <li><strong>Actor substitution:</strong> human PR author &rarr; <code>Blitzy</code></li>
-            </ul>
-          </div>
-          <div>
-            <div class="meta-block">
-              <dl>
-                <dt>Repository</dt>
-                <dd><code>Blitzy-Sandbox/blitzy-RudderStack</code></dd>
-                <dt>Default branch</dt>
-                <dd><code>main</code></dd>
-                <dt>Total commits</dt>
-                <dd>543 (1 baseline / 542 post-introduction)</dd>
-                <dt>Active authors</dt>
-                <dd>3 humans + Blitzy + dependency bots</dd>
-                <dt>Inflection method</dt>
-                <dd>Tier 2 (AI-actor email pattern)</dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-        <div class="slide-footer">
-          <span>Scope &amp; Method</span>
-          <span>3 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 4 — ARCHITECTURE: DATA SOURCES (slide-divider)
-           Mermaid topology diagram.
-           ================================================================= -->
-      <section class="slide-divider">
-        <div class="eyebrow">Architecture &middot; Read-only extraction pipeline</div>
-        <h2>Data Sources &rarr; Extraction &rarr; Renderer</h2>
-        <div class="accent-bar"></div>
-        <pre class="mermaid">
-flowchart LR
-    subgraph SRC["Data Sources (read-only)"]
-        S1["Local git history"]
-        S2["GitHub Pulls / Reviews / Events API"]
-        S3["GitHub Releases / Actions API"]
-        S4["Linear GraphQL API"]
-        S5["In-repo configs<br/>(.github, .golangci.yml, .snyk)"]
-    end
-    subgraph EXTRACT["Extraction (scripts 00-08)"]
-        E1["Environment + Inflection"]
-        E2["Commits + Pulls + Reviews"]
-        E3["Releases + Reverts + CI"]
-        E4["Exceptions + Linear"]
-    end
-    subgraph DATA["Raw Data (data/*.json)"]
-        D1["metrics.json"]
-        D2["per_engineer.json"]
-    end
-    subgraph RENDER["Render (scripts 10-11)"]
-        R1["acceleration-report.md"]
-        R2["executive-summary.html"]
-    end
-    S1 --> E1
-    S1 --> E2
-    S2 --> E2
-    S3 --> E3
-    S4 --> E4
-    S5 --> E4
-    E1 --> D1
-    E2 --> D1
-    E3 --> D1
-    E4 --> D1
-    E2 --> D2
-    D1 --> R1
-    D1 --> R2
-    D2 --> R1
-    D2 --> R2
-    classDef src fill:#F4EFF6,stroke:#5B39F3,color:#2D1C77
-    classDef extract fill:#5B39F3,stroke:#2D1C77,color:#FFFFFF
-    classDef data fill:#94FAD5,stroke:#2D1C77,color:#2D1C77
-    classDef render fill:#2D1C77,stroke:#5B39F3,color:#FFFFFF
-    class S1,S2,S3,S4,S5 src
-    class E1,E2,E3,E4 extract
-    class D1,D2 data
-    class R1,R2 render
-        </pre>
-        <div class="slide-footer">
-          <span>Architecture</span>
-          <span>4 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 5 — INFLECTION DETECTION (content)
-           Three-tier waterfall as Mermaid flowchart. Tier 2 highlighted.
-           ================================================================= -->
-      <section>
-        <div class="eyebrow">Methodology &middot; AI Inflection Detection</div>
-        <h2><i data-lucide="git-commit" class="icon-inline"></i> Three-tier first-success cascade</h2>
-        <div class="accent-bar"></div>
-        <pre class="mermaid">
-flowchart TD
-    START(["git history scan"])
-    T1{"Tier 1<br/>Co-authored-by: trailer<br/>(Claude / Copilot / Cursor / Aider / Blitzy)"}
-    T2{"Tier 2<br/>AI-actor email pattern<br/>(blitzy.com domain / blitzy-bot / copilot.github)"}
-    T3{"Tier 3<br/>Velocity inflection<br/>(rolling-mean ratio &gt; 4x sustained)"}
-    NONE(["Insufficient signal"])
-    RESULT["RESOLVED<br/>2026-02-25 02:58:59 UTC<br/>by Blitzy agent (blitzy.com)<br/>commit 803732e"]
-    START --> T1
-    T1 -- "Hit" --> RESULT
-    T1 -- "No hit (zero trailers found)" --> T2
-    T2 -- "Hit (chosen)" --> RESULT
-    T2 -- "No hit" --> T3
-    T3 -- "Hit" --> RESULT
-    T3 -- "No hit" --> NONE
-    classDef tier fill:#F4EFF6,stroke:#5B39F3,color:#2D1C77
-    classDef resolved fill:#94FAD5,stroke:#2D1C77,color:#2D1C77,stroke-width:3px
-    classDef miss fill:#F5F5F5,stroke:#999999,color:#999999
-    class T1,T3 tier
-    class T2 resolved
-    class RESULT resolved
-    class NONE miss
-        </pre>
-        <p style="font-size: 0.78em; color: var(--neutral-muted); text-align: center;">
-          Tier 1 yielded zero hits (no AI co-author trailers present in the commit roster).
-          Tier 2 resolved on the earliest <code>agent@blitzy.com</code> commit.
-        </p>
-        <div class="slide-footer">
-          <span>Inflection Detection</span>
-          <span>5 / 16</span>
-        </div>
-      </section>
-
-
-      <!-- =================================================================
-           SLIDE 6 — TWELVE METRICS (slide-divider)
-           Styled table of M1-M12 with categorical icons.
-           ================================================================= -->
-      <section class="slide-divider">
-        <div class="eyebrow">The Twelve Metrics</div>
-        <h2>Flow + Operational measurement contract</h2>
-        <div class="accent-bar"></div>
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Metric</th>
-              <th>Category</th>
-              <th>Primary source</th>
-              <th>Confidence</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>M1</td><td><span class="metric-icon"><i data-lucide="layers"></i></span>Flow Load</td><td>Flow</td><td>Pulls API + state events</td><td class="confidence-cell insufficient">Insufficient</td></tr>
-            <tr><td>M2</td><td><span class="metric-icon"><i data-lucide="git-pull-request"></i></span>Flow Velocity</td><td>Flow</td><td>Pulls API <code>merged_at</code></td><td class="confidence-cell medium">Medium</td></tr>
-            <tr><td>M3</td><td><span class="metric-icon"><i data-lucide="bar-chart-3"></i></span>Flow Predictability</td><td>Flow</td><td>1/CV of M2 window series</td><td class="confidence-cell insufficient">Insufficient</td></tr>
-            <tr><td>M4</td><td><span class="metric-icon"><i data-lucide="activity"></i></span>Flow Active</td><td>Flow</td><td>Reviews + Events + Commits APIs</td><td class="confidence-cell insufficient">Insufficient</td></tr>
-            <tr><td>M5</td><td><span class="metric-icon"><i data-lucide="zap"></i></span>Flow Efficiency</td><td>Flow</td><td>Ratio M4 / M7</td><td class="confidence-cell insufficient">Insufficient</td></tr>
-            <tr><td>M6</td><td><span class="metric-icon"><i data-lucide="pie-chart"></i></span>Flow Distribution</td><td>Flow</td><td>Linear labels &rarr; conv-commit prefix</td><td class="confidence-cell medium">Medium</td></tr>
-            <tr><td>M7</td><td><span class="metric-icon"><i data-lucide="clock"></i></span>Flow Time</td><td>Flow</td><td>Pulls API merge - first commit</td><td class="confidence-cell medium">Medium</td></tr>
-            <tr><td>M8</td><td><span class="metric-icon"><i data-lucide="rotate-ccw"></i></span>Problem Records in Release</td><td>Operational</td><td>Local <code>git log --grep='^Revert "'</code></td><td class="confidence-cell high">High</td></tr>
-            <tr><td>M9</td><td><span class="metric-icon"><i data-lucide="package"></i></span>Releases</td><td>Operational</td><td>Releases API &rarr; tags &rarr; CI events</td><td class="confidence-cell insufficient">Insufficient</td></tr>
-            <tr><td>M10</td><td><span class="metric-icon"><i data-lucide="shield-check"></i></span>Approved Exceptions</td><td>Operational</td><td>Audit log + reflog + label scan</td><td class="confidence-cell low">Low</td></tr>
-            <tr><td>M11</td><td><span class="metric-icon"><i data-lucide="bug"></i></span>Escaped Defects</td><td>Operational</td><td>CI Runs API + JUnit XML</td><td class="confidence-cell low">Low</td></tr>
-            <tr><td>M12</td><td><span class="metric-icon"><i data-lucide="clock-alert"></i></span>Defects Out of SLA</td><td>Operational</td><td>Linear API + SLA policy</td><td class="confidence-cell insufficient">Insufficient</td></tr>
-          </tbody>
-        </table>
-        <div class="slide-footer">
-          <span>Twelve Metrics</span>
-          <span>6 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 7 — FLOW VELOCITY & FLOW TIME (content)
-           KPI cards M2 + M7.
-           ================================================================= -->
-      <section>
-        <div class="eyebrow">Flow metrics &middot; Throughput and lead time</div>
-        <h2><i data-lucide="git-pull-request" class="icon-inline"></i> Flow Velocity &amp; <i data-lucide="clock" class="icon-inline"></i> Flow Time</h2>
-        <div class="accent-bar"></div>
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="git-pull-request"></i>
-              <div class="kpi-label">M2 Flow Velocity</div>
-            </div>
-            <div class="kpi-value">5 / 0</div>
-            <div class="kpi-sub">PR merges post-introduction / baseline</div>
-            <span class="kpi-confidence confidence-medium">Medium</span>
-            <p class="caveat">Multiplier undefined &mdash; baseline period had zero PR merges. Reported as <code>after = 5, baseline = 0</code>.</p>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="clock"></i>
-              <div class="kpi-label">M7 Flow Time (median)</div>
-            </div>
-            <div class="kpi-value">&mdash;</div>
-            <div class="kpi-sub">first commit &rarr; merge wall-clock</div>
-            <span class="kpi-confidence confidence-insufficient">Insufficient</span>
-            <p class="caveat">Baseline insufficient (fewer than 4 windows). Post-introduction value available with Pulls API access.</p>
-          </div>
-        </div>
-        <div class="caveat-block">
-          <strong>Why "after = 5, baseline = 0":</strong>
-          The first merge commit on <code>main</code> landed at 2026-02-25T18:29:00Z &mdash; 15 hours after the inflection. The baseline window contained the initial repository commit only.
-        </div>
-        <div class="slide-footer">
-          <span>Flow Velocity &amp; Flow Time</span>
-          <span>7 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 8 — FLOW ACTIVE & FLOW EFFICIENCY (content)
-           KPI cards M4 + M5. Insufficient signal in local-only mode.
-           ================================================================= -->
-      <section>
-        <div class="eyebrow">Flow metrics &middot; Active coding and efficiency</div>
-        <h2><i data-lucide="activity" class="icon-inline"></i> Flow Active &amp; <i data-lucide="zap" class="icon-inline"></i> Flow Efficiency</h2>
-        <div class="accent-bar"></div>
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="activity"></i>
-              <div class="kpi-label">M4 Flow Active</div>
-            </div>
-            <div class="kpi-value">&mdash;</div>
-            <div class="kpi-sub">Median active coding time per PR</div>
-            <span class="kpi-confidence confidence-insufficient">Insufficient</span>
-            <p class="caveat">Requires Reviews + Events APIs to bound working phases. Local-git fallback omits review-event spans.</p>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="zap"></i>
-              <div class="kpi-label">M5 Flow Efficiency</div>
-            </div>
-            <div class="kpi-value">&mdash;</div>
-            <div class="kpi-sub">Active time &divide; total time (M4/M7)</div>
-            <span class="kpi-confidence confidence-insufficient">Insufficient</span>
-            <p class="caveat">Inherits the lower confidence tier of M4 and M7. Becomes computable when both upstream metrics are populated.</p>
-          </div>
-        </div>
-        <div class="caveat-block caveat-insufficient">
-          <strong>Engineering-actor framing:</strong>
-          In the baseline period the actor is the human PR author; in the post-introduction period the actor is <code>Blitzy</code>.
-          Identical methodology applies in both periods &mdash; only the actor parameter differs.
-        </div>
-        <div class="slide-footer">
-          <span>Flow Active &amp; Flow Efficiency</span>
-          <span>8 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 9 — FLOW DISTRIBUTION (content)
-           Mermaid pie chart for M6 distribution.
-           ================================================================= -->
-      <section>
-        <div class="eyebrow">Flow metrics &middot; Work-type proportion</div>
-        <h2><i data-lucide="pie-chart" class="icon-inline"></i> Flow Distribution &mdash; post-introduction</h2>
-        <div class="accent-bar"></div>
-        <div class="two-col">
-          <div>
-            <pre class="mermaid">
-pie showData
-    title M6 Post-Introduction (conv-commit prefix)
-    "feature (feat)" : 38
-    "tech-debt (chore / refactor / doc)" : 44
-    "defect (fix)" : 12
-    "unknown" : 6
-            </pre>
-          </div>
-          <div>
-            <ul>
-              <li><strong>Classifier order:</strong> Linear labels &rarr; conventional-commit prefix &rarr; keyword match &rarr; <code>unknown</code></li>
-              <li><strong>Unknown rate:</strong> 6% &mdash; below the 20% downgrade threshold</li>
-              <li><strong>Confidence:</strong> Medium without Linear API; High with Linear label resolution</li>
-              <li><strong>Per-actor split</strong> available in the report's Per-Engineer Acceleration section</li>
-            </ul>
-          </div>
-        </div>
-        <p style="font-size: 0.75em; color: var(--neutral-muted); text-align: center;">
-          Distribution derived from PR title prefixes per <code>.github/workflows/semantic-pr.yaml</code> allowed types: <code>feat</code>, <code>fix</code>, <code>chore</code>, <code>refactor</code>, <code>exp</code>, <code>doc</code>, <code>test</code>.
-        </p>
-        <div class="slide-footer">
-          <span>Flow Distribution</span>
-          <span>9 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 10 — RELEASES & PROBLEM RECORDS (content)
-           KPI cards M9 + M8. "0 reverts observed locally" highlighted.
-           ================================================================= -->
-      <section>
-        <div class="eyebrow">Operational metrics &middot; Release cadence and stability</div>
-        <h2><i data-lucide="package" class="icon-inline"></i> Releases &amp; <i data-lucide="rotate-ccw" class="icon-inline"></i> Problem Records</h2>
-        <div class="accent-bar"></div>
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="package"></i>
-              <div class="kpi-label">M9 Releases</div>
-            </div>
-            <div class="kpi-value">&mdash;</div>
-            <div class="kpi-sub">Per 2-week window</div>
-            <span class="kpi-confidence confidence-insufficient">Insufficient</span>
-            <p class="caveat">Zero annotated git tags observed locally. Primary source is the GitHub Releases API; without API access the metric reports "Insufficient signal &mdash; Releases API unavailable and no local tags".</p>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="rotate-ccw"></i>
-              <div class="kpi-label">M8 Problem Records</div>
-            </div>
-            <div class="kpi-value">0</div>
-            <div class="kpi-sub">Revert commits on <code>main</code> (both periods)</div>
-            <span class="kpi-confidence confidence-high">High</span>
-            <p class="caveat">Definitive local result from <code>git log --grep='^Revert "'</code>. Zero unattributable reverts, zero unreleased reverts.</p>
-          </div>
-        </div>
-        <div class="slide-footer">
-          <span>Releases &amp; Problem Records</span>
-          <span>10 / 16</span>
-        </div>
-      </section>
-
-
-      <!-- =================================================================
-           SLIDE 11 — QUALITY SIGNALS (content)
-           KPI cards M10 + M11 + M12. Insufficient-Signal metrics flagged.
-           ================================================================= -->
-      <section>
-        <div class="eyebrow">Operational metrics &middot; Exceptions, escapes, and SLAs</div>
-        <h2>Quality Signals</h2>
-        <div class="accent-bar"></div>
-        <div class="three-col">
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="shield-check"></i>
-              <div class="kpi-label">M10 Approved Exceptions</div>
-            </div>
-            <div class="kpi-value">&mdash;</div>
-            <div class="kpi-sub">Per 2-week window</div>
-            <span class="kpi-confidence confidence-low">Low</span>
-            <p class="caveat">Without admin audit-log access, only force-pushes, branch-protection snapshot, label markers, and lint-config exemptions are observable.</p>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="bug"></i>
-              <div class="kpi-label">M11 Escaped Defects</div>
-            </div>
-            <div class="kpi-value">&mdash;</div>
-            <div class="kpi-sub">Test transitions per window</div>
-            <span class="kpi-confidence confidence-low">Low</span>
-            <p class="caveat">Requires JUnit XML artifact emission from CI runs. In-repo HEAD scan reports ~9 skipped tests at HEAD; transitions unavailable without API.</p>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-icon">
-              <i data-lucide="clock-alert"></i>
-              <div class="kpi-label">M12 Defects Out of SLA</div>
-            </div>
-            <div class="kpi-value">&mdash;</div>
-            <div class="kpi-sub">Defect issues past SLA target</div>
-            <span class="kpi-confidence confidence-insufficient">Insufficient</span>
-            <p class="caveat">Insufficient signal &mdash; no SLA source. Linear API unavailable; no SLA policy document located in <code>docs/</code>, <code>blitzy-docs/</code>, or <code>CONTRIBUTING.md</code>.</p>
-          </div>
-        </div>
-        <div class="slide-footer">
-          <span>Quality Signals</span>
-          <span>11 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 12 — PER-ENGINEER ACCELERATION (slide-divider)
-           Users icon. Eyebrow.
-           ================================================================= -->
-      <section class="slide-divider">
-        <div class="eyebrow">Per-engineer view &middot; per user requirement</div>
-        <h1><i data-lucide="users" class="icon-inline" style="width: 96px; height: 96px;"></i><br>Per-Engineer Acceleration</h1>
-        <div class="accent-bar"></div>
-        <p style="font-size: 1.1em; max-width: 1200px;">
-          The user requirement mandates a per-engineer view for metrics with individual attribution (M2, M4, M5, M6, M10).
-          Real author display names are used. <code>Blitzy</code> appears as a single row in the post-introduction period
-          alongside human contributors.
-        </p>
-        <div class="caveat-block" style="background: rgba(255, 255, 255, 0.92); color: var(--neutral-text); margin-top: 2rem;">
-          <strong>DORA / SPACE caveat:</strong>
-          Per-engineer breakdowns satisfy the user requirement. They MUST NOT be used for individual performance evaluation.
-          Flow and operational metrics measure throughput and stability of a system; they do not measure individual productivity.
-        </div>
-        <div class="slide-footer">
-          <span>Per-Engineer Acceleration</span>
-          <span>12 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 13 — PER-ENGINEER TABLE (content)
-           Rows: Blitzy, michael, ajay-blitzy. DORA/SPACE caveat below.
-           ================================================================= -->
-      <section>
-        <div class="eyebrow">Per-engineer breakdown &middot; observed counts</div>
-        <h2><i data-lucide="users" class="icon-inline"></i> Authors, commits, and PR participation</h2>
-        <div class="accent-bar"></div>
-        <table>
-          <thead>
-            <tr>
-              <th>Engineer</th>
-              <th>Period</th>
-              <th>Commits</th>
-              <th>PR merges (M2)</th>
-              <th>Identity union</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><span class="pill pill-primary">Blitzy</span></td>
-              <td>Post-Introduction</td>
-              <td>522</td>
-              <td>5</td>
-              <td><code>agent@blitzy.com</code> + <code>blitzy[bot]</code></td>
-            </tr>
-            <tr>
-              <td><strong>michael</strong></td>
-              <td>Baseline + Post-Introduction</td>
-              <td>18 (1 baseline / 17 post)</td>
-              <td>0</td>
-              <td><code>michael@blitzy.com</code></td>
-            </tr>
-            <tr>
-              <td><strong>ajay-blitzy</strong></td>
-              <td>Post-Introduction</td>
-              <td>3</td>
-              <td>0</td>
-              <td><code>awadhwani@blitzy.com</code></td>
-            </tr>
-          </tbody>
-        </table>
-        <p style="font-size: 0.78em; color: var(--neutral-muted); text-align: center; margin-top: 1.5rem;">
-          PR-level breakdowns for M4 (Flow Active), M5 (Flow Efficiency), M6 (Flow Distribution) and M10 (Approved Exceptions) populate when Pulls + Reviews APIs are accessible. See <code>data/per_engineer.json</code> for the full matrix.
-        </p>
-        <div class="slide-footer">
-          <span>Per-Engineer Table</span>
-          <span>13 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 14 — RISKS & LIMITATIONS (content)
-           4 bullets. alert-triangle icon. Linear unavailability highlighted.
-           ================================================================= -->
-      <section>
-        <div class="eyebrow">Risk assessment &middot; gaps and degradations</div>
-        <h2><i data-lucide="alert-triangle" class="icon-inline"></i> Risks &amp; Limitations</h2>
-        <div class="accent-bar"></div>
-        <ul>
-          <li><strong>Linear API unavailable</strong> &rarr; M12 (Defects Out of SLA) reports <em>Insufficient signal &mdash; no SLA source</em>. M6 confidence reduced from High to Medium.</li>
-          <li><strong>Admin audit log unavailable</strong> &rarr; M10 (Approved Exceptions) confidence Low. Required-review bypass detection and protected-branch policy events not visible.</li>
-          <li><strong>CI test history (JUnit XML) unavailable</strong> &rarr; M11 (Escaped Defects) limited to HEAD-only skipped-test snapshot. Pass&rarr;fail and pass&rarr;skip transitions not observable.</li>
-          <li><strong>Baseline period &lt; 4 windows</strong> &rarr; M3 (Flow Predictability) baseline reports <em>Insufficient signal</em>. Post-introduction period 86 days &lt; 90 &rarr; Steady State fallback applied per DL-006.</li>
-        </ul>
-        <div class="slide-footer">
-          <span>Risks &amp; Limitations</span>
-          <span>14 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 15 — HOW TO ONBOARD (content)
-           book-open icon. Rerun command. Pointer to onboarding doc.
-           ================================================================= -->
-      <section>
-        <div class="eyebrow">Onboarding &middot; clean-machine rerun</div>
-        <h2><i data-lucide="book-open" class="icon-inline"></i> How to re-run this measurement</h2>
-        <div class="accent-bar"></div>
-        <div class="two-col">
-          <div>
-            <ul>
-              <li>One-command rerun produces every artifact from raw data</li>
-              <li>Optional <code>GH_TOKEN</code> and <code>LINEAR_API_KEY</code> upgrade confidence tiers</li>
-              <li>The <code>verify</code> target re-applies all six rule checks (provenance, neutral tone, schema, ordering)</li>
-              <li>Full onboarding lives at <code>blitzy/acceleration-report/onboarding/rerun-and-observability.md</code></li>
-            </ul>
-          </div>
-          <div>
-            <div class="cmd-box">
-              <span class="cmd-prompt">$</span> cd blitzy/acceleration-report<br>
-              <span class="cmd-prompt">$</span> cp .env.example .env<br>
-              <span class="cmd-prompt">$</span> make all<br>
-              <span class="cmd-prompt">$</span> make verify
-            </div>
-            <p style="font-size: 0.8em; color: var(--neutral-muted); margin-top: 1rem;">
-              <i data-lucide="info" class="icon-inline" style="width: 20px; height: 20px;"></i>
-              Pipeline is idempotent &mdash; rerunning produces identical artifacts when API data is unchanged.
-            </p>
-          </div>
-        </div>
-        <div class="slide-footer">
-          <span>How to Onboard</span>
-          <span>15 / 16</span>
-        </div>
-      </section>
-
-      <!-- =================================================================
-           SLIDE 16 — CLOSING (slide-closing)
-           Navy background. check-circle-2 icon. Reproducibility pledge.
-           ================================================================= -->
-      <section class="slide-closing">
-        <div class="eyebrow">Reproducibility pledge</div>
-        <div class="title-icon">
-          <i data-lucide="check-circle-2" style="width: 96px; height: 96px;"></i>
-          <h1>Every number traces<br>to a command</h1>
-        </div>
-        <div class="accent-bar"></div>
-        <p style="font-size: 1.15em; max-width: 1400px; line-height: 1.6;">
-          Every numeric value in this deck and in <code>acceleration-report.md</code> traces back to an exact
-          git command or API endpoint recorded in &sect;11 Reproducibility Appendix.
-          Non-trivial decisions are recorded in <code>decision-log.md</code>.
-        </p>
-        <div class="kpi-grid" style="margin-top: 1rem;">
-          <div class="kpi-card" style="background: rgba(255,255,255,0.08); border-top-color: var(--blitzy-mint); color: var(--neutral-white); padding: 1rem 1.5rem;">
-            <div class="kpi-label" style="color: var(--blitzy-mint);">Read-only contract</div>
-            <p style="font-size: 0.9em; margin: 0.4rem 0 0; color: var(--neutral-white);">Zero writes to the repository or external systems.</p>
-          </div>
-          <div class="kpi-card" style="background: rgba(255,255,255,0.08); border-top-color: var(--blitzy-mint); color: var(--neutral-white); padding: 1rem 1.5rem;">
-            <div class="kpi-label" style="color: var(--blitzy-mint);">No fabrication</div>
-            <p style="font-size: 0.9em; margin: 0.4rem 0 0; color: var(--neutral-white);">Gaps reported as <em>Insufficient signal &mdash; [reason]</em>.</p>
-          </div>
-          <div class="kpi-card" style="background: rgba(255,255,255,0.08); border-top-color: var(--blitzy-mint); color: var(--neutral-white); padding: 1rem 1.5rem;">
-            <div class="kpi-label" style="color: var(--blitzy-mint);">Single source of truth</div>
-            <p style="font-size: 0.9em; margin: 0.4rem 0 0; color: var(--neutral-white);">Report and deck both read from <code>data/metrics.json</code>.</p>
-          </div>
-        </div>
-        <div class="slide-footer">
-          <span>Generated by 11_render_deck.py</span>
-          <span>16 / 16</span>
-        </div>
-      </section>
-
+      <section class="slide-title"><div class="eyebrow">Acceleration Measurement &middot; Read-Only</div><h1>Development<br>Acceleration Report</h1><h2>After/Before Multipliers Across 12 Flow and Operational Metrics</h2><div class="accent-bar"></div><p style="margin-top: 1.5rem;"><i data-lucide="gauge" style="width:56px;height:56px;"></i><span style="margin-left: 1rem; vertical-align: middle;"><code>Blitzy-Sandbox/blitzy-RudderStack</code></span></p><p style="margin-top: 1.5rem; font-size: 0.85em;"><span class="pill pill-mint">AI Inflection: <code>2026-02-25T02:58:59Z</code></span> <span class="pill">Tier 2 — AI-actor email pattern</span></p><div class="slide-footer"><span>Blitzy Acceleration Measurement</span><span>1 / 16</span></div></section>
+      <section class="slide-divider"><div class="eyebrow">Headline Findings</div><h1>What the data shows</h1><div class="accent-bar"></div><div class="kpi-row"><div class="kpi-card"><div class="kpi-label">M8 Problem Records</div><div class="kpi-value">0</div><div class="kpi-sub">Revert commits attributed to a release — both periods</div><span class="kpi-confidence confidence-high">HIGH</span></div><div class="kpi-card"><div class="kpi-label">M2 Flow Velocity</div><div class="kpi-value">1</div><div class="kpi-sub">PR-merge mean across 6 post-introduction windows</div><span class="kpi-confidence confidence-medium">MEDIUM</span></div><div class="kpi-card"><div class="kpi-label">Engineering Actor</div><div class="kpi-value">97%</div><div class="kpi-sub">Share of post-inflection commits authored by Blitzy</div><span class="kpi-confidence confidence-high">HIGH</span></div></div><p style="margin-top: 1rem; font-size: 0.75em; color: var(--neutral-bg-subtle);">Source: <code>data/metrics.json</code>, <code>data/per_engineer.json</code>. Multipliers are em-dash where the baseline phase carries fewer than the windows required for a ratio.</p><div class="slide-footer"><span>Headline Findings</span><span>2 / 16</span></div></section>
+      <section><div class="eyebrow">Scope &amp; Method</div><h1>Two phases, one methodology</h1><p style="margin-top:0.5rem;"><i data-lucide="calendar-clock" style="width:48px;height:48px;"></i></p><ul><li><strong>Period 1 (Baseline):</strong> <code>2026-02-23T05:19:38Z</code> &rarr; <code>2026-02-25T02:58:59Z</code> (2 days)</li><li><strong>Period 2 (Post-Introduction):</strong> <code>2026-02-25T02:58:59Z</code> &rarr; <code>2026-05-23T16:54:56Z</code> (88 days)</li><li><strong>Window mechanics:</strong> Monday-anchored 2-week windows in UTC. Identical methodology applied to both periods.</li><li><strong>Actor substitution:</strong> Baseline actor = human PR author; Post actor = <code>Blitzy</code> (union of <code>agent@blitzy.com</code> + <code>blitzy[bot]</code>).</li></ul><p style="font-size:0.78em; margin-top:1rem; color: var(--neutral-muted);"> <span class="pill">Two-phase fallback applied: post-introduction span 88 days &lt; 90-day Ramp-Up threshold</span></p><div class="slide-footer"><span>Scope &amp; Method</span><span>3 / 16</span></div></section>
+      <section class="slide-divider"><div class="eyebrow">Architecture</div><h1>Data Sources &amp; Pipeline</h1><p style="margin-top:0.5rem;"><i data-lucide="network" style="width:48px;height:48px;"></i></p><pre class="mermaid">flowchart LR
+  subgraph Sources [Sources read-only]
+    G[git history]
+    A[GitHub API]
+    L[Linear API]
+  end
+  subgraph Extract [Extract scripts 00-08]
+    E1[00_environment]
+    E2[01_detect_inflection]
+    E3[02_extract_commits]
+    E4[03_extract_pulls]
+    E5[04_extract_releases]
+    E6[05_extract_reverts]
+    E7[06_extract_ci]
+    E8[07_extract_exceptions]
+    E9[08_extract_linear]
+  end
+  subgraph Data [data slash star.json]
+    D[metrics.json]
+    P[per_engineer.json]
+  end
+  subgraph Render [Render scripts 09-11]
+    C[09_compute_metrics]
+    R1[10_render_report]
+    R2[11_render_deck]
+  end
+  G --> E1 & E2 & E3 & E6
+  A --> E4 & E5 & E7 & E8
+  L --> E9
+  E1 & E2 & E3 & E4 & E5 & E6 & E7 & E8 & E9 --> C
+  C --> D & P
+  D & P --> R1 & R2
+</pre><p style="font-size:0.78em; margin-top:0.5rem; color: var(--neutral-bg-subtle);">Legend: solid arrows = data flow. Sources are read-only; no script writes to the analyzed repository.</p><div class="slide-footer"><span>Architecture</span><span>4 / 16</span></div></section>
+      <section><div class="eyebrow">Inflection Detection</div><h1>Three-tier waterfall</h1><p style="margin-top:0.5rem;"><i data-lucide="git-commit" style="width:48px;height:48px;"></i></p><pre class="mermaid">flowchart TD
+  T1[Tier 1: trailer search]:::skipped
+  T2[Tier 2: AI-actor email]:::resolved
+  T3[Tier 3: velocity inflection]:::skipped
+  T1 -->|no signal| T2
+  T2 -->|no signal| T3
+  T2 -->|resolved at 2026-02-25T02:58:59Z| Out[Inflection point]:::out
+  classDef resolved fill:#94FAD5,stroke:#2D1C77,color:#1A105F,stroke-width:3px
+  classDef skipped fill:#F4EFF6,stroke:#D9D9D9,color:#999999
+  classDef out fill:#5B39F3,stroke:#2D1C77,color:#FFFFFF
+</pre><div style="margin-top:1rem; font-size:0.78em;"><p>Resolved tier: <code>ai_actor_email</code> &middot; commit: <code>803732e14079</code> &middot; author: <code>agent@blitzy.com</code></p></div><div class="slide-footer"><span>Inflection Detection</span><span>5 / 16</span></div></section>
+      <section class="slide-divider"><div class="eyebrow">Twelve Metrics</div><h1>Overview</h1><table><thead><tr><th>Metric</th><th>Name</th><th>Post-Introduction</th><th>Confidence</th><th>Caveat</th></tr></thead><tbody><tr><td><code>M1</code></td><td><i data-lucide="layers" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Flow Load</span></td><td><code>—</code></td><td><span class='kpi-confidence confidence-insufficient'>INSUFFICIENT</span></td><td style='font-size:0.7em; color: var(--neutral-muted);'>Flow Load requires PR-level state at each window-end (created_at, merged_at, draft state, first-commit timestamp). The GitHub Pulls API is…</td></tr><tr><td><code>M2</code></td><td><i data-lucide="git-pull-request" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Flow Velocity</span></td><td><code>1</code></td><td><span class='kpi-confidence confidence-medium'>MEDIUM</span></td><td style='font-size:0.7em; color: var(--neutral-bg-subtle);'>—</td></tr><tr><td><code>M3</code></td><td><i data-lucide="trending-up" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Flow Predictability</span></td><td><code>0.91</code></td><td><span class='kpi-confidence confidence-medium'>MEDIUM</span></td><td style='font-size:0.7em; color: var(--neutral-bg-subtle);'>—</td></tr><tr><td><code>M4</code></td><td><i data-lucide="activity" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Flow Active</span></td><td><code>—</code></td><td><span class='kpi-confidence confidence-insufficient'>INSUFFICIENT</span></td><td style='font-size:0.7em; color: var(--neutral-muted);'>Flow Active per PR requires (a) the GitHub Pulls API for PR boundaries, (b) the Reviews API for ready-for-review and review-event timestamp…</td></tr><tr><td><code>M5</code></td><td><i data-lucide="zap" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Flow Efficiency</span></td><td><code>—</code></td><td><span class='kpi-confidence confidence-insufficient'>INSUFFICIENT</span></td><td style='font-size:0.7em; color: var(--neutral-muted);'>Flow Efficiency = Flow Active / Flow Time per PR. Both m4 (Flow Active) and m7 (Flow Time) must yield a per-PR active-time and wall-clock-t…</td></tr><tr><td><code>M6</code></td><td><i data-lucide="pie-chart" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Flow Distribution</span></td><td><code>0.67</code></td><td><span class='kpi-confidence confidence-low'>LOW</span></td><td style='font-size:0.7em; color: var(--neutral-muted);'>Linear API: unavailable. Post-introduction unknown rate: 66.7%. Baseline unknown rate: 0.0%. Per AAP §0.5.3.7, unknown rate &gt;20% downgrades…</td></tr><tr><td><code>M7</code></td><td><i data-lucide="clock" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Flow Time</span></td><td><code>—</code></td><td><span class='kpi-confidence confidence-medium'>MEDIUM</span></td><td style='font-size:0.7em; color: var(--neutral-bg-subtle);'>—</td></tr><tr><td><code>M8</code></td><td><i data-lucide="alert-octagon" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Problem Records in Release</span></td><td><code>0</code></td><td><span class='kpi-confidence confidence-high'>HIGH</span></td><td style='font-size:0.7em; color: var(--neutral-bg-subtle);'>—</td></tr><tr><td><code>M9</code></td><td><i data-lucide="package" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Releases</span></td><td><code>—</code></td><td><span class='kpi-confidence confidence-insufficient'>INSUFFICIENT</span></td><td style='font-size:0.7em; color: var(--neutral-muted);'>All three source tiers per AAP §0.5.3.10 yielded zero or were unavailable. Tier 1 (Releases API): unavailable. Tier 2 (annotated tags): zer…</td></tr><tr><td><code>M10</code></td><td><i data-lucide="shield-alert" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Approved Exceptions</span></td><td><code>0</code></td><td><span class='kpi-confidence confidence-low'>LOW</span></td><td style='font-size:0.7em; color: var(--neutral-muted);'>Without admin audit-log access, the signal is limited to (a) force-pushes detectable from this clone&#x27;s local git reflog, (b) PRs labelled w…</td></tr><tr><td><code>M11</code></td><td><i data-lucide="bug" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Escaped Defects</span></td><td><code>—</code></td><td><span class='kpi-confidence confidence-insufficient'>INSUFFICIENT</span></td><td style='font-size:0.7em; color: var(--neutral-muted);'>CI test history is unavailable; .github/workflows/tests.yaml does not emit JUnit XML artifacts (artifacts.junit_xml_artifacts_count=0 in da…</td></tr><tr><td><code>M12</code></td><td><i data-lucide="timer" style="width:20px;height:20px;"></i> <span style='margin-left:0.4rem;'>Defects Out of SLA</span></td><td><code>—</code></td><td><span class='kpi-confidence confidence-insufficient'>INSUFFICIENT</span></td><td style='font-size:0.7em; color: var(--neutral-muted);'>No SLA source is available. Linear API access is not configured (LINEAR_API_KEY unset; data/issues.json#linear.available=False; data/issues…</td></tr></tbody></table><p style="font-size:0.75em; color: var(--neutral-bg-subtle);">Post-Introduction value is the per-phase aggregate from <code>data/metrics.json</code>. Em-dash in the value column = insufficient signal; em-dash in the caveat column = no caveat present. Per Rule 3 (AAP §0.7.2), every Low-confidence metric carries an explicit caveat.</p><div class="slide-footer"><span>Twelve Metrics</span><span>6 / 16</span></div></section>
+      <section><div class="eyebrow">Flow Velocity &amp; Flow Time</div><h1>M2 and M7</h1><p style="margin-top:0.5rem;"><i data-lucide="git-pull-request" style="width:40px;height:40px;"></i> <span style="margin-left:0.5rem;"><i data-lucide="clock" style="width:40px;height:40px;"></i></span></p><div class="kpi-row"><div class="kpi-card"><div class="kpi-label">M2 Flow Velocity</div><div class="kpi-value">—</div><div class="kpi-sub">Baseline: <code>0</code> &rarr; Post: <code>1</code></div><span class="kpi-confidence confidence-medium">MEDIUM</span></div><div class="kpi-card"><div class="kpi-label">M7 Flow Time</div><div class="kpi-value">—</div><div class="kpi-sub">Baseline: <code>—</code> &rarr; Post: <code>—</code></div><span class="kpi-confidence confidence-medium">MEDIUM</span></div></div><p style="font-size:0.75em; margin-top:1rem; color: var(--neutral-muted);">Multipliers are em-dash where the baseline value is zero (division undefined). See traceability matrix M2, M7 in <code>acceleration-report.md</code>.</p><div class="slide-footer"><span>Flow Velocity &amp; Flow Time</span><span>7 / 16</span></div></section>
+      <section><div class="eyebrow">Flow Active &amp; Flow Efficiency</div><h1>M4, M5 and per-actor view</h1><div class="kpi-row"><div class="kpi-card"><div class="kpi-label">M4 Flow Active</div><div class="kpi-value">—</div><div class="kpi-sub">Baseline: <code>—</code> &rarr; Post: <code>—</code></div><span class="kpi-confidence confidence-insufficient">INSUFFICIENT</span></div><div class="kpi-card"><div class="kpi-label">M5 Flow Efficiency</div><div class="kpi-value">—</div><div class="kpi-sub">Baseline: <code>—</code> &rarr; Post: <code>—</code></div><span class="kpi-confidence confidence-insufficient">INSUFFICIENT</span></div></div><div style="margin-top:1rem;"><pre class="mermaid">xychart-beta
+    title "Per-actor PR merges (M2 post-introduction)"
+    x-axis ["Blitzy", "michael", "awadhwani"]
+    y-axis "PRs merged"
+    bar [5, 1, 0]
+</pre></div><div class="slide-footer"><span>Flow Active &amp; Flow Efficiency</span><span>8 / 16</span></div></section>
+      <section><div class="eyebrow">Flow Distribution</div><h1>M6 — work category mix</h1><p style="margin-top:0.5rem;"><i data-lucide="pie-chart" style="width:40px;height:40px;"></i></p><div><pre class="mermaid">pie
+    title M6 Flow Distribution (Post-Introduction, n=6)
+    "unknown" : 0.6667
+    "tech-debt" : 0.1667
+    "feature" : 0.1667</pre></div><p style="font-size:0.78em; text-align:center;">Unknown rate: <code>66.7%</code> &middot; total PRs classified: <code>6</code> &middot; confidence: <span class="kpi-confidence confidence-low">LOW</span></p><p class="caveat" style="text-align:center;">Linear API: unavailable. Post-introduction unknown rate: 66.7%. Baseline unknown rate: 0.0%. Per AAP §0.5.3.7, unknown rate &gt;20% downgrades phase confidence to Low. When Linear labels are unavailable, the classifier depends on conventional-commit prefixes and a keyword catalo…</p><div class="slide-footer"><span>Flow Distribution</span><span>9 / 16</span></div></section>
+      <section><div class="eyebrow">Releases &amp; Problem Records</div><h1>M9 and M8</h1><p style="margin-top:0.5rem;"><i data-lucide="package" style="width:40px;height:40px;"></i> <span style="margin-left:0.5rem;"><i data-lucide="alert-octagon" style="width:40px;height:40px;"></i></span></p><div class="kpi-row"><div class="kpi-card"><div class="kpi-label">M9 Releases</div><div class="kpi-value">—</div><div class="kpi-sub">Baseline: <code>—</code> &rarr; Post: <code>—</code></div><span class="kpi-confidence confidence-insufficient">INSUFFICIENT</span></div><div class="kpi-card"><div class="kpi-label">M8 Problem Records in Release</div><div class="kpi-value">0</div><div class="kpi-sub">Baseline: <code>0</code> &rarr; Post: <code>0</code></div><span class="kpi-confidence confidence-high">HIGH</span></div></div><p style="font-size:0.75em; margin-top:1rem; color: var(--neutral-muted);">M9 source precedence: GitHub Releases API &rarr; semver tags &rarr; CI deploy events. M8 derived from <code>git log --grep='^Revert "'</code> with release attribution.</p><div class="slide-footer"><span>Releases &amp; Problem Records</span><span>10 / 16</span></div></section>
+      <section><div class="eyebrow">Quality Signals</div><h1>M10, M11 and M12</h1><p style="margin-top:0.5rem;"><i data-lucide="shield-alert" style="width:40px;height:40px;"></i> <span style="margin-left:0.5rem;"><i data-lucide="bug" style="width:40px;height:40px;"></i></span><span style="margin-left:0.5rem;"><i data-lucide="timer" style="width:40px;height:40px;"></i></span></p><div class="kpi-row"><div class="kpi-card"><div class="kpi-label">M10 Approved Exceptions</div><div class="kpi-value">0</div><div class="kpi-sub">Baseline: <code>0</code> &rarr; Post: <code>0</code></div><span class="kpi-confidence confidence-low">LOW</span><p class="caveat">Without admin audit-log access, the signal is limited to (a) force-pushes detectable from this clone&#x27;s local git reflog, (b) PRs labelled with exception/waiver/override/bypass patterns (none observed in the current labe…</p></div><div class="kpi-card"><div class="kpi-label">M11 Escaped Defects</div><div class="kpi-value">—</div><div class="kpi-sub">Baseline: <code>—</code> &rarr; Post: <code>—</code></div><span class="kpi-confidence confidence-insufficient">INSUFFICIENT</span><p class="caveat">CI test history is unavailable; .github/workflows/tests.yaml does not emit JUnit XML artifacts (artifacts.junit_xml_artifacts_count=0 in data/ci_runs.json; the GitHub Actions API is unavailable in this run). Per AAP §0.…</p></div><div class="kpi-card"><div class="kpi-label">M12 Defects Out of SLA</div><div class="kpi-value">—</div><div class="kpi-sub">Baseline: <code>—</code> &rarr; Post: <code>—</code></div><span class="kpi-confidence confidence-insufficient">INSUFFICIENT</span><p class="caveat">No SLA source is available. Linear API access is not configured (LINEAR_API_KEY unset; data/issues.json#linear.available=False; data/issues.json#issues is empty: 0 issues). No SLA policy document was discovered in the r…</p></div></div><div class="slide-footer"><span>Quality Signals</span><span>11 / 16</span></div></section>
+      <section class="slide-divider"><div class="eyebrow">Per-Engineer Acceleration</div><h1>Real names plus Blitzy</h1><div class="accent-bar"></div><p style="margin-top:1rem;"><i data-lucide="users" style="width:72px;height:72px;"></i></p><p style="margin-top:1.5rem; max-width: 60%; margin-left: auto; margin-right: auto;">Per-engineer breakdown for Metrics 2, 4, 5, 6, 10 with real-name attribution. <code>Blitzy</code> appears as a single row alongside human contributors.</p><p class="caveat" style="text-align:center; color: var(--neutral-bg-subtle);">DORA/SPACE metrics must not be used for individual performance evaluation.</p><div class="slide-footer"><span>Per-Engineer View</span><span>12 / 16</span></div></section>
+      <section><div class="eyebrow">Per-Engineer Table</div><h1>Attribution across the three contributors</h1><table><thead><tr><th>Engineer</th><th>Actor</th><th>Commits (post)</th><th>M2 Flow Velocity (b → p)</th><th>M10 Exceptions (post)</th></tr></thead><tbody><tr><td><strong>Blitzy</strong></td><td><span class="pill pill-mint">ai</span></td><td><code>645</code></td><td><code>0</code> &rarr; <code>5</code></td><td><code>0</code></td></tr><tr><td><strong>michael</strong></td><td><span class="pill ">human</span></td><td><code>17</code></td><td><code>0</code> &rarr; <code>1</code></td><td><code>0</code></td></tr><tr><td><strong>awadhwani</strong></td><td><span class="pill ">human</span></td><td><code>3</code></td><td><code>0</code> &rarr; <code>0</code></td><td><code>0</code></td></tr></tbody></table><p class="caveat">M2 = PR merges attributed to actor in window phase. M10 limited to label-based and force-push signal in this run (no admin audit-log access). See <code>data/per_engineer.json</code> for full per-actor schema.</p><div class="slide-footer"><span>Per-Engineer Table</span><span>13 / 16</span></div></section>
+      <section><div class="eyebrow">Risks &amp; Limitations</div><h1>Low-confidence and insufficient-signal metrics</h1><p style="margin-top:0.5rem;"><i data-lucide="alert-triangle" style="width:40px;height:40px;"></i></p><table><thead><tr><th>Metric</th><th>Name</th><th>Severity</th><th>Caveat</th></tr></thead><tbody><tr><td><code>M1</code></td><td>Flow Load</td><td><span class='kpi-confidence confidence-insufficient'>Insufficient</span></td><td style='font-size:0.85em;'>Flow Load requires PR-level state at each window-end (created_at, merged_at, draft state, first-commit timestamp). The GitHub Pulls API is unavailable in this read-only sandbox (GH_TOKEN not set; see…</td></tr><tr><td><code>M4</code></td><td>Flow Active</td><td><span class='kpi-confidence confidence-insufficient'>Insufficient</span></td><td style='font-size:0.85em;'>Flow Active per PR requires (a) the GitHub Pulls API for PR boundaries, (b) the Reviews API for ready-for-review and review-event timestamps, and (c) the Events API for draft transitions. The followi…</td></tr><tr><td><code>M5</code></td><td>Flow Efficiency</td><td><span class='kpi-confidence confidence-insufficient'>Insufficient</span></td><td style='font-size:0.85em;'>Flow Efficiency = Flow Active / Flow Time per PR. Both m4 (Flow Active) and m7 (Flow Time) must yield a per-PR active-time and wall-clock-time signal to compute the ratio. In this run: m4=&#x27;insuf…</td></tr><tr><td><code>M6</code></td><td>Flow Distribution</td><td><span class='kpi-confidence confidence-low'>Low</span></td><td style='font-size:0.85em;'>Linear API: unavailable. Post-introduction unknown rate: 66.7%. Baseline unknown rate: 0.0%. Per AAP §0.5.3.7, unknown rate &gt;20% downgrades phase confidence to Low. When Linear labels are unavaila…</td></tr><tr><td><code>M9</code></td><td>Releases</td><td><span class='kpi-confidence confidence-insufficient'>Insufficient</span></td><td style='font-size:0.85em;'>All three source tiers per AAP §0.5.3.10 yielded zero or were unavailable. Tier 1 (Releases API): unavailable. Tier 2 (annotated tags): zero matching tags in local clone. Tier 3 (CI deploy events): z…</td></tr><tr><td><code>M10</code></td><td>Approved Exceptions</td><td><span class='kpi-confidence confidence-low'>Low</span></td><td style='font-size:0.85em;'>Without admin audit-log access, the signal is limited to (a) force-pushes detectable from this clone&#x27;s local git reflog, (b) PRs labelled with exception/waiver/override/bypass patterns (none obs…</td></tr><tr><td><code>M11</code></td><td>Escaped Defects</td><td><span class='kpi-confidence confidence-insufficient'>Insufficient</span></td><td style='font-size:0.85em;'>CI test history is unavailable; .github/workflows/tests.yaml does not emit JUnit XML artifacts (artifacts.junit_xml_artifacts_count=0 in data/ci_runs.json; the GitHub Actions API is unavailable in th…</td></tr><tr><td><code>M12</code></td><td>Defects Out of SLA</td><td><span class='kpi-confidence confidence-insufficient'>Insufficient</span></td><td style='font-size:0.85em;'>No SLA source is available. Linear API access is not configured (LINEAR_API_KEY unset; data/issues.json#linear.available=False; data/issues.json#issues is empty: 0 issues). No SLA policy document was…</td></tr></tbody></table><p style="font-size:0.75em; color: var(--neutral-muted);">Full Risk Assessment in <code>acceleration-report.md</code> §Risk Assessment. Cardinality enforced by Quality Gate 7.</p><div class="slide-footer"><span>Risks &amp; Limitations</span><span>14 / 16</span></div></section>
+      <section><div class="eyebrow">How to Onboard</div><h1>Clean-machine rerun in four commands</h1><p style="margin-top:0.5rem;"><i data-lucide="book-open" style="width:48px;height:48px;"></i></p><ul><li><strong>Setup:</strong> <code>cd blitzy/acceleration-report &amp;&amp; virtualenv --python=python3.13 .venv &amp;&amp; source .venv/bin/activate &amp;&amp; pip install -r requirements.txt</code></li><li><strong>Extract:</strong> <code>make extract</code> (scripts 00-08; honours <code>GH_TOKEN</code> and <code>LINEAR_API_KEY</code> when set)</li><li><strong>Compute:</strong> <code>make compute</code> (script 09; produces <code>data/metrics.json</code> + <code>data/per_engineer.json</code>)</li><li><strong>Render:</strong> <code>make render</code> (scripts 10 + 11; produces <code>acceleration-report.md</code> + <code>executive-summary.html</code>)</li></ul><p style="font-size:0.78em; margin-top:1rem;">Full onboarding guide: <code>blitzy/acceleration-report/onboarding/rerun-and-observability.md</code></p><div class="slide-footer"><span>Onboarding</span><span>15 / 16</span></div></section>
+      <section class="slide-closing"><div class="eyebrow">Reproducibility Statement</div><h1>Every number, re-derivable</h1><div class="accent-bar"></div><p style="margin-top:1.5rem;"><i data-lucide="check-circle-2" style="width:80px;height:80px;"></i></p><p style="margin-top:1rem;">Every numeric value in this deck traces to <code>data/metrics.json</code> and from there to a documented extraction command in the <code>acceleration-report.md</code> Reproducibility Appendix.</p><p style="margin-top:1rem; font-size: 0.85em;"><span class="pill pill-mint">Extracted: <code>2026-05-23T18:44:04Z</code></span></p><p style="margin-top:1.5rem; font-size: 0.8em;">Read-only by construction. No write to the analyzed repository, no write to any external system.</p><div class="slide-footer"><span>Reproducibility</span><span>16 / 16</span></div></section>
     </div>
   </div>
-
-  <!-- =====================================================================
-       CDN-pinned libraries (exact versions required by AAP)
-       reveal.js 5.1.0  &middot;  Mermaid 11.4.0  &middot;  Lucide 0.460.0
-       SRI hashes are intentionally omitted; see decision-log.md DL-013.
-       ===================================================================== -->
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-
   <script>
-    /* -------------------------------------------------------------------
-       Mermaid: initialize with Blitzy theme, startOnLoad: false.
-       mermaid.run() is invoked explicitly after Reveal.js 'ready' and on
-       every 'slidechanged' event (required - without it diagrams render
-       blank on slide transitions).
-       ------------------------------------------------------------------- */
     mermaid.initialize({
       startOnLoad: false,
       theme: 'base',
@@ -1242,138 +354,39 @@ pie showData
         lineColor: '#5B39F3',
         secondaryColor: '#94FAD5',
         tertiaryColor: '#F4EFF6',
-        background: '#FFFFFF',
-        mainBkg: '#5B39F3',
-        secondBkg: '#94FAD5',
-        tertiaryBkg: '#F4EFF6',
-        fontFamily: 'Inter, -apple-system, sans-serif',
-        fontSize: '14px',
-        pie1: '#5B39F3',
-        pie2: '#94FAD5',
-        pie3: '#7A6DEC',
-        pie4: '#FFC107',
-        pie5: '#999999'
-      },
-      flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis', padding: 16, nodeSpacing: 50, rankSpacing: 60 },
-      pie: { useMaxWidth: true, textPosition: 0.6 }
+        fontFamily: 'Inter, sans-serif'
+      }
     });
-
-    /* -------------------------------------------------------------------
-       Reveal.js: initialize with the exact configuration from AAP.
-       1920x1080 default viewport; hash navigation; slide transition.
-       ------------------------------------------------------------------- */
     Reveal.initialize({
       hash: true,
       transition: 'slide',
       controlsTutorial: false,
       width: 1920,
       height: 1080,
-      margin: 0.04,
-      minScale: 0.2,
-      maxScale: 2.0,
       plugins: []
     });
-
-    /* -------------------------------------------------------------------
-       Render Mermaid diagrams + Lucide icons after reveal.js 'ready' and
-       on every 'slidechanged' event. Both libraries replace placeholder
-       elements with rendered SVG; calling these handlers ensures every
-       slide transition refreshes any element that may have been lost.
-       ------------------------------------------------------------------- */
-    /* Promise that resolves once all custom fonts (Inter, Space Grotesk, Fira
-       Code) have loaded. Mermaid measures text width to size foreignObjects;
-       if the web font is not yet available it measures with the fallback font
-       and the rendered text overflows the calculated container, producing the
-       characteristic right-edge truncation. We block the first render on
-       document.fonts.ready so layout is accurate. */
-    var fontsReady = (document.fonts && document.fonts.ready)
-      ? document.fonts.ready
-      : Promise.resolve();
-
-    /* Post-process Mermaid SVGs to fix the foreignObject-undersizing bug.
-       Mermaid measures text width before the web font fully loads, then renders
-       with Inter which is slightly wider — the last 1-3 characters get clipped
-       at the foreignObject right edge. We re-measure each label after render
-       and grow the parent rect/foreignObject to fit the actual content. */
-    function fixMermaidLabelWidths(currentSlide) {
-      var svgs = currentSlide.querySelectorAll('pre.mermaid svg');
-      svgs.forEach(function (svg) {
-        var nodes = svg.querySelectorAll('g.node');
-        nodes.forEach(function (g) {
-          var fo = g.querySelector('foreignObject');
-          if (!fo) return;
-          var inner = fo.querySelector('div, span.nodeLabel, p');
-          if (!inner) return;
-          // scrollWidth includes the full text width even when clipped
-          var needed = inner.scrollWidth;
-          var current = parseFloat(fo.getAttribute('width') || '0');
-          if (needed > current && needed > 0) {
-            var extra = Math.ceil(needed - current) + 4; // 4px safety
-            var newW = current + extra;
-            fo.setAttribute('width', newW);
-            // Re-center the foreignObject horizontally if x is negative-half
-            var foX = parseFloat(fo.getAttribute('x') || '0');
-            if (foX < 0) {
-              fo.setAttribute('x', foX - extra / 2);
-            }
-            // Grow the parent rect to match
-            var rect = g.querySelector('rect.basic.label-container, rect:not(.basic)');
-            if (rect) {
-              var rectW = parseFloat(rect.getAttribute('width') || '0');
-              if (rectW > 0 && rectW < newW + 16) {
-                var rectX = parseFloat(rect.getAttribute('x') || '0');
-                rect.setAttribute('width', newW + 16);
-                if (rectX < 0) {
-                  rect.setAttribute('x', rectX - extra / 2 - 8);
-                }
-              }
-            }
-          }
-        });
-      });
-    }
-
-    function renderVisuals() {
-      // Render only Mermaid diagrams in the currently visible slide.
-      // Hidden slides have zero dimensions which causes NaN SVG transforms.
-      fontsReady.then(function () {
+    function renderCurrentSlide(event) {
+      requestAnimationFrame(function() {
         try {
-          if (typeof mermaid !== 'undefined' && mermaid.run && Reveal.getCurrentSlide) {
-            var currentSlide = Reveal.getCurrentSlide();
-            if (currentSlide) {
-              var unprocessed = currentSlide.querySelectorAll('pre.mermaid:not([data-processed="true"])');
-              if (unprocessed.length > 0) {
-                mermaid.run({ nodes: Array.prototype.slice.call(unprocessed) }).then(function () {
-                  // After render, fix any clipped labels (foreignObject too small)
-                  fixMermaidLabelWidths(currentSlide);
-                }).catch(function (e) {
-                  console.warn('Mermaid render rejected:', e);
-                });
-              } else {
-                // Already rendered; still re-check sizing in case font swap occurred
-                fixMermaidLabelWidths(currentSlide);
-              }
+          var slide = (event && event.currentSlide) || document.querySelector('.reveal section.present') || document.querySelector('.reveal .slides > section');
+          if (slide) {
+            var nodes = Array.prototype.slice.call(slide.querySelectorAll('pre.mermaid:not([data-processed="true"])'));
+            if (nodes.length > 0) {
+              mermaid.run({ nodes: nodes }).catch(function(err) {
+                console.error('Mermaid render error on current slide:', err);
+              });
             }
           }
         } catch (e) {
-          console.warn('Mermaid render error:', e);
+          console.error('renderCurrentSlide Mermaid error:', e);
         }
-        // Lucide rescans the whole document for unprocessed <i data-lucide>
-        // elements; it is idempotent and inexpensive to call on every slide
-        // change.
-        try {
-          if (typeof lucide !== 'undefined' && lucide.createIcons) {
-            lucide.createIcons();
-          }
-        } catch (e) {
-          console.warn('Lucide render error:', e);
+        try { lucide.createIcons(); } catch (e) {
+          console.error('renderCurrentSlide Lucide error:', e);
         }
       });
     }
-
-    Reveal.on('ready', renderVisuals);
-    Reveal.on('slidechanged', renderVisuals);
+    Reveal.on('ready', renderCurrentSlide);
+    Reveal.on('slidechanged', renderCurrentSlide);
   </script>
 </body>
 </html>
-

@@ -1,18 +1,105 @@
 {
   "_metadata": {
     "schema_version": "1.1.0",
-    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
-    "extraction_timestamp": "2026-05-23T05:54:20Z",
+    "run_id": "729fb296-36d9-44ea-a422-15dfa3ab46d1",
+    "extraction_timestamp": "2026-05-23T18:44:04Z",
     "generated_by": "scripts/09_compute_metrics.py",
     "inflection_date_utc": "2026-02-25T02:58:59Z",
     "ramp_up_steady_state_split_applied": false,
-    "ramp_up_steady_state_split_applied_reason": "Post-introduction span is 86 days (inflection 2026-02-25T02:58:59Z → end 2026-05-21T23:59:59Z). 86 < 90-day threshold per AAP §0.5.6 and decision-log.md DL-006, so the two-phase fallback (Baseline + Post-Introduction) is applied; no ramp_up or steady_state keys are emitted on any metric row.",
+    "ramp_up_steady_state_split_applied_reason": "Post-introduction span is 88 days (inflection 2026-02-25T02:58:59Z → end 2026-05-23T16:54:56Z). 88 < 90-day threshold per AAP §0.5.6 and decision-log.md DL-006, so the two-phase fallback (Baseline + Post-Introduction) is applied; no ramp_up or steady_state keys are emitted on any metric row.",
     "ramp_up_steady_state_threshold_days": 90,
-    "post_introduction_duration_days": 86,
+    "post_introduction_duration_days": 88,
     "phase_keys_used": [
       "baseline",
       "post_introduction"
     ],
+    "compute_constants": {
+      "window_days": 14,
+      "window_alignment": "Monday 00:00 UTC",
+      "ramp_up_days": 90,
+      "flaky_threshold_runs": 3,
+      "unknown_rate_downgrade": 0.2,
+      "blitzy_identity_emails": [
+        "191547922+blitzy[bot]@users.noreply.github.com",
+        "agent@blitzy.com"
+      ],
+      "dependency_bot_emails": [
+        "49699333+dependabot[bot]@users.noreply.github.com"
+      ],
+      "blitzy_display_name": "Blitzy",
+      "module_list": [
+        "gateway",
+        "processor",
+        "router",
+        "warehouse",
+        "jobsdb",
+        "services",
+        "admin",
+        "app",
+        "archiver",
+        "backend-config",
+        "cluster",
+        "cmd",
+        "config",
+        "controlplane",
+        "enterprise",
+        "functions",
+        "identity",
+        "info",
+        "internal",
+        "middleware",
+        "mocks",
+        "proto",
+        "protocols",
+        "regulation-worker",
+        "rruntime",
+        "runner",
+        "schema-forwarder",
+        "suppression-backup-service",
+        "testhelper",
+        "utils"
+      ],
+      "conventional_prefix_map": {
+        "feat": "feature",
+        "fix": "defect",
+        "chore": "tech-debt",
+        "refactor": "tech-debt",
+        "exp": "tech-debt",
+        "doc": "tech-debt",
+        "test": "tech-debt"
+      }
+    },
+    "multi_module_aggregation_summary": {
+      "modules": {
+        "warehouse": 46,
+        "gateway": 17,
+        "functions": 16,
+        "identity": 15,
+        "protocols": 10,
+        "processor": 5,
+        "backend-config": 3,
+        "archiver": 2,
+        "config": 1,
+        "router": 1
+      },
+      "unattributed_count": 551,
+      "total_non_merge_commits": 667,
+      "weights": {
+        "warehouse": 0.068966,
+        "gateway": 0.025487,
+        "functions": 0.023988,
+        "identity": 0.022489,
+        "protocols": 0.014993,
+        "processor": 0.007496,
+        "backend-config": 0.004498,
+        "archiver": 0.002999,
+        "config": 0.001499,
+        "router": 0.001499
+      },
+      "unattributed_weight": 0.826087,
+      "resolution_method": "conventional_commit_scope_plus_branch_ref",
+      "resolution_method_note": "AAP §0.5.6 specifies majority-changed-paths heuristic; 09_compute_metrics.py performs ZERO git invocations by design (AAP §0.5.1), so the current implementation uses conventional-commit scope + branch ref heuristics. The full-fidelity extension is documented in decision-log.md."
+    },
     "rudder_server_repo_slug": "Blitzy-Sandbox/blitzy-RudderStack"
   },
   "m1": {
@@ -43,13 +130,25 @@
     "per_window": [],
     "provenance": {
       "requirement_id": "M1",
-      "extraction_command": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all",
+      "extraction_command": "python3 scripts/03_extract_pulls.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/03_extract_pulls.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "api_endpoints": [
+        "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all (paginated)"
+      ],
       "raw_output_artifact_path": "data/pulls.json",
       "raw_output_artifact_paths": [
         "data/pulls.json",
         "data/commits.csv"
       ],
       "derivation_function": "compute_m1_flow_load"
+    },
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
     }
   },
   "m2": {
@@ -120,7 +219,17 @@
     "per_window_baseline": [],
     "provenance": {
       "requirement_id": "M2",
-      "extraction_command": "git log main --merges --pretty=format:'%H|%aI|%aE|%s'",
+      "extraction_command": "python3 scripts/03_extract_pulls.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/03_extract_pulls.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "api_endpoints": [
+        "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all (paginated)"
+      ],
+      "git_commands": [
+        "git log main --merges --pretty=format:'%H|%aI|%aE|%s'"
+      ],
       "raw_output_artifact_path": "data/pulls.json",
       "raw_output_artifact_paths": [
         "data/pulls.json",
@@ -130,7 +239,12 @@
     },
     "boundary_conditions": "GitHub Pulls API unavailable (GH_TOKEN absent); falls back to local-git merge-commit enumeration on main. The local-git fallback cannot distinguish dependency-bot PRs from human/Blitzy PRs without scanning commit subjects; the data file data/pulls.json#summary documents how each merge commit was attributed.",
     "semantic_contract": "merge_commit_fallback",
-    "semantic_contract_note": "When the GitHub Pulls API is unreachable, each merge commit on main (whether PR-numbered or ad-hoc) counts as one M2 unit. This is the merge_commit_fallback semantic referenced by decision-log.md DL-005 and used uniformly by the per-engineer breakdown in data/per_engineer.json (Rule 4 Internal Consistency)."
+    "semantic_contract_note": "When the GitHub Pulls API is unreachable, each merge commit on main (whether PR-numbered or ad-hoc) counts as one M2 unit. This is the merge_commit_fallback semantic referenced by decision-log.md DL-005 and used uniformly by the per-engineer breakdown in data/per_engineer.json (Rule 4 Internal Consistency).",
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
+    }
   },
   "m3": {
     "metric_number": 3,
@@ -157,14 +271,26 @@
     "per_window": [],
     "provenance": {
       "requirement_id": "M3",
-      "extraction_command": "compute_m3_flow_predictability(m2_per_window=data/metrics.json#m2.per_window)",
+      "extraction_command": "python3 scripts/03_extract_pulls.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/03_extract_pulls.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
       "raw_output_artifact_path": "data/pulls.json",
       "raw_output_artifact_paths": [
         "data/pulls.json"
       ],
-      "derivation_function": "compute_m3_flow_predictability"
+      "derivation_function": "compute_m3_flow_predictability",
+      "depends_on_metrics": [
+        "m2"
+      ]
     },
-    "boundary_conditions": "Inherits Metric 2's confidence (medium). Predictability is a derived ratio over the per-window series; any source-driven downgrade on M2 propagates here automatically (AAP §0.2.4)."
+    "boundary_conditions": "Inherits Metric 2's confidence (medium). Predictability is a derived ratio over the per-window series; any source-driven downgrade on M2 propagates here automatically (AAP §0.2.4).",
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
+    }
   },
   "m4": {
     "metric_number": 4,
@@ -194,7 +320,17 @@
     "per_window": [],
     "provenance": {
       "requirement_id": "M4",
-      "extraction_command": "GET /repos/{}/{}/pulls/{n}/commits + /reviews + /issues/{n}/events",
+      "extraction_command": "python3 scripts/03_extract_pulls.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/03_extract_pulls.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "api_endpoints": [
+        "GET /repos/{owner}/{repo}/pulls?state=all (paginated)",
+        "GET /repos/{owner}/{repo}/pulls/{number}/commits",
+        "GET /repos/{owner}/{repo}/pulls/{number}/reviews",
+        "GET /repos/{owner}/{repo}/issues/{number}/events"
+      ],
       "raw_output_artifact_path": "data/pulls.json",
       "raw_output_artifact_paths": [
         "data/pulls.json",
@@ -202,6 +338,11 @@
         "data/pull_events.json"
       ],
       "derivation_function": "compute_m4_flow_active"
+    },
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
     }
   },
   "m5": {
@@ -213,7 +354,7 @@
     "confidence": "insufficient",
     "boundary_conditions": "Composite metric inheriting from m4 (insufficient) and m7 (medium); collapsed to insufficient_signal because at least one upstream is insufficient_signal.",
     "after_before_multiplier": "—",
-    "extraction_strategy": "Per AAP §0.5.3.6: for each merged PR, divide Metric 4 (Flow Active) by Metric 7 (Flow Time). Median across PRs in each phase, per actor. Review is treated as wait from the engineering actor's perspective.",
+    "extraction_strategy": "Per AAP §0.5.3.6: for each merged PR, divide Metric 4 (Flow Active) by Metric 7 (Flow Time). Median of per-PR ratios in each phase. Review is treated as wait from the engineering actor's perspective.",
     "baseline": {
       "value": "insufficient_signal",
       "confidence": "insufficient",
@@ -232,7 +373,17 @@
     "per_window": [],
     "provenance": {
       "requirement_id": "M5",
-      "extraction_command": "compute_m5_flow_efficiency(m4=data/metrics.json#m4, m7=data/metrics.json#m7)",
+      "extraction_command": "python3 scripts/03_extract_pulls.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/03_extract_pulls.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "api_endpoints": [
+        "GET /repos/{owner}/{repo}/pulls?state=all (paginated)",
+        "GET /repos/{owner}/{repo}/pulls/{number}/commits",
+        "GET /repos/{owner}/{repo}/pulls/{number}/reviews",
+        "GET /repos/{owner}/{repo}/issues/{number}/events"
+      ],
       "raw_output_artifact_path": "data/pulls.json",
       "raw_output_artifact_paths": [
         "data/pulls.json",
@@ -240,7 +391,16 @@
         "data/pull_events.json",
         "data/commits.csv"
       ],
-      "derivation_function": "compute_m5_flow_efficiency"
+      "derivation_function": "compute_m5_flow_efficiency",
+      "depends_on_metrics": [
+        "m4",
+        "m7"
+      ]
+    },
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
     }
   },
   "m6": {
@@ -250,7 +410,7 @@
     "value": 0.6667,
     "after_before_multiplier": "—",
     "confidence": "low",
-    "extraction_strategy": "Per AAP §0.5.3.7: for each merged PR, classify into feature, defect, risk/compliance, tech-debt, or unknown. Priority: (1) Linear issue-label on linked ticket, (2) conventional-commit prefix on PR title (feat→feature, fix→defect, others→tech-debt), (3) keyword match on title+body, (4) unknown.",
+    "extraction_strategy": "Per AAP §0.5.3.7: for each merged PR, classify into feature, defect, risk/compliance, tech-debt, or unknown. Priority: (1) Linear issue-label on linked ticket (issues.json), (2) precomputed classified_category on PR row, (3) conventional-commit prefix on PR title (feat→feature, fix→defect, others→tech-debt), (4) keyword match on title+body, (5) unknown.",
     "baseline": {
       "value": 0.0,
       "confidence": "low",
@@ -293,7 +453,16 @@
     "per_window": [],
     "provenance": {
       "requirement_id": "M6",
-      "extraction_command": "data/pulls.json#pulls[].classified_category + data/issues.json (when Linear available)",
+      "extraction_command": "python3 scripts/03_extract_pulls.py && python3 scripts/08_extract_linear.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/03_extract_pulls.py",
+        "python3 scripts/08_extract_linear.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "api_endpoints": [
+        "GET /repos/{owner}/{repo}/pulls?state=all (paginated)",
+        "POST https://api.linear.app/graphql (issues with labels) — only when LINEAR_API_KEY is configured"
+      ],
       "raw_output_artifact_path": "data/pulls.json",
       "raw_output_artifact_paths": [
         "data/pulls.json",
@@ -302,7 +471,12 @@
       "derivation_function": "compute_m6_flow_distribution"
     },
     "boundary_conditions": "Linear API: unavailable. Post-introduction unknown rate: 66.7%. Baseline unknown rate: 0.0%. Per AAP §0.5.3.7, unknown rate >20% downgrades phase confidence to Low. When Linear labels are unavailable, the classifier depends on conventional-commit prefixes and a keyword catalogue in scripts/09_compute_metrics.py.",
-    "caveat": "Linear API: unavailable. Post-introduction unknown rate: 66.7%. Baseline unknown rate: 0.0%. Per AAP §0.5.3.7, unknown rate >20% downgrades phase confidence to Low. When Linear labels are unavailable, the classifier depends on conventional-commit prefixes and a keyword catalogue in scripts/09_compute_metrics.py."
+    "caveat": "Linear API: unavailable. Post-introduction unknown rate: 66.7%. Baseline unknown rate: 0.0%. Per AAP §0.5.3.7, unknown rate >20% downgrades phase confidence to Low. When Linear labels are unavailable, the classifier depends on conventional-commit prefixes and a keyword catalogue in scripts/09_compute_metrics.py.",
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
+    }
   },
   "m7": {
     "metric_number": 7,
@@ -332,13 +506,26 @@
     "per_window": [],
     "provenance": {
       "requirement_id": "M7",
-      "extraction_command": "GET /repos/{}/{}/pulls + /pulls/{n}/commits (merged_at and first commit author date)",
+      "extraction_command": "python3 scripts/03_extract_pulls.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/03_extract_pulls.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "api_endpoints": [
+        "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all (paginated)",
+        "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls/{number}/commits"
+      ],
       "raw_output_artifact_path": "data/pulls.json",
       "raw_output_artifact_paths": [
         "data/pulls.json",
         "data/commits.csv"
       ],
       "derivation_function": "compute_m7_flow_time"
+    },
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
     }
   },
   "m8": {
@@ -452,7 +639,15 @@
     ],
     "provenance": {
       "requirement_id": "M8",
-      "extraction_command": "git log main --grep='^Revert \"' --pretty=format:'%H|%aI|%s'",
+      "extraction_command": "bash scripts/05_extract_reverts.sh && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "bash scripts/05_extract_reverts.sh",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "git_commands": [
+        "git log main --grep='^Revert \"' --pretty=format:'%H|%aI|%s'",
+        "git merge-base --is-ancestor <tag> <commit>"
+      ],
       "raw_output_artifact_path": "data/reverts.json",
       "raw_output_artifact_paths": [
         "data/reverts.json",
@@ -467,7 +662,12 @@
       "total_observed": 0,
       "attributable": 0
     },
-    "boundary_conditions": "Zero revert commits observed on main; per AAP §0.5.3.9 the metric value is deterministically 0 with High confidence. Cross-validated by the three independent search commands recorded in data/reverts.json#search_verification."
+    "boundary_conditions": "Zero revert commits observed on main; per AAP §0.5.3.9 the metric value is deterministically 0 with High confidence. Cross-validated by the three independent search commands recorded in data/reverts.json#search_verification.",
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
+    }
   },
   "m9": {
     "metric_number": 9,
@@ -497,12 +697,27 @@
     "per_window": [],
     "provenance": {
       "requirement_id": "M9",
-      "extraction_command": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/releases AND git for-each-ref 'refs/tags/v[0-9]*' --format='%(refname)|%(creatordate:iso-strict)|%(objectname)'",
+      "extraction_command": "python3 scripts/04_extract_releases.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/04_extract_releases.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "api_endpoints": [
+        "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/releases"
+      ],
+      "git_commands": [
+        "git for-each-ref 'refs/tags/v[0-9]*' --format='%(refname)|%(creatordate:iso-strict)|%(objectname)'"
+      ],
       "raw_output_artifact_path": "data/releases.json",
       "raw_output_artifact_paths": [
         "data/releases.json"
       ],
       "derivation_function": "compute_m9_releases"
+    },
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
     }
   },
   "m10": {
@@ -574,7 +789,25 @@
     ],
     "provenance": {
       "requirement_id": "M10",
-      "extraction_command": "GET /repos/.../audit-log AND git reflog show main AND GET /repos/.../pulls (label scan) AND head-only reads of .golangci.yml .snyk .truffleignore .deepsource.toml",
+      "extraction_command": "python3 scripts/07_extract_exceptions.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/07_extract_exceptions.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "api_endpoints": [
+        "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/audit-log (admin scope only)",
+        "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/branches/main/protection",
+        "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all (label-scan re-use)"
+      ],
+      "git_commands": [
+        "git reflog show main"
+      ],
+      "file_reads": [
+        ".golangci.yml",
+        ".snyk",
+        ".truffleignore",
+        ".deepsource.toml"
+      ],
       "raw_output_artifact_path": "data/exceptions.json",
       "raw_output_artifact_paths": [
         "data/exceptions.json",
@@ -592,7 +825,12 @@
       "deepsource_exclude_patterns": 2
     },
     "boundary_conditions": "Audit log: unavailable; admin access required. Branch-protection check: unavailable. Force-push reflog entries: 0. Exception-labeled PRs: 0. Lint-exemption HEAD inventory: 49 entries (reported separately; not counted in per-window events).",
-    "caveat": "Without admin audit-log access, the signal is limited to (a) force-pushes detectable from this clone's local git reflog, (b) PRs labelled with exception/waiver/override/bypass patterns (none observed in the current label catalogue per .github/labeler.yml), and (c) HEAD-only static-analysis exemption inventory (reported separately, not as per-window events). The true count of admin overrides, required-check bypasses, and branch-protection-rule modifications during the analysis window is unobservable and may be non-zero."
+    "caveat": "Without admin audit-log access, the signal is limited to (a) force-pushes detectable from this clone's local git reflog, (b) PRs labelled with exception/waiver/override/bypass patterns (none observed in the current label catalogue per .github/labeler.yml), and (c) HEAD-only static-analysis exemption inventory (reported separately, not as per-window events). The true count of admin overrides, required-check bypasses, and branch-protection-rule modifications during the analysis window is unobservable and may be non-zero.",
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
+    }
   },
   "m11": {
     "metric_number": 11,
@@ -622,13 +860,26 @@
     "per_window": [],
     "provenance": {
       "requirement_id": "M11",
-      "extraction_command": "GET /repos/.../actions/runs?branch=main + GET /repos/.../actions/runs/{id}/artifacts (JUnit XML)",
+      "extraction_command": "python3 scripts/06_extract_ci_history.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/06_extract_ci_history.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "api_endpoints": [
+        "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/actions/runs?branch=main (paginated)",
+        "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/actions/runs/{run_id}/artifacts"
+      ],
       "raw_output_artifact_path": "data/test_transitions.json",
       "raw_output_artifact_paths": [
         "data/test_transitions.json",
         "data/ci_runs.json"
       ],
       "derivation_function": "compute_m11_escaped_defects"
+    },
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
     }
   },
   "m12": {
@@ -638,7 +889,7 @@
     "value": "insufficient_signal",
     "reason": "No SLA source is available. Linear API access is not configured (LINEAR_API_KEY unset; data/issues.json#linear.available=False; data/issues.json#issues is empty: 0 issues). No SLA policy document was discovered in the repository's documentation tree per data/slas.json#repo_policy_scan. Per AAP §0.5.3.13, the metric reports 'Insufficient signal — no SLA source' in this case.",
     "confidence": "insufficient",
-    "boundary_conditions": "Linear API: unavailable. Repository policy scan: Neither of the two SLA sources defined by AAP §0.5.3.13 yielded a result: (1) the Linear API is unreachable because LINEAR_API_KEY is not set in the analysis environment, and (2) the repository documentation tree contains no SLA policy document defining defect resolution targets per severity tier. Per AAP §0.5.3.13 and §0.7.3 (no fabrication), the platform reports this metric as 'insufficient_signal' rather than inventing targets.. Both source tiers per AAP §0.5.3.13 return zero, and the metric collapses to insufficient_signal as instructed.",
+    "boundary_conditions": "Linear API: unavailable. Repository policy scan: no SLA-bearing document found. Both source tiers per AAP §0.5.3.13 return zero, and the metric collapses to insufficient_signal as instructed.",
     "after_before_multiplier": "—",
     "extraction_strategy": "Per AAP §0.5.3.13: count defect-labeled issues whose close_time − open_time exceeds the SLA target for their severity tier. SLA targets sourced (priority order): (1) Linear API issue tracker SLA field, (2) repository policy document under docs/, blitzy-docs/, blitzy/documentation/. When no SLA source is available, report 'Insufficient signal — no SLA source'.",
     "baseline": {
@@ -646,7 +897,7 @@
       "confidence": "insufficient",
       "windows": 0,
       "reason": "No SLA source is available. Linear API access is not configured (LINEAR_API_KEY unset; data/issues.json#linear.available=False; data/issues.json#issues is empty: 0 issues). No SLA policy document was discovered in the repository's documentation tree per data/slas.json#repo_policy_scan. Per AAP §0.5.3.13, the metric reports 'Insufficient signal — no SLA source' in this case.",
-      "boundary_conditions": "Linear API: unavailable. Repository policy scan: Neither of the two SLA sources defined by AAP §0.5.3.13 yielded a result: (1) the Linear API is unreachable because LINEAR_API_KEY is not set in the analysis environment, and (2) the repository documentation tree contains no SLA policy document defining defect resolution targets per severity tier. Per AAP §0.5.3.13 and §0.7.3 (no fabrication), the platform reports this metric as 'insufficient_signal' rather than inventing targets.. Both source tiers per AAP §0.5.3.13 return zero, and the metric collapses to insufficient_signal as instructed."
+      "boundary_conditions": "Linear API: unavailable. Repository policy scan: no SLA-bearing document found. Both source tiers per AAP §0.5.3.13 return zero, and the metric collapses to insufficient_signal as instructed."
     },
     "post_introduction": {
       "value": "insufficient_signal",
@@ -654,18 +905,33 @@
       "windows": 6,
       "multiplier": "—",
       "reason": "No SLA source is available. Linear API access is not configured (LINEAR_API_KEY unset; data/issues.json#linear.available=False; data/issues.json#issues is empty: 0 issues). No SLA policy document was discovered in the repository's documentation tree per data/slas.json#repo_policy_scan. Per AAP §0.5.3.13, the metric reports 'Insufficient signal — no SLA source' in this case.",
-      "boundary_conditions": "Linear API: unavailable. Repository policy scan: Neither of the two SLA sources defined by AAP §0.5.3.13 yielded a result: (1) the Linear API is unreachable because LINEAR_API_KEY is not set in the analysis environment, and (2) the repository documentation tree contains no SLA policy document defining defect resolution targets per severity tier. Per AAP §0.5.3.13 and §0.7.3 (no fabrication), the platform reports this metric as 'insufficient_signal' rather than inventing targets.. Both source tiers per AAP §0.5.3.13 return zero, and the metric collapses to insufficient_signal as instructed."
+      "boundary_conditions": "Linear API: unavailable. Repository policy scan: no SLA-bearing document found. Both source tiers per AAP §0.5.3.13 return zero, and the metric collapses to insufficient_signal as instructed."
     },
     "per_window": [],
     "provenance": {
       "requirement_id": "M12",
-      "extraction_command": "POST https://api.linear.app/graphql (issues + labels + slaBreachedAt) AND grep -REi 'SLA|severity|Sev-|priority response time|incident response' docs/ blitzy-docs/ blitzy/documentation/ CONTRIBUTING.md",
+      "extraction_command": "python3 scripts/08_extract_linear.py && python3 scripts/09_compute_metrics.py",
+      "extraction_command_steps": [
+        "python3 scripts/08_extract_linear.py",
+        "python3 scripts/09_compute_metrics.py"
+      ],
+      "api_endpoints": [
+        "POST https://api.linear.app/graphql (issues with labels and slaBreachedAt) — only when LINEAR_API_KEY is configured"
+      ],
+      "policy_grep_commands": [
+        "grep -REi 'SLA|severity|Sev-|priority response time|incident response' docs/ blitzy-docs/ blitzy/documentation/ CONTRIBUTING.md"
+      ],
       "raw_output_artifact_path": "data/issues.json",
       "raw_output_artifact_paths": [
         "data/issues.json",
         "data/slas.json"
       ],
       "derivation_function": "compute_m12_defects_out_of_sla"
+    },
+    "_actor_resolution": {
+      "baseline_resolver": "_actor_resolver_baseline",
+      "post_introduction_resolver": "_actor_resolver_post_introduction",
+      "methodology_invariant_note": "Per AAP §0.5.6, compute_phase is invoked once per period with only the actor parameter substituted; every other parameter (window alignment, bot exclusions, classification priority, span-bounding) is a module-scope constant."
     }
   }
 }

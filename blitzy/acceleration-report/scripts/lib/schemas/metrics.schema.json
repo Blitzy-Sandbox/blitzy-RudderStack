@@ -106,6 +106,16 @@
           "type": "string",
           "minLength": 1,
           "description": "Free-text justification for the latest schema_version bump. Lets a reviewer scan recent CP-remediation changes without diffing the schema file. Required only when schema_version differs from the prior release; permitted but unused otherwise."
+        },
+        "compute_constants": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "The complete catalogue of module-scope constants consumed by compute_phase(period, actor) per AAP \u00a70.5.6. Records EVERY constant whose value is shared identically between the baseline and post-introduction phases so that the identical-methodology invariant is mechanically auditable from the artifact: window_days, window_alignment, ramp_up_days, flaky_threshold_runs, unknown_rate_downgrade, blitzy_identity_emails, dependency_bot_emails, blitzy_display_name, module_list, conventional_prefix_map. Renderers MAY surface this object in the Methodology section so reviewers can see the constants without reading source."
+        },
+        "multi_module_aggregation_summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Top-level summary of the multi-module aggregation step per AAP \u00a70.5.6 (multi-module aggregation). Records the per-module non-merge commit volumes used as aggregation weights, the resolution method (majority changed-paths heuristic), and the total counts. Per-metric multi-module aggregation breakdowns live on individual metric records under their own `multi_module_aggregation` blocks."
         }
       }
     },

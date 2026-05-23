@@ -65,6 +65,11 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from lib.observability import get_logger  # noqa: E402  (intentional after sys.path)
+from lib.paths import (  # noqa: E402  (intentional after sys.path)
+    OutputPathError,
+    atomic_write_text,
+    safe_output_path,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -223,10 +228,13 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     ordering (``issues`` / ``slas`` / ``fetched_at`` / ``unavailable_reason``)
     encoded by the caller is preserved verbatim in the file.
 
-    The parent directory is created (``mkdir(parents=True, exist_ok=True)``)
-    so that a fresh clone where ``data/`` does not yet exist is safe to
-    extract into. A trailing newline is appended so that POSIX line-oriented
-    tools (``tail``, ``wc -l``) handle the file cleanly.
+    The write is atomic: the payload is staged to a temp file inside
+    the destination directory (the same filesystem, so ``os.replace``
+    is guaranteed to be atomic by POSIX) and then renamed into place.
+    This ensures the operator either sees the previous artifact or the
+    new one — never a truncated/partial file. A trailing newline is
+    appended so that POSIX line-oriented tools (``tail``, ``wc -l``)
+    handle the file cleanly.
 
     Args:
         path: Absolute or workspace-relative output path. Created in
@@ -235,11 +243,14 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
             serialiser (``default=str``) handles ``Path`` instances and
             datetime values that may appear in nested structures.
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(payload, indent=2, default=str, ensure_ascii=False) + "\n",
-        encoding="utf-8",
+    serialised = json.dumps(
+        payload, indent=2, default=str, ensure_ascii=False
     )
+    # ``atomic_write_text`` from ``lib.paths`` creates the parent
+    # directory if necessary, writes to a temporary file in the
+    # destination directory, fsync's it (best-effort), and then issues
+    # a single ``os.replace`` so callers never observe a partial file.
+    atomic_write_text(path, serialised + "\n")
 
 
 def _build_no_op_payload(kind: str) -> dict[str, Any]:
@@ -433,8 +444,30 @@ def _do_no_op(args: argparse.Namespace, logger: Any) -> int:
     """
     issues_payload = _build_no_op_payload("issues")
     slas_payload = _build_no_op_payload("slas")
-    _write_json(Path(args.issues_output), issues_payload)
-    _write_json(Path(args.slas_output), slas_payload)
+    # Validate both output paths against the workspace boundary before
+    # writing anything. Either path that escapes the workspace causes
+    # the function to abort with exit code 4 BEFORE any file write —
+    # this prevents a misconfigured ``--issues-output`` from corrupting
+    # the issues file when only the slas path is invalid (or vice
+    # versa). The default values from argparse always resolve inside
+    # the workspace; explicit overrides receive the same validation.
+    try:
+        issues_path = safe_output_path(args.issues_output)
+        slas_path = safe_output_path(args.slas_output)
+    except OutputPathError as exc:
+        logger.error(
+            "linear_output_path_rejected",
+            extra={
+                "event": "linear_output_path_rejected",
+                "issues_output": args.issues_output,
+                "slas_output": args.slas_output,
+                "error": str(exc),
+            },
+        )
+        print(str(exc), file=sys.stderr)
+        return 4
+    _write_json(issues_path, issues_payload)
+    _write_json(slas_path, slas_payload)
     logger.warning(
         "linear_api_key_missing",
         extra={
@@ -603,8 +636,27 @@ def _do_extract(args: argparse.Namespace, api_key: str, logger: Any) -> int:
         "label_filter": DEFECT_LABELS,
         "issues_count": len(issues),
     }
-    _write_json(Path(args.issues_output), issues_payload)
-    _write_json(Path(args.slas_output), slas_payload)
+    # Validate both output paths against the workspace boundary before
+    # writing anything. See ``_handle_no_key_path`` for the same
+    # validation pattern; both branches share the path-confinement
+    # contract so the artifact files never escape the workspace.
+    try:
+        issues_path = safe_output_path(args.issues_output)
+        slas_path = safe_output_path(args.slas_output)
+    except OutputPathError as exc:
+        logger.error(
+            "linear_output_path_rejected",
+            extra={
+                "event": "linear_output_path_rejected",
+                "issues_output": args.issues_output,
+                "slas_output": args.slas_output,
+                "error": str(exc),
+            },
+        )
+        print(str(exc), file=sys.stderr)
+        return 4
+    _write_json(issues_path, issues_payload)
+    _write_json(slas_path, slas_payload)
 
     logger.info(
         "script_complete",

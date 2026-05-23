@@ -87,7 +87,19 @@ from typing import Any
 # This mirrors the import-path convention used by sibling scripts 03-09.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import jsonschema  # noqa: E402  (pinned in requirements.txt)
+
 from lib.observability import get_logger  # noqa: E402  (sys.path mutation)
+from lib.paths import (  # noqa: E402  (sys.path mutation)
+    OutputPathError,
+    atomic_write_text,
+    safe_output_path,
+)
+from lib.render_safety import (  # noqa: E402  (sys.path mutation)
+    html_escape as _safe_html_escape,
+    is_iso_z,
+    mermaid_label_safe,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -112,8 +124,35 @@ WORKSPACE_ROOT: Path = Path(__file__).resolve().parent.parent
 DATA_DIR: Path = WORKSPACE_ROOT / "data"
 
 #: Default output path for the rendered HTML deck. May be overridden by the
-#: ``--output`` CLI flag (used by integration tests).
+#: ``--output`` CLI flag (used by integration tests). Per MAJOR-#4 review
+#: fix, every supplied path is validated against the workspace boundary
+#: via ``safe_output_path()`` before any write occurs; any path outside
+#: ``blitzy/acceleration-report/`` is rejected with exit code 4.
 OUTPUT_PATH: Path = WORKSPACE_ROOT / "executive-summary.html"
+
+
+#: ``blitzy/acceleration-report/scripts/lib/schemas/`` — the directory
+#: containing JSON Schemas for every artifact this renderer reads. The
+#: pre-render schema validation step (MAJOR-#3 review fix) loads
+#: ``metrics.schema.json``, ``per_engineer.schema.json``,
+#: ``inflection.schema.json``, and ``environment.schema.json`` from this
+#: directory before any HTML is assembled. A schema-validation failure
+#: raises ``DeckGuardFailure`` and aborts the run before the guards
+#: see a malformed artifact.
+SCHEMAS_DIR: Path = Path(__file__).resolve().parent / "lib" / "schemas"
+
+
+#: Map from input artifact filename to its JSON Schema filename. The
+#: deck reads exactly four artifacts (see :data:`READ_ARTIFACTS` below);
+#: each must validate against the corresponding schema before the
+#: rendering pipeline assembles the HTML. Per MAJOR-#3 review finding,
+#: this validation is mandatory and runs BEFORE any pre-write guard.
+DECK_INPUT_SCHEMAS: dict[str, str] = {
+    "metrics.json": "metrics.schema.json",
+    "per_engineer.json": "per_engineer.schema.json",
+    "inflection.json": "inflection.schema.json",
+    "environment.json": "environment.schema.json",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +321,27 @@ def kpi_card(
     design — white background, purple top border, drop shadow — comes from
     the inline CSS rule ``.kpi-card`` in :func:`render_inline_css`.
 
+    Escaping policy (MAJOR-#2 review fix):
+
+    * ``caveat`` is **always** HTML-escaped inside this function before
+      being placed inside the ``<p class="caveat">`` element. Callers
+      may pass arbitrary metric-derived text without pre-escaping; the
+      previous caller-side ``html_escape`` calls remain idempotent
+      because :func:`html_escape` is built on :func:`html.escape`, which
+      converts ``&amp;`` back to ``&amp;amp;`` only if the literal
+      ``&amp;`` is fed back in — meaning the escape is **not** idempotent
+      across multiple calls. To keep behaviour safe and stable, the
+      callers in this file have been updated to pass **raw** caveat
+      text (no ``html_escape`` wrapping) and this function does the
+      escape exactly once.
+    * ``label``, ``value``, ``sub`` are documented as **pre-formatted
+      HTML fragments** owned by the caller (they often contain
+      ``<code>`` or ``&rarr;`` entities intentionally). The caller
+      MUST pre-escape any user-derived sub-strings via
+      :func:`html_escape` before composing them into these fields.
+    * ``confidence`` is validated against :data:`CONFIDENCE_CLASSES`;
+      the upper-cased label is HTML-escaped before placement.
+
     Args:
         label: Short uppercase label (rendered in Fira Code monospace at 0.75em).
         value: Headline value (rendered in Space Grotesk at 3em). May be a
@@ -290,8 +350,10 @@ def kpi_card(
             Unknown values fall back to ``confidence-insufficient``.
         caveat: Optional italic disclaimer rendered beneath the pill. Per Rule 3
             (AAP §0.7.2), every Low-confidence metric MUST appear with its caveat;
-            the caller is responsible for passing it for ``low`` cards.
+            this function performs the HTML escape so callers may pass the raw
+            ``data/metrics.json`` ``caveat`` field directly.
         sub: Optional subtitle line between the value and the confidence pill.
+            May contain caller-owned HTML (e.g. ``<code>`` wrappers).
 
     Returns:
         An HTML fragment that satisfies the "non-text visual" requirement
@@ -299,18 +361,23 @@ def kpi_card(
         substring is one of the four tokens the guard searches for.
     """
     klass = CONFIDENCE_CLASSES.get(confidence, "confidence-insufficient")
+    # MAJOR-#2: caveat is always escaped at this single point of authority.
     caveat_html = (
-        f'<p class="caveat">{caveat}</p>' if caveat else ""
+        f'<p class="caveat">{html_escape(caveat)}</p>' if caveat else ""
     )
     sub_html = (
         f'<div class="kpi-sub">{sub}</div>' if sub else ""
     )
+    # Escape the confidence label (defensive — confidence is enum-validated
+    # but ``html_escape`` is cheap and removes any chance of HTML smuggling
+    # via a corrupted enum string).
+    confidence_label = html_escape(confidence.upper())
     return (
         '<div class="kpi-card">'
         f'<div class="kpi-label">{label}</div>'
         f'<div class="kpi-value">{value}</div>'
         f'{sub_html}'
-        f'<span class="kpi-confidence {klass}">{confidence.upper()}</span>'
+        f'<span class="kpi-confidence {klass}">{confidence_label}</span>'
         f'{caveat_html}'
         '</div>'
     )
@@ -350,10 +417,20 @@ def format_phase_value(value: int | float | str | None) -> str:
 
     The phase-level ``value`` field (under ``metric.baseline.value`` or
     ``metric.post_introduction.value``) is either a number, the string
-    ``"insufficient_signal"``, or — in rare cases — a float. This function
-    renders numerics with locale-free formatting (no thousands separators
-    because the values in this repository's data set are all small) and
-    the string sentinel as the AAP-prescribed em-dash.
+    ``"insufficient_signal"``, or — in rare cases — a free-form string.
+    This function renders numerics with locale-free formatting (no
+    thousands separators because the values in this repository's data
+    set are all small) and the string sentinel as the AAP-prescribed
+    em-dash.
+
+    Escaping policy (MAJOR-#2 review fix): the numeric branches return
+    locale-free formatted numbers that contain no HTML metacharacters.
+    The fallback string branch HTML-escapes the value to guarantee that
+    a future schema relaxation (e.g. admitting a free-form ``value``)
+    cannot inject HTML into the KPI card. The numeric branches do not
+    escape because the formatted output is, by construction, only
+    digits, the period, and the multiplication symbol — none of which
+    are HTML metacharacters.
 
     Args:
         value: The raw phase value.
@@ -373,8 +450,9 @@ def format_phase_value(value: int | float | str | None) -> str:
         return f"{value:.2f}"
     if isinstance(value, int):
         return str(value)
-    # String value that is not "insufficient_signal" — render verbatim.
-    return str(value)
+    # String value that is not "insufficient_signal" — escape before render
+    # so any HTML metacharacters cannot break out of the KPI value cell.
+    return html_escape(str(value))
 
 
 def mermaid_block(src: str) -> str:
@@ -386,18 +464,33 @@ def mermaid_block(src: str) -> str:
     ``startOnLoad: false`` defers rendering until that explicit call so the
     diagrams render at the right time relative to slide transitions.
 
+    Escaping policy (MAJOR-#2 review fix): Mermaid source intentionally
+    contains characters that an HTML escape would corrupt (``-->``,
+    ``[label]``, ``:::class``, etc.), so the source as a whole is NOT
+    HTML-escaped. Instead, this function defensively strips any literal
+    ``</pre>`` or ``</PRE>`` sequence — those would allow Mermaid input
+    to close the surrounding ``<pre class="mermaid">`` element and
+    inject HTML after it. Callers that interpolate dynamic strings
+    (SHAs, ISO timestamps, free-form labels) into Mermaid source MUST
+    first sanitise those strings via
+    :func:`lib.render_safety.mermaid_label_safe` or, for confirmed-ISO
+    timestamps, :func:`lib.render_safety.is_iso_z`.
+
     Args:
-        src: Mermaid source text (e.g. ``"flowchart LR\nA-->B"``). HTML
-            metacharacters are NOT escaped because Mermaid expects them
-            verbatim; the caller is responsible for ensuring the source
-            contains no ``</pre>`` sequence.
+        src: Mermaid source text (e.g. ``"flowchart LR\nA-->B"``).
 
     Returns:
         An HTML fragment that satisfies the "non-text visual" requirement
         for pre-write guard 2 because the resulting ``<pre class="mermaid"``
         substring is one of the four tokens the guard searches for.
     """
-    return f'<pre class="mermaid">{src}</pre>'
+    # Defence in depth: remove the only sequence that lets Mermaid input
+    # close the surrounding ``<pre class="mermaid">`` element. The Mermaid
+    # parser does not legitimately need ``</pre>`` in its source; any
+    # appearance would indicate either a documentation copy-paste error
+    # or a hostile interpolation.
+    safe_src = src.replace("</pre>", "").replace("</PRE>", "")
+    return f'<pre class="mermaid">{safe_src}</pre>'
 
 
 def slide_html(
@@ -433,31 +526,34 @@ def slide_html(
     )
 
 
-def html_escape(text: str) -> str:
-    """Escape the five HTML metacharacters in ``text``.
+def html_escape(text: Any) -> str:
+    """Escape HTML metacharacters in arbitrary input.
 
-    Used for user-supplied strings drawn from the data artifacts (caveats,
-    boundary conditions, author names) that may contain ``<``, ``>``, ``&``,
-    ``"``, or ``'``. The standard library's ``html.escape`` is avoided here
-    to keep the renderer's dependency surface limited to the standard-library
-    modules already imported (this matters for the ``--dry-run`` mode which
-    must not trigger any import beyond what's already at the top of the file).
+    Per MAJOR-#2 review fix, this is a thin wrapper around
+    :func:`lib.render_safety.html_escape` that centralises HTML
+    escaping for the deck renderer. The shared helper:
+
+    * Coerces ``None`` to the empty string.
+    * Coerces non-string input to ``str`` before escaping.
+    * Uses ``html.escape(..., quote=True)`` so both attribute and
+      text-node contexts are safe.
+
+    The function name and signature are preserved so existing
+    callers continue to work without modification; only the
+    implementation is replaced. The order-of-replacement concern
+    (``&`` first to avoid double-encoding) is handled by the
+    stdlib's :func:`html.escape`.
 
     Args:
-        text: Arbitrary input string.
+        text: Arbitrary input. ``None`` is rendered as the empty
+            string. Numbers and other primitives are coerced with
+            :func:`str`.
 
     Returns:
-        The same string with ``&`` -> ``&amp;``, ``<`` -> ``&lt;``,
-        ``>`` -> ``&gt;``, ``"`` -> ``&quot;``, ``'`` -> ``&#x27;``.
-        Order matters: ``&`` must be replaced first to avoid double-encoding.
+        Escaped string suitable for inline placement in HTML
+        attributes and text nodes.
     """
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&#x27;")
-    )
+    return _safe_html_escape(text)
 
 
 def truncate(text: str, max_len: int = 220) -> str:
@@ -1215,6 +1311,19 @@ def slide_5_inflection(inflection: dict[str, Any]) -> dict[str, Any]:
     sha = evidence.get("commit_sha", "—")
     email = evidence.get("author_email", "—")
 
+    # MAJOR-#2 review fix: every dynamic value interpolated into the
+    # Mermaid source below is first sanitised. ``date`` is the only one
+    # that flows into a Mermaid edge label (``-->|resolved at {date}|``);
+    # it must be either a confirmed ISO-Z timestamp (verbatim safe) or
+    # routed through ``mermaid_label_safe()`` which collapses newlines,
+    # strips backtick/double-quote characters, and HTML-escapes the
+    # result so that a hostile ``date`` value cannot terminate the
+    # Mermaid block or smuggle HTML through it.
+    if is_iso_z(str(date)):
+        date_label = str(date)
+    else:
+        date_label = mermaid_label_safe(date)
+
     # Build the Mermaid diagram with the resolved tier highlighted.
     def highlight(t: str) -> str:
         return ":::resolved" if t == tier else ":::skipped"
@@ -1226,7 +1335,7 @@ def slide_5_inflection(inflection: dict[str, Any]) -> dict[str, Any]:
         f"  T3[Tier 3: velocity inflection]{highlight('velocity_inflection')}\n"
         "  T1 -->|no signal| T2\n"
         "  T2 -->|no signal| T3\n"
-        f"  T2 -->|resolved at {date}| Out[Inflection point]:::out\n"
+        f"  T2 -->|resolved at {date_label}| Out[Inflection point]:::out\n"
         "  classDef resolved fill:#94FAD5,stroke:#2D1C77,color:#1A105F,stroke-width:3px\n"
         "  classDef skipped fill:#F4EFF6,stroke:#D9D9D9,color:#999999\n"
         "  classDef out fill:#5B39F3,stroke:#2D1C77,color:#FFFFFF\n"
@@ -1290,24 +1399,49 @@ def slide_6_metrics_table(metrics: dict[str, Any]) -> dict[str, Any]:
         confidence = m.get("confidence", "insufficient")
         confidence_class = CONFIDENCE_CLASSES.get(confidence, "confidence-insufficient")
         icon_name = icon_per_metric.get(k, "circle")
+        # MAJOR-#1 review fix (Rule 3 — Confidence Transparency): every
+        # Low-confidence metric MUST appear with its caveat. Surface the
+        # caveat text in the Caveat column for Low-confidence rows and
+        # the insufficient-signal reason for Insufficient rows. Other
+        # confidence tiers render an em-dash to keep the column aligned.
+        caveat_text = ""
+        if confidence == "low":
+            caveat_text = str(m.get("caveat") or m.get("reason") or "").strip()
+        elif confidence == "insufficient":
+            caveat_text = str(
+                m.get("caveat") or m.get("reason") or post.get("reason") or ""
+            ).strip()
+        if caveat_text:
+            caveat_cell = (
+                f"<td style='font-size:0.7em; color: var(--neutral-muted);'>"
+                f"{html_escape(truncate(caveat_text, 140))}"
+                "</td>"
+            )
+        else:
+            caveat_cell = (
+                "<td style='font-size:0.7em; color: var(--neutral-bg-subtle);'>—</td>"
+            )
         rows.append(
             "<tr>"
             f"<td><code>{k.upper()}</code></td>"
             f"<td>{lucide_icon(icon_name, 20)} <span style='margin-left:0.4rem;'>{name}</span></td>"
             f"<td><code>{html_escape(post_value)}</code></td>"
             f"<td><span class='kpi-confidence {confidence_class}'>{html_escape(confidence.upper())}</span></td>"
+            f"{caveat_cell}"
             "</tr>"
         )
     body = (
         '<table>'
         '<thead><tr>'
-        '<th>Metric</th><th>Name</th><th>Post-Introduction</th><th>Confidence</th>'
+        '<th>Metric</th><th>Name</th><th>Post-Introduction</th>'
+        '<th>Confidence</th><th>Caveat</th>'
         '</tr></thead>'
         f'<tbody>{"".join(rows)}</tbody>'
         '</table>'
         '<p style="font-size:0.75em; color: var(--neutral-bg-subtle);">'
         'Post-Introduction value is the per-phase aggregate from <code>data/metrics.json</code>.'
-        ' Em-dash = insufficient signal.'
+        ' Em-dash in the value column = insufficient signal; em-dash in the caveat column = no caveat present.'
+        ' Per Rule 3 (AAP §0.7.2), every Low-confidence metric carries an explicit caveat.'
         '</p>'
         '<div class="slide-footer">'
         '<span>Twelve Metrics</span>'
@@ -1347,8 +1481,11 @@ def slide_7_flow_velocity_time(metrics: dict[str, Any]) -> dict[str, Any]:
         post_value = format_phase_value(post.get("value"))
         confidence = m.get("confidence", "insufficient")
         caveat = m.get("caveat") if confidence == "low" else None
+        # MAJOR-#2 review fix: truncate raw caveat text; kpi_card() now
+        # performs the HTML escape at its single point of authority,
+        # so passing pre-escaped text would double-encode ``&`` to ``&amp;amp;``.
         if caveat:
-            caveat = truncate(html_escape(str(caveat)), 240)
+            caveat = truncate(str(caveat), 240)
         sub = f"Baseline: <code>{html_escape(base_value)}</code> &rarr; Post: <code>{html_escape(post_value)}</code>"
         cards_html += kpi_card(
             label=f"{k.upper()} {html_escape(str(m.get('name', '')))}",
@@ -1402,8 +1539,9 @@ def slide_8_flow_active_efficiency(
         base = m.get("baseline", {})
         confidence = m.get("confidence", "insufficient")
         caveat = m.get("caveat") if confidence == "low" else None
+        # MAJOR-#2 review fix: pass raw caveat — kpi_card() escapes once.
         if caveat:
-            caveat = truncate(html_escape(str(caveat)), 240)
+            caveat = truncate(str(caveat), 240)
         sub = (
             f"Baseline: <code>{html_escape(format_phase_value(base.get('value')))}</code>"
             f" &rarr; Post: <code>{html_escape(format_phase_value(post.get('value')))}</code>"
@@ -1434,7 +1572,20 @@ def slide_8_flow_active_efficiency(
             actor_labels.append(name)
             actor_values.append(int(v))
     if actor_labels:
-        labels_str = ", ".join(f'"{html_escape(lbl)}"' for lbl in actor_labels)
+        # MAJOR-#2 review fix: per-actor labels can contain arbitrary
+        # display names (real GitHub display names, plus the literal
+        # token "Blitzy"). They flow into Mermaid xychart-beta x-axis
+        # labels surrounded by double quotes. ``mermaid_label_safe()``
+        # collapses newlines, replaces inner double quotes with single
+        # quotes (so the surrounding ``"..."`` delimiters remain
+        # syntactically intact), strips ``</pre>`` sequences, and
+        # HTML-escapes the result. ``html_escape`` is NOT used here
+        # because Mermaid renders the labels via SVG ``<text>`` nodes
+        # rather than HTML, and the ``&`` -> ``&amp;`` substitution
+        # would appear verbatim inside the diagram.
+        labels_str = ", ".join(
+            f'"{mermaid_label_safe(lbl)}"' for lbl in actor_labels
+        )
         values_str = ", ".join(str(v) for v in actor_values)
         bar_chart = (
             "xychart-beta\n"
@@ -1487,11 +1638,18 @@ def slide_9_flow_distribution(metrics: dict[str, Any]) -> dict[str, Any]:
     total_prs = post.get("total_prs", 0)
 
     if cats:
-        # Build the Mermaid pie chart. Mermaid expects raw numeric values
-        # (Mermaid normalises to 100%); we pass the proportions as-is.
+        # MAJOR-#2 review fix: pie-chart slice names come from the M6
+        # classifier output and may contain arbitrary category strings.
+        # They flow into Mermaid pie source delimited by double quotes;
+        # we sanitise via ``mermaid_label_safe()`` (which replaces inner
+        # double quotes with single quotes so the surrounding delimiters
+        # remain valid) rather than ``html_escape`` because Mermaid
+        # renders pie labels as SVG text.
         slices = "\n    ".join(
-            f'"{html_escape(str(name))}" : {v}' for name, v in cats.items()
+            f'"{mermaid_label_safe(name)}" : {v}' for name, v in cats.items()
         )
+        # Total-PR count is a Python int by construction (M6 schema).
+        # The title interpolation is safe.
         diagram = f"pie\n    title M6 Flow Distribution (Post-Introduction, n={total_prs})\n    {slices}"
         chart_html = mermaid_block(diagram)
     else:
@@ -1544,8 +1702,9 @@ def slide_10_releases_problems(metrics: dict[str, Any]) -> dict[str, Any]:
         base = m.get("baseline", {})
         confidence = m.get("confidence", "insufficient")
         caveat = m.get("caveat") if confidence == "low" else None
+        # MAJOR-#2 review fix: pass raw caveat — kpi_card() escapes once.
         if caveat:
-            caveat = truncate(html_escape(str(caveat)), 240)
+            caveat = truncate(str(caveat), 240)
         sub = (
             f"Baseline: <code>{html_escape(format_phase_value(base.get('value')))}</code>"
             f" &rarr; Post: <code>{html_escape(format_phase_value(post.get('value')))}</code>"
@@ -1595,12 +1754,14 @@ def slide_11_quality_signals(metrics: dict[str, Any]) -> dict[str, Any]:
         base = m.get("baseline", {})
         confidence = m.get("confidence", "insufficient")
         caveat = m.get("caveat") if confidence in ("low", "insufficient") else None
+        # MAJOR-#2 review fix: pass raw caveat — kpi_card() escapes once.
         if caveat:
-            caveat = truncate(html_escape(str(caveat)), 220)
-        # For insufficient signal, surface the reason.
+            caveat = truncate(str(caveat), 220)
+        # For insufficient signal, surface the reason as a caveat. Raw text
+        # — kpi_card() handles the escape.
         if confidence == "insufficient" and not caveat:
             reason = m.get("reason") or post.get("reason") or "Insufficient signal — see metric deep-dive."
-            caveat = truncate(html_escape(str(reason)), 220)
+            caveat = truncate(str(reason), 220)
         sub = (
             f"Baseline: <code>{html_escape(format_phase_value(base.get('value')))}</code>"
             f" &rarr; Post: <code>{html_escape(format_phase_value(post.get('value')))}</code>"
@@ -1942,12 +2103,14 @@ def build_slides(
 
 
 def pre_write_guard(html: str, slides: list[dict[str, Any]]) -> None:
-    """Validate the rendered HTML against the eight pre-write contracts.
+    """Validate the rendered HTML against the nine pre-write contracts.
 
-    Each guard mirrors one of the eight contracts in the agent prompt's
-    Phase 10. Any violation raises ``ValueError`` whose message is the
-    failure code (e.g. ``"slide_count_out_of_range: 11"``); the message is
-    logged with ``event="pre_write_guard_failed"`` by the caller.
+    Each guard mirrors one contract from the agent prompt's Phase 10
+    (guards 1-8) plus the MAJOR-#1 review finding for Rule 3
+    (guard 9). Any violation raises ``ValueError`` whose message is
+    the failure code (e.g. ``"slide_count_out_of_range: 11"``); the
+    message is logged with ``event="pre_write_guard_failed"`` by the
+    caller.
 
     Guards (in order):
 
@@ -1966,6 +2129,12 @@ def pre_write_guard(html: str, slides: list[dict[str, Any]]) -> None:
        word-boundary regex against the AAP §0.7.2 blocklist.
     8. **first_section_not_slide_title** / **last_section_not_slide_closing** —
        section ordering is correct.
+    9. **low_confidence_caveat_missing_from_html** /
+       **low_confidence_metric_missing_caveat_text** — every metric with
+       ``confidence == "low"`` carries a caveat in the metric record
+       AND that caveat (truncated fingerprint) appears in the rendered
+       HTML at least once. MAJOR-#1 review fix for Rule 3 (AAP §0.7.2
+       Confidence Transparency).
 
     Args:
         html: The fully rendered HTML document string.
@@ -2060,6 +2229,157 @@ def pre_write_guard(html: str, slides: list[dict[str, Any]]) -> None:
     if "slide-closing" not in last_tag:
         raise ValueError(f"last_section_not_slide_closing: {last_tag[:80]}")
 
+    # --- Guard 9: Low-confidence metrics carry caveats in the deck ---------
+    # MAJOR-#1 review fix (Rule 3 — Confidence Transparency, AAP §0.7.2).
+    # Every metric with ``confidence == "low"`` MUST appear in the rendered
+    # HTML alongside its caveat. We can't rely on a positional check
+    # (caveats appear in several slides — overview table on slide 6, KPI
+    # cards on slides 7-11, risk-assessment table on slide 14) so the
+    # guard asserts a contains-substring relationship between each
+    # caveat and the rendered HTML. The check uses the FIRST 60
+    # characters of each caveat as a fingerprint; this is robust to the
+    # ``truncate()`` helper used in several call sites without requiring
+    # the entire caveat text to appear at every render position.
+    metrics_for_guard = _metrics_from_globals_or_html(slides)
+    if metrics_for_guard:
+        for metric_key, metric_record in metrics_for_guard.items():
+            if not metric_key.startswith("m"):
+                continue
+            confidence = metric_record.get("confidence", "insufficient")
+            if confidence != "low":
+                continue
+            caveat = str(metric_record.get("caveat") or "").strip()
+            if not caveat:
+                # A Low-confidence metric without a caveat in
+                # ``metrics.json`` is itself a Rule-3 violation, but
+                # that is the compute script's responsibility — we
+                # flag it as a guard failure so the deck doesn't ship
+                # a Low pill without explanation.
+                raise ValueError(
+                    f"low_confidence_metric_missing_caveat_text: {metric_key}"
+                )
+            # Fingerprint: first 60 characters of the caveat,
+            # HTML-escaped (because that's how it lands in the
+            # rendered HTML via kpi_card() and slide_6_metrics_table()).
+            fingerprint = html_escape(caveat[:60])
+            if fingerprint not in html:
+                raise ValueError(
+                    f"low_confidence_caveat_missing_from_html: {metric_key}"
+                )
+
+
+def _metrics_from_globals_or_html(slides: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Return the metrics dict associated with ``slides`` for the caveat guard.
+
+    The pre-write guard runs AFTER the HTML is assembled and AFTER the
+    metric data has been used to build the slides. The pre-write
+    contract does not expose ``metrics`` directly to the guard caller
+    (the signature has always been ``(html, slides)``), so the guard
+    needs a way to retrieve the metrics dict to assert caveat presence.
+
+    Strategy: ``main()`` stashes the parsed metrics in a module-level
+    sentinel before invoking ``pre_write_guard``. This keeps the
+    public function signature stable while letting the new
+    Low-confidence caveat guard reach the original metric records.
+
+    Returns:
+        The metrics dict if it has been stashed by ``main()``, else
+        ``None``. Returning ``None`` causes the caveat guard to skip
+        the check rather than fail — for ad-hoc test harnesses that
+        invoke ``pre_write_guard`` directly without going through
+        ``main()``.
+    """
+    return _LAST_RENDER_METRICS
+
+
+#: Module-level sentinel populated by ``main()`` before invoking
+#: ``pre_write_guard``. Used by the Low-confidence caveat guard to
+#: reach the original metric records without altering the public
+#: signature of ``pre_write_guard``.
+_LAST_RENDER_METRICS: dict[str, Any] | None = None
+
+
+def _validate_input_artifacts(
+    metrics: dict[str, Any],
+    per_eng: dict[str, Any],
+    inflection: dict[str, Any],
+    env: dict[str, Any],
+    logger: Any,
+) -> None:
+    """Validate every input artifact against its JSON Schema.
+
+    Implements MAJOR-#3 review fix: the renderer reads four JSON
+    artifacts. Per the review finding, every input MUST be schema-
+    validated before the deck is assembled. A schema-validation
+    failure raises ``jsonschema.ValidationError`` carrying the
+    offending field path; the caller in ``main()`` catches it and
+    returns a non-zero exit code.
+
+    The pattern mirrors the analogous helper in ``10_render_report.py``
+    so both renderers fail-fast on the same artifact-shape contracts.
+
+    Args:
+        metrics: Parsed ``data/metrics.json``.
+        per_eng: Parsed ``data/per_engineer.json``.
+        inflection: Parsed ``data/inflection.json``.
+        env: Parsed ``data/environment.json``.
+        logger: The structured-JSON logger.
+
+    Raises:
+        jsonschema.ValidationError: If any input artifact fails
+            schema validation. The exception is re-raised with its
+            original ``message`` and ``absolute_path`` intact so the
+            caller can emit a precise error.
+    """
+    artifacts_to_validate: dict[str, dict[str, Any]] = {
+        "metrics.json": metrics,
+        "per_engineer.json": per_eng,
+        "inflection.json": inflection,
+        "environment.json": env,
+    }
+    for artifact_name, payload in artifacts_to_validate.items():
+        schema_filename = DECK_INPUT_SCHEMAS.get(artifact_name)
+        if schema_filename is None:
+            continue
+        schema_path = SCHEMAS_DIR / schema_filename
+        if not schema_path.exists():
+            # The schema file is missing on disk. Emit a structured
+            # warning but do not abort — this keeps the renderer
+            # resilient to ad-hoc test harnesses that omit a schema.
+            logger.warning(
+                "input_schema_missing",
+                extra={
+                    "event": "input_schema_missing",
+                    "artifact": artifact_name,
+                    "schema": schema_filename,
+                    "expected_path": str(schema_path),
+                },
+            )
+            continue
+        try:
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            jsonschema.validate(payload, schema)
+            logger.info(
+                "input_schema_validated",
+                extra={
+                    "event": "input_schema_validated",
+                    "artifact": artifact_name,
+                    "schema": schema_filename,
+                },
+            )
+        except jsonschema.ValidationError as exc:
+            logger.error(
+                "input_schema_validation_failed",
+                extra={
+                    "event": "input_schema_validation_failed",
+                    "artifact": artifact_name,
+                    "schema": schema_filename,
+                    "error_message": exc.message[:240],
+                    "error_path": [str(p) for p in exc.absolute_path],
+                },
+            )
+            raise
+
 
 # ===========================================================================
 # Main entry point — CLI argparse + dry-run handling + render + write.
@@ -2068,25 +2388,62 @@ def pre_write_guard(html: str, slides: list[dict[str, Any]]) -> None:
 # ===========================================================================
 
 
-def main() -> int:
-    """Run the renderer end-to-end.
+def _emit_unexpected_error(
+    logger: Any,
+    exc: BaseException,
+    *,
+    debug_mode: bool,
+    event: str,
+    exit_code: int,
+    extra: dict[str, Any] | None = None,
+) -> None:
+    """Log an unexpected exception with traceback gated by ``--debug``.
 
-    Steps:
+    MINOR-#5 review fix. When ``debug_mode`` is True the function emits
+    the full traceback so an operator running the renderer
+    interactively (``python3 scripts/11_render_deck.py --debug``) can
+    diagnose the failure. When False — the production default — only a
+    single-line structured ERROR record is emitted plus a short stderr
+    message, keeping CI logs uncluttered.
 
-    1. Parse CLI args (``--dry-run`` and ``--output`` flags supported).
-    2. Initialise the structured-JSON logger via ``lib.observability.get_logger``.
-    3. Emit ``script_started`` event.
-    4. If ``--dry-run``, print the JSON preview and return 0.
-    5. Read the four data artifacts. On FileNotFoundError, emit
-       ``data_artifact_missing`` event and re-raise.
-    6. Build the slide list and render the full HTML.
-    7. Run pre-write guards. On ValueError, emit
-       ``pre_write_guard_failed`` event and re-raise.
-    8. Write the HTML to ``args.output``.
-    9. Emit ``script_complete`` event and return 0.
+    Args:
+        logger: The structured-JSON logger.
+        exc: The exception to report.
+        debug_mode: Whether ``--debug`` was passed.
+        event: The structured-log event name.
+        exit_code: The exit code the caller will return.
+        extra: Optional additional fields to merge into the log record.
+    """
+    record_extra: dict[str, Any] = {
+        "event": event,
+        "error_class": type(exc).__name__,
+        "error": str(exc)[:240],
+        "exit_code": exit_code,
+    }
+    if extra:
+        record_extra.update(extra)
+    if debug_mode:
+        # ``logger.exception`` includes the full traceback automatically.
+        logger.exception(event, extra=record_extra)
+    else:
+        # Single-line structured ERROR record without traceback.
+        logger.error(event, extra=record_extra)
+        print(
+            f"{event}: {type(exc).__name__}: {str(exc)[:240]}",
+            file=sys.stderr,
+        )
+
+
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Construct the CLI argument parser.
+
+    Extracted from ``main()`` so the parser definition is testable in
+    isolation and so unit tests can inspect the expected flag set
+    without invoking the full renderer.
 
     Returns:
-        Process exit code: 0 on success, 1 on any handled error.
+        Configured ``argparse.ArgumentParser`` with three flags:
+        ``--dry-run``, ``--output``, ``--debug``.
     """
     parser = argparse.ArgumentParser(
         description="Render executive-summary.html from data/metrics.json",
@@ -2101,19 +2458,99 @@ def main() -> int:
     parser.add_argument(
         "--output",
         default=str(OUTPUT_PATH),
-        help="Path where the rendered HTML is written.",
+        help=(
+            f"Path to write the rendered HTML deck. The path is "
+            f"validated against the workspace boundary via "
+            f"safe_output_path() before any write occurs; any path "
+            f"outside blitzy/acceleration-report/ is rejected with "
+            f"exit code 4 (MAJOR-#4 review fix). "
+            f"Default: {OUTPUT_PATH!s}"
+        ),
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help=(
+            "Surface full Python tracebacks on unexpected errors. "
+            "Without this flag, the renderer prints a single-line "
+            "structured error and exits with a non-zero code "
+            "(MINOR-#5 review fix: suppress stack traces unless "
+            "explicitly requested)."
+        ),
+    )
+    return parser
+
+
+def main() -> int:
+    """Run the deck renderer end-to-end.
+
+    Steps:
+
+    1. Parse CLI args (``--dry-run``, ``--output``, ``--debug``).
+    2. Initialise the structured-JSON logger via
+       ``lib.observability.get_logger``.
+    3. Resolve and confine the output path via ``safe_output_path``.
+       Reject any path outside ``blitzy/acceleration-report/`` with
+       exit code 4 (MAJOR-#4 review fix).
+    4. Emit ``script_started`` event.
+    5. If ``--dry-run``: emit the JSON preview and return 0.
+    6. Read the four data artifacts. On FileNotFoundError, emit
+       ``data_artifact_missing`` event and return non-zero.
+    7. Schema-validate every input artifact (MAJOR-#3 review fix). A
+       validation failure returns non-zero with the offending field
+       path and a single-line structured error (full traceback only
+       when ``--debug`` is set per MINOR-#5).
+    8. Build the slide list and render the full HTML.
+    9. Run all nine pre-write guards (MAJOR-#1 review fix added
+       guard 9 for Low-confidence caveat presence). On failure, emit
+       ``pre_write_guard_failed`` event and return non-zero.
+    10. Write the HTML atomically via ``atomic_write_text`` (MAJOR-#4
+        review fix). On OS error, emit ``output_write_failed`` and
+        return non-zero.
+    11. Emit ``script_complete`` event and return 0.
+
+    Returns:
+        Process exit code: 0 on success, 1 on guard or unexpected
+        error, 4 on path-confinement rejection.
+    """
+    parser = _build_arg_parser()
     args = parser.parse_args()
+    debug_mode: bool = bool(args.debug)
 
     logger = get_logger(SCRIPT_NAME)
-    # Observability anchor for the run: every script in the pipeline emits
-    # this event with its dry-run flag and output target.
+
+    # --- Path confinement (MAJOR-#4 review fix) ----------------------------
+    # Reject any --output that resolves outside the workspace BEFORE the
+    # structured-script_started log so the workspace_root context is
+    # accurate and the rejection event surfaces with the exact path the
+    # operator supplied.
+    try:
+        output_path = safe_output_path(args.output)
+    except OutputPathError as exc:
+        logger.error(
+            "deck_output_path_rejected",
+            extra={
+                "event": "deck_output_path_rejected",
+                "path": str(args.output),
+                "error": str(exc)[:240],
+                "exit_code": 4,
+            },
+        )
+        print(str(exc), file=sys.stderr)
+        return 4
+
+    # Observability anchor for the run: every script in the pipeline
+    # emits this event with its dry-run flag, debug flag, and output
+    # target. The workspace root is included so the operator can
+    # confirm path-confinement is rooted at the intended workspace.
     logger.info(
         "script_started",
         extra={
             "event": "script_started",
             "dry_run": args.dry_run,
-            "output": args.output,
+            "debug_mode": debug_mode,
+            "output": str(output_path),
+            "workspace_root": str(WORKSPACE_ROOT),
             "blitzy_run_id_env_present": bool(os.environ.get("BLITZY_RUN_ID")),
         },
     )
@@ -2124,7 +2561,21 @@ def main() -> int:
             "action": "dry_run",
             "script": SCRIPT_NAME,
             "reads": [f"data/{name}" for name in READ_ARTIFACTS],
-            "writes": [args.output],
+            "writes": [str(output_path)],
+            "pre_write_guards": [
+                "slide_count",
+                "slide_visual_per_slide",
+                "no_emoji",
+                "no_fenced_code_blocks",
+                "cdn_pinned_versions",
+                "brand_palette",
+                "factual_neutral_tone",
+                "section_ordering",
+                "low_confidence_caveat",
+            ],
+            "input_schemas_validated": list(DECK_INPUT_SCHEMAS.keys()),
+            "path_confinement_enforced": True,
+            "atomic_write_enabled": True,
         }
         # The dry-run JSON is the contract consumed by the Makefile's
         # preflight check; print to stdout so it is grep-able. The structured
@@ -2151,26 +2602,42 @@ def main() -> int:
         inflection = json.loads(inflection_path.read_text(encoding="utf-8"))
         env = json.loads(env_path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        logger.error(
-            "data_artifact_missing",
-            extra={
-                "event": "script_failed",
-                "path": str(exc.filename),
-                "error": str(exc),
-            },
+        # MINOR-#5: structured error only; no traceback unless --debug.
+        _emit_unexpected_error(
+            logger,
+            exc,
+            debug_mode=debug_mode,
+            event="data_artifact_missing",
+            exit_code=1,
+            extra={"path": str(exc.filename)},
         )
-        raise
+        return 1
     except json.JSONDecodeError as exc:
-        logger.error(
-            "data_artifact_json_decode_error",
+        _emit_unexpected_error(
+            logger,
+            exc,
+            debug_mode=debug_mode,
+            event="data_artifact_json_decode_error",
+            exit_code=1,
+            extra={"lineno": exc.lineno, "colno": exc.colno},
+        )
+        return 1
+
+    # --- Schema-validate inputs (MAJOR-#3 review fix) -----------------------
+    try:
+        _validate_input_artifacts(metrics, per_eng, inflection, env, logger)
+    except jsonschema.ValidationError as exc:
+        _emit_unexpected_error(
+            logger,
+            exc,
+            debug_mode=debug_mode,
+            event="input_schema_validation_failed",
+            exit_code=1,
             extra={
-                "event": "script_failed",
-                "error": str(exc),
-                "lineno": exc.lineno,
-                "colno": exc.colno,
+                "schema_error_path": [str(p) for p in exc.absolute_path],
             },
         )
-        raise
+        return 1
 
     # --- Build slides and render the full HTML ------------------------------
     slides = build_slides(
@@ -2182,38 +2649,72 @@ def main() -> int:
     html = render_html(slides)
 
     # --- Pre-write guards ---------------------------------------------------
+    # Stash the metrics dict for the Low-confidence caveat guard (guard 9)
+    # to reach without changing the public ``pre_write_guard`` signature.
+    global _LAST_RENDER_METRICS
+    _LAST_RENDER_METRICS = metrics
     try:
         pre_write_guard(html, slides)
     except ValueError as exc:
+        # Pre-write-guard failures are an expected, well-structured
+        # error class: emit a single-line ERROR record (no traceback
+        # because the message itself is the diagnostic).
         logger.error(
             "pre_write_guard_failed",
             extra={
-                "event": "script_failed",
+                "event": "pre_write_guard_failed",
                 "guard_failure": str(exc),
                 "slide_count": len(slides),
+                "exit_code": 1,
             },
         )
-        raise
+        print(f"pre_write_guard_failed: {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:  # noqa: BLE001 — surface unexpected guard errors
+        _emit_unexpected_error(
+            logger,
+            exc,
+            debug_mode=debug_mode,
+            event="pre_write_guard_unexpected_error",
+            exit_code=1,
+        )
+        return 1
 
-    # --- Write output -------------------------------------------------------
-    output_path = Path(args.output)
-    # Resolve relative output paths against the current working directory
-    # rather than the workspace root; this matches argparse defaults and
-    # the Makefile invocation pattern (``cd blitzy/acceleration-report &&
-    # python3 scripts/11_render_deck.py``).
+    # --- Write output atomically (MAJOR-#4 review fix) ---------------------
     try:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(html, encoding="utf-8")
-    except OSError as exc:
+        atomic_write_text(output_path, html)
+    except OutputPathError as exc:
+        # Path was re-validated by atomic_write_text and rejected.
         logger.error(
-            "output_write_failed",
+            "deck_output_path_rejected_post_render",
             extra={
-                "event": "script_failed",
+                "event": "deck_output_path_rejected_post_render",
                 "path": str(output_path),
-                "error": str(exc),
+                "error": str(exc)[:240],
+                "exit_code": 4,
             },
         )
-        raise
+        print(str(exc), file=sys.stderr)
+        return 4
+    except OSError as exc:
+        _emit_unexpected_error(
+            logger,
+            exc,
+            debug_mode=debug_mode,
+            event="output_write_failed",
+            exit_code=1,
+            extra={"path": str(output_path)},
+        )
+        return 1
+    except Exception as exc:  # noqa: BLE001 — catch-all for unexpected errors
+        _emit_unexpected_error(
+            logger,
+            exc,
+            debug_mode=debug_mode,
+            event="unexpected_error",
+            exit_code=1,
+        )
+        return 1
 
     logger.info(
         "script_complete",
@@ -2222,11 +2723,16 @@ def main() -> int:
             "output": str(output_path),
             "slide_count": len(slides),
             "html_size_bytes": len(html.encode("utf-8")),
+            "exit_code": 0,
         },
     )
     return 0
 
 
+# Standard module entry point. Surface the return value of ``main()``
+# as the process exit code so the Makefile and CI scripts can detect
+# pre-write guard violations (exit 1) and path-confinement rejections
+# (exit 4) versus successful renders (exit 0).
 if __name__ == "__main__":
     sys.exit(main())
 

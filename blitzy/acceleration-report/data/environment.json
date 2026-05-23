@@ -3,22 +3,18 @@
   "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
   "default_branch": "main",
   "go_module_version": "1.26.1",
-  "go_module_version_source": "go.mod:L3 ('go 1.26.1')",
-  "git_version": "2.43.0",
-  "total_commit_count": 538,
-  "active_branch_count": 19,
+  "go_module_version_source": "go.mod 'go' directive",
+  "git_version": "2.51.0",
+  "total_commit_count": 595,
+  "active_branch_count": 20,
   "submodule_state": "no_submodules",
   "commit_date_range": {
     "earliest": "2026-02-23T05:19:38Z",
-    "latest": "2026-05-21T19:48:23Z",
+    "latest": "2026-05-23T16:54:56Z",
     "earliest_utc": "2026-02-23T05:19:38Z",
-    "latest_utc": "2026-05-21T19:48:23Z",
-    "latest_on_main": "2026-05-15T21:00:51Z",
-    "latest_on_main_source_command": "git log -1 main --format='%cI' | python3 -c \"import sys; from datetime import datetime, timezone; print(datetime.fromisoformat(sys.stdin.read().strip()).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))\"",
-    "earliest_aliases_note": "'earliest' and 'earliest_utc' carry the identical value. The '_utc' suffix variant is the CP2-contract field name; the unsuffixed variant is preserved as a compatibility alias for consumers and the JSON schema's required-field list. The same applies to 'latest' / 'latest_utc'. 'latest_on_main' is a new CP2-contract field that records the HEAD-on-default-branch committer timestamp in UTC, distinct from 'latest' which spans --all refs and may include feature-branch commits beyond main.",
-    "latest_vs_latest_on_main_note": "'latest' = 2026-05-21T19:48:23Z is the latest commit reachable from any branch in the repository (the source command 'git log --all --format=%aI | sort -r | head -1' across refs/heads/ and refs/remotes/origin/ feature branches). 'latest_on_main' = 2026-05-15T21:00:51Z is the HEAD committer timestamp of main only ('git log -1 main --format=%cI' normalised to UTC). The 6.1-day gap reflects feature-branch activity on blitzy-* branches after the most recent main merge."
+    "latest_utc": "2026-05-23T16:54:56Z",
+    "latest_on_main": "2026-05-15T21:00:51Z"
   },
-  "extraction_timestamp": "2026-05-23T05:54:20Z",
-  "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
-  "inflection_date_utc": "2026-02-25T02:58:59Z"
+  "extraction_timestamp": "2026-05-23T18:44:04Z",
+  "run_id": "729fb296-36d9-44ea-a422-15dfa3ab46d1"
 }

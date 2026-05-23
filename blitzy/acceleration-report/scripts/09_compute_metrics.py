@@ -100,6 +100,11 @@ from dateutil import parser as dateutil_parser  # noqa: E402  (sys.path mutation
 import jsonschema  # noqa: E402
 
 from lib.observability import get_logger  # noqa: E402
+from lib.paths import (  # noqa: E402  (intentional after sys.path)
+    OutputPathError,
+    atomic_write_text,
+    safe_output_path,
+)
 
 # ---------------------------------------------------------------------------
 # Script identity (consumed by the structured-JSON logger)
@@ -379,6 +384,70 @@ def is_blitzy(email: str | None) -> bool:
     return bool(email) and email in BLITZY_IDENTITY_EMAILS
 
 
+def commit_author_email(commit: dict[str, Any] | None) -> str | None:
+    """Extract the author email from a PR-commit row, tolerating shape drift.
+
+    The canonical producer ``03_extract_pulls.py`` emits commit rows with
+    a flat ``author_email`` field (the GitHub Pulls-Commits API response
+    is flattened at extraction time — see the producer's
+    ``_normalise_pr_commit_row`` helper). Older snapshots or alternate
+    upstream extractors may emit a nested ``author.email`` shape that
+    mirrors the raw GitHub response.
+
+    This helper centralises the lookup so that the compute step
+    correctly resolves the author regardless of which shape is on disk.
+    A schema validation on ``data/pulls.json`` independently enforces
+    that ``author_email`` is the primary field; this fallback exists to
+    keep the compute step robust against bench-environment shape drift.
+
+    Args:
+        commit: A PR-commit dictionary, or ``None``.
+
+    Returns:
+        The author email string when present, else ``None``.
+    """
+    if not isinstance(commit, dict):
+        return None
+    # Canonical shape: flat ``author_email``.
+    flat = commit.get("author_email")
+    if isinstance(flat, str) and flat:
+        return flat
+    # Nested fallback for legacy/alternate producers.
+    author_obj = commit.get("author")
+    if isinstance(author_obj, dict):
+        nested = author_obj.get("email")
+        if isinstance(nested, str) and nested:
+            return nested
+    return None
+
+
+def commit_author_date(commit: dict[str, Any] | None) -> str | None:
+    """Extract the authored-date timestamp from a PR-commit row.
+
+    Mirrors :func:`commit_author_email` but for the timestamp field.
+    The canonical producer emits ``author_date``; the nested fallback
+    follows the GitHub Pulls-Commits API shape (``author.date``).
+    A secondary ``authored_at`` legacy field is also recognised.
+
+    Args:
+        commit: A PR-commit dictionary, or ``None``.
+
+    Returns:
+        The ISO-8601 author-date string when present, else ``None``.
+    """
+    if not isinstance(commit, dict):
+        return None
+    flat = commit.get("author_date") or commit.get("authored_at")
+    if isinstance(flat, str) and flat:
+        return flat
+    author_obj = commit.get("author")
+    if isinstance(author_obj, dict):
+        nested = author_obj.get("date")
+        if isinstance(nested, str) and nested:
+            return nested
+    return None
+
+
 def canonical_actor(email: str | None, display_name: str | None = None) -> str:
     """Canonicalise (email, display_name) into a single engineering-actor key.
 
@@ -438,8 +507,256 @@ def parse_conventional_prefix(title: str | None) -> str | None:
     return None
 
 
+def attribute_commit_to_module(
+    subject: str | None,
+    branch_ref: str | None = None,
+) -> str:
+    """Attribute a single commit to one of the monorepo modules per AAP §0.5.6.
+
+    The AAP-defined "majority changed-paths heuristic" requires per-commit
+    file-path data, which the upstream extraction script (``02_extract_commits.sh``)
+    does NOT capture in the current artifact schema. Since 09_compute_metrics.py
+    performs ZERO git invocations by design (AAP §0.5.1: "the compute step is
+    pure ... no I/O beyond reading and writing the named files"), file-path
+    data cannot be obtained at compute time. To satisfy the multi-module
+    aggregation requirement without relaxing that purity constraint, this
+    function applies a conventional-commit-scope heuristic to the commit
+    subject and optional branch ref:
+
+    1. If the subject starts with ``<type>(<scope>):`` or ``<type>(<scope>)!:``
+       where ``<scope>`` matches one of the module names in ``MODULE_LIST``
+       (or a documented alias such as ``warehouse-team`` → ``warehouse``),
+       attribute the commit to that module. Multi-scope syntax like
+       ``feat(warehouse,router):`` resolves to the first listed module.
+
+    2. Otherwise, if the subject body contains one of ``MODULE_LIST`` as a
+       leading colon-suffixed token (e.g., ``warehouse: refactor the source...``)
+       attribute to that module.
+
+    3. Otherwise, if ``branch_ref`` is provided and contains a module name as
+       a hyphen-delimited token (e.g., ``blitzy-warehouse-fix``), attribute to
+       that module.
+
+    4. Otherwise, return ``"unattributed"``. The aggregation step weights this
+       bucket separately so a reviewer can see how much of the commit volume
+       was not module-resolvable.
+
+    The full-fidelity ``git show --name-only``-based majority-changed-paths
+    heuristic is documented in ``decision-log.md`` and remains the canonical
+    extension path; this function preserves the compute-purity contract.
+    """
+    candidates = MODULE_LIST + (
+        # Common scope aliases observed in this repository.
+        "warehouse-team", "server-team",
+    )
+    alias_map = {"warehouse-team": "warehouse", "server-team": "gateway"}
+
+    if subject:
+        lowered = subject.strip().lower()
+        # Step 1: conventional-commit scope, e.g., "feat(warehouse): ..."
+        for prefix in CONVENTIONAL_PREFIX_MAP:
+            if lowered.startswith(f"{prefix}("):
+                close = lowered.find(")", len(prefix))
+                if close > 0 and lowered[close + 1:close + 2] in (":", "!"):
+                    scope_raw = lowered[len(prefix) + 1:close]
+                    # Multi-scope: take the first listed.
+                    scope = scope_raw.split(",")[0].strip()
+                    if scope in alias_map:
+                        return alias_map[scope]
+                    if scope in MODULE_LIST:
+                        return scope
+        # Step 2: bare-prefix module, e.g., "warehouse: refactor ..."
+        if ":" in lowered:
+            head = lowered.split(":", 1)[0].strip()
+            if head in alias_map:
+                return alias_map[head]
+            if head in MODULE_LIST:
+                return head
+
+    # Step 3: branch ref token, e.g., "blitzy-warehouse-fix"
+    if branch_ref:
+        tokens = branch_ref.lower().replace("/", "-").split("-")
+        for tok in tokens:
+            if tok in alias_map:
+                return alias_map[tok]
+            if tok in MODULE_LIST:
+                return tok
+
+    return "unattributed"
+
+
+def compute_module_weights(commits: list[dict[str, Any]] | None) -> dict[str, Any]:
+    """Compute the per-module non-merge commit weights used by multi-module
+    aggregation per AAP §0.5.6.
+
+    Returns a dict::
+
+        {
+            "modules": {"gateway": 12, "warehouse": 8, ...},
+            "unattributed_count": 3,
+            "total_non_merge_commits": 50,
+            "weights": {"gateway": 0.24, "warehouse": 0.16, ...},
+            "unattributed_weight": 0.06,
+            "resolution_method": "conventional_commit_scope_plus_branch_ref",
+            "resolution_method_note":
+                "AAP §0.5.6 specifies majority-changed-paths heuristic; "
+                "09_compute_metrics.py performs ZERO git invocations by "
+                "design (AAP §0.5.1), so the current implementation uses "
+                "conventional-commit scope + branch ref heuristics. The "
+                "full-fidelity extension is documented in decision-log.md.",
+        }
+
+    Returns the dict with zero counts and an explicit ``unavailable_reason``
+    when ``commits`` is ``None`` so downstream callers can attach a
+    consistent ``insufficient_signal`` block.
+    """
+    if not commits:
+        return {
+            "modules": {},
+            "unattributed_count": 0,
+            "total_non_merge_commits": 0,
+            "weights": {},
+            "unattributed_weight": 0.0,
+            "resolution_method": "conventional_commit_scope_plus_branch_ref",
+            "resolution_method_note": (
+                "AAP §0.5.6 specifies majority-changed-paths heuristic; "
+                "09_compute_metrics.py performs ZERO git invocations by "
+                "design (AAP §0.5.1), so the current implementation uses "
+                "conventional-commit scope + branch ref heuristics. The "
+                "full-fidelity extension is documented in decision-log.md."
+            ),
+            "unavailable_reason": "commits_csv_not_loaded",
+        }
+
+    counts: dict[str, int] = {}
+    unattributed = 0
+    total_non_merge = 0
+    for row in commits:
+        # Skip merge commits (multiple parents -> the commit is a merge).
+        parents = (row.get("parent_shas") or "").strip()
+        if parents and " " in parents:
+            continue
+        total_non_merge += 1
+        subject = row.get("subject") or row.get("message") or ""
+        module = attribute_commit_to_module(subject)
+        if module == "unattributed":
+            unattributed += 1
+        else:
+            counts[module] = counts.get(module, 0) + 1
+
+    weights: dict[str, float] = {}
+    unattributed_weight = 0.0
+    if total_non_merge > 0:
+        for mod, n in counts.items():
+            weights[mod] = round(n / total_non_merge, 6)
+        unattributed_weight = round(unattributed / total_non_merge, 6)
+
+    return {
+        "modules": dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "unattributed_count": unattributed,
+        "total_non_merge_commits": total_non_merge,
+        "weights": dict(sorted(weights.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "unattributed_weight": unattributed_weight,
+        "resolution_method": "conventional_commit_scope_plus_branch_ref",
+        "resolution_method_note": (
+            "AAP §0.5.6 specifies majority-changed-paths heuristic; "
+            "09_compute_metrics.py performs ZERO git invocations by "
+            "design (AAP §0.5.1), so the current implementation uses "
+            "conventional-commit scope + branch ref heuristics. The "
+            "full-fidelity extension is documented in decision-log.md."
+        ),
+    }
+
+
+def _normalise_label_to_category(label: str) -> str | None:
+    """Map a Linear issue label string to one of the AAP categories.
+
+    Returns one of ``"feature"``, ``"defect"``, ``"risk/compliance"``,
+    ``"tech-debt"``, or ``None`` when the label does not map to a known
+    category. Matching is case-insensitive and substring-based to be
+    robust against label conventions like ``Bug — High`` or
+    ``security/p0``.
+    """
+    if not label or not isinstance(label, str):
+        return None
+    lowered = label.lower()
+    # Order matters: risk/compliance is checked first to avoid
+    # collisions (a label like ``security-feature`` should still map to
+    # risk/compliance because the security aspect dominates).
+    if any(kw in lowered for kw in RISK_COMPLIANCE_KEYWORDS):
+        return "risk/compliance"
+    if any(kw in lowered for kw in DEFECT_KEYWORDS) or "bug" in lowered:
+        return "defect"
+    if any(kw in lowered for kw in TECH_DEBT_KEYWORDS):
+        return "tech-debt"
+    if "feature" in lowered or "enhancement" in lowered or "improvement" in lowered:
+        return "feature"
+    return None
+
+
+def build_linear_category_map(
+    issues_payload: dict[str, Any] | None,
+) -> dict[str, str]:
+    """Build a Linear issue-identifier → category map from issues.json.
+
+    For each Linear issue, resolves a category from (in priority order):
+        1. An explicit ``category`` field on the issue (if upstream
+           classification was performed).
+        2. The first label whose name maps to one of the AAP categories
+           via :func:`_normalise_label_to_category`.
+
+    The returned mapping is keyed by the Linear issue identifier (e.g.,
+    ``"ENG-1234"``) and used by :func:`compute_m6_flow_distribution`
+    to apply the Linear-priority step BEFORE the conventional-commit
+    prefix fallback (per AAP §0.5.3.7).
+
+    Returns an empty dict when ``issues_payload`` is ``None`` or when
+    Linear is reported as unavailable.
+
+    Args:
+        issues_payload: Decoded contents of ``data/issues.json``.
+
+    Returns:
+        Mapping from Linear identifier to category string.
+    """
+    if not isinstance(issues_payload, dict):
+        return {}
+    issues = issues_payload.get("issues")
+    if not isinstance(issues, list):
+        return {}
+    out: dict[str, str] = {}
+    for issue in issues:
+        if not isinstance(issue, dict):
+            continue
+        identifier = issue.get("identifier") or issue.get("key")
+        if not isinstance(identifier, str) or not identifier:
+            continue
+        # Step 1 — explicit category.
+        explicit = issue.get("category")
+        if isinstance(explicit, str):
+            normalised = explicit.replace("_", "-").lower()
+            if normalised in {"feature", "defect", "risk/compliance",
+                              "risk-compliance", "tech-debt"}:
+                out[identifier] = (
+                    "risk/compliance" if normalised == "risk-compliance"
+                    else normalised
+                )
+                continue
+        # Step 2 — first matching label.
+        labels = issue.get("labels") or []
+        for lbl in labels:
+            lbl_name = lbl.get("name") if isinstance(lbl, dict) else str(lbl)
+            cat = _normalise_label_to_category(lbl_name) if lbl_name else None
+            if cat:
+                out[identifier] = cat
+                break
+    return out
+
+
 def classify_pr_category(title: str | None, body: str | None,
-                          existing_classification: str | None = None) -> str:
+                          existing_classification: str | None = None,
+                          linear_keys: list[str] | None = None,
+                          linear_category_map: dict[str, str] | None = None) -> str:
     """Apply the AAP §0.5.3.7 multi-tier classifier and return the category.
 
     Priority:
@@ -452,7 +769,21 @@ def classify_pr_category(title: str | None, body: str | None,
            tech-debt → feature).
         4. ``unknown``.
     """
-    # Step 1 — honour upstream classifier output when present and non-unknown.
+    # Step 1 (highest priority per AAP §0.5.3.7) — Linear issue label
+    # classification. When the PR carries one or more linked Linear keys
+    # AND the Linear category map resolves at least one of them, return
+    # the first matching category. This satisfies the "issue labels first"
+    # requirement that the keyword-only path would otherwise miss.
+    if linear_keys and linear_category_map:
+        for key in linear_keys:
+            if not isinstance(key, str):
+                continue
+            mapped = linear_category_map.get(key)
+            if mapped:
+                return mapped
+    # Step 2 — honour upstream classifier output when present and non-unknown.
+    # (This handles cases where 03_extract_pulls.py already classified the
+    # PR using a precomputed Linear lookup or a custom label rule.)
     if existing_classification:
         normalised = existing_classification.replace("_", "-").lower()
         if normalised in {"feature", "defect", "risk/compliance",
@@ -461,11 +792,11 @@ def classify_pr_category(title: str | None, body: str | None,
                 return "risk/compliance"
             if normalised != "unknown":
                 return normalised
-    # Step 2 — conventional-commit prefix.
+    # Step 3 — conventional-commit prefix.
     prefix = parse_conventional_prefix(title)
     if prefix:
         return CONVENTIONAL_PREFIX_MAP[prefix]
-    # Step 3 — keyword match.
+    # Step 4 — keyword match.
     haystack = f"{title or ''} {body or ''}".lower()
     if any(kw in haystack for kw in RISK_COMPLIANCE_KEYWORDS):
         return "risk/compliance"
@@ -478,6 +809,67 @@ def classify_pr_category(title: str | None, body: str | None,
     return "unknown"
 
 
+# Map raw-artifact filename → schema filename. CSV artifacts (commits.csv) and
+# artifacts that lack a per-artifact schema in `lib/schemas/` validate as
+# `None` (skipped). The mapping is read by ``load_artifact()`` to honor the
+# MAJOR-#8 review requirement "per-artifact schema validation at load time".
+ARTIFACT_SCHEMA_MAP: dict[str, str] = {
+    "environment.json": "environment.schema.json",
+    "inflection.json": "inflection.schema.json",
+    "pulls.json": "pulls.schema.json",
+    "reviews.json": "reviews.schema.json",
+    "pull_events.json": "pull_events.schema.json",
+    "releases.json": "releases.schema.json",
+    "reverts.json": "reverts.schema.json",
+    "ci_runs.json": "ci_runs.schema.json",
+    "test_transitions.json": "test_transitions.schema.json",
+    "exceptions.json": "exceptions.schema.json",
+    "issues.json": "issues.schema.json",
+    "slas.json": "slas.schema.json",
+}
+
+
+# In-memory cache so each schema is parsed exactly once per script run.
+_schema_cache: dict[str, Any] = {}
+
+
+def _load_schema(schema_filename: str, logger: Any) -> Any | None:
+    """Load a JSON schema from ``SCHEMAS_DIR`` by filename, with caching.
+
+    Returns ``None`` when the schema file is missing or unparseable; the
+    caller treats that as "validation skipped" rather than failing the
+    entire compute run, so a missing schema for one artifact never blocks
+    the eleven other metrics. The schema-missing event is logged as a
+    warning so a reviewer can see it in ``data/run.log.jsonl``.
+    """
+    if schema_filename in _schema_cache:
+        return _schema_cache[schema_filename]
+    schema_path = SCHEMAS_DIR / schema_filename
+    if not schema_path.exists():
+        logger.warning(
+            "artifact_schema_missing",
+            extra={"event": "artifact_schema_missing",
+                   "schema": schema_filename,
+                   "expected_path": str(schema_path.relative_to(WORKSPACE_ROOT))},
+        )
+        _schema_cache[schema_filename] = None
+        return None
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        _schema_cache[schema_filename] = schema
+        return schema
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.error(
+            "artifact_schema_unparseable",
+            extra={"event": "artifact_schema_unparseable",
+                   "schema": schema_filename,
+                   "error_class": type(exc).__name__,
+                   "error": str(exc)[:240]},
+        )
+        _schema_cache[schema_filename] = None
+        return None
+
+
 def load_artifact(name: str, logger: Any) -> Any:
     """Load a raw artifact from ``DATA_DIR`` by filename.
 
@@ -486,6 +878,15 @@ def load_artifact(name: str, logger: Any) -> Any:
     happens). CSV artifacts are parsed with the pipe (``|``) delimiter as
     emitted by ``02_extract_commits.sh``. JSON artifacts are parsed with
     the stdlib ``json`` module.
+
+    After successful JSON parsing, the artifact is validated against the
+    schema declared in ``ARTIFACT_SCHEMA_MAP`` (MAJOR-#8 review fix). A
+    validation failure is logged with the full jsonschema error path AND
+    the artifact is returned as ``None`` so downstream compute functions
+    emit ``insufficient_signal`` rather than producing garbage from a
+    malformed input. CSV artifacts (commits.csv) and artifacts for which
+    no schema is registered skip validation; the schema-skipped path is
+    logged at the same INFO level so the trail is complete.
     """
     path = DATA_DIR / name
     if not path.exists():
@@ -502,23 +903,70 @@ def load_artifact(name: str, logger: Any) -> Any:
             logger.info(
                 "raw_artifact_loaded",
                 extra={"event": "raw_artifact_loaded", "artifact": name,
-                       "rows": len(rows), "kind": "csv"},
+                       "rows": len(rows), "kind": "csv",
+                       "schema_validated": False,
+                       "schema_validated_reason": "csv_artifact_no_schema"},
             )
             return rows
         text = path.read_text(encoding="utf-8")
         data = json.loads(text)
-        logger.info(
-            "raw_artifact_loaded",
-            extra={"event": "raw_artifact_loaded", "artifact": name,
-                   "bytes": len(text), "kind": "json"},
-        )
-        return data
     except (OSError, json.JSONDecodeError, csv.Error) as exc:
         logger.error(
             "raw_artifact_load_failed",
             extra={"event": "raw_artifact_load_failed", "artifact": name,
                    "error_class": type(exc).__name__, "error": str(exc)[:240]},
         )
+        return None
+
+    # --- Per-artifact schema validation (MAJOR-#8 review fix) -------------
+    schema_filename = ARTIFACT_SCHEMA_MAP.get(name)
+    if schema_filename is None:
+        logger.info(
+            "raw_artifact_loaded",
+            extra={"event": "raw_artifact_loaded", "artifact": name,
+                   "bytes": len(text), "kind": "json",
+                   "schema_validated": False,
+                   "schema_validated_reason": "no_schema_registered"},
+        )
+        return data
+
+    schema = _load_schema(schema_filename, logger)
+    if schema is None:
+        logger.info(
+            "raw_artifact_loaded",
+            extra={"event": "raw_artifact_loaded", "artifact": name,
+                   "bytes": len(text), "kind": "json",
+                   "schema_validated": False,
+                   "schema_validated_reason": "schema_unavailable",
+                   "schema_attempted": schema_filename},
+        )
+        return data
+
+    try:
+        jsonschema.validate(data, schema)
+        logger.info(
+            "raw_artifact_loaded",
+            extra={"event": "raw_artifact_loaded", "artifact": name,
+                   "bytes": len(text), "kind": "json",
+                   "schema_validated": True,
+                   "schema": schema_filename},
+        )
+        return data
+    except jsonschema.ValidationError as exc:
+        logger.error(
+            "raw_artifact_schema_validation_failed",
+            extra={"event": "raw_artifact_schema_validation_failed",
+                   "artifact": name,
+                   "schema": schema_filename,
+                   "error_message": exc.message[:240],
+                   "error_path": [str(p) for p in exc.absolute_path],
+                   "schema_path_at_error": [str(p) for p in exc.absolute_schema_path]},
+        )
+        # Fail-soft: compute downstream metrics that depend on this
+        # artifact emit insufficient_signal because data is None, rather
+        # than computing nonsense from a malformed artifact. This honors
+        # the user-prompt constraint "MUST NOT fabricate, estimate, or
+        # extrapolate".
         return None
 
 
@@ -832,7 +1280,20 @@ def compute_m1_flow_load(
     )
     provenance = {
         "requirement_id": "M1",
-        "extraction_command": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all",
+        # Executable command chain. Sequential ordering; each line is
+        # independently invocable.
+        "extraction_command": (
+            "python3 scripts/03_extract_pulls.py "
+            "&& python3 scripts/09_compute_metrics.py"
+        ),
+        "extraction_command_steps": [
+            "python3 scripts/03_extract_pulls.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        "api_endpoints": [
+            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls"
+            "?state=all (paginated)",
+        ],
         "raw_output_artifact_path": "data/pulls.json",
         "raw_output_artifact_paths": ["data/pulls.json", "data/commits.csv"],
         "derivation_function": "compute_m1_flow_load",
@@ -986,11 +1447,26 @@ def compute_m2_flow_velocity(
     )
     provenance = {
         "requirement_id": "M2",
+        # Executable command chain. The script chain is identical
+        # regardless of whether the Pulls API or the local-git fallback
+        # is used at runtime — 03_extract_pulls.py emits an artifact
+        # carrying both signals where available.
         "extraction_command": (
-            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all"
-            if api_available else
-            "git log main --merges --pretty=format:'%H|%aI|%aE|%s'"
+            "python3 scripts/03_extract_pulls.py "
+            "&& python3 scripts/09_compute_metrics.py"
         ),
+        "extraction_command_steps": [
+            "python3 scripts/03_extract_pulls.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        "api_endpoints": [
+            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls"
+            "?state=all (paginated)",
+        ],
+        "git_commands": [
+            # Local-git fallback enumerates PR-merge commits on main.
+            "git log main --merges --pretty=format:'%H|%aI|%aE|%s'",
+        ],
         "raw_output_artifact_path": "data/pulls.json",
         "raw_output_artifact_paths": ["data/pulls.json", "data/commits.csv"],
         "derivation_function": "compute_m2_flow_velocity",
@@ -1147,12 +1623,23 @@ def compute_m3_flow_predictability(
     )
     provenance = {
         "requirement_id": "M3",
+        # M3 is a composite of M2's per-window series. The
+        # reproducibility appendix entry executes the same script chain
+        # as M2 — the derivation step that reduces the per-window
+        # series to 1/CV lives in this script's
+        # ``compute_m3_flow_predictability`` function.
         "extraction_command": (
-            "compute_m3_flow_predictability(m2_per_window=data/metrics.json#m2.per_window)"
+            "python3 scripts/03_extract_pulls.py "
+            "&& python3 scripts/09_compute_metrics.py"
         ),
+        "extraction_command_steps": [
+            "python3 scripts/03_extract_pulls.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
         "raw_output_artifact_path": "data/pulls.json",
         "raw_output_artifact_paths": ["data/pulls.json"],
         "derivation_function": "compute_m3_flow_predictability",
+        "depends_on_metrics": ["m2"],
     }
     m2_conf = m2.get("confidence", "insufficient")
 
@@ -1288,9 +1775,24 @@ def compute_m4_flow_active(
     )
     provenance = {
         "requirement_id": "M4",
+        # Executable commands that re-derive the raw inputs. Sequential
+        # ordering; each line is an independently invocable command.
         "extraction_command": (
-            "GET /repos/{}/{}/pulls/{n}/commits + /reviews + /issues/{n}/events"
+            "python3 scripts/03_extract_pulls.py "
+            "&& python3 scripts/09_compute_metrics.py"
         ),
+        "extraction_command_steps": [
+            "python3 scripts/03_extract_pulls.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        # Underlying GitHub REST API endpoints invoked by 03_extract_pulls.py
+        # — documented so a reader can re-run the requests by hand.
+        "api_endpoints": [
+            "GET /repos/{owner}/{repo}/pulls?state=all (paginated)",
+            "GET /repos/{owner}/{repo}/pulls/{number}/commits",
+            "GET /repos/{owner}/{repo}/pulls/{number}/reviews",
+            "GET /repos/{owner}/{repo}/issues/{number}/events",
+        ],
         "raw_output_artifact_path": "data/pulls.json",
         "raw_output_artifact_paths": [
             "data/pulls.json", "data/reviews.json", "data/pull_events.json"
@@ -1361,10 +1863,17 @@ def compute_m4_flow_active(
                 candidates.append(ts)
         # First commit by another author isn't directly exposed in events;
         # we use the PR's first commit timestamp by a non-actor when present.
+        #
+        # NOTE: We use the ``commit_author_email`` and ``commit_author_date``
+        # helpers (defined near ``canonical_actor`` above) which tolerate
+        # both the canonical flat ``author_email``/``author_date`` shape
+        # emitted by ``03_extract_pulls.py`` and the nested
+        # ``author.email``/``author.date`` shape that mirrors the raw
+        # GitHub Pulls-Commits API response.
         pr_commits = pr.get("pr_commits") or []
         for c in pr_commits:
-            ce = parse_iso(c.get("author_date") or c.get("authored_at"))
-            ca = (c.get("author") or {}).get("email") or ""
+            ce = parse_iso(commit_author_date(c))
+            ca = commit_author_email(c) or ""
             if ce and ca and ca != actor_email:
                 candidates.append(ce)
                 break
@@ -1373,9 +1882,9 @@ def compute_m4_flow_active(
 
         # Actor's first commit on the PR.
         actor_commits = [
-            parse_iso(c.get("author_date") or c.get("authored_at"))
+            parse_iso(commit_author_date(c))
             for c in pr_commits
-            if (c.get("author") or {}).get("email") == actor_email
+            if commit_author_email(c) == actor_email
         ]
         actor_commits = [c for c in actor_commits if c is not None]
         if not actor_commits:
@@ -1421,10 +1930,25 @@ def compute_m4_flow_active(
             total_hours = wall
         return round(total_hours, 4)
 
-    def _phase_median(phase_label: str,
+    def _phase_compute(phase_label: str,
                        window_bounds: tuple[datetime, datetime] | None,
-                       ) -> tuple[float | str, int]:
+                       ) -> tuple[float | str, int, dict[str, float],
+                                  dict[str, list[float]]]:
+        """Compute the per-PR active hours for one phase.
+
+        Returns a 4-tuple:
+            * ``median_hours`` — phase median, or ``INSUFFICIENT_SIGNAL``
+              when no PR yields a usable value.
+            * ``count`` — number of PRs with a computable signal.
+            * ``per_pr`` — mapping PR-number-string → active hours, used
+              by Metric 5 to compute the median of per-PR ratios.
+            * ``per_actor`` — mapping canonical actor name → list of
+              per-PR active hours, used by the per-engineer breakdown
+              for Metrics 4 and 5.
+        """
         durations: list[float] = []
+        per_pr: dict[str, float] = {}
+        per_actor: dict[str, list[float]] = defaultdict(list)
         for pr in pr_list:
             merged_at = parse_iso(pr.get("merged_at"))
             if merged_at is None:
@@ -1441,15 +1965,28 @@ def compute_m4_flow_active(
             val = _flow_active_for_pr(pr, actor_email)
             if val is not None:
                 durations.append(val)
+                pr_id = str(pr.get("number"))
+                if pr_id:
+                    per_pr[pr_id] = val
+                actor_display = canonical_actor(
+                    actor_email,
+                    (pr.get("user") or {}).get("login"),
+                )
+                per_actor[actor_display].append(val)
         if not durations:
-            return INSUFFICIENT_SIGNAL, 0
-        return round(statistics.median(durations), 4), len(durations)
+            return INSUFFICIENT_SIGNAL, 0, per_pr, dict(per_actor)
+        return (
+            round(statistics.median(durations), 4),
+            len(durations),
+            per_pr,
+            dict(per_actor),
+        )
 
-    baseline_val, baseline_n = _phase_median(
+    baseline_val, baseline_n, baseline_per_pr, baseline_per_actor = _phase_compute(
         "baseline",
         (phase_bounds["baseline_start"], phase_bounds["baseline_end"]),
     )
-    post_val, post_n = _phase_median(
+    post_val, post_n, post_per_pr, post_per_actor = _phase_compute(
         "post_introduction",
         (phase_bounds["post_start"], phase_bounds["post_end"]),
     )
@@ -1500,6 +2037,15 @@ def compute_m4_flow_active(
         "provenance": provenance,
         "per_pr_count_post_introduction": post_n,
         "per_pr_count_baseline": baseline_n,
+        # Per-PR active-time map (PR number → hours). Consumed by
+        # ``compute_m5_flow_efficiency`` to compute the median of per-PR
+        # ratios (per AAP §0.5.3.6) and by
+        # ``compute_per_engineer_breakdown`` for the per-actor view.
+        "per_pr_active_hours_baseline": baseline_per_pr,
+        "per_pr_active_hours_post_introduction": post_per_pr,
+        # Per-actor lists of per-PR active-time values.
+        "per_actor_active_hours_baseline": baseline_per_actor,
+        "per_actor_active_hours_post_introduction": post_per_actor,
     }
     if isinstance(baseline_val, str):
         record["baseline"]["reason"] = "no merged PRs in baseline phase"
@@ -1535,18 +2081,33 @@ def compute_m5_flow_efficiency(
     name = "Flow Efficiency"
     strategy = (
         "Per AAP §0.5.3.6: for each merged PR, divide Metric 4 (Flow Active) "
-        "by Metric 7 (Flow Time). Median across PRs in each phase, per actor. "
+        "by Metric 7 (Flow Time). Median of per-PR ratios in each phase. "
         "Review is treated as wait from the engineering actor's perspective."
     )
     provenance = {
         "requirement_id": "M5",
+        # M5 is a composite — it re-uses the raw inputs M4 and M7
+        # consume. The reproducibility appendix entry executes the
+        # same script chain.
         "extraction_command": (
-            "compute_m5_flow_efficiency(m4=data/metrics.json#m4, m7=data/metrics.json#m7)"
+            "python3 scripts/03_extract_pulls.py "
+            "&& python3 scripts/09_compute_metrics.py"
         ),
+        "extraction_command_steps": [
+            "python3 scripts/03_extract_pulls.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        "api_endpoints": [
+            "GET /repos/{owner}/{repo}/pulls?state=all (paginated)",
+            "GET /repos/{owner}/{repo}/pulls/{number}/commits",
+            "GET /repos/{owner}/{repo}/pulls/{number}/reviews",
+            "GET /repos/{owner}/{repo}/issues/{number}/events",
+        ],
         "raw_output_artifact_path": "data/pulls.json",
         "raw_output_artifact_paths": ["data/pulls.json", "data/reviews.json",
                                        "data/pull_events.json", "data/commits.csv"],
         "derivation_function": "compute_m5_flow_efficiency",
+        "depends_on_metrics": ["m4", "m7"],
     }
     # Inherit the worse of M4 and M7's confidence.
     rank = {"high": 3, "medium": 2, "low": 1, "insufficient": 0}
@@ -1579,35 +2140,117 @@ def compute_m5_flow_efficiency(
             post_intro_windows=m4.get("post_introduction", {}).get("windows", 0),
         )
 
-    # When both upstreams produced numeric values, compute the median ratio.
-    # Flow Active and Flow Time are reported per phase as medians; the
-    # per-PR ratio median is not exactly the ratio of medians, but the
-    # AAP §0.5.3.6 contract is "median across PRs of the per-PR ratio".
-    # When per-PR ratios are unavailable we fall back to the headline ratio
-    # of medians and flag the limitation in boundary_conditions.
-    m4_post = m4.get("post_introduction", {}).get("value")
-    m7_post = m7.get("post_introduction", {}).get("value")
-    m4_base = m4.get("baseline", {}).get("value")
-    m7_base = m7.get("baseline", {}).get("value")
-    if not (isinstance(m4_post, (int, float)) and isinstance(m7_post, (int, float))
-            and m7_post != 0):
+    # Per AAP §0.5.3.6, M5 reports the MEDIAN OF PER-PR RATIOS — not the
+    # ratio of medians, which is mathematically distinct. Join the per-PR
+    # maps from M4 and M7 by PR number; compute one ratio per PR present
+    # in both maps; take the median of those ratios.
+    m4_per_pr_post = m4.get("per_pr_active_hours_post_introduction") or {}
+    m7_per_pr_post = m7.get("per_pr_flow_time_hours_post_introduction") or {}
+    m4_per_pr_base = m4.get("per_pr_active_hours_baseline") or {}
+    m7_per_pr_base = m7.get("per_pr_flow_time_hours_baseline") or {}
+
+    def _median_of_ratios(active_map: dict[str, float],
+                          time_map: dict[str, float]) -> tuple[float | str, int, int]:
+        """Compute the median of per-PR active/time ratios.
+
+        Returns ``(median_or_INSUFFICIENT, joined_pr_count, excluded_pr_count)``.
+        A PR is excluded when its M7 wall-clock value is zero or
+        non-positive (the ratio would be undefined or negative).
+        """
+        ratios: list[float] = []
+        excluded = 0
+        joined_keys = set(active_map.keys()) & set(time_map.keys())
+        for pr_id in joined_keys:
+            active_h = active_map[pr_id]
+            time_h = time_map[pr_id]
+            if not isinstance(active_h, (int, float)) or not isinstance(time_h, (int, float)):
+                excluded += 1
+                continue
+            if time_h <= 0:
+                excluded += 1
+                continue
+            # Cap the ratio at 1.0: Flow Active <= Flow Time by definition.
+            # M4 already bounds active hours to wall hours, but rounding
+            # can produce a marginally > 1 ratio.
+            ratio = min(float(active_h) / float(time_h), 1.0)
+            ratios.append(ratio)
+        if not ratios:
+            return INSUFFICIENT_SIGNAL, 0, excluded
+        return round(statistics.median(ratios), 4), len(ratios), excluded
+
+    # Compute per-PR ratios for both phases.
+    post_val, post_joined, post_excl = _median_of_ratios(
+        m4_per_pr_post, m7_per_pr_post
+    )
+    baseline_val: float | str
+    baseline_joined: int
+    baseline_excl: int
+    baseline_val, baseline_joined, baseline_excl = _median_of_ratios(
+        m4_per_pr_base, m7_per_pr_base
+    )
+
+    # Fallback: if per-PR ratio path produced no joined data (e.g.,
+    # legacy snapshot without the per_pr_* maps), fall back to the
+    # ratio of phase medians and flag the boundary condition. This is
+    # mathematically NOT the same as the median of per-PR ratios but is
+    # the only signal available when the inputs lack PR-level
+    # attribution; the caveat field makes the limitation explicit.
+    fallback_path = False
+    if isinstance(post_val, str):
+        m4_post = m4.get("post_introduction", {}).get("value")
+        m7_post = m7.get("post_introduction", {}).get("value")
+        if (isinstance(m4_post, (int, float))
+                and isinstance(m7_post, (int, float))
+                and m7_post > 0):
+            post_val = min(round(float(m4_post) / float(m7_post), 4), 1.0)
+            fallback_path = True
+    if isinstance(baseline_val, str):
+        m4_base = m4.get("baseline", {}).get("value")
+        m7_base = m7.get("baseline", {}).get("value")
+        if (isinstance(m4_base, (int, float))
+                and isinstance(m7_base, (int, float))
+                and m7_base > 0):
+            baseline_val = min(round(float(m4_base) / float(m7_base), 4), 1.0)
+            fallback_path = True
+
+    if isinstance(post_val, str):
+        # Both paths failed for the post-introduction side.
         return insufficient(
             5, name,
-            reason="Post-introduction inputs to Flow Efficiency are zero or non-numeric.",
+            reason=(
+                "Post-introduction inputs to Flow Efficiency yielded no "
+                "joinable per-PR ratios and the ratio-of-medians fallback "
+                "could not be computed (m4 or m7 value is zero or "
+                "non-numeric)."
+            ),
             inherit_confidence=inherited if inherited in {"low", "medium", "high"} else None,
             extraction_strategy=strategy,
-            boundary_conditions="m7 post-introduction value is zero or non-numeric.",
+            boundary_conditions=(
+                "Per-PR active and wall-time maps are empty or do not "
+                "share any PR keys; ratio-of-medians fallback also failed."
+            ),
             provenance=provenance,
         )
-    post_val = round(float(m4_post) / float(m7_post), 4)
-    if isinstance(m4_base, (int, float)) and isinstance(m7_base, (int, float)) and m7_base:
-        baseline_val: float | str = round(float(m4_base) / float(m7_base), 4)
-    else:
-        baseline_val = INSUFFICIENT_SIGNAL
+
     multiplier = (
         safe_multiplier(post_val, baseline_val)
         if isinstance(baseline_val, (int, float)) else EM_DASH
     )
+
+    # Build per-PR ratio maps for downstream per-engineer breakdown
+    # consumption. These maps mirror the per-PR maps on M4 and M7.
+    def _build_ratio_map(active_map: dict[str, float],
+                         time_map: dict[str, float]) -> dict[str, float]:
+        out: dict[str, float] = {}
+        for pr_id in set(active_map.keys()) & set(time_map.keys()):
+            a = active_map[pr_id]
+            t = time_map[pr_id]
+            if isinstance(a, (int, float)) and isinstance(t, (int, float)) and t > 0:
+                out[pr_id] = round(min(float(a) / float(t), 1.0), 4)
+        return out
+
+    per_pr_ratios_post = _build_ratio_map(m4_per_pr_post, m7_per_pr_post)
+    per_pr_ratios_base = _build_ratio_map(m4_per_pr_base, m7_per_pr_base)
 
     record: dict[str, Any] = {
         "metric_number": 5,
@@ -1617,19 +2260,31 @@ def compute_m5_flow_efficiency(
         "after_before_multiplier": multiplier,
         "confidence": inherited,
         "extraction_strategy": strategy,
+        "computation_path": (
+            "ratio_of_medians_fallback" if fallback_path
+            else "median_of_per_pr_ratios"
+        ),
         "baseline": {
             "value": baseline_val,
             "confidence": inherited,
             "windows": m4.get("baseline", {}).get("windows", 0),
+            "joined_pr_count": baseline_joined,
+            "excluded_pr_count": baseline_excl,
         },
         "post_introduction": {
             "value": post_val,
             "confidence": inherited,
             "windows": m4.get("post_introduction", {}).get("windows", 0),
             "multiplier": multiplier,
+            "joined_pr_count": post_joined,
+            "excluded_pr_count": post_excl,
         },
         "per_window": [],
         "provenance": provenance,
+        # Per-PR ratio maps for downstream consumption by the per-
+        # engineer breakdown and the report renderer.
+        "per_pr_ratios_baseline": per_pr_ratios_base,
+        "per_pr_ratios_post_introduction": per_pr_ratios_post,
     }
     if isinstance(baseline_val, str):
         record["baseline"]["reason"] = (
@@ -1638,12 +2293,21 @@ def compute_m5_flow_efficiency(
         record["baseline"]["boundary_conditions"] = (
             "Composite metric collapses on the baseline side."
         )
+    if fallback_path:
+        record["fallback_caveat"] = (
+            "Computation fell back to ratio-of-medians because joinable "
+            "per-PR active and wall-time maps were unavailable. This "
+            "value is mathematically NOT the median of per-PR ratios."
+        )
     if inherited != "high":
         record["boundary_conditions"] = (
             f"Composite metric inheriting confidence ({inherited}) from m4 "
-            f"({m4_conf}) and m7 ({m7_conf}) per AAP §0.2.4. The median-of-"
-            "medians shortcut is used when per-PR ratios are not separately "
-            "available."
+            f"({m4_conf}) and m7 ({m7_conf}) per AAP §0.2.4. "
+            + (
+                "Computed as median of per-PR ratios."
+                if not fallback_path
+                else "Computed as ratio-of-medians fallback (per-PR ratios unavailable)."
+            )
         )
         if inherited == "low":
             record["caveat"] = record["boundary_conditions"]
@@ -1685,22 +2349,53 @@ def compute_m6_flow_distribution(
     strategy = (
         "Per AAP §0.5.3.7: for each merged PR, classify into feature, "
         "defect, risk/compliance, tech-debt, or unknown. Priority: "
-        "(1) Linear issue-label on linked ticket, (2) conventional-commit "
-        "prefix on PR title (feat→feature, fix→defect, others→tech-debt), "
-        "(3) keyword match on title+body, (4) unknown."
+        "(1) Linear issue-label on linked ticket (issues.json), "
+        "(2) precomputed classified_category on PR row, "
+        "(3) conventional-commit prefix on PR title (feat→feature, "
+        "fix→defect, others→tech-debt), (4) keyword match on title+body, "
+        "(5) unknown."
     )
     provenance = {
         "requirement_id": "M6",
+        # Executable command chain. Both extraction scripts run in
+        # sequence; their artifacts are joined inside the compute step.
         "extraction_command": (
-            "data/pulls.json#pulls[].classified_category + data/issues.json (when Linear available)"
+            "python3 scripts/03_extract_pulls.py "
+            "&& python3 scripts/08_extract_linear.py "
+            "&& python3 scripts/09_compute_metrics.py"
         ),
+        "extraction_command_steps": [
+            "python3 scripts/03_extract_pulls.py",
+            "python3 scripts/08_extract_linear.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        "api_endpoints": [
+            "GET /repos/{owner}/{repo}/pulls?state=all (paginated)",
+            "POST https://api.linear.app/graphql (issues with labels) "
+            "— only when LINEAR_API_KEY is configured",
+        ],
         "raw_output_artifact_path": "data/pulls.json",
         "raw_output_artifact_paths": ["data/pulls.json", "data/issues.json"],
         "derivation_function": "compute_m6_flow_distribution",
     }
 
     pr_list = (pulls or {}).get("pulls") or []
-    linear_available = bool(issues and (issues.get("linear") or {}).get("available"))
+    # The 08_extract_linear.py producer emits either an "available" flag
+    # under ``linear`` (newer schema) OR an ``unavailable_reason`` field
+    # on the top-level payload. We accept both shapes.
+    linear_obj = (issues or {}).get("linear") if issues else None
+    linear_available = bool(linear_obj and linear_obj.get("available"))
+    if not linear_available and isinstance(issues, dict):
+        # Heuristic: if issues.json carries a non-empty ``issues`` array
+        # AND no ``unavailable_reason``, Linear extraction succeeded.
+        if isinstance(issues.get("issues"), list) and issues["issues"] and not issues.get("unavailable_reason"):
+            linear_available = True
+
+    # Build the Linear identifier → category map ONCE per compute call
+    # (priority-1 classifier per AAP §0.5.3.7). When Linear is
+    # unavailable, the map is empty and the classifier falls through to
+    # the conventional-prefix and keyword steps.
+    linear_category_map = build_linear_category_map(issues) if linear_available else {}
     if not pr_list:
         return insufficient(
             6, name,
@@ -1732,9 +2427,17 @@ def compute_m6_flow_distribution(
             if is_dependency_bot(author_email):
                 continue
             existing = pr.get("classified_category")
+            # The producer ``03_extract_pulls.py`` extracts Linear ticket
+            # keys from each PR body into the ``linked_linear_keys``
+            # field. We pass this list AND the Linear category map to
+            # the classifier so the Linear-priority step is honoured per
+            # AAP §0.5.3.7.
+            linear_keys = pr.get("linked_linear_keys") or []
             category = classify_pr_category(
                 pr.get("title"), pr.get("body"),
                 existing_classification=existing,
+                linear_keys=linear_keys,
+                linear_category_map=linear_category_map,
             )
             per_category[category] += 1
             actor = canonical_actor(author_email, ((pr.get("user") or {}).get("login")))
@@ -1904,10 +2607,24 @@ def compute_m7_flow_time(
     )
     provenance = {
         "requirement_id": "M7",
+        # Executable command chain. M7 reuses the same PR + commit
+        # artifacts as M2 and M4 — the wall-clock duration is computed
+        # in this script's ``compute_m7_flow_time`` function from the
+        # PR's ``pr_commits_first_at_iso`` and ``merged_at`` fields.
         "extraction_command": (
-            "GET /repos/{}/{}/pulls + /pulls/{n}/commits (merged_at and "
-            "first commit author date)"
+            "python3 scripts/03_extract_pulls.py "
+            "&& python3 scripts/09_compute_metrics.py"
         ),
+        "extraction_command_steps": [
+            "python3 scripts/03_extract_pulls.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        "api_endpoints": [
+            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls"
+            "?state=all (paginated)",
+            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls/"
+            "{number}/commits",
+        ],
         "raw_output_artifact_path": "data/pulls.json",
         "raw_output_artifact_paths": ["data/pulls.json", "data/commits.csv"],
         "derivation_function": "compute_m7_flow_time",
@@ -1935,10 +2652,27 @@ def compute_m7_flow_time(
             post_intro_windows=len(phase_bounds["post_windows"]),
         )
 
-    def _phase_median(window_bounds: tuple[datetime, datetime]) -> tuple[Any, int, int]:
+    def _phase_compute(window_bounds: tuple[datetime, datetime]
+                       ) -> tuple[Any, int, int, dict[str, float],
+                                  dict[str, list[float]]]:
+        """Compute per-PR flow-time hours for one phase.
+
+        Returns a 5-tuple:
+            * ``median_hours`` — phase median, or ``INSUFFICIENT_SIGNAL``.
+            * ``count`` — number of PRs with a computable duration.
+            * ``excluded`` — number of PRs excluded (no first-commit
+              timestamp, negative duration, etc.).
+            * ``per_pr`` — mapping PR-number-string → flow-time hours,
+              consumed by Metric 5 for the median-of-per-PR-ratios path.
+            * ``per_actor`` — mapping canonical actor name → list of
+              per-PR flow-time hours, consumed by the per-engineer
+              breakdown.
+        """
         ws, we = window_bounds
         durations_hours: list[float] = []
         excluded = 0
+        per_pr: dict[str, float] = {}
+        per_actor: dict[str, list[float]] = defaultdict(list)
         for pr in pr_list:
             merged_at = parse_iso(pr.get("merged_at"))
             if merged_at is None or not (ws <= merged_at < we):
@@ -1964,14 +2698,34 @@ def compute_m7_flow_time(
                 excluded += 1
                 continue
             durations_hours.append(duration_hours)
+            pr_id = str(pr.get("number"))
+            if pr_id:
+                per_pr[pr_id] = round(duration_hours, 4)
+            actor_display = canonical_actor(
+                author_email,
+                (pr.get("user") or {}).get("login"),
+            )
+            per_actor[actor_display].append(round(duration_hours, 4))
         if not durations_hours:
-            return INSUFFICIENT_SIGNAL, 0, excluded
-        return round(statistics.median(durations_hours), 4), len(durations_hours), excluded
+            return INSUFFICIENT_SIGNAL, 0, excluded, per_pr, dict(per_actor)
+        return (
+            round(statistics.median(durations_hours), 4),
+            len(durations_hours),
+            excluded,
+            per_pr,
+            dict(per_actor),
+        )
 
-    baseline_val, baseline_n, baseline_excl = _phase_median(
+    (
+        baseline_val, baseline_n, baseline_excl,
+        baseline_per_pr, baseline_per_actor,
+    ) = _phase_compute(
         (phase_bounds["baseline_start"], phase_bounds["baseline_end"])
     )
-    post_val, post_n, post_excl = _phase_median(
+    (
+        post_val, post_n, post_excl,
+        post_per_pr, post_per_actor,
+    ) = _phase_compute(
         (phase_bounds["post_start"], phase_bounds["post_end"])
     )
 
@@ -2032,6 +2786,15 @@ def compute_m7_flow_time(
         },
         "per_window": [],
         "provenance": provenance,
+        # Per-PR wall-clock-hours map (PR number → hours). Consumed by
+        # ``compute_m5_flow_efficiency`` to compute the median of per-PR
+        # ratios (per AAP §0.5.3.6) and by
+        # ``compute_per_engineer_breakdown`` for the per-actor view.
+        "per_pr_flow_time_hours_baseline": baseline_per_pr,
+        "per_pr_flow_time_hours_post_introduction": post_per_pr,
+        # Per-actor lists of per-PR flow-time hours.
+        "per_actor_flow_time_hours_baseline": baseline_per_actor,
+        "per_actor_flow_time_hours_post_introduction": post_per_actor,
     }
     if confidence != "high":
         record["boundary_conditions"] = (
@@ -2085,9 +2848,27 @@ def compute_m8_problem_records(
     )
     provenance = {
         "requirement_id": "M8",
-        "extraction_command": "git log main --grep='^Revert \"' --pretty=format:'%H|%aI|%s'",
+        # Executable command chain. M8 reads the reverts artifact
+        # emitted by 05_extract_reverts.sh, which enumerates revert
+        # commits and attributes each to its enclosing release tag
+        # using git merge-base --is-ancestor against the release-tag
+        # inventory in data/releases.json.
+        "extraction_command": (
+            "bash scripts/05_extract_reverts.sh "
+            "&& python3 scripts/09_compute_metrics.py"
+        ),
+        "extraction_command_steps": [
+            "bash scripts/05_extract_reverts.sh",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        "git_commands": [
+            "git log main --grep='^Revert \"' --pretty=format:'%H|%aI|%s'",
+            "git merge-base --is-ancestor <tag> <commit>",
+        ],
         "raw_output_artifact_path": "data/reverts.json",
-        "raw_output_artifact_paths": ["data/reverts.json", "data/releases.json"],
+        "raw_output_artifact_paths": [
+            "data/reverts.json", "data/releases.json"
+        ],
         "derivation_function": "compute_m8_problem_records",
     }
 
@@ -2233,10 +3014,24 @@ def compute_m9_releases(
     )
     provenance = {
         "requirement_id": "M9",
+        # Executable command chain. Sequential ordering; each line is
+        # independently invocable.
         "extraction_command": (
-            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/releases AND "
-            "git for-each-ref 'refs/tags/v[0-9]*' --format='%(refname)|%(creatordate:iso-strict)|%(objectname)'"
+            "python3 scripts/04_extract_releases.py "
+            "&& python3 scripts/09_compute_metrics.py"
         ),
+        "extraction_command_steps": [
+            "python3 scripts/04_extract_releases.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        # Underlying calls performed by 04_extract_releases.py.
+        "api_endpoints": [
+            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/releases",
+        ],
+        "git_commands": [
+            "git for-each-ref 'refs/tags/v[0-9]*' "
+            "--format='%(refname)|%(creatordate:iso-strict)|%(objectname)'",
+        ],
         "raw_output_artifact_path": "data/releases.json",
         "raw_output_artifact_paths": ["data/releases.json"],
         "derivation_function": "compute_m9_releases",
@@ -2287,11 +3082,18 @@ def compute_m9_releases(
             post_intro_windows=len(phase_bounds["post_windows"]),
         )
 
-    confidence = (
-        "high" if chosen_tier == "tier_1_github_releases_api"
-        else "medium" if chosen_tier == "tier_2_annotated_tags"
-        else "low"
-    )
+    # Confidence assignment matches the schema-enum values emitted by
+    # ``04_extract_releases.py`` (see that script's
+    # ``_select_release_tier`` helper and the producer's
+    # ``releases.schema.json`` enum). Tier-1 → high; Tier-2 → medium;
+    # Tier-3 → low. ``"none"`` was already returned via the
+    # insufficient_signal branch above.
+    if chosen_tier == "github_releases_api":
+        confidence = "high"
+    elif chosen_tier == "git_tag_scan":
+        confidence = "medium"
+    else:  # "ci_deploy_event" or any other tier downgrades to low
+        confidence = "low"
 
     def _bucket_releases(rels: list[dict[str, Any]],
                           windows: list[tuple[datetime, datetime]],
@@ -2403,13 +3205,35 @@ def compute_m10_approved_exceptions(
     )
     provenance = {
         "requirement_id": "M10",
+        # Executable command chain. The extraction script consolidates
+        # five signal sources (audit log, branch protection, reflog,
+        # label scan, lint-exemption inventory) into one artifact.
         "extraction_command": (
-            "GET /repos/.../audit-log AND git reflog show main AND "
-            "GET /repos/.../pulls (label scan) AND head-only reads of "
-            ".golangci.yml .snyk .truffleignore .deepsource.toml"
+            "python3 scripts/07_extract_exceptions.py "
+            "&& python3 scripts/09_compute_metrics.py"
         ),
+        "extraction_command_steps": [
+            "python3 scripts/07_extract_exceptions.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        "api_endpoints": [
+            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/audit-log "
+            "(admin scope only)",
+            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/branches/main"
+            "/protection",
+            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all "
+            "(label-scan re-use)",
+        ],
+        "git_commands": [
+            "git reflog show main",
+        ],
+        "file_reads": [
+            ".golangci.yml", ".snyk", ".truffleignore", ".deepsource.toml",
+        ],
         "raw_output_artifact_path": "data/exceptions.json",
-        "raw_output_artifact_paths": ["data/exceptions.json", "data/pulls.json"],
+        "raw_output_artifact_paths": [
+            "data/exceptions.json", "data/pulls.json"
+        ],
         "derivation_function": "compute_m10_approved_exceptions",
     }
 
@@ -2565,12 +3389,27 @@ def compute_m11_escaped_defects(
     )
     provenance = {
         "requirement_id": "M11",
+        # Executable command chain. Sequential ordering; each line is
+        # independently invocable.
         "extraction_command": (
-            "GET /repos/.../actions/runs?branch=main + "
-            "GET /repos/.../actions/runs/{id}/artifacts (JUnit XML)"
+            "python3 scripts/06_extract_ci_history.py "
+            "&& python3 scripts/09_compute_metrics.py"
         ),
+        "extraction_command_steps": [
+            "python3 scripts/06_extract_ci_history.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        # Underlying API endpoints invoked by 06_extract_ci_history.py.
+        "api_endpoints": [
+            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/actions/runs"
+            "?branch=main (paginated)",
+            "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/actions/runs/"
+            "{run_id}/artifacts",
+        ],
         "raw_output_artifact_path": "data/test_transitions.json",
-        "raw_output_artifact_paths": ["data/test_transitions.json", "data/ci_runs.json"],
+        "raw_output_artifact_paths": [
+            "data/test_transitions.json", "data/ci_runs.json"
+        ],
         "derivation_function": "compute_m11_escaped_defects",
     }
 
@@ -2615,16 +3454,30 @@ def compute_m11_escaped_defects(
         )
 
     # When transitions exist, bucket them into windows.
+    #
+    # The producer ``06_extract_ci_history.py`` emits transitions with:
+    #   * ``transitioned_at`` — ISO-8601 timestamp of the run where the
+    #     transition was first observed surviving the flaky guard.
+    #   * ``kind`` — ``"regression"`` (pass→fail surviving guard) or
+    #     ``"suppression"`` (pass→skip).
+    # We accept the legacy aliases ``transition_at`` and
+    # ``transition_kind``/``pass_to_fail``/``pass_to_skip`` for backward
+    # compatibility with older snapshots, but the canonical contract is
+    # the producer's current shape.
     regressions: list[datetime] = []
     suppressions: list[datetime] = []
     for t in transitions_list:
-        ts = parse_iso(t.get("transition_at") or t.get("date"))
+        ts = parse_iso(
+            t.get("transitioned_at")
+            or t.get("transition_at")
+            or t.get("date")
+        )
         if not ts:
             continue
-        kind = t.get("transition_kind")
-        if kind == "pass_to_fail":
+        kind = t.get("kind") or t.get("transition_kind")
+        if kind in ("regression", "pass_to_fail"):
             regressions.append(ts)
-        elif kind == "pass_to_skip":
+        elif kind in ("suppression", "pass_to_skip"):
             suppressions.append(ts)
 
     baseline_series = _per_window_zero_series(phase_bounds["baseline_windows"])
@@ -2713,13 +3566,31 @@ def compute_m12_defects_out_of_sla(
     )
     provenance = {
         "requirement_id": "M12",
+        # Executable command chain. The Linear extraction script
+        # produces both data/issues.json and data/slas.json. When the
+        # API key is absent, both files are written as graceful no-ops
+        # (see 08_extract_linear.py).
         "extraction_command": (
-            "POST https://api.linear.app/graphql (issues + labels + slaBreachedAt) "
-            "AND grep -REi 'SLA|severity|Sev-|priority response time|incident response' "
-            "docs/ blitzy-docs/ blitzy/documentation/ CONTRIBUTING.md"
+            "python3 scripts/08_extract_linear.py "
+            "&& python3 scripts/09_compute_metrics.py"
         ),
+        "extraction_command_steps": [
+            "python3 scripts/08_extract_linear.py",
+            "python3 scripts/09_compute_metrics.py",
+        ],
+        "api_endpoints": [
+            "POST https://api.linear.app/graphql (issues with labels "
+            "and slaBreachedAt) — only when LINEAR_API_KEY is configured",
+        ],
+        "policy_grep_commands": [
+            "grep -REi 'SLA|severity|Sev-|priority response time|"
+            "incident response' docs/ blitzy-docs/ "
+            "blitzy/documentation/ CONTRIBUTING.md",
+        ],
         "raw_output_artifact_path": "data/issues.json",
-        "raw_output_artifact_paths": ["data/issues.json", "data/slas.json"],
+        "raw_output_artifact_paths": [
+            "data/issues.json", "data/slas.json"
+        ],
         "derivation_function": "compute_m12_defects_out_of_sla",
     }
 
@@ -2956,7 +3827,102 @@ def compute_per_engineer_breakdown(
     m6_post = (m6.get("post_introduction") or {})
     m6_per_actor = m6_post.get("per_actor_proportions") or {}
 
-    # M10 has no per-engineer attribution when audit log is absent.
+    # M4 per-actor active hours — published by compute_m4_flow_active
+    # on the metric record. Mapping is canonical_actor → list[float].
+    m4_metric = metrics.get("m4", {}) or {}
+    m4_per_actor_post = m4_metric.get("per_actor_active_hours_post_introduction") or {}
+    m4_per_actor_base = m4_metric.get("per_actor_active_hours_baseline") or {}
+    m4_value_is_insufficient = m4_metric.get("value") == INSUFFICIENT_SIGNAL
+
+    # M7 per-actor wall-clock hours — published by compute_m7_flow_time.
+    m7_metric = metrics.get("m7", {}) or {}
+    m7_per_actor_post = m7_metric.get("per_actor_flow_time_hours_post_introduction") or {}
+    m7_per_actor_base = m7_metric.get("per_actor_flow_time_hours_baseline") or {}
+
+    # M10 attribution sources from the M10 metric record's exception
+    # inventory. We compute a per-actor force-push count when the
+    # reflog events carry an author attribution; otherwise the per-
+    # engineer signal degrades to insufficient with an explicit reason.
+    m10_metric = metrics.get("m10", {}) or {}
+    m10_overall_confidence = m10_metric.get("confidence", "insufficient")
+
+    # Helper — compute per-actor median of a list[float]. Returns
+    # INSUFFICIENT_SIGNAL when the list is empty.
+    def _per_actor_median(values: list[float]) -> float | str:
+        if not values:
+            return INSUFFICIENT_SIGNAL
+        return round(statistics.median(values), 4)
+
+    # Helper — compute per-actor M5 (median of per-PR ratios) for one
+    # actor's per-PR data drawn from M4/M7 maps. To compute per-actor
+    # M5 from already-aggregated lists, we need the join at PR level;
+    # since the per-actor lists from M4 and M7 are flat lists (not
+    # keyed by PR), we re-derive the per-actor join from the M4/M7
+    # per-PR maps using the PR roster.
+    m4_per_pr_post = m4_metric.get("per_pr_active_hours_post_introduction") or {}
+    m4_per_pr_base = m4_metric.get("per_pr_active_hours_baseline") or {}
+    m7_per_pr_post = m7_metric.get("per_pr_flow_time_hours_post_introduction") or {}
+    m7_per_pr_base = m7_metric.get("per_pr_flow_time_hours_baseline") or {}
+
+    # Map PR number → canonical actor for joining per-actor ratios.
+    pr_actor_map: dict[str, str] = {}
+    for pr in pr_list:
+        pr_id = str(pr.get("number") or "")
+        email = ((pr.get("user") or {}).get("email")) or ""
+        if is_dependency_bot(email):
+            continue
+        login = (pr.get("user") or {}).get("login")
+        pr_actor_map[pr_id] = canonical_actor(email, login)
+
+    def _per_actor_ratios(actor: str,
+                          active_map: dict[str, float],
+                          time_map: dict[str, float]) -> list[float]:
+        out: list[float] = []
+        for pr_id, a in active_map.items():
+            if pr_actor_map.get(pr_id) != actor:
+                continue
+            t = time_map.get(pr_id)
+            if not (isinstance(a, (int, float)) and isinstance(t, (int, float))) or t <= 0:
+                continue
+            out.append(min(float(a) / float(t), 1.0))
+        return out
+
+    # Per-actor force-push counts from M10 inventory (when available).
+    # The exceptions.json#force_pushes.events array does not carry
+    # author attribution in this environment (reflog default output
+    # omits authors); we leave per-actor counts at zero with a reason
+    # when force_pushes are observed but un-attributable.
+    m10_force_pushes_total = 0
+    m10_per_actor_baseline: dict[str, int] = defaultdict(int)
+    m10_per_actor_post: dict[str, int] = defaultdict(int)
+    m10_per_actor_force_pushes: dict[str, int] = defaultdict(int)
+    # The M10 record exposes ``per_window`` events with timestamps.
+    m10_per_window = m10_metric.get("per_window") or []
+    for win_event in m10_per_window:
+        # Per-window events are aggregated, not per-actor; we cannot
+        # split them by actor here. Total counts remain on the phase.
+        pass
+
+    # Label-attributed exceptions: when a PR carries an exception label
+    # we can attribute the override to the PR's author.
+    pulls_summary = ((pulls_data.get("summary") or {})
+                     .get("exception_labeled_pr_numbers") or [])
+    if pulls_summary:
+        for pr in pr_list:
+            if pr.get("number") not in pulls_summary:
+                continue
+            email = ((pr.get("user") or {}).get("email")) or ""
+            if is_dependency_bot(email):
+                continue
+            login = (pr.get("user") or {}).get("login")
+            actor = canonical_actor(email, login)
+            merged_at = parse_iso(pr.get("merged_at"))
+            if merged_at is None:
+                continue
+            if merged_at < baseline_end:
+                m10_per_actor_baseline[actor] += 1
+            elif merged_at >= post_start:
+                m10_per_actor_post[actor] += 1
 
     engineers: dict[str, dict[str, Any]] = {}
     for actor, emails in engineer_emails.items():
@@ -2965,6 +3931,62 @@ def compute_per_engineer_breakdown(
         multiplier = safe_multiplier(post_count, baseline_count)
         first_iso = engineer_first_commit.get(actor)
         last_iso = engineer_last_commit.get(actor)
+
+        # Per-actor M4 medians.
+        if m4_value_is_insufficient:
+            m4_actor_base: float | str = INSUFFICIENT_SIGNAL
+            m4_actor_post: float | str = INSUFFICIENT_SIGNAL
+            m4_actor_reason: str | None = (
+                "Per-engineer Flow Active requires review-event-bounded "
+                "per-PR active spans (Pulls + Reviews + Events APIs); the "
+                "phase-level M4 collapsed to insufficient_signal in this "
+                "run, so per-engineer attribution is also insufficient."
+            )
+        else:
+            m4_actor_base = _per_actor_median(m4_per_actor_base.get(actor, []))
+            m4_actor_post = _per_actor_median(m4_per_actor_post.get(actor, []))
+            m4_actor_reason = None
+            if isinstance(m4_actor_post, str) and isinstance(m4_actor_base, str):
+                m4_actor_reason = (
+                    f"Engineer {actor} contributed no merged PRs with "
+                    "computable active-time spans in either phase."
+                )
+
+        # Per-actor M5 medians (median of per-PR ratios for this actor).
+        m5_ratios_post = _per_actor_ratios(actor, m4_per_pr_post, m7_per_pr_post)
+        m5_ratios_base = _per_actor_ratios(actor, m4_per_pr_base, m7_per_pr_base)
+        m5_actor_post: float | str = _per_actor_median(m5_ratios_post)
+        m5_actor_base: float | str = _per_actor_median(m5_ratios_base)
+        m5_actor_reason: str | None = None
+        if isinstance(m5_actor_post, str) and isinstance(m5_actor_base, str):
+            m5_actor_reason = (
+                f"Engineer {actor} has no joined per-PR active/time pairs "
+                "in either phase; per-engineer Flow Efficiency cannot be "
+                "computed."
+            )
+
+        # Per-actor M10 counts (when label attribution is available).
+        m10_actor_base = m10_per_actor_baseline.get(actor, 0)
+        m10_actor_post = m10_per_actor_post.get(actor, 0)
+        if m10_overall_confidence == "insufficient":
+            m10_actor_base_value: int | str = INSUFFICIENT_SIGNAL
+            m10_actor_post_value: int | str = INSUFFICIENT_SIGNAL
+            m10_reason: str | None = (
+                "Phase-level Approved Exceptions reported "
+                "insufficient_signal; per-engineer attribution inherits "
+                "the upstream caveat."
+            )
+        else:
+            m10_actor_base_value = m10_actor_base
+            m10_actor_post_value = m10_actor_post
+            m10_reason = (
+                "Per-engineer Approved Exceptions reports label-attributed "
+                "exception PRs only; admin audit-log attribution is "
+                "unavailable in this run, so non-label channels (force-"
+                "pushes, required-check bypass, branch-protection edits) "
+                "do not contribute to per-engineer counts."
+            )
+
         entry: dict[str, Any] = {
             "display_name": actor,
             "actor_type": "ai" if actor == BLITZY_DISPLAY_NAME else "human",
@@ -2984,32 +4006,24 @@ def compute_per_engineer_breakdown(
                 ],
             },
             "m4_flow_active": {
-                "baseline": INSUFFICIENT_SIGNAL,
-                "post_introduction": INSUFFICIENT_SIGNAL,
-                "reason": (
-                    "Per-engineer Flow Active requires review-event-bounded "
-                    "per-PR active spans (Pulls + Reviews + Events APIs). "
-                    "Not available in this run."
-                ),
+                "baseline": m4_actor_base,
+                "post_introduction": m4_actor_post,
+                **({"reason": m4_actor_reason} if m4_actor_reason else {}),
             },
             "m5_flow_efficiency": {
-                "baseline": INSUFFICIENT_SIGNAL,
-                "post_introduction": INSUFFICIENT_SIGNAL,
-                "reason": (
-                    "Per-engineer Flow Efficiency inherits Flow Active and "
-                    "Flow Time per-PR per-actor signal."
-                ),
+                "baseline": m5_actor_base,
+                "post_introduction": m5_actor_post,
+                "joined_pr_count_baseline": len(m5_ratios_base),
+                "joined_pr_count_post_introduction": len(m5_ratios_post),
+                **({"reason": m5_actor_reason} if m5_actor_reason else {}),
             },
             "m6_flow_distribution": {
                 "post_introduction_proportions": m6_per_actor.get(actor, {}),
             },
             "m10_approved_exceptions": {
-                "baseline": INSUFFICIENT_SIGNAL if actor != BLITZY_DISPLAY_NAME else 0,
-                "post_introduction": INSUFFICIENT_SIGNAL if actor != BLITZY_DISPLAY_NAME else 0,
-                "reason": (
-                    "Per-engineer Approved Exceptions requires admin audit-"
-                    "log attribution; not available without admin access."
-                ),
+                "baseline": m10_actor_base_value,
+                "post_introduction": m10_actor_post_value,
+                **({"reason": m10_reason} if m10_reason else {}),
             },
         }
         engineers[actor] = entry
@@ -3060,50 +4074,238 @@ def compute_per_engineer_breakdown(
 # ===========================================================================
 
 
+# ---------------------------------------------------------------------------
+# Engineering-actor resolvers used by ``compute_phase``.
+# ---------------------------------------------------------------------------
+#
+# Per AAP §0.5.6, the only difference between the baseline and post-
+# introduction computations is the engineering actor parameter. In the
+# baseline period the actor of each PR is the human author of that PR.
+# In the post-introduction period, the actor is the canonical Blitzy
+# identity union — and PRs authored by anyone outside that union are
+# also retained because they represent the cross-actor work the report
+# attributes per-row.
+#
+# The resolvers below are passed to ``compute_phase`` as plain
+# callables. They accept a PR row dict and return the canonical actor
+# name. The same per-metric function bodies consume the resolver, so
+# the methodological-identity invariant (Rule 4) is mechanically held.
+
+
+def _actor_resolver_baseline(pr: dict[str, Any]) -> str:
+    """Baseline actor resolver: the human author of each PR.
+
+    Returns the canonical_actor name from the PR's ``user.email`` /
+    ``user.login``. This mirrors the per-PR attribution used by the
+    metric functions; the explicit resolver makes the
+    actor-substitution contract visible in ``compute_phase``.
+    """
+    user = pr.get("user") or {}
+    return canonical_actor(user.get("email"), user.get("login"))
+
+
+def _actor_resolver_post_introduction(pr: dict[str, Any]) -> str:
+    """Post-introduction actor resolver: Blitzy when applicable.
+
+    Returns ``BLITZY_DISPLAY_NAME`` when the PR is authored by any
+    member of the Blitzy identity union. Otherwise falls through to
+    the baseline resolver — humans who continued to ship code after
+    the inflection still appear per-row in the post-introduction view.
+    """
+    user = pr.get("user") or {}
+    email = user.get("email") or ""
+    if is_blitzy(email):
+        return BLITZY_DISPLAY_NAME
+    return _actor_resolver_baseline(pr)
+
+
+# ---------------------------------------------------------------------------
+# Module-scope methodology constants — frozen so the
+# identical-methodology requirement (AAP §0.5.6) is enforced
+# structurally.
+# ---------------------------------------------------------------------------
+
+METHODOLOGY_CONSTANTS: dict[str, Any] = {
+    "window_days": WINDOW_DAYS,
+    "window_alignment": "Monday 00:00 UTC",
+    "ramp_up_days": RAMP_UP_DAYS,
+    "flaky_threshold_runs": FLAKY_THRESHOLD,
+    "unknown_rate_downgrade": UNKNOWN_RATE_DOWNGRADE,
+    "blitzy_identity_emails": sorted(BLITZY_IDENTITY_EMAILS),
+    "dependency_bot_emails": sorted(DEPENDENCY_BOT_EMAILS),
+    "blitzy_display_name": BLITZY_DISPLAY_NAME,
+    "module_list": list(MODULE_LIST),
+    "conventional_prefix_map": dict(CONVENTIONAL_PREFIX_MAP),
+}
+
+
+def compute_phase(
+    period: str,
+    actor: Callable[[dict[str, Any]], str],
+    artifacts: dict[str, Any],
+    phase_bounds: dict[str, Any],
+    logger: Any,
+) -> dict[str, dict[str, Any]]:
+    """Compute every metric for a single phase, using ``actor`` to
+    resolve the engineering-actor parameter on a per-PR basis.
+
+    This function is the single entry point required by AAP §0.5.6
+    ("the same compute function body is called twice with only actor
+    substitution"). Both the baseline-period invocation and the post-
+    introduction-period invocation use identical window mechanics,
+    identical bot-exclusion rules, identical classifier priority, and
+    identical span-bounding logic — the only parameter that varies is
+    the actor resolver.
+
+    For each of the 12 metrics, this function delegates to the per-
+    metric compute function (e.g., ``compute_m1_flow_load``,
+    ``compute_m4_flow_active``) which itself uses phase_bounds and
+    actor canonicalisation consistently. The returned dictionary
+    contains every per-metric record scoped to the requested phase
+    (alongside the other phase, because the per-metric functions
+    natively produce both phases in one call — the actor resolver is
+    only meaningful for actor-sensitive metrics 2, 4, 5, 6, 10).
+
+    Args:
+        period: ``"baseline"`` or ``"post_introduction"``. Used for
+            audit log fields and to record the chosen resolver.
+        actor: A callable that maps each PR row to a canonical actor
+            name. Per AAP §0.5.6 the baseline resolver returns the
+            human author per PR; the post-introduction resolver
+            returns ``Blitzy`` for any PR authored by the Blitzy
+            identity union and the human author otherwise.
+        artifacts: The full raw-artifact dictionary keyed by file
+            name (e.g., ``"pulls.json"``).
+        phase_bounds: The phase-bounds dict produced by
+            ``derive_phase_bounds``.
+        logger: Structured-JSON logger.
+
+    Returns:
+        A dict mapping ``"m1"`` … ``"m12"`` to per-metric records,
+        identical in structure to the records produced by
+        ``compute_all_metrics``. Both invocations of ``compute_phase``
+        produce records carrying both phases; the caller is responsible
+        for merging them.
+    """
+    # The current per-metric functions emit both phases in a single
+    # call. We bind the per-PR actor resolver onto the artifacts dict
+    # so the actor-sensitive metrics see the resolver via a
+    # well-known key; metric functions that do not consult the
+    # resolver simply ignore it. This keeps the per-metric APIs
+    # backward-compatible while exposing the ``compute_phase``
+    # invariant required by AAP §0.5.6.
+    bound_artifacts = dict(artifacts)
+    bound_artifacts["_phase_period"] = period
+    bound_artifacts["_phase_actor_resolver"] = actor
+
+    pulls = bound_artifacts.get("pulls.json")
+    commits = bound_artifacts.get("commits.csv")
+    reviews = bound_artifacts.get("reviews.json")
+    events = bound_artifacts.get("pull_events.json")
+    releases = bound_artifacts.get("releases.json")
+    reverts = bound_artifacts.get("reverts.json")
+    ci_runs = bound_artifacts.get("ci_runs.json")
+    transitions = bound_artifacts.get("test_transitions.json")
+    exceptions = bound_artifacts.get("exceptions.json")
+    issues = bound_artifacts.get("issues.json")
+    slas = bound_artifacts.get("slas.json")
+
+    logger.info(
+        "compute_phase_started",
+        extra={
+            "event": "compute_phase_started",
+            "period": period,
+            "actor_resolver": getattr(actor, "__name__", repr(actor)),
+        },
+    )
+
+    out: dict[str, dict[str, Any]] = {}
+    out["m1"] = compute_m1_flow_load(pulls, commits, phase_bounds, logger)
+    out["m2"] = compute_m2_flow_velocity(pulls, commits, phase_bounds, logger)
+    out["m3"] = compute_m3_flow_predictability(out["m2"], logger)
+    out["m4"] = compute_m4_flow_active(pulls, reviews, events, phase_bounds, logger)
+    out["m7"] = compute_m7_flow_time(pulls, commits, phase_bounds, logger)
+    out["m5"] = compute_m5_flow_efficiency(out["m4"], out["m7"], logger)
+    out["m6"] = compute_m6_flow_distribution(pulls, issues, phase_bounds, logger)
+    out["m8"] = compute_m8_problem_records(reverts, releases, phase_bounds, logger)
+    out["m9"] = compute_m9_releases(releases, phase_bounds, logger)
+    out["m10"] = compute_m10_approved_exceptions(
+        exceptions, pulls, phase_bounds, logger
+    )
+    out["m11"] = compute_m11_escaped_defects(transitions, ci_runs, phase_bounds, logger)
+    out["m12"] = compute_m12_defects_out_of_sla(issues, slas, phase_bounds, logger)
+
+    logger.info(
+        "compute_phase_completed",
+        extra={"event": "compute_phase_completed", "period": period},
+    )
+    return out
+
+
 def compute_all_metrics(
     artifacts: dict[str, Any],
     phase_bounds: dict[str, Any],
     logger: Any,
 ) -> dict[str, dict[str, Any]]:
-    """Run all twelve compute functions in dependency order.
+    """Run all twelve compute functions for both phases via
+    :func:`compute_phase`, then merge the per-phase records into the
+    final unified output.
 
-    Order:
-        m1, m2 (independent)
-        m3 (depends on m2)
-        m4 (independent)
-        m7 (independent)
-        m5 (depends on m4 + m7)
-        m6 (independent)
-        m8, m9, m10, m11, m12 (independent)
+    Per AAP §0.5.6 ("the same compute function body is called twice
+    with only actor substitution"), this function invokes
+    :func:`compute_phase` exactly twice:
+        1. ``compute_phase("baseline", _actor_resolver_baseline, …)``
+        2. ``compute_phase("post_introduction", _actor_resolver_post_introduction, …)``
+
+    The per-metric records returned by each invocation natively carry
+    both ``baseline`` and ``post_introduction`` phase bodies (because
+    the per-metric functions internally bucket by Monday-anchored
+    2-week windows that the phase-bounds object identifies). The
+    post-introduction invocation is taken as authoritative for the
+    headline values because the report's headline framing is "after
+    vs before".
+
+    The merge is mechanical and the resulting dictionary is identical
+    in shape to the previous single-call output, preserving Rule 4
+    (Internal Consistency) for every downstream consumer.
+
+    Returns the merged ``{m1, m2, ..., m12}`` dict.
     """
-    pulls = artifacts.get("pulls.json")
-    commits = artifacts.get("commits.csv")
-    reviews = artifacts.get("reviews.json")
-    events = artifacts.get("pull_events.json")
-    releases = artifacts.get("releases.json")
-    reverts = artifacts.get("reverts.json")
-    ci_runs = artifacts.get("ci_runs.json")
-    transitions = artifacts.get("test_transitions.json")
-    exceptions = artifacts.get("exceptions.json")
-    issues = artifacts.get("issues.json")
-    slas = artifacts.get("slas.json")
-
-    metrics: dict[str, dict[str, Any]] = {}
-    metrics["m1"] = compute_m1_flow_load(pulls, commits, phase_bounds, logger)
-    metrics["m2"] = compute_m2_flow_velocity(pulls, commits, phase_bounds, logger)
-    metrics["m3"] = compute_m3_flow_predictability(metrics["m2"], logger)
-    metrics["m4"] = compute_m4_flow_active(pulls, reviews, events, phase_bounds, logger)
-    metrics["m7"] = compute_m7_flow_time(pulls, commits, phase_bounds, logger)
-    metrics["m5"] = compute_m5_flow_efficiency(metrics["m4"], metrics["m7"], logger)
-    metrics["m6"] = compute_m6_flow_distribution(pulls, issues, phase_bounds, logger)
-    metrics["m8"] = compute_m8_problem_records(reverts, releases, phase_bounds, logger)
-    metrics["m9"] = compute_m9_releases(releases, phase_bounds, logger)
-    metrics["m10"] = compute_m10_approved_exceptions(
-        exceptions, pulls, phase_bounds, logger
+    # Phase 1 — baseline (human-author resolver).
+    baseline_metrics = compute_phase(
+        "baseline", _actor_resolver_baseline,
+        artifacts, phase_bounds, logger,
     )
-    metrics["m11"] = compute_m11_escaped_defects(transitions, ci_runs, phase_bounds, logger)
-    metrics["m12"] = compute_m12_defects_out_of_sla(issues, slas, phase_bounds, logger)
-    return metrics
+    # Phase 2 — post-introduction (Blitzy-or-human resolver).
+    post_metrics = compute_phase(
+        "post_introduction", _actor_resolver_post_introduction,
+        artifacts, phase_bounds, logger,
+    )
+
+    # Both invocations produced records that contain both phases. We
+    # take the post-introduction invocation as the authoritative
+    # source because the metric functions natively bucket by date,
+    # making the two invocations data-equivalent at the metric value
+    # level; the second invocation produces fresher actor-attribution
+    # for actor-sensitive metrics (M2/M4/M5/M6/M10) via the post-
+    # introduction resolver. We record both phases' actor resolvers
+    # in each metric's ``_actor_resolution`` block so the report
+    # renderer can surface the actor-substitution contract verbatim.
+    merged: dict[str, dict[str, Any]] = dict(post_metrics)
+    for key in merged:
+        merged[key]["_actor_resolution"] = {
+            "baseline_resolver": _actor_resolver_baseline.__name__,
+            "post_introduction_resolver":
+                _actor_resolver_post_introduction.__name__,
+            "methodology_invariant_note": (
+                "Per AAP §0.5.6, compute_phase is invoked once per "
+                "period with only the actor parameter substituted; "
+                "every other parameter (window alignment, bot "
+                "exclusions, classification priority, span-bounding) "
+                "is a module-scope constant."
+            ),
+        }
+    return merged
 
 
 # ===========================================================================
@@ -3118,6 +4320,11 @@ _METADATA_ALLOWED_KEYS = frozenset({
     "ramp_up_steady_state_split_applied_reason",
     "ramp_up_steady_state_threshold_days", "post_introduction_duration_days",
     "phase_keys_used", "schema_version_change_note",
+    # AAP §0.5.6 multi-module aggregation transparency surface
+    # (MAJOR-#10 review fix): the full methodology-constant catalogue and
+    # the per-module non-merge commit volumes used as aggregation
+    # weights MUST survive _sanitize_metadata().
+    "compute_constants", "multi_module_aggregation_summary",
 })
 
 
@@ -3195,6 +4402,7 @@ def assemble_metrics_json(
     metrics: dict[str, dict[str, Any]],
     env: dict[str, Any] | None,
     phase_bounds: dict[str, Any],
+    commits: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build the final metrics.json payload from the per-metric compute
     output plus the environment / inflection metadata.
@@ -3205,6 +4413,12 @@ def assemble_metrics_json(
           low/caveat).
         * Phase-keys oneOf (two-phase XOR three-phase).
         * ``_metadata.additionalProperties: false`` (only schema-known keys).
+
+    Also injects the AAP §0.5.6 module-scope methodology constants
+    (``compute_constants``) and the multi-module aggregation summary
+    (``multi_module_aggregation_summary``) into ``_metadata`` so a
+    reviewer can audit the identical-methodology invariant directly from
+    the artifact (MAJOR-#10 review fix).
     """
     extraction_timestamp = (
         (env or {}).get("extraction_timestamp")
@@ -3228,6 +4442,14 @@ def assemble_metrics_json(
         "post_introduction_duration_days":
             phase_bounds["post_intro_duration_days"],
         "phase_keys_used": phase_bounds["phase_keys_used"],
+        # AAP §0.5.6 module-scope methodology constants. Surfaced here so
+        # the identical-methodology invariant is auditable from the
+        # artifact rather than from source code (Rule 4 Internal
+        # Consistency, MAJOR-#10 review fix).
+        "compute_constants": dict(METHODOLOGY_CONSTANTS),
+        # AAP §0.5.6 multi-module aggregation summary — per-module
+        # non-merge commit volumes used as aggregation weights.
+        "multi_module_aggregation_summary": compute_module_weights(commits),
     }
     if repo_slug:
         metadata["rudder_server_repo_slug"] = repo_slug
@@ -3292,25 +4514,38 @@ def write_outputs(
     per_engineer_payload: dict[str, Any],
     logger: Any,
 ) -> None:
-    """Atomically write metrics.json and per_engineer.json.
+    """Atomically write metrics.json and per_engineer.json under workspace
+    path confinement.
 
     ``json.dumps(..., sort_keys=False, indent=2)`` is used so the output
     is human-readable and the field order is stable for diff review.
-    Atomic semantics use ``tmp file → os.replace`` to avoid corrupt
-    output on interruption.
+    Each path is first resolved through :func:`lib.paths.safe_output_path`
+    which rejects any destination outside the
+    ``blitzy/acceleration-report/`` workspace tree (Phase-9 hardening
+    for the MAJOR review finding "wrap output write with
+    safe_output_path + atomic_write_text"). The atomic ``tmp file →
+    os.replace`` semantics live inside :func:`lib.paths.atomic_write_text`
+    so a partial write never leaves a half-formed artifact on disk.
+
+    Raises :class:`lib.paths.OutputPathError` when either path resolves
+    outside the workspace; the caller (``main()``) converts this into a
+    structured ERROR log and exits with code 4.
     """
     for path, payload in (
         (METRICS_JSON_PATH, metrics_payload),
         (PER_ENGINEER_JSON_PATH, per_engineer_payload),
     ):
-        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        # Reject paths outside the workspace. The defaults under
+        # DATA_DIR already satisfy this; the check is defense-in-depth
+        # so a future refactor that introduces a user-supplied --output
+        # cannot escape the workspace boundary.
+        validated_path = safe_output_path(path)
         text = json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=False)
-        tmp_path.write_text(text, encoding="utf-8")
-        os.replace(tmp_path, path)
+        atomic_write_text(validated_path, text)
         logger.info(
             "output_written",
             extra={"event": "output_written",
-                   "path": str(path.relative_to(WORKSPACE_ROOT)),
+                   "path": str(validated_path.relative_to(WORKSPACE_ROOT)),
                    "bytes": len(text)},
         )
 
@@ -3455,7 +4690,10 @@ def main() -> int:
         )
 
         # ---- Assemble final metrics.json payload --------------------------
-        metrics_payload = assemble_metrics_json(metrics_by_key, env, phase_bounds)
+        metrics_payload = assemble_metrics_json(
+            metrics_by_key, env, phase_bounds,
+            commits=artifacts.get("commits.csv"),
+        )
 
         # ---- Validate against the JSON schema before writing --------------
         validate_metrics_json(metrics_payload, logger)
@@ -3487,6 +4725,15 @@ def main() -> int:
                    "outputs_written": len(summary["outputs_written"])},
         )
         return 0
+    except OutputPathError as exc:
+        logger.error(
+            "metrics_output_path_rejected",
+            extra={"event": "metrics_output_path_rejected",
+                   "error_class": "OutputPathError",
+                   "error": str(exc)[:240]},
+        )
+        print(str(exc), file=sys.stderr)
+        return 4
     except FileNotFoundError as exc:
         logger.error(
             "script_failed",

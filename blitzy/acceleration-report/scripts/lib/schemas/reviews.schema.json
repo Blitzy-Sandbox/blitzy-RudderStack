@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/reviews.schema.json",
+  "title": "Review Event Timeline",
+  "description": "Output of 03_extract_pulls.py (reviews side-car). Records review events per PR. Consumed by 09_compute_metrics.py for Metric 4 (Flow Active) review-event bounding.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["_metadata", "github_api"],
+  "properties": {
+    "_metadata": {"type": "object", "additionalProperties": true},
+    "github_api": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["available"],
+      "properties": {"available": {"type": "boolean"}}
+    },
+    "reviews_by_pr": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {"type": "object", "additionalProperties": true}
+      }
+    }
+  }
+}

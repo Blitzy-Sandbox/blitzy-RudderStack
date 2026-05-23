@@ -130,11 +130,11 @@
       "available": true,
       "source_file": ".snyk",
       "source_file_extraction_command": "cat .snyk",
-      "parse_method": "regex_fallback_pyyaml_unavailable",
+      "parse_method": "pyyaml_structural",
       "snyk_policy_version": "v1.22.1",
       "active_count": 5,
       "active_count_verification_command": "grep -cE '^\\s+SNYK-' .snyk",
-      "expired_count": 5,
+      "expired_count": 0,
       "expired_count_reference_date": "2026-05-23T05:54:20Z",
       "expired_count_note": "Active ignore entries whose declared expiry timestamp is strictly earlier than the extraction timestamp. Surfaced as a governance observation per AAP §0.5.3.11; the metric computation does not condition behaviour on this count.",
       "entries": [
@@ -142,36 +142,36 @@
           "id": "SNYK-GOLANG-GITHUBCOMOPENCONTAINERSRUNCLIBCONTAINER-3339620",
           "scope": "*",
           "reason": "Not using opencontainers/runc in rudder-server binary",
-          "expires": "2025-01-01T00:00:00.000Z",
-          "expired_at_reference": true
+          "expires": "2025-01-01 00:00:00+00:00",
+          "expired_at_reference": false
         },
         {
           "id": "SNYK-GOLANG-GITHUBCOMDOCKERDOCKER-5411366",
           "scope": "*",
           "reason": "Not using docker in rudder-server binary",
-          "expires": "2025-01-01T00:00:00.000Z",
-          "expired_at_reference": true
+          "expires": "2025-01-01 00:00:00+00:00",
+          "expired_at_reference": false
         },
         {
           "id": "SNYK-GOLANG-GITHUBCOMEMICKLEIGORESTFULV3-2859829",
           "scope": "*",
           "reason": "Not using go-restful in rudder-server binary",
-          "expires": "2025-01-01T00:00:00.000Z",
-          "expired_at_reference": true
+          "expires": "2025-01-01 00:00:00+00:00",
+          "expired_at_reference": false
         },
         {
           "id": "SNYK-GOLANG-GITHUBCOMEMICKLEIGORESTFUL-2435653",
           "scope": "*",
           "reason": "Not using go-restful in rudder-server binary",
-          "expires": "2025-01-01T00:00:00.000Z",
-          "expired_at_reference": true
+          "expires": "2025-01-01 00:00:00+00:00",
+          "expired_at_reference": false
         },
         {
           "id": "SNYK-GOLANG-GITHUBCOMEMICKLEIGORESTFULV3-2435654",
           "scope": "*",
           "reason": "Not using go-restful in rudder-server binary",
-          "expires": "2025-01-01T00:00:00.000Z",
-          "expired_at_reference": true
+          "expires": "2025-01-01 00:00:00+00:00",
+          "expired_at_reference": false
         }
       ],
       "file_byte_size": 1054
@@ -189,13 +189,14 @@
       "available": true,
       "source_file": ".deepsource.toml",
       "source_file_extraction_command": "cat .deepsource.toml",
+      "parse_method": "tomllib",
       "deepsource_config_version": 1,
       "exclude_patterns_count": 2,
       "exclude_patterns": [
         "**/mock_*.go",
         "**/*.pb.go"
       ],
-      "exclude_patterns_verification_command": "awk '/^exclude_patterns/,/^\\]/' .deepsource.toml | grep -cE '^\\s+\"[^\"]+\"'",
+      "exclude_patterns_verification_command": "python3 -c \"import tomllib, pathlib; print(len(tomllib.loads(pathlib.Path('.deepsource.toml').read_text()).get('exclude_patterns', [])))\"",
       "test_patterns_count": 2,
       "test_patterns": [
         "**/*_test.go",
@@ -220,7 +221,7 @@
       "deepsource_exclude_patterns": 2
     },
     "lint_exemptions_total_note": "Sum of 18 gosec + 6 depguard + 14 forbidigo + 4 path-exclusions + 5 snyk + 0 truffleignore + 2 deepsource = 49. These are HEAD-only counts, not events per 2-week window.",
-    "snyk_expired_at_head_count": 5,
+    "snyk_expired_at_head_count": 0,
     "current_lint_exemption_count": 49,
     "per_window_events": [],
     "per_window_events_note": "Per-window time-series events are bucketed downstream by 09_compute_metrics.py from the timestamped events in audit_log.events, force_pushes.events (when the reflog carries timestamps), and exception_labeled_prs.events. Static-analysis exemptions are HEAD snapshots and do not contribute per-window event counts.",

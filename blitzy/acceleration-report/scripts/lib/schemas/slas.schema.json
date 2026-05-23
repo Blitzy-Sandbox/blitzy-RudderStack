@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/slas.schema.json",
+  "title": "SLA Target Inventory",
+  "description": "Output of 08_extract_linear.py for the SLAs stream. Records SLA targets per severity tier (from Linear or from a repository policy document). May contain an empty `slas` array with `unavailable_reason='no_linear_api_key'` when LINEAR_API_KEY is absent (the no-op path). Consumed by 09_compute_metrics.py for Metric 12 (Defects Out of SLA). The required core surface is `slas` (array, possibly empty) plus `unavailable_reason` (string or null) so the consumer can detect API availability without coupling to the optional `_metadata` envelope.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["slas"],
+  "properties": {
+    "_metadata": {"type": "object", "additionalProperties": true},
+    "linear": {"type": "object", "additionalProperties": true},
+    "policy_document": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "properties": {
+        "path": {"type": "string"},
+        "available": {"type": "boolean"}
+      }
+    },
+    "slas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "severity": {"type": "string"},
+          "target_duration_seconds": {"type": ["number", "null"]},
+          "source": {"type": "string"}
+        }
+      }
+    },
+    "sla_targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "severity": {"type": "string"},
+          "target_duration_seconds": {"type": ["number", "null"]},
+          "source": {"type": "string"}
+        }
+      }
+    },
+    "unavailable_reason": {"type": ["string", "null"]},
+    "fetched_at": {"type": ["string", "null"]},
+    "linear_endpoint": {"type": ["string", "null"]},
+    "note": {"type": ["string", "null"]}
+  }
+}

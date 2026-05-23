@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/reverts.schema.json",
+  "title": "Revert Commit Inventory",
+  "description": "Output of 05_extract_reverts.sh. Records revert commits on the default branch with original-commit resolution and release attribution. Consumed by 09_compute_metrics.py for Metric 8 (Problem Records in Release). Aligned with AAP §0.5.3.9.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["_metadata", "reverts"],
+  "properties": {
+    "_metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "reverts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["revert_sha"],
+        "properties": {
+          "revert_sha": {"type": "string", "minLength": 7},
+          "original_sha": {"type": ["string", "null"]},
+          "attributed_release_tag": {"type": ["string", "null"]},
+          "exclusion_reason": {"type": ["string", "null"]},
+          "revert_authored_at": {"type": ["string", "null"], "format": "date-time"}
+        }
+      }
+    },
+    "unattributable_reverts": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": true}
+    },
+    "unreleased_reverts": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": true}
+    }
+  }
+}

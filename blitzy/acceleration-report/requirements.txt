@@ -5,6 +5,16 @@
 # Security-vetted pins (see decision-log.md DL-014):
 #   - requests==2.32.5 addresses CVE-2024-47081 and CVE-2026-25645 vs 2.32.3
 #   - jinja2==3.1.6 addresses CVE-2024-56201, CVE-2024-56326, and CVE-2025-27516 vs 3.1.4
+#   - defusedxml==0.7.1 provides the safe XML parser used by 06_extract_ci_history.py
+#     when ingesting JUnit XML artifacts from GitHub Actions (semi-trusted input).
+#     Replaces the stdlib xml.etree.ElementTree calls that were flagged in the CP3
+#     security review; defusedxml disables XML External Entity (XXE), billion-laughs,
+#     and external-DTD expansion by default.
+#   - PyYAML==6.0.2 is the structural parser used by 07_extract_exceptions.py to
+#     read .snyk policy files. The script previously imported PyYAML lazily without
+#     declaring it, causing manifest drift. Declaring it removes the regex-only
+#     fallback path while leaving the legacy fallback in place for environments
+#     where PyYAML is intentionally absent.
 # All other pins remain at AAP §0.4.2 baseline; no known critical CVEs at review time.
 
 requests==2.32.5
@@ -14,3 +24,5 @@ tabulate==0.9.0
 jinja2==3.1.6
 jsonschema==4.23.0
 gql==3.5.0
+PyYAML==6.0.2
+defusedxml==0.7.1

@@ -129,6 +129,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.git import git_for_each_ref  # noqa: E402
 from lib.github import GithubClient  # noqa: E402
 from lib.observability import get_logger  # noqa: E402
+from lib.paths import (  # noqa: E402
+    safe_output_path,
+    OutputPathError,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -1501,7 +1505,22 @@ def main() -> int:
         chosen_tier_rationale=rationale,
     )
 
-    _write_json(Path(args.output), payload)
+    # Resolve the caller-supplied output path under workspace path
+    # confinement. ``safe_output_path`` rejects any path outside the
+    # workspace tree to prevent misconfigured callers from writing
+    # outside the analysis workspace (the rejection raises
+    # :class:`OutputPathError`, a :class:`ValueError` subclass).
+    try:
+        output_path = safe_output_path(args.output)
+    except OutputPathError as exc:
+        logger.error(
+            "output_path_rejected",
+            extra={"path": str(args.output), "error": str(exc)},
+        )
+        print(str(exc), file=sys.stderr)
+        return 4
+
+    _write_json(output_path, payload)
 
     logger.info(
         "script_complete",

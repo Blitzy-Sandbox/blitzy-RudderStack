@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/pull_events.schema.json",
+  "title": "Pull Request Event Timeline",
+  "description": "Output of 03_extract_pulls.py (events side-car). Records issue-event timeline per PR (draft transitions, review_requested, etc.). Consumed by 09_compute_metrics.py for Metric 4 (Flow Active) ready_for_review detection.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["_metadata", "github_api"],
+  "properties": {
+    "_metadata": {"type": "object", "additionalProperties": true},
+    "github_api": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["available"],
+      "properties": {"available": {"type": "boolean"}}
+    },
+    "events_by_pr": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {"type": "object", "additionalProperties": true}
+      }
+    }
+  }
+}

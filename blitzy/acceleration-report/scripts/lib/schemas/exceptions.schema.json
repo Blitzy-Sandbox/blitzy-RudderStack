@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/exceptions.schema.json",
+  "title": "Exception Inventory",
+  "description": "Output of 07_extract_exceptions.py. Records the exception inventory across audit log, force-pushes, branch-protection bypass, label markers, and lint-config exemptions. Consumed by 09_compute_metrics.py for Metric 10 (Approved Exceptions).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["_metadata"],
+  "properties": {
+    "_metadata": {"type": "object", "additionalProperties": true},
+    "audit_log": {"type": "object", "additionalProperties": true},
+    "branch_protection": {"type": "object", "additionalProperties": true},
+    "force_pushes": {"type": "object", "additionalProperties": true},
+    "exception_labeled_prs": {"type": "object", "additionalProperties": true},
+    "lint_exemptions": {"type": "object", "additionalProperties": true},
+    "summary": {"type": "object", "additionalProperties": true}
+  }
+}

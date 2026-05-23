@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/issues.schema.json",
+  "title": "Linear Issue Inventory",
+  "description": "Output of 08_extract_linear.py for the issues stream. Records Linear issues, labels, and SLA-relevant fields. May contain an empty `issues` array with `unavailable_reason='no_linear_api_key'` when LINEAR_API_KEY is absent (the no-op path). Consumed by 09_compute_metrics.py for Metrics 6 (Flow Distribution — Linear-label classification) and 12 (Defects Out of SLA). The required core surface is `issues` (array, possibly empty) plus `unavailable_reason` (string or null) so the consumer can detect API availability without coupling to the optional `_metadata` envelope.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["issues"],
+  "properties": {
+    "_metadata": {"type": "object", "additionalProperties": true},
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "identifier": {"type": "string", "description": "Linear issue key (e.g., 'ENG-1234')."},
+          "title": {"type": "string"},
+          "labels": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {"type": "string"},
+                {"type": "object", "additionalProperties": true}
+              ]
+            }
+          },
+          "category": {"type": "string", "description": "Optional pre-classified category (feature/defect/risk-compliance/tech-debt/unknown) populated by 08_extract_linear.py when label-rules resolve."},
+          "created_at": {"type": ["string", "null"]},
+          "completed_at": {"type": ["string", "null"]},
+          "sla_breached_at": {"type": ["string", "null"]},
+          "sla_target_duration_seconds": {"type": ["number", "null"]}
+        }
+      }
+    },
+    "unavailable_reason": {"type": ["string", "null"], "description": "Machine-readable sentinel set by 08_extract_linear.py to communicate API unavailability (e.g., 'no_linear_api_key')."},
+    "fetched_at": {"type": ["string", "null"]},
+    "linear_endpoint": {"type": ["string", "null"]},
+    "note": {"type": ["string", "null"]},
+    "label_filter": {"type": ["array", "null"], "items": {"type": "string"}},
+    "labels_catalog": {"type": "array", "items": {"type": "object", "additionalProperties": true}}
+  }
+}

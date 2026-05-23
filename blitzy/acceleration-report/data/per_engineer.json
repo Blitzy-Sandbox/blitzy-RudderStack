@@ -1,7 +1,7 @@
 {
   "_metadata": {
-    "extraction_timestamp": "2026-05-23T05:54:20Z",
-    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+    "extraction_timestamp": "2026-05-23T18:44:04Z",
+    "run_id": "729fb296-36d9-44ea-a422-15dfa3ab46d1",
     "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
     "default_branch": "main",
     "schema_version": "1.0",
@@ -13,7 +13,7 @@
     ],
     "inflection_date_utc": "2026-02-25T02:58:59Z",
     "phase_decomposition": "baseline_vs_post_introduction",
-    "phase_decomposition_reason": "Post-introduction span is 86 days (inflection 2026-02-25T02:58:59Z → end 2026-05-21T23:59:59Z). 86 < 90-day threshold per AAP §0.5.6 and decision-log.md DL-006, so the two-phase fallback (Baseline + Post-Introduction) is applied; no ramp_up or steady_state keys are emitted on any metric row.",
+    "phase_decomposition_reason": "Post-introduction span is 88 days (inflection 2026-02-25T02:58:59Z → end 2026-05-23T16:54:56Z). 88 < 90-day threshold per AAP §0.5.6 and decision-log.md DL-006, so the two-phase fallback (Baseline + Post-Introduction) is applied; no ramp_up or steady_state keys are emitted on any metric row.",
     "metrics_covered": [
       "m2",
       "m4",
@@ -24,6 +24,61 @@
     "metrics_covered_note": "Per AAP §0.5.6 Quality Gate 5 — the metrics that admit individual-attribution data. Other metrics (m1 Flow Load, m3 Flow Predictability, m7 Flow Time, m8 Problem Records, m9 Releases, m11 Escaped Defects, m12 Defects Out of SLA) are reported only at the phase level in data/metrics.json."
   },
   "engineers": {
+    "Blitzy": {
+      "display_name": "Blitzy",
+      "actor_type": "ai",
+      "email_aliases": [
+        "191547922+blitzy[bot]@users.noreply.github.com",
+        "agent@blitzy.com"
+      ],
+      "display_name_aliases": [
+        "Blitzy Agent",
+        "agent",
+        "agent@blitzy.com",
+        "blitzy-agent",
+        "blitzy[bot]"
+      ],
+      "total_commits_on_main": 645,
+      "commits_in_baseline_phase": 0,
+      "commits_in_post_introduction_phase": 645,
+      "first_commit_iso": "2026-02-25T02:58:59Z",
+      "last_commit_iso": "2026-05-23T16:54:56Z",
+      "m2_flow_velocity": {
+        "baseline": 0,
+        "post_introduction": 5,
+        "multiplier": "—",
+        "post_introduction_pr_numbers": [
+          11,
+          12,
+          18,
+          20,
+          27
+        ]
+      },
+      "m4_flow_active": {
+        "baseline": "insufficient_signal",
+        "post_introduction": "insufficient_signal",
+        "reason": "Per-engineer Flow Active requires review-event-bounded per-PR active spans (Pulls + Reviews + Events APIs); the phase-level M4 collapsed to insufficient_signal in this run, so per-engineer attribution is also insufficient."
+      },
+      "m5_flow_efficiency": {
+        "baseline": "insufficient_signal",
+        "post_introduction": "insufficient_signal",
+        "joined_pr_count_baseline": 0,
+        "joined_pr_count_post_introduction": 0,
+        "reason": "Engineer Blitzy has no joined per-PR active/time pairs in either phase; per-engineer Flow Efficiency cannot be computed."
+      },
+      "m6_flow_distribution": {
+        "post_introduction_proportions": {
+          "unknown": 0.8,
+          "feature": 0.2
+        }
+      },
+      "m10_approved_exceptions": {
+        "baseline": 0,
+        "post_introduction": 0,
+        "reason": "Per-engineer Approved Exceptions reports label-attributed exception PRs only; admin audit-log attribution is unavailable in this run, so non-label channels (force-pushes, required-check bypass, branch-protection edits) do not contribute to per-engineer counts."
+      }
+    },
     "awadhwani": {
       "display_name": "awadhwani",
       "actor_type": "human",
@@ -47,71 +102,22 @@
       "m4_flow_active": {
         "baseline": "insufficient_signal",
         "post_introduction": "insufficient_signal",
-        "reason": "Per-engineer Flow Active requires review-event-bounded per-PR active spans (Pulls + Reviews + Events APIs). Not available in this run."
+        "reason": "Per-engineer Flow Active requires review-event-bounded per-PR active spans (Pulls + Reviews + Events APIs); the phase-level M4 collapsed to insufficient_signal in this run, so per-engineer attribution is also insufficient."
       },
       "m5_flow_efficiency": {
         "baseline": "insufficient_signal",
         "post_introduction": "insufficient_signal",
-        "reason": "Per-engineer Flow Efficiency inherits Flow Active and Flow Time per-PR per-actor signal."
+        "joined_pr_count_baseline": 0,
+        "joined_pr_count_post_introduction": 0,
+        "reason": "Engineer awadhwani has no joined per-PR active/time pairs in either phase; per-engineer Flow Efficiency cannot be computed."
       },
       "m6_flow_distribution": {
         "post_introduction_proportions": {}
       },
       "m10_approved_exceptions": {
-        "baseline": "insufficient_signal",
-        "post_introduction": "insufficient_signal",
-        "reason": "Per-engineer Approved Exceptions requires admin audit-log attribution; not available without admin access."
-      }
-    },
-    "Blitzy": {
-      "display_name": "Blitzy",
-      "actor_type": "ai",
-      "email_aliases": [
-        "191547922+blitzy[bot]@users.noreply.github.com",
-        "agent@blitzy.com"
-      ],
-      "display_name_aliases": [
-        "Blitzy Agent",
-        "agent@blitzy.com",
-        "blitzy[bot]"
-      ],
-      "total_commits_on_main": 517,
-      "commits_in_baseline_phase": 0,
-      "commits_in_post_introduction_phase": 517,
-      "first_commit_iso": "2026-02-25T02:58:59Z",
-      "last_commit_iso": "2026-04-16T13:45:48Z",
-      "m2_flow_velocity": {
-        "baseline": 0,
-        "post_introduction": 5,
-        "multiplier": "—",
-        "post_introduction_pr_numbers": [
-          11,
-          12,
-          18,
-          20,
-          27
-        ]
-      },
-      "m4_flow_active": {
-        "baseline": "insufficient_signal",
-        "post_introduction": "insufficient_signal",
-        "reason": "Per-engineer Flow Active requires review-event-bounded per-PR active spans (Pulls + Reviews + Events APIs). Not available in this run."
-      },
-      "m5_flow_efficiency": {
-        "baseline": "insufficient_signal",
-        "post_introduction": "insufficient_signal",
-        "reason": "Per-engineer Flow Efficiency inherits Flow Active and Flow Time per-PR per-actor signal."
-      },
-      "m6_flow_distribution": {
-        "post_introduction_proportions": {
-          "unknown": 0.8,
-          "feature": 0.2
-        }
-      },
-      "m10_approved_exceptions": {
         "baseline": 0,
         "post_introduction": 0,
-        "reason": "Per-engineer Approved Exceptions requires admin audit-log attribution; not available without admin access."
+        "reason": "Per-engineer Approved Exceptions reports label-attributed exception PRs only; admin audit-log attribution is unavailable in this run, so non-label channels (force-pushes, required-check bypass, branch-protection edits) do not contribute to per-engineer counts."
       }
     },
     "michael": {
@@ -138,12 +144,14 @@
       "m4_flow_active": {
         "baseline": "insufficient_signal",
         "post_introduction": "insufficient_signal",
-        "reason": "Per-engineer Flow Active requires review-event-bounded per-PR active spans (Pulls + Reviews + Events APIs). Not available in this run."
+        "reason": "Per-engineer Flow Active requires review-event-bounded per-PR active spans (Pulls + Reviews + Events APIs); the phase-level M4 collapsed to insufficient_signal in this run, so per-engineer attribution is also insufficient."
       },
       "m5_flow_efficiency": {
         "baseline": "insufficient_signal",
         "post_introduction": "insufficient_signal",
-        "reason": "Per-engineer Flow Efficiency inherits Flow Active and Flow Time per-PR per-actor signal."
+        "joined_pr_count_baseline": 0,
+        "joined_pr_count_post_introduction": 0,
+        "reason": "Engineer michael has no joined per-PR active/time pairs in either phase; per-engineer Flow Efficiency cannot be computed."
       },
       "m6_flow_distribution": {
         "post_introduction_proportions": {
@@ -151,9 +159,9 @@
         }
       },
       "m10_approved_exceptions": {
-        "baseline": "insufficient_signal",
-        "post_introduction": "insufficient_signal",
-        "reason": "Per-engineer Approved Exceptions requires admin audit-log attribution; not available without admin access."
+        "baseline": 0,
+        "post_introduction": 0,
+        "reason": "Per-engineer Approved Exceptions reports label-attributed exception PRs only; admin audit-log attribution is unavailable in this run, so non-label channels (force-pushes, required-check bypass, branch-protection edits) do not contribute to per-engineer counts."
       }
     }
   }

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/test_transitions.schema.json",
+  "title": "CI Test Result Transitions",
+  "description": "Output of 06_extract_ci_history.py for the test-transitions stream (companion to ci_runs.json). Records per-test transitions between consecutive runs on the default branch: pass-to-fail (regression candidates) and pass-to-skip (suppression candidates). The producer emits transitions with the canonical field names defined here; consumers (09_compute_metrics.py) MUST validate this artifact at load time to detect drift between extractor and compute. Aligned with AAP §0.5.3.12 (Metric 11). The github_api availability flag lives in the sibling ci_runs.json artifact; this artifact carries only the transition array plus a per-HEAD skip-scan snapshot.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["_metadata", "transitions"],
+  "properties": {
+    "_metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["kind", "transitioned_at", "test"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["regression", "suppression"],
+            "description": "Canonical transition kind. 'regression' = pass-to-fail sustained for ≥FLAKY_THRESHOLD consecutive runs. 'suppression' = test newly marked skipped/disabled."
+          },
+          "transitioned_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 UTC timestamp of the run where the transition was first observed."
+          },
+          "test": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Fully-qualified test case identifier."
+          }
+        }
+      }
+    },
+    "flaky_excluded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "description": "Tests that alternated within FLAKY_THRESHOLD runs and were excluded from regression counts."
+    }
+  }
+}

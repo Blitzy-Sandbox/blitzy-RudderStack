@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blitzy.io/acceleration-report/schemas/per_engineer.schema.json",
+  "title": "Per-Engineer Breakdown",
+  "description": "Output of 09_compute_metrics.py. Records per-engineer breakdown for Metrics 2, 4, 5, 6, 10 with real display names plus 'Blitzy' as a single row in the after period. Consumed by 10_render_report.py and 11_render_deck.py.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["_metadata", "engineers"],
+  "properties": {
+    "_metadata": {"type": "object", "additionalProperties": true},
+    "engineers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["display_name", "actor_type"],
+        "properties": {
+          "display_name": {"type": "string", "minLength": 1},
+          "actor_type": {"type": "string", "enum": ["human", "ai"]},
+          "email_aliases": {"type": "array", "items": {"type": "string"}},
+          "m2_flow_velocity": {"type": "object", "additionalProperties": true},
+          "m4_flow_active": {"type": "object", "additionalProperties": true},
+          "m5_flow_efficiency": {"type": "object", "additionalProperties": true},
+          "m6_flow_distribution": {"type": "object", "additionalProperties": true},
+          "m10_approved_exceptions": {"type": "object", "additionalProperties": true}
+        }
+      }
+    }
+  }
+}

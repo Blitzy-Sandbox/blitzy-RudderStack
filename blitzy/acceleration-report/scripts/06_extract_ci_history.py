@@ -138,7 +138,18 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from xml.etree import ElementTree as ET
+
+# Use defusedxml in place of the stdlib xml.etree.ElementTree because
+# JUnit XML artifacts come from GitHub Actions workflow run artifacts —
+# semi-trusted pipeline input that a malicious CI workflow could
+# poison with XML External Entity (XXE), billion-laughs, or external-
+# DTD payloads. ``defusedxml.ElementTree`` provides a drop-in API that
+# disables all four hazardous parser behaviours by default. The
+# requirements.txt pins defusedxml==0.7.1 (security-vetted; see
+# decision log DL-014). Both ``parse`` and the ``ParseError`` class are
+# imported under the ``ET.`` namespace so existing call sites continue
+# to work unchanged.
+from defusedxml import ElementTree as ET  # type: ignore[import-untyped]
 
 # ---------------------------------------------------------------------------
 # Make the workspace-local ``lib/`` package importable when the script is
@@ -153,6 +164,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.git import git_rev_parse_toplevel  # noqa: E402
 from lib.github import GithubClient  # noqa: E402
 from lib.observability import get_logger  # noqa: E402
+from lib.paths import (  # noqa: E402
+    safe_output_path,
+    OutputPathError,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -2201,8 +2216,28 @@ def main() -> int:
         per_run_statuses=per_run_statuses,
     )
 
-    _write_json(Path(args.ci_output), ci_payload)
-    _write_json(Path(args.transitions_output), transitions_payload)
+    # Resolve the caller-supplied output paths under workspace path
+    # confinement. ``safe_output_path`` rejects any path outside the
+    # workspace tree to prevent a misconfigured ``--ci-output`` or
+    # ``--transitions-output`` from writing outside the analysis
+    # workspace.
+    try:
+        ci_path = safe_output_path(args.ci_output)
+        transitions_path = safe_output_path(args.transitions_output)
+    except OutputPathError as exc:
+        logger.error(
+            "output_path_rejected",
+            extra={
+                "ci_output": args.ci_output,
+                "transitions_output": args.transitions_output,
+                "error": str(exc),
+            },
+        )
+        print(str(exc), file=sys.stderr)
+        return 4
+
+    _write_json(ci_path, ci_payload)
+    _write_json(transitions_path, transitions_payload)
 
     logger.info(
         "script_complete",

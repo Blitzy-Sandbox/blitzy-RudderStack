@@ -267,6 +267,7 @@ ALLOWED_SUBCOMMANDS: frozenset[str] = frozenset(
 __all__ = [
     "GitReadOnlyViolation",
     "git_log",
+    "git_log_raw",
     "git_revlist",
     "git_rev_parse",
     "git_rev_parse_toplevel",
@@ -562,6 +563,45 @@ def git_log(
     argv: list[str] = ["log", f"--pretty=format:{fmt}", *(args or [])]
     text = _run_git_checked(argv, cwd=cwd)
     return _splitlines_drop_trailing_blank(text)
+
+
+def git_log_raw(
+    fmt: str,
+    args: list[str] | None = None,
+    cwd: Path | None = None,
+) -> str:
+    """Run ``git log --pretty=format:<fmt>`` and return the raw stdout string.
+
+    Identical guarantees and validation as :func:`git_log` but returns the
+    captured stdout as a single string instead of split lines. Required by
+    callers that use ``%B`` (full body) or any other multi-line format
+    placeholder, where naive line splitting destroys record boundaries.
+    Such callers typically encode a record terminator into the format
+    (e.g. ``"%H|%aI%n%B%n----END----"``) and split the raw output on the
+    terminator themselves.
+
+    The same allow-list / deny-list enforcement as :func:`git_log` applies
+    through :func:`_run_git_checked` → :func:`_validate_command`. Any
+    deny-listed flag in ``args`` raises :class:`GitReadOnlyViolation`.
+
+    Args:
+        fmt: The format string passed to ``--pretty=format:``. Multi-line
+            formats are explicitly supported.
+        args: Additional positional arguments forwarded to ``git log`` after
+            the ``--pretty=format:`` token.
+        cwd: Optional working directory passed through to the subprocess.
+
+    Returns:
+        The captured stdout as a single ``str``. The string is unmodified
+        — no trailing-newline normalisation is applied, since the caller
+        likely needs the exact byte stream to split on its own delimiter.
+
+    Raises:
+        GitReadOnlyViolation: When ``args`` contains a deny-list flag.
+        subprocess.CalledProcessError: When ``git log`` exits non-zero.
+    """
+    argv: list[str] = ["log", f"--pretty=format:{fmt}", *(args or [])]
+    return _run_git_checked(argv, cwd=cwd)
 
 
 def git_revlist(
