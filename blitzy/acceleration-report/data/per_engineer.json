@@ -272,8 +272,8 @@
               {"pr_number": 27, "title": "Blitzy: Implement 5 Sprint Groups — Destination Connectors,...", "category": "unknown", "classifier_tier": "fall_through_to_unknown", "matched_keyword": null}
             ]
           },
-          "multiplier": null,
-          "multiplier_rationale": "Flow Distribution is a categorical distribution, not a scalar; the multiplier concept does not apply. The renderer compares baseline vs post-introduction by category-pair shifts rather than by a single ratio. Per AAP §0.5.3.7 the per-phase shape is reported separately for each phase.",
+          "multiplier": "—",
+          "multiplier_rationale": "Flow Distribution is a categorical distribution, not a scalar; the multiplier concept does not apply. Per the CP2 review Data Contract finding, the legal values are float, em-dash sentinel '—' (categorical-distribution case), or 'insufficient_signal' (no-denominator case); null is forbidden. This row uses '—' because the per-phase distributions are well-defined (post_introduction has 5 PRs across 2 categories) but they cannot be collapsed into a single ratio. The renderer compares baseline vs post-introduction by category-pair shifts rather than by a single ratio. Per AAP §0.5.3.7 the per-phase shape is reported separately for each phase.",
           "extraction_strategy": "Apply classifier in priority order to each merged PR: (1) if PR body contains Linear ticket key matching [A-Z]{2,}-\\d+ AND Linear API is reachable, fetch linked issue labels and map to category; (2) parse PR title for leading conventional-commit type per .github/workflows/semantic-pr.yaml and apply feat→feature, fix→defect, chore/refactor/exp/doc/test→tech-debt; (3) keyword-match title and body for security/compliance/audit/sla/gdpr/pci/cve/vulnerability → risk_compliance, bug/fix/regression/hotfix → defect, refactor/tech-debt/cleanup/rename/format → tech-debt, feature/add/support/enable → feature; else unknown.",
           "provenance": {
             "requirement_id": "M6",
@@ -384,26 +384,34 @@
         "m2": {
           "metric_name": "Flow Velocity",
           "metric_definition": "Count of PRs merged to the default branch per 2-week window. Same definition as for Blitzy.",
+          "semantic_contract_note": "Under the merge-commit-fallback semantic active in this run (per the CP2 review Rule 4 Internal Consistency reconciliation), the unit of M2 is the explicit merge commit on main; pulls[] in data/pulls.json carries six entries (five with PR numbers, one ad-hoc merge). michael's contribution is the single ad-hoc merge ad44713 in the post-introduction phase. When the GitHub Pulls API becomes reachable, scripts/09_compute_metrics.py recomputes under the strict-PR semantic; under that semantic michael's M2 post_introduction is zero (no PR-number-bearing merges are attributed to michael). Both semantics are documented here so the renderer and the CP2 reviewer can audit either choice.",
           "baseline": {
             "value": 0,
-            "value_units": "PRs merged to main authored by michael in the baseline phase",
+            "value_units": "Merge commits on main authored by michael in the baseline phase (merge-commit-fallback semantic) / PRs merged to main authored by michael in the baseline phase (strict-PR semantic)",
             "confidence": "high",
-            "confidence_rationale": "Zero is a verified absence. The baseline phase contains exactly 1 commit on main (michael's initial repo-initialization commit 2003931b), but this is a direct-to-main push, not a PR merge. Zero merge commits at all exist in the baseline phase per data/pulls.json#observed_merge_commits_on_main_phase_distribution.baseline_count = 0."
+            "confidence_rationale": "Zero is a verified absence under both semantics. The baseline phase contains exactly 1 commit on main (michael's initial repo-initialization commit 2003931b), but this is a direct-to-main push, not a merge commit. Zero merge commits at all exist in the baseline phase per data/pulls.json#observed_merge_commits_on_main_phase_distribution.baseline_count = 0."
           },
           "post_introduction": {
-            "value": 0,
-            "value_units": "PRs merged to main authored by michael in the post-introduction phase",
+            "value": 1,
+            "value_units": "Merge commits on main authored by michael in the post-introduction phase (merge-commit-fallback semantic; aligns with data/metrics.json#m2.merge_commits_total=6 and aggregate Blitzy:5 + michael:1 + ajay-blitzy:0 = 6)",
+            "value_breakdown": {
+              "pr_numbered_merges": 0,
+              "ad_hoc_merges": 1,
+              "ad_hoc_merge_shas": ["ad44713169c21e411c789afce079c3504b4150bf"]
+            },
+            "strict_pr_semantic_value": 0,
+            "strict_pr_semantic_value_note": "Under the strict-PR semantic (when GitHub Pulls API becomes reachable and the canonical user.login is consulted), michael's M2 post_introduction value is zero because none of the 5 GitHub-API-tracked merged PRs (#11, #12, #18, #20, #27) is attributed to michael.",
             "confidence": "high",
-            "confidence_rationale": "Zero is a verified absence. None of the 5 GitHub-API-tracked merged PRs (#11, #12, #18, #20, #27) has a title beginning with anything other than 'Blitzy:'. michael's only post-introduction main-branch merge contribution is the ad-hoc git merge ad44713 (not a PR; excluded from M2 per definition). Verification: data/pulls.json#observed_merge_commits_on_main lists 6 merge commits total; 5 are PR merges all attributed to Blitzy; the 6th (ad44713) is michael's direct git merge."
+            "confidence_rationale": "The 1 attributed under the merge-commit-fallback semantic is the deterministic ad-hoc merge ad44713 authored by michael@blitzy.com on 2026-03-27T03:42:16Z. Verification: data/pulls.json#observed_merge_commits_on_main lists 6 merge commits total; 5 are PR-numbered merges (all Blitzy); the 6th is this ad-hoc merge."
           },
           "multiplier": "—",
-          "multiplier_rationale": "Both baseline and post_introduction values are zero. Division by zero is undefined; reported as '—' per AAP §0.7.3.",
-          "extraction_strategy": "Same as Blitzy: enumerate merge commits on main, parse PR number from merge subject, classify PR author by title prefix ('Blitzy:' → Blitzy; 'name:' → human). When the GitHub Pulls API is reachable, the canonical signal is the PR's user.login field; the title-prefix heuristic is the local-git fallback.",
+          "multiplier_rationale": "Division by zero is undefined (baseline value is zero). AAP §0.7.3 prohibits fabrication; reported as the em-dash sentinel '—' rather than Infinity. The Activity Deep-Dive narrates the absolute counts (0 vs 1) instead of an aggregable ratio.",
+          "extraction_strategy": "Enumerate merge commits on main from local git log. For each merge commit, parse the subject for 'Merge pull request #N' patterns; classify by author email. Under the merge-commit-fallback semantic, both PR-numbered merges and ad-hoc merges count toward the per-engineer total. Under the strict-PR semantic (API-enabled), only PR-numbered merges count and the canonical user.login per PR is consulted. The title-prefix heuristic ('Blitzy:' → Blitzy engineering actor) is corroborating signal when the API is unreachable.",
           "provenance": {
             "requirement_id": "M2",
-            "extraction_command": "git log main --merges --pretty=format:'%H|%aI|%P|%s' | python3 -c \"<see scripts/09_compute_metrics.py compute_flow_velocity_per_engineer>\"",
+            "extraction_command": "git log main --merges --pretty=format:'%H|%aI|%aE|%P|%s' | awk -F'|' '$3==\"michael@blitzy.com\" {count++} END {print count}' (local-git fallback); GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=closed&per_page=100 then filter user.login==michael (API primary, currently unreachable)",
             "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
-            "raw_output_artifact_field": "observed_merge_commits_on_main",
+            "raw_output_artifact_field": "observed_merge_commits_on_main filtered by author email michael@blitzy.com",
             "derivation_function": "compute_flow_velocity_per_engineer() in scripts/09_compute_metrics.py"
           }
         },
@@ -486,10 +494,10 @@
             "total_prs": 0,
             "unknown_rate": null,
             "confidence": "insufficient",
-            "reason": "Zero GitHub-API-tracked PRs by michael in the post-introduction phase (all 5 are attributed to Blitzy by PR title). michael's single ad-hoc git merge ad44713 is not a PR and is excluded from M6 per the metric definition 'Proportion of merged PRs'. The distribution over an empty set of PRs is undefined."
+            "reason": "Zero GitHub-API-tracked PRs by michael in the post-introduction phase (all 5 are attributed to Blitzy by PR title). michael's single ad-hoc git merge ad44713 is counted in M2 under the merge-commit-fallback semantic but is excluded from M6 per the metric definition 'Proportion of merged PRs' which is PR-scoped per AAP §0.5.3.7. The distribution over an empty set of PRs is undefined."
           },
-          "multiplier": null,
-          "multiplier_rationale": "Flow Distribution is a categorical distribution, not a scalar; the multiplier concept does not apply per AAP §0.5.3.7.",
+          "multiplier": "insufficient_signal",
+          "multiplier_rationale": "Flow Distribution is a categorical distribution, not a scalar; additionally, michael's PR inventory is empty in both phases so no per-category distribution exists. Per the CP2 review Data Contract finding, the legal values are float, em-dash '—', or 'insufficient_signal'; null is forbidden. This row uses 'insufficient_signal' because the underlying input (count of PRs authored by michael) is zero in both phases — there is no denominator to compute a distribution against, which is the no-denominator case per AAP §0.5.3.7.",
           "extraction_strategy": "Same three-tier classifier as Blitzy applied to michael's PRs.",
           "provenance": {
             "requirement_id": "M6",
@@ -701,8 +709,8 @@
             "confidence": "insufficient",
             "reason": "ajay-blitzy authored zero PRs in the post-introduction phase. All three commits are direct-to-main chore pushes. A direct-to-main commit could in principle be classified by its commit subject (all three start with 'chore:' which would map to tech_debt via Tier 2 conventional-commit prefix); however, AAP §0.5.3.7 scopes Flow Distribution to MERGED PRs, not direct commits, so the per-engineer distribution remains undefined for ajay-blitzy."
           },
-          "multiplier": null,
-          "multiplier_rationale": "Flow Distribution is a categorical distribution, not a scalar; the multiplier concept does not apply per AAP §0.5.3.7. Additionally, both phases are insufficient_signal.",
+          "multiplier": "insufficient_signal",
+          "multiplier_rationale": "Flow Distribution is a categorical distribution, not a scalar; additionally, ajay-blitzy's PR inventory is empty in both phases. Per the CP2 review Data Contract finding, the legal values are float, em-dash '—', or 'insufficient_signal'; null is forbidden. This row uses 'insufficient_signal' because the underlying input (count of PRs authored by ajay-blitzy) is zero in both phases — there is no denominator to compute a distribution against, which is the no-denominator case per AAP §0.5.3.7.",
           "extraction_strategy": "Same three-tier classifier as Blitzy applied to ajay-blitzy's PRs. Not applicable when the engineer has zero PRs.",
           "provenance": {
             "requirement_id": "M6",

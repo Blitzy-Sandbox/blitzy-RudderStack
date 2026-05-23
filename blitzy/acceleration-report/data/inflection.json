@@ -3,10 +3,24 @@
     "extraction_timestamp": "2026-05-23T05:54:20Z",
     "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
     "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
-    "default_branch": "main"
+    "default_branch": "main",
+    "schema_version": "1.1.0",
+    "schema_version_change_note": "Bumped to 1.1.0 in CP2 remediation: added top-level baseline_duration_days, post_introduction.duration_days, and ramp_up_steady_state_split_applied for CP2 contract compliance per the review item. The legacy phase_decomposition.* paths are preserved as compatibility aliases; consumers may use either path."
   },
   "tier_used": "ai_actor_email",
   "date_utc": "2026-02-25T02:58:59Z",
+  "baseline_duration_days": 2,
+  "baseline_duration_days_source": "phase_decomposition.baseline_duration_days_approx; computed as (post_introduction_start_iso - baseline_start_iso) rounded to days. The full span is 2026-02-23T05:19:38Z to 2026-02-25T02:58:58Z = 1.90 days, conservatively rounded up to 2 days for the report-friendly integer field. Per AAP §0.5.3.4, the baseline phase has 0 complete 2-week windows (insufficient for M3 Flow Predictability per the >=4-windows threshold).",
+  "post_introduction": {
+    "duration_days": 86,
+    "duration_days_source": "phase_decomposition.post_introduction_duration_days_approx; computed as (post_introduction_end_iso - post_introduction_start_iso) rounded to days. The full span is 2026-02-25T02:58:59Z to 2026-05-21T23:59:59Z = 85.88 days, rounded up to 86. Per AAP §0.1.4 the 90-day Ramp-Up boundary is not reached; the temporal-phase fallback is applied (see ramp_up_steady_state_split_applied below).",
+    "start_iso": "2026-02-25T02:58:59Z",
+    "end_iso": "2026-05-21T23:59:59Z",
+    "commit_count_on_main": 537
+  },
+  "ramp_up_steady_state_split_applied": false,
+  "ramp_up_steady_state_split_applied_reason": "Per AAP §0.1.4 and §0.5.6 plus decision-log.md DL-006: when the post-introduction phase span is shorter than 90 days, the Ramp-Up (first 90 days)/Steady-State (90+ days) split is replaced by the simpler Baseline vs Post-Introduction two-phase fallback. The 86-day post_introduction.duration_days is fewer than the 90-day threshold, so the fallback is applied. Every metric row in data/metrics.json uses the baseline + post_introduction keys exclusively; no metric carries a ramp_up or steady_state sub-key.",
+  "ramp_up_steady_state_threshold_days": 90,
   "date_local_iso": "2026-02-25T02:58:59+00:00",
   "evidence": {
     "commit_sha": "803732e140796ac4db4343c22791025b6503885c",

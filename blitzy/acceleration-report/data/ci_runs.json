@@ -7,7 +7,8 @@
     "analysis_period_start": "2026-02-23T00:00:00Z",
     "analysis_period_end": "2026-05-21T23:59:59Z",
     "inflection_date_utc": "2026-02-25T02:58:59Z",
-    "schema_version": "1.0.0",
+    "schema_version": "1.1.0",
+    "schema_version_change_note": "Bumped from 1.0.0 to 1.1.0 in CP2 remediation: junit_emitting_workflows is now exposed both at the top level (canonical CP2 contract path) and at _metadata.junit_emitting_workflows (legacy seed path, preserved for downstream compatibility). The two fields hold the same value.",
     "artifact_kind": "hand_authored_seed",
     "artifact_kind_note": "This is a hand-authored seed artifact produced for the no-network-access analysis sandbox. The runs[], runs_by_workflow[*], artifacts.junit_xml_artifacts[], artifacts.deploy_artifacts[], summary.failing_check_merged_prs[], and ci_deploy_events.events[] arrays are intentionally empty because scripts/06_extract_ci_history.py could not reach the GitHub Actions Runs API. When the script is re-run with GH_TOKEN set and network reachable, it overwrites this file with the populated CI workflow run inventory; the run_id and extraction_timestamp will then reflect that execution. The workflows_in_repo[] and junit_emitting_workflows[] fields are populated from the in-repo source-of-truth scan of .github/workflows/ and are accurate at the documented extraction_timestamp regardless of API availability.",
     "workflows_in_repo": [
@@ -32,6 +33,8 @@
     "junit_emitting_workflows_detection_command": "grep -niE 'junit|gotestsum|test2json|--json|-json|test-report' .github/workflows/*.{yml,yaml}",
     "junit_emitting_workflows_detection_result_summary": "Zero matches for junit/gotestsum/test2json/test-report across all 13 workflows. One unrelated -json match in sync-release.yaml line 43 ('gh pr view ... --json mergeCommit') which is metadata extraction, not test output."
   },
+  "junit_emitting_workflows": [],
+  "junit_emitting_workflows_path_note": "This top-level field is the canonical CP2-contract path for the junit_emitting_workflows assertion. It mirrors _metadata.junit_emitting_workflows verbatim. Per the CP2 review Data Contract Shape finding, exposing this at the top level allows downstream consumers to read it via 'jq .junit_emitting_workflows' or equivalent without descending into _metadata. The semantic interpretation is unchanged: an empty array signals that no workflow at HEAD emits JUnit XML test result artifacts, which forces M11 (Escaped Defects) into its in-repo HEAD-only fallback per AAP §0.5.3.12.",
   "github_api": {
     "available": false,
     "unavailable_reason": "GH_TOKEN environment variable not set or rate limit exceeded",

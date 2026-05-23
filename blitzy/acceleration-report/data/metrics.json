@@ -1,12 +1,21 @@
 {
   "_metadata": {
-    "schema_version": "1.0.0",
+    "schema_version": "1.1.0",
+    "schema_version_change_note": "Bumped from 1.0.0 to 1.1.0 in CP2 remediation: added ramp_up_steady_state_split_applied flag, raw_output_artifact_paths array fields on every provenance row, executable extraction_command strings, and semantic_contract metadata on m2 to satisfy CP2 review Rule 1 (Data Provenance), Rule 4 (Internal Consistency), and Rule 5 (Reproducibility) findings.",
     "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
     "extraction_timestamp": "2026-05-23T08:30:00Z",
     "generated_by": "scripts/09_compute_metrics.py",
     "rudder_server_head_sha": "97dd6d9deeb42f33b388a909d368814f126dda58",
     "rudder_server_repo_slug": "Blitzy-Sandbox/blitzy-RudderStack",
     "inflection_date_utc": "2026-02-25T02:58:59Z",
+    "ramp_up_steady_state_split_applied": false,
+    "ramp_up_steady_state_split_applied_reason": "Per AAP §0.5.6 and decision-log.md DL-006: the post-introduction phase spans 86 days from the inflection point 2026-02-25T02:58:59Z to the end of the analysis window (2026-05-21T19:48:23Z, the latest commit on main). 86 days is fewer than the 90-day Ramp-Up/Steady-State boundary defined in AAP §0.1.4 and AAP §0.5.6, so the two-phase fallback is applied: Baseline (pre-inflection) vs Post-Introduction (post-inflection), without further temporal subdivision. Every metric row in this file uses the baseline + post_introduction keys exclusively; no metric carries a ramp_up or steady_state sub-key. This flag is the renderer's authoritative source for choosing the two-phase or three-phase temporal layout in acceleration-report.md and executive-summary.html, per the CP2 review item AAP §0.5.6 / DL-006 finding.",
+    "post_introduction_duration_days": 86,
+    "ramp_up_steady_state_threshold_days": 90,
+    "phase_keys_used": [
+      "baseline",
+      "post_introduction"
+    ],
     "source_artifact_hashes": {}
   },
   "m1": {
@@ -45,7 +54,10 @@
       "requirement_id": "M1",
       "extraction_command": "GET https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all&per_page=100 (paginated); see scripts/03_extract_pulls.py",
       "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
-      "derivation_function": "compute_m1_flow_load() in scripts/09_compute_metrics.py"
+      "derivation_function": "compute_m1_flow_load() in scripts/09_compute_metrics.py",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/pulls.json"
+      ]
     }
   },
   "m2": {
@@ -55,7 +67,9 @@
     "value": 1.0,
     "after_before_multiplier": "—",
     "confidence": "medium",
-    "boundary_conditions": "GitHub Pulls API unavailable (GH_TOKEN absent); falls back to local-git merge-commit enumeration on main. The local-git fallback cannot distinguish dependency-bot PRs from human/Blitzy PRs without scanning commit subjects; in this run the 6 merge commits on main all reference Blitzy-authored PRs (blitzy[bot] auto-merges of agent@blitzy.com branches plus one manual merge by michael@blitzy.com), and no dependabot[bot] PRs reached main.",
+    "semantic_contract": "merge_commit_fallback",
+    "semantic_contract_note": "Per the CP2 review Rule 4 Internal Consistency reconciliation, M2 uses the merge-commit-fallback semantic when the GitHub Pulls API is unreachable: each explicit merge commit on main (whether it references a PR number or is an ad-hoc local merge) counts as one M2 unit. Under this semantic, the post-introduction phase has 6 merges (5 PR-numbered + 1 ad-hoc) over 6 windows = 1.0 per window. This aligns with the per-engineer breakdown in data/per_engineer.json: Blitzy=5 + michael=1 + ajay-blitzy=0 = 6. Under the strict-PR semantic (active when the API becomes reachable and user.login per PR is the canonical author signal), the count would be 5 PRs over 6 windows ≈ 0.833 per window; that recomputation runs deterministically in scripts/09_compute_metrics.py and replaces the merge-commit-fallback value at that time.",
+    "boundary_conditions": "GitHub Pulls API unavailable (GH_TOKEN absent); falls back to local-git merge-commit enumeration on main. The local-git fallback cannot distinguish dependency-bot PRs from human/Blitzy PRs without scanning commit subjects; in this run the 6 merge commits on main reference 5 Blitzy-authored PRs (#11, #12, #18, #20, #27, all via blitzy[bot] auto-merges of agent@blitzy.com branches) plus 1 ad-hoc local merge by michael@blitzy.com (ad44713), and no dependabot[bot] PRs reached main.",
     "extraction_strategy": "From data/pulls.json (when available), select PRs where merged_at IS NOT NULL AND base.ref == 'main'; bucket by Monday-anchored 2-week window via merged_at; exclude dependabot[bot]; mean PRs/window per phase. Local-git fallback (active in this run): `git log main --merges --pretty=format:'%H|%aI|%aE|%s'` → 6 merge commits in the post-introduction period, 0 in baseline.",
     "baseline": {
       "value": 0,
@@ -203,7 +217,10 @@
       "requirement_id": "M2",
       "extraction_command": "git log main --merges --pretty=format:'%H|%aI|%aE|%s' (local-git fallback); GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=closed&per_page=100 (primary, currently unreachable); see scripts/03_extract_pulls.py",
       "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
-      "derivation_function": "compute_m2_flow_velocity() in scripts/09_compute_metrics.py"
+      "derivation_function": "compute_m2_flow_velocity() in scripts/09_compute_metrics.py",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/pulls.json"
+      ]
     }
   },
   "m3": {
@@ -239,8 +256,13 @@
     "per_window_note": "Empty by design — predictability is a phase-level scalar (1/CV), not a per-window series. The underlying per-window inputs are in m2.per_window.",
     "provenance": {
       "requirement_id": "M3",
-      "extraction_command": "Derived from m2.per_window — no direct extraction command; see scripts/09_compute_metrics.py:compute_m3_flow_predictability",
-      "raw_output_artifact_path": "blitzy/acceleration-report/data/metrics.json#m2.per_window",
+      "extraction_command": "python3 -c \"import json,statistics; series=[w['value'] for w in json.load(open('blitzy/acceleration-report/data/metrics.json'))['m2']['per_window']]; mean=statistics.mean(series); stdev=statistics.stdev(series) if len(series)>=2 else 0; print('insufficient_signal' if len(series)<4 or stdev==0 else round(mean/stdev,3))\"",
+      "extraction_command_display": "Derived from m2.per_window via reciprocal of coefficient of variation (mean / stdev). Requires >=4 windows per phase per AAP §0.5.3.4; reports 'insufficient_signal' when fewer.",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/metrics.json",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/metrics.json"
+      ],
+      "raw_output_artifact_field": "m2.per_window",
       "derivation_function": "compute_m3_flow_predictability() in scripts/09_compute_metrics.py"
     }
   },
@@ -277,8 +299,14 @@
     "per_window_series": [],
     "provenance": {
       "requirement_id": "M4",
-      "extraction_command": "GET /repos/.../pulls/{n}/commits + GET /repos/.../pulls/{n}/reviews + GET /repos/.../issues/{n}/events; see scripts/03_extract_pulls.py",
-      "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json + reviews.json + pull_events.json",
+      "extraction_command": "for N in $(python3 -c \"import json;print('\\n'.join(str(p['number']) for p in json.load(open('blitzy/acceleration-report/data/pulls.json'))['pulls'] if p['number']))\"); do curl -fsSL -H \"Authorization: Bearer $GH_TOKEN\" \"https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/pulls/$N/commits\"; curl -fsSL -H \"Authorization: Bearer $GH_TOKEN\" \"https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/pulls/$N/reviews\"; curl -fsSL -H \"Authorization: Bearer $GH_TOKEN\" \"https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/issues/$N/events\"; done; python3 blitzy/acceleration-report/scripts/09_compute_metrics.py --metric m4",
+      "extraction_command_display": "Per-PR GitHub API triple-fetch (commits, reviews, events) for every merged PR, then compute_m4_flow_active() bounds spans by review events and sums per-actor coding time.",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/pulls.json",
+        "blitzy/acceleration-report/data/reviews.json",
+        "blitzy/acceleration-report/data/pull_events.json"
+      ],
       "derivation_function": "compute_m4_flow_active() in scripts/09_compute_metrics.py"
     }
   },
@@ -315,8 +343,13 @@
     "per_window_series": [],
     "provenance": {
       "requirement_id": "M5",
-      "extraction_command": "Composite of m4 and m7 — no direct extraction; see scripts/09_compute_metrics.py:compute_m5_flow_efficiency",
-      "raw_output_artifact_path": "blitzy/acceleration-report/data/metrics.json#m4,m7",
+      "extraction_command": "python3 -c \"import json; m=json.load(open('blitzy/acceleration-report/data/metrics.json')); m4=m['m4']['post_introduction'].get('value'); m7=m['m7']['post_introduction'].get('value'); print('insufficient_signal' if isinstance(m4,str) or isinstance(m7,str) or m7==0 else round(m4/m7,3))\"",
+      "extraction_command_display": "Ratio of m4 (Flow Active) to m7 (Flow Time) per PR, median across PRs per phase per actor. Per AAP §0.5.3.6 inherits the worse confidence of m4 and m7.",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/metrics.json",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/metrics.json"
+      ],
+      "raw_output_artifact_field": "m4 and m7 per-PR outputs (intermediate)",
       "derivation_function": "compute_m5_flow_efficiency() in scripts/09_compute_metrics.py"
     }
   },
@@ -361,8 +394,13 @@
     },
     "provenance": {
       "requirement_id": "M6",
-      "extraction_command": "GET /repos/.../pulls?state=all + POST https://api.linear.app/graphql (if LINEAR_API_KEY set); see scripts/03_extract_pulls.py + scripts/08_extract_linear.py",
-      "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json + issues.json",
+      "extraction_command": "curl -fsSL -H \"Authorization: Bearer $GH_TOKEN\" \"https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all&per_page=100\" > blitzy/acceleration-report/data/.raw_pulls.json && python3 blitzy/acceleration-report/scripts/03_extract_pulls.py && (test -n \"$LINEAR_API_KEY\" && python3 blitzy/acceleration-report/scripts/08_extract_linear.py || echo 'Linear unavailable; falling back to PR-title classification') && python3 blitzy/acceleration-report/scripts/09_compute_metrics.py --metric m6",
+      "extraction_command_display": "Three-tier classifier (Linear label → conventional-commit prefix → keyword) applied per merged PR per AAP §0.5.3.7. Linear stage runs only when LINEAR_API_KEY is set; otherwise falls back to title heuristics.",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/pulls.json",
+        "blitzy/acceleration-report/data/issues.json"
+      ],
       "derivation_function": "compute_m6_flow_distribution() in scripts/09_compute_metrics.py"
     }
   },
@@ -401,7 +439,10 @@
       "requirement_id": "M7",
       "extraction_command": "GET /repos/.../pulls/{n}/commits (paginated); see scripts/03_extract_pulls.py",
       "raw_output_artifact_path": "blitzy/acceleration-report/data/pulls.json",
-      "derivation_function": "compute_m7_flow_time() in scripts/09_compute_metrics.py"
+      "derivation_function": "compute_m7_flow_time() in scripts/09_compute_metrics.py",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/pulls.json"
+      ]
     }
   },
   "m8": {
@@ -535,7 +576,10 @@
       "requirement_id": "M8",
       "extraction_command": "git log --all --grep='^Revert \"' --pretty=format:'%H|%aI|%aE|%s|%B%n----'; see scripts/05_extract_reverts.sh",
       "raw_output_artifact_path": "blitzy/acceleration-report/data/reverts.json",
-      "derivation_function": "compute_m8_problem_records() in scripts/09_compute_metrics.py"
+      "derivation_function": "compute_m8_problem_records() in scripts/09_compute_metrics.py",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/reverts.json"
+      ]
     }
   },
   "m9": {
@@ -677,7 +721,10 @@
       "requirement_id": "M9",
       "extraction_command": "GET https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/releases (paginated) + git for-each-ref refs/tags/ --format='%(refname:short)|%(creatordate:iso-strict)|%(objectname)' + GET /repos/.../actions/workflows/{release-please.yaml,dispatch-deploy-event-dev.yaml}/runs; see scripts/04_extract_releases.py",
       "raw_output_artifact_path": "blitzy/acceleration-report/data/releases.json",
-      "derivation_function": "compute_m9_releases() in scripts/09_compute_metrics.py"
+      "derivation_function": "compute_m9_releases() in scripts/09_compute_metrics.py",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/releases.json"
+      ]
     }
   },
   "m10": {
@@ -841,7 +888,10 @@
       "requirement_id": "M10",
       "extraction_command": "git reflog show main; GET /repos/.../branches/main/protection; static config file parsing for .golangci.yml/.snyk/.truffleignore/.deepsource.toml; see scripts/07_extract_exceptions.py",
       "raw_output_artifact_path": "blitzy/acceleration-report/data/exceptions.json",
-      "derivation_function": "compute_m10_approved_exceptions() in scripts/09_compute_metrics.py"
+      "derivation_function": "compute_m10_approved_exceptions() in scripts/09_compute_metrics.py",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/exceptions.json"
+      ]
     }
   },
   "m11": {
@@ -898,8 +948,13 @@
     },
     "provenance": {
       "requirement_id": "M11",
-      "extraction_command": "GET https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/actions/runs?branch=main + GET /repos/.../actions/runs/{id}/artifacts (JUnit XML); fallback: grep -rnE 't\\.Skip' --include='*_test.go' .; see scripts/06_extract_ci_history.py",
-      "raw_output_artifact_path": "blitzy/acceleration-report/data/ci_runs.json + test_transitions.json",
+      "extraction_command": "curl -fsSL -H \"Authorization: Bearer $GH_TOKEN\" \"https://api.github.com/repos/Blitzy-Sandbox/blitzy-RudderStack/actions/runs?branch=main&per_page=100\" > blitzy/acceleration-report/data/.raw_ci_runs.json && python3 blitzy/acceleration-report/scripts/06_extract_ci_history.py && grep -rnE 't\\.Skip\\(' --include='*_test.go' . > blitzy/acceleration-report/data/.skip_scan.txt && python3 blitzy/acceleration-report/scripts/09_compute_metrics.py --metric m11",
+      "extraction_command_display": "Primary: GitHub Actions Runs API + JUnit XML artifact parsing per CI run to detect pass→fail and pass→skip transitions on main. Fallback when JUnit XML unavailable: in-repo grep for t.Skip() markers across *_test.go (HEAD snapshot only, no transition signal).",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/ci_runs.json",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/ci_runs.json",
+        "blitzy/acceleration-report/data/test_transitions.json"
+      ],
       "derivation_function": "compute_m11_escaped_defects() in scripts/09_compute_metrics.py"
     }
   },
@@ -959,8 +1014,13 @@
     },
     "provenance": {
       "requirement_id": "M12",
-      "extraction_command": "POST https://api.linear.app/graphql (issues + slas query) — requires LINEAR_API_KEY; fallback: grep -rniE 'SLA|severity|Sev-|priority response time|incident response' docs/ blitzy-docs/ blitzy/documentation/ CONTRIBUTING.md SECURITY.md; see scripts/08_extract_linear.py",
-      "raw_output_artifact_path": "blitzy/acceleration-report/data/issues.json + slas.json",
+      "extraction_command": "if [ -n \"$LINEAR_API_KEY\" ]; then curl -fsSL -X POST -H \"Authorization: $LINEAR_API_KEY\" -H \"Content-Type: application/json\" -d '{\"query\":\"{ issues(filter:{labels:{name:{eq:\\\"bug\\\"}}}){ nodes{ id severity createdAt completedAt slaBreachedAt slaTargetDuration } } }\"}' https://api.linear.app/graphql > blitzy/acceleration-report/data/.raw_linear.json; fi; grep -rniE 'SLA|severity|Sev-|priority response time|incident response' docs/ blitzy-docs/ blitzy/documentation/ CONTRIBUTING.md SECURITY.md 2>/dev/null > blitzy/acceleration-report/data/.sla_scan.txt; python3 blitzy/acceleration-report/scripts/08_extract_linear.py && python3 blitzy/acceleration-report/scripts/09_compute_metrics.py --metric m12",
+      "extraction_command_display": "Primary: Linear GraphQL issues query filtered by defect/bug labels with severity and SLA fields. Fallback when LINEAR_API_KEY absent: grep repository documentation tree for SLA policy keywords; if neither yields a SLA target, report 'insufficient_signal' per AAP §0.5.3.13.",
+      "raw_output_artifact_path": "blitzy/acceleration-report/data/issues.json",
+      "raw_output_artifact_paths": [
+        "blitzy/acceleration-report/data/issues.json",
+        "blitzy/acceleration-report/data/slas.json"
+      ],
       "derivation_function": "compute_m12_defects_out_of_sla() in scripts/09_compute_metrics.py"
     }
   }

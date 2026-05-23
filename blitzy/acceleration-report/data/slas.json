@@ -42,6 +42,13 @@
     "linear_workspace_inference_source": "Inferred from .github/pull_request_template.md line 7, which links to https://linear.app/rudderstack/search. The Linear workspace slug in linear.app URLs is the path segment immediately after the host; here that segment is 'rudderstack'. This is the upstream RudderStack project's Linear workspace, inherited via the PR template. The actual workspace used by the Blitzy-Sandbox/blitzy-RudderStack fork (if any) cannot be confirmed without API access, because the PR template is text-only and the Linear API key is required to enumerate workspace membership programmatically.",
     "consequence_for_metric_12": "Without Linear API access, metrics.json#m12 (Defects Out of SLA) cannot use Linear's slaTargetDuration / slaBreachedAt fields as the primary SLA source. Per AAP \u00a70.5.3.13, the metric falls back to a repository policy document scan; if that also fails (as documented in repo_policy_scan below), the metric reports 'insufficient_signal' with reason 'no SLA source'. The renderer in scripts/10_render_report.py propagates this reason verbatim into the Risk Assessment section of acceleration-report.md."
   },
+  "repo_policy": {
+    "found": false,
+    "found_reason": "No SLA policy document discovered in repository documentation tree per the search performed below. See repo_policy_scan for the full search log.",
+    "see_also": "repo_policy_scan (sibling object)",
+    "alias_for": "repo_policy_scan",
+    "alias_note": "Added in CP2 remediation to satisfy the CP2 review Data Contract finding requesting the repo_policy.found path. The canonical structured search log remains at repo_policy_scan; this object exposes the boolean found flag at the top-level path documented in the checkpoint contract."
+  },
   "repo_policy_scan": {
     "performed": true,
     "search_keywords": [
@@ -166,7 +173,7 @@
   "rerun_instructions": {
     "to_populate_via_linear_api": [
       "1. Obtain a Linear personal API key from https://linear.app/settings/api with read scope on issues, labels, and SLAs.",
-      "2. Export the key into the analysis environment: 'export LINEAR_API_KEY=lin_api_xxx'.",
+      "2. Export the key into the analysis environment: 'export LINEAR_API_KEY=<linear-api-key>' (or 'export LINEAR_API_KEY=\"$LINEAR_API_KEY\"' if already exported in the shell parent environment). NEVER paste the literal token value into a tracked file; use a placeholder of the form <linear-api-key> only, per the CP2 review Security Hygiene finding.",
       "3. Re-run the extraction step: 'cd blitzy/acceleration-report && . .venv/bin/activate && python scripts/08_extract_linear.py'.",
       "4. The script will overwrite this artifact with the populated slas[] array sourced from Linear's slaTargets type, and the linear.available field will be set to true.",
       "5. Re-run the compute step: 'python scripts/09_compute_metrics.py' to derive metrics.json#m12 from the populated slas[] array."
