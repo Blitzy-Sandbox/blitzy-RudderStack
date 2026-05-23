@@ -1,0 +1,68 @@
+%% Title: Three-Stage Read-Only Extraction Pipeline (Extract → Compute → Render)
+%% Legend: Solid arrows = data flow. Rounded rectangles = scripts. Cylinders = JSON/CSV artifacts. Ovals = final rendered deliverables.
+%% This pipeline is the analyst-facing dashboard surface per the Observability rule (AAP §0.7.1.1) interpreted for an analytics deliverable.
+
+flowchart LR
+    subgraph EXTRACT["Stage 1 — Extract"]
+        E1["00_environment.sh"]
+        E2["01_detect_inflection.py"]
+        E3["02_extract_commits.sh"]
+        E4["03_extract_pulls.py"]
+        E5["04_extract_releases.py"]
+        E6["05_extract_reverts.sh"]
+        E7["06_extract_ci_history.py"]
+        E8["07_extract_exceptions.py"]
+        E9["08_extract_linear.py"]
+    end
+
+    subgraph DATA["Raw Data Artifacts (data/*.json *.csv)"]
+        D1[(environment.json)]
+        D2[(inflection.json)]
+        D3[(commits.csv)]
+        D4[(pulls.json)]
+        D5[(releases.json)]
+        D6[(reverts.json)]
+        D7[(ci_runs.json)]
+        D8[(exceptions.json)]
+        D9[(issues.json)]
+    end
+
+    subgraph COMPUTE["Stage 2 — Compute"]
+        C1["09_compute_metrics.py"]
+        M[(metrics.json)]
+        P[(per_engineer.json)]
+    end
+
+    subgraph RENDER["Stage 3 — Render"]
+        R1["10_render_report.py"]
+        R2["11_render_deck.py"]
+        REP(("acceleration-report.md"))
+        DEC(("executive-summary.html"))
+    end
+
+    E1 --> D1
+    E2 --> D2
+    E3 --> D3
+    E4 --> D4
+    E5 --> D5
+    E6 --> D6
+    E7 --> D7
+    E8 --> D8
+    E9 --> D9
+    D1 --> C1
+    D2 --> C1
+    D3 --> C1
+    D4 --> C1
+    D5 --> C1
+    D6 --> C1
+    D7 --> C1
+    D8 --> C1
+    D9 --> C1
+    C1 --> M
+    C1 --> P
+    M --> R1
+    P --> R1
+    M --> R2
+    P --> R2
+    R1 --> REP
+    R2 --> DEC

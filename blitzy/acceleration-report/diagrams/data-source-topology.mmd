@@ -1,0 +1,53 @@
+%% Title: Data Source Topology
+%% Legend: Solid arrows = read-only data flow from a source into an extraction script.
+%% Dashed arrows = source available but not exercised in this run (no token / no access).
+%% Solid rectangles = sources accessed. Dashed rectangles = sources unavailable in this run.
+
+flowchart LR
+    subgraph LOCAL["Local Repository (read-only)"]
+        L1["git log / rev-list / for-each-ref"]
+        L2[".github/workflows/*.yaml (13 files)"]
+        L3[".github/dependabot.yml"]
+        L4[".github/labeler.yml"]
+        L5[".github/pull_request_template.md"]
+        L6[".golangci.yml / .snyk / .truffleignore / .deepsource.toml"]
+        L7["codecov.yml / Makefile / go.mod"]
+        L8["*_test.go (497 files, HEAD scan)"]
+    end
+
+    subgraph EXTERNAL_AVAIL["External APIs — Accessed"]
+        E1["GitHub Pulls API (unauthenticated, 60 req/hr)"]
+        E2["GitHub Releases API (unauthenticated)"]
+    end
+
+    subgraph EXTERNAL_UNAVAIL["External APIs — Unavailable"]
+        U1["Linear GraphQL API (LINEAR_API_KEY absent)"]
+        U2["GitHub Actions Runs API (rate-limit risk without GH_TOKEN)"]
+        U3["GitHub Admin Audit Log (admin token required)"]
+    end
+
+    subgraph SCRIPTS["Extraction Scripts (analysis env)"]
+        S1["00_environment.sh"]
+        S2["01_detect_inflection.py"]
+        S3["02_extract_commits.sh"]
+        S4["03_extract_pulls.py"]
+        S5["04_extract_releases.py"]
+        S6["05_extract_reverts.sh"]
+        S7["06_extract_ci_history.py"]
+        S8["07_extract_exceptions.py"]
+        S9["08_extract_linear.py"]
+    end
+
+    L1 --> S1
+    L1 --> S2
+    L1 --> S3
+    L1 --> S6
+    L2 --> S7
+    L3 --> S4
+    L6 --> S8
+    L8 --> S7
+    E1 --> S4
+    E2 --> S5
+    U1 -.-> S9
+    U2 -.-> S7
+    U3 -.-> S8

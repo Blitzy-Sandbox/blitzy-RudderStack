@@ -1,0 +1,23 @@
+%% Title: Temporal Phase Decomposition Timeline
+%% Legend: Gantt segments represent the analysis phases used for this measurement.
+%% Baseline = period before AI inflection (2026-02-23 → 2026-02-24, ~2 days).
+%% Post-Introduction = period after AI inflection (2026-02-25 → 2026-05-23, 86 days).
+%% Per AAP §0.5.6 fallback: post-introduction span <90 days → Ramp-Up vs Steady-State split is NOT applied.
+%% Decision logged as DL-006 in decision-log.md.
+
+gantt
+    title Acceleration Measurement Phases — Blitzy-RudderStack
+    dateFormat YYYY-MM-DD
+    axisFormat %Y-%m-%d
+
+    section Baseline (pre-inflection)
+    Baseline window  :baseline, 2026-02-23, 2026-02-25
+
+    section Post-Introduction (after inflection)
+    Post-Introduction (Monday-anchored 2-week windows, n=6) :post, 2026-02-25, 2026-05-24
+
+    section AI Inflection (Tier 2)
+    Inflection 2026-02-25 02:58:59 UTC :milestone, m1, 2026-02-25, 0d
+
+    section Ramp-Up vs Steady-State split (NOT APPLIED — 86d < 90d)
+    Not applied — see DL-006 :crit, fallback, 2026-05-25, 2026-05-26

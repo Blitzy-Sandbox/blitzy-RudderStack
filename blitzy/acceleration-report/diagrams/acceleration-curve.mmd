@@ -1,0 +1,23 @@
+%% Title: Acceleration Curve — Per-Metric Trajectory (Baseline vs Post-Introduction)
+%% Legend: Each metric's value plotted across the two phases. Metric values rendered in their natural units.
+%% Insufficient-Signal phases are not plotted (gap in the line). Multipliers presented in §1 Executive Summary.
+%% Note: post-introduction span 86 days < 90 days → no Ramp-Up vs Steady-State split per DL-006.
+
+xychart-beta
+    title "Acceleration Curve — Selected Quantitative Metrics"
+    x-axis ["Baseline (2026-02-23 to 2026-02-24)", "Post-Introduction (2026-02-25 to 2026-05-23)"]
+    y-axis "Value (mixed units; see Methodology)" 0 --> 10
+    bar "M2 Flow Velocity (PRs/window)" [0.0, 0.67]
+    bar "M3 Flow Predictability (1/CV)" [0.0, 0.82]
+    bar "M9 Releases (count)" [0.0, 0.0]
+    bar "M8 Reverts (count)" [0.0, 0.0]
+
+%% Notes on omitted metrics:
+%% M1 Flow Load: baseline insufficient signal — not plotted
+%% M4 Flow Active: baseline insufficient signal; post=9.26 days (different unit) — not plotted in this composite
+%% M5 Flow Efficiency: baseline insufficient signal; post=85.8% — not plotted in this composite
+%% M6 Flow Distribution: categorical not scalar — not plotted
+%% M7 Flow Time: baseline insufficient signal; post=9.26 days — not plotted in this composite
+%% M10 Approved Exceptions: baseline N/A; post snapshot of static exemption inventory — not plotted as time-series
+%% M11 Escaped Defects: insufficient signal — not plotted
+%% M12 Defects Out of SLA: insufficient signal — not plotted

@@ -1,0 +1,25 @@
+%% Title: Engineering Actor Substitution — Baseline vs Post-Introduction
+%% Legend: The same compute function is invoked twice with different (date_range, actor) parameters.
+%% Baseline actor = human PR author. Post-Introduction actor = Blitzy (union of agent@blitzy.com + blitzy[bot]).
+%% This is the SOLE difference between baseline and post-introduction metric computation; all other inputs are module-scope constants.
+%% Cross-reference: DL-012 in decision-log.md.
+
+sequenceDiagram
+    autonumber
+    participant R as Renderer (10_render_report.py)
+    participant C as Compute (09_compute_metrics.py)
+    participant D as Raw Data Artifacts (data/*.json)
+
+    Note over R,C: Same code path invoked twice — only (range, actor) differs
+
+    R->>C: compute(range=baseline, actor=human_PR_author)
+    C->>D: read pulls.json + commits.csv + ...
+    D-->>C: filtered to baseline range
+    C-->>R: metrics.json baseline rows
+
+    R->>C: compute(range=post_introduction, actor=Blitzy)
+    C->>D: read pulls.json + commits.csv + ...
+    D-->>C: filtered to post range, actor=Blitzy
+    C-->>R: metrics.json post-introduction rows
+
+    Note over R: Window alignment, bot exclusion, classification map = module-scope constants — never re-parameterised
