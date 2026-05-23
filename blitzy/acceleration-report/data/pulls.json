@@ -1,0 +1,197 @@
+{
+  "_metadata": {
+    "extraction_timestamp": "2026-05-23T05:54:20Z",
+    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+    "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
+    "default_branch": "main",
+    "analysis_period_start": "2026-02-23T00:00:00Z",
+    "analysis_period_end": "2026-05-21T23:59:59Z",
+    "inflection_date_utc": "2026-02-25T02:58:59Z",
+    "artifact_kind": "hand_authored_seed",
+    "artifact_kind_note": "This is a hand-authored seed artifact. The pulls[] array is intentionally empty because the analysis sandbox has no network access to the GitHub API. The observed_merge_commits_on_main[] sub-object provides the authoritative local-git fallback data extracted via 'git log main --merges --pretty=format:%H|%aI|%s'. When scripts/03_extract_pulls.py runs with GH_TOKEN set and network reachable, it will overwrite this file with the populated PR inventory; the run_id and extraction_timestamp will then reflect that execution.",
+    "schema_version": "1.0.0",
+    "source_files_referenced": [
+      ".github/dependabot.yml",
+      ".github/labeler.yml",
+      ".github/pull_request_template.md",
+      ".github/workflows/semantic-pr.yaml"
+    ]
+  },
+  "github_api": {
+    "available": false,
+    "endpoint": "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls?state=all&per_page=100",
+    "endpoint_note": "The 'state=all' parameter is REQUIRED. Per AAP \u00a70.2.2 web-search insight, the GitHub Pulls API defaults to returning only open PRs; closed AND merged PRs MUST be retrieved for Flow Velocity (M2) and Flow Time (M7). Without state=all, both metrics would silently report zero.",
+    "supplementary_endpoints": [
+      "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls/{number}/commits",
+      "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/pulls/{number}/reviews",
+      "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/issues/{number}/events"
+    ],
+    "supplementary_endpoints_note": "Per AAP \u00a70.2.1.2 these auxiliary endpoints are also consumed by scripts/03_extract_pulls.py to populate pr_commits_first_at_iso/pr_commits_last_at_iso (used by M4 Flow Active and M7 Flow Time), review-event timestamps (used by M4 ready-for-review bounding), and PR event timeline (used by M4 ready-for-review event detection). Their raw outputs are persisted to data/reviews.json and data/pull_events.json respectively.",
+    "fetched_at": null,
+    "unavailable_reason": "GH_TOKEN environment variable not set or rate limit exceeded; analysis sandbox has no outbound network access for this seed run",
+    "pagination": {
+      "pages_fetched": 0,
+      "items_fetched": 0,
+      "per_page_used": 100,
+      "rate_limit_remaining_at_end": null
+    },
+    "fallback_used": "local_git_reconstruction",
+    "fallback_note": "When the API is unreachable, scripts/03_extract_pulls.py reconstructs PRs from merge commits on main: parse merge-commit subjects for 'Merge pull request #NN' patterns, walk the merge commit's parent branches to identify the first-commit-on-branch. This local-git fallback gives a lower bound on merged-PR count and cannot resolve PR-level fields that exist only on the GitHub side (draft state, labels, requested_reviewers, body, classified_category from PR title). The observed_merge_commits_on_main array below records the local-git fallback inventory; the empty pulls[] array indicates that no API-derived PR objects were available."
+  },
+  "excluded_authors": [
+    "49699333+dependabot[bot]@users.noreply.github.com"
+  ],
+  "excluded_authors_note": "Per AAP \u00a70.5.3.3 Flow Velocity, dependency-bot authors are excluded. The single excluded entry is the dependabot[bot] GitHub App account whose presence is confirmed via .github/dependabot.yml (which declares the gomod, github-actions, and docker package-ecosystems Dependabot manages in this repository). Blitzy actors are NOT excluded: agent@blitzy.com is the canonical Blitzy engineering identity (included in Flow Velocity as the after-period engineering actor per AAP \u00a70.5.3.3); 191547922+blitzy[bot]@users.noreply.github.com is the GitHub App auto-merge identity (included to the extent its PR-authoring activity represents engineering output by Blitzy per AAP \u00a70.1.5).",
+  "excluded_authors_emails_verification": {
+    "method": "git log --all --pretty=format:%aE | sort -u | grep -iE 'dependabot|bot'",
+    "matched_emails_in_repo_history": [
+      "49699333+dependabot[bot]@users.noreply.github.com",
+      "191547922+blitzy[bot]@users.noreply.github.com"
+    ],
+    "decision": "Only dependabot[bot] is added to excluded_authors. blitzy[bot] is intentionally NOT excluded per AAP \u00a70.1.5 (Blitzy carve-out)."
+  },
+  "blitzy_actor_emails": [
+    "agent@blitzy.com",
+    "191547922+blitzy[bot]@users.noreply.github.com"
+  ],
+  "blitzy_actor_emails_note": "The canonical Blitzy engineering-actor identity is the union of agent@blitzy.com (primary, used by 512 of 538 commits) and 191547922+blitzy[bot]@users.noreply.github.com (auto-merge App identity, used by 5 of 538 commits). Per AAP \u00a70.1.5, both are treated as the single 'Blitzy' row in any per-actor aggregation (Metrics 2, 4, 5, 6, 10). Verified via git log --all --pretty=format:%aE | sort -u against the 538-commit roster in data/commits.csv.",
+  "pulls": [],
+  "pulls_note": "Hand-authored seed: empty array. When scripts/03_extract_pulls.py runs with a reachable GitHub API, this array will be populated with one object per PR (open + closed + merged) matching the Per-PR Schema documented in the file header of this artifact and in the AAP \u00a7'Per-PR Schema' block. Per-PR fields include: number, state, title, body, draft, created_at, updated_at, closed_at, merged_at, merge_commit_sha, user (login, id, type, email), head (ref, sha, repo_full_name), base (ref, sha, repo_full_name), labels, requested_reviewers, requested_teams, linked_linear_keys (extracted from title+body via regex '[A-Z]{2,}-\\d+' per the PR template's Linear ticket reference), pr_commits_first_at_iso, pr_commits_last_at_iso, pr_commits_count, is_dependency_bot, is_blitzy_actor, head_ref_is_blitzy_prefix, classified_category (one of: feature, defect, risk_compliance, tech_debt, unknown), classified_category_source (one of: linear_label, conventional_commit_prefix, keyword_match, default_unknown), phase (one of: baseline, post_introduction, outside_window).",
+  "per_pr_schema_documentation": {
+    "schema_note": "This block documents the per-PR object schema for downstream consumers (scripts/09_compute_metrics.py). When pulls[] is populated, every object MUST conform to this schema.",
+    "required_fields": [
+      "number",
+      "state",
+      "title",
+      "draft",
+      "created_at",
+      "updated_at",
+      "closed_at",
+      "merged_at",
+      "merge_commit_sha",
+      "user",
+      "head",
+      "base",
+      "labels",
+      "is_dependency_bot",
+      "is_blitzy_actor",
+      "head_ref_is_blitzy_prefix",
+      "classified_category",
+      "classified_category_source",
+      "phase"
+    ],
+    "field_types": {
+      "number": "integer",
+      "state": "string enum: open | closed",
+      "title": "string",
+      "body": "string | null",
+      "draft": "boolean",
+      "created_at": "ISO-8601 UTC string",
+      "updated_at": "ISO-8601 UTC string",
+      "closed_at": "ISO-8601 UTC string | null",
+      "merged_at": "ISO-8601 UTC string | null",
+      "merge_commit_sha": "40-char hex SHA | null",
+      "user": "object { login: string, id: integer, type: 'User'|'Bot', email: string|null }",
+      "head": "object { ref: string, sha: string, repo_full_name: string }",
+      "base": "object { ref: string, sha: string, repo_full_name: string }",
+      "labels": "array of string label names",
+      "requested_reviewers": "array of object { login: string, id: integer }",
+      "requested_teams": "array of object { name: string, slug: string }",
+      "linked_linear_keys": "array of string keys matching regex '[A-Z]{2,}-\\d+'",
+      "pr_commits_first_at_iso": "ISO-8601 UTC string | null",
+      "pr_commits_last_at_iso": "ISO-8601 UTC string | null",
+      "pr_commits_count": "integer >= 0",
+      "is_dependency_bot": "boolean",
+      "is_blitzy_actor": "boolean",
+      "head_ref_is_blitzy_prefix": "boolean",
+      "classified_category": "string enum: feature | defect | risk_compliance | tech_debt | unknown",
+      "classified_category_source": "string enum: linear_label | conventional_commit_prefix | keyword_match | default_unknown",
+      "phase": "string enum: baseline | post_introduction | outside_window"
+    },
+    "classification_priority_per_AAP_0_5_3_7": [
+      "1. linear_label: if PR body or title contains a Linear ticket key [A-Z]{2,}-\\d+ AND LINEAR_API_KEY is set, fetch the linked Linear issue's labels and apply user-defined rules.",
+      "2. conventional_commit_prefix: parse PR title for leading type per .github/workflows/semantic-pr.yaml: feat \u2192 feature, fix \u2192 defect, chore \u2192 tech_debt, refactor \u2192 tech_debt, exp \u2192 tech_debt, doc \u2192 tech_debt, test \u2192 tech_debt.",
+      "3. keyword_match: scan title+body for tokens: security|compliance|audit|sla|gdpr|pci|cve|vulnerability \u2192 risk_compliance; bug|fix|regression|hotfix \u2192 defect; refactor|tech debt|cleanup|rename|format \u2192 tech_debt; feature|add|support|enable \u2192 feature.",
+      "4. default_unknown: when none of the above resolve."
+    ],
+    "phase_assignment_rule": "phase=baseline if created_at < inflection_date_utc; phase=post_introduction if created_at >= inflection_date_utc AND created_at <= analysis_period_end; phase=outside_window otherwise."
+  },
+  "observed_merge_commits_on_main": [
+    {
+      "merge_sha": "770627a9fec6a7e63fde22151ecc90599cc9dc9f",
+      "merge_iso": "2026-04-16T13:45:48Z",
+      "merge_subject": "Merge pull request #27",
+      "pr_number_extracted": 27,
+      "phase": "post_introduction"
+    },
+    {
+      "merge_sha": "c9a3d467a087a67cfa1a337bef6bf1bcec1ce479",
+      "merge_iso": "2026-03-27T03:42:40Z",
+      "merge_subject": "Merge pull request #20",
+      "pr_number_extracted": 20,
+      "phase": "post_introduction"
+    },
+    {
+      "merge_sha": "ad44713169c21e411c789afce079c3504b4150bf",
+      "merge_iso": "2026-03-27T03:42:16Z",
+      "merge_subject": "merge: integrate main branch with SDK compatibility features (Sprint 2-3)",
+      "pr_number_extracted": null,
+      "phase": "post_introduction",
+      "note": "Ad-hoc merge without PR number reference. The committer timestamp 2026-03-27T03:42:16Z is the UTC equivalent of the local-timezone form 2026-03-26T23:42:16-04:00 emitted by git log %aI."
+    },
+    {
+      "merge_sha": "9e89dd761618dcc63efc821fd7ae93d79d5be0f0",
+      "merge_iso": "2026-03-23T10:26:41Z",
+      "merge_subject": "Merge pull request #18",
+      "pr_number_extracted": 18,
+      "phase": "post_introduction"
+    },
+    {
+      "merge_sha": "b55ecc932204bdbe2e0912013ee46683b00368d1",
+      "merge_iso": "2026-03-13T13:21:06Z",
+      "merge_subject": "Merge pull request #12",
+      "pr_number_extracted": 12,
+      "phase": "post_introduction"
+    },
+    {
+      "merge_sha": "d00b4bf2582a9f339eea9172d09cd5515a95203d",
+      "merge_iso": "2026-02-25T18:29:00Z",
+      "merge_subject": "Merge pull request #11",
+      "pr_number_extracted": 11,
+      "phase": "post_introduction"
+    }
+  ],
+  "observed_merge_commits_on_main_count": 6,
+  "observed_merge_commits_on_main_note": "Authoritative count of explicit merge commits on main, extracted via 'git log main --merges --pretty=format:%H|%aI|%s'. Five of the six reference a numbered PR (#11, #12, #18, #20, #27); the sixth is an ad-hoc local merge without a PR number reference. IMPORTANT: this count is NOT equivalent to the count of merged PRs. Squash-merged PRs (the default in GitHub for many workflows) do NOT appear as merge commits at all \u2014 they appear as single commits with their original subject preserved. The local-git fallback therefore provides a LOWER BOUND on the merged-PR count: at least 5 numbered PRs were merged via the explicit-merge-commit path. The exact merged-PR count requires GitHub Pulls API access; without it, M2 (Flow Velocity) and M7 (Flow Time) report Medium confidence with this caveat surfaced in the report's Risk Assessment.",
+  "observed_merge_commits_on_main_phase_distribution": {
+    "baseline_count": 0,
+    "post_introduction_count": 6,
+    "baseline_phase_window_iso": "2026-02-23T05:19:38Z..2026-02-25T02:58:58Z",
+    "post_introduction_phase_window_iso": "2026-02-25T02:58:59Z..2026-05-21T23:59:59Z",
+    "note": "All 6 merge commits fall after the inflection point 2026-02-25T02:58:59Z. The baseline phase (2026-02-23T05:19:38Z to inflection) contained only a single commit on main and zero merge commits."
+  },
+  "summary": {
+    "total_prs_in_inventory": 0,
+    "open_prs_count": 0,
+    "merged_prs_count": 0,
+    "closed_without_merge_prs_count": 0,
+    "draft_prs_count": 0,
+    "excluded_dependency_bot_prs_count": 0,
+    "blitzy_authored_prs_count": 0,
+    "human_authored_prs_count": 0,
+    "merged_to_main_prs_count": 0,
+    "merged_to_other_branches_prs_count": 0,
+    "prs_per_2week_window_baseline": [],
+    "prs_per_2week_window_post_introduction": [],
+    "summary_note": "All counts are zero because this is a hand-authored seed with an empty pulls[] array. The observed_merge_commits_on_main array above provides the local-git fallback signal. When scripts/03_extract_pulls.py runs with API access, this summary block will be repopulated from the populated pulls[] array.",
+    "prs_per_2week_window_baseline_note": "Baseline phase spans only 2026-02-23 \u2192 2026-02-25 (\u2248 2 days). No full 2-week window fits in this range, so the per-window array is empty by definition. Per AAP \u00a70.5.3.4 Flow Predictability, fewer than 4 windows triggers 'Insufficient signal \u2014 fewer than 4 windows' for M3 in the baseline phase.",
+    "prs_per_2week_window_post_introduction_note": "Post-introduction phase spans 2026-02-25 \u2192 2026-05-21 (\u2248 86 days, \u2248 6 two-week windows). When the API is reached, this array will have approximately 6 entries, each of the form { window_start_iso, window_end_iso, merged_prs_count, prs_in_progress_at_window_end_count, draft_prs_at_window_end_count }."
+  },
+  "rule_compliance": {
+    "rule_1_data_provenance": "Every numeric value in this artifact is derived from a single named extraction command. The observed_merge_commits_on_main array is the output of 'git log main --merges --pretty=format:%H|%aI|%s'. The blitzy_actor_emails and excluded_authors lists are derived from 'git log --all --pretty=format:%aE | sort -u'. The empty pulls[] array reflects the github_api.available=false state. No estimation, extrapolation, or fabrication.",
+    "rule_3_confidence_transparency": "When this artifact's pulls[] array is empty (current state), downstream metrics M1/M2/M4/M5/M6/M7 fall back to local-git signals with confidence downgraded per AAP \u00a70.2.4. The downstream metrics.json renderer surfaces this in the report's Risk Assessment section.",
+    "rule_4_internal_consistency": "_metadata.inflection_date_utc=2026-02-25T02:58:59Z is identical to data/inflection.json#date_utc. _metadata.run_id=ff490c72-43fb-4c05-b466-b9355cab917f is identical to the run_id in data/environment.json and data/inflection.json (single-run correlation per the Observability rule).",
+    "rule_5_reproducibility": "The exact endpoint string in github_api.endpoint plus the fallback method in github_api.fallback_note together specify how to re-derive this artifact from scratch. The Reproducibility Appendix in acceleration-report.md will reference both.",
+    "rule_6_environment_first": "_metadata fields satisfy the Environment Verification preamble: repository_slug, default_branch, analysis_period_start, analysis_period_end, inflection_date_utc, extraction_timestamp, run_id. Cross-referenced with data/environment.json."
+  }
+}
