@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """08_extract_linear.py — Linear GraphQL API extraction (Metric 6 / Metric 12).
 
 This is the last extraction script in the ``blitzy/acceleration-report/`` pipeline

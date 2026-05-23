@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Exception inventory extraction for Metric 10 (Approved Exceptions).
 
 This script is the seventh stage of the read-only acceleration-report

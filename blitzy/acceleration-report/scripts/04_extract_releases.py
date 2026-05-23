@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Release inventory extractor for the acceleration-report pipeline.
 
 This script is stage 04 of the read-only extraction pipeline documented in

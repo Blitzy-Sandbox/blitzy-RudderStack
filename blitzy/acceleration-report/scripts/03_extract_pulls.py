@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Pull-request, commit, review, and issue-event extraction for the acceleration report.
 
 This script is stage 03 of the read-only extraction pipeline documented in

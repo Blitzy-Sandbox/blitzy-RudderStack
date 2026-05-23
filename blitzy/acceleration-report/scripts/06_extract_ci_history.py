@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """CI workflow history and test-transition extractor for the acceleration-report pipeline.
 
 This script is stage 06 of the read-only extraction pipeline documented in
