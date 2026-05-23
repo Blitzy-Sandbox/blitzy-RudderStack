@@ -25,8 +25,8 @@
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Top-level envelope carrying the renderer/provenance metadata for the metrics.json file. Distinct from per-metric `provenance` blocks because the metadata here describes the document as a whole rather than any single metric. Read by both `10_render_report.py` and `11_render_deck.py` to populate the Executive Summary timestamps and the Reproducibility Appendix preamble.",
-      "required": ["schema_version", "run_id", "extraction_timestamp", "generated_by"],
+      "description": "Top-level envelope carrying the renderer/provenance metadata for the metrics.json file. Distinct from per-metric `provenance` blocks because the metadata here describes the document as a whole rather than any single metric. Read by both `10_render_report.py` and `11_render_deck.py` to populate the Executive Summary timestamps and the Reproducibility Appendix preamble. The inflection_date_utc field is the canonical phase-partition key per AAP \u00a70.5.6; making it required at the linchpin artifact mechanically satisfies the Rule-4 Internal Consistency contract (the renderer's phase decomposition reads this field, not any raw artifact).",
+      "required": ["schema_version", "run_id", "extraction_timestamp", "generated_by", "inflection_date_utc"],
       "properties": {
         "schema_version": {
           "type": "string",
@@ -48,6 +48,12 @@
           "type": "string",
           "minLength": 1,
           "description": "Script identifier that produced this file. Always 'scripts/09_compute_metrics.py' in the current pipeline; surfaced as a field so future replacements of the compute step are explicit in the artifact rather than implicit by convention."
+        },
+        "inflection_date_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "Canonical AI-introduction inflection point. Module-scope constant per AAP \u00a70.5.6: identical across inflection.json#date_utc, metrics.json#_metadata.inflection_date_utc, per_engineer.json#_metadata.inflection_date_utc, and pulls.json#_metadata.inflection_date_utc. Required at the linchpin so the renderer reads the phase-partition key from the single source of truth (Rule 4 Internal Consistency, AAP \u00a70.5.6)."
         },
         "source_artifact_hashes": {
           "type": "object",

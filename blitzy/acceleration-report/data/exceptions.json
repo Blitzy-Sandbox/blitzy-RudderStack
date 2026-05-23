@@ -6,6 +6,7 @@
     "default_branch": "main",
     "analysis_period_start": "2026-02-23T00:00:00Z",
     "analysis_period_end": "2026-05-21T23:59:59Z",
+    "inflection_date_utc": "2026-02-25T02:58:59Z",
     "schema_version": "1.0.0",
     "artifact_kind": "hand_authored_seed",
     "artifact_kind_note": "Hand-authored seed artifact produced for the no-network-access analysis sandbox. The audit_log.events[], branch_protection.snapshot, exception_labeled_prs.events[], and summary.per_window_events[] arrays are empty because scripts/07_extract_exceptions.py could not reach the GitHub Audit Log, Branch Protection, or Pulls APIs from the offline sandbox. The lint_exemptions.* sub-object is fully populated from direct reads of the in-repo policy files (.golangci.yml, .snyk, .truffleignore, .deepsource.toml) at HEAD and is accurate at the documented extraction_timestamp regardless of API availability. The force_pushes.events[] array is empty as verified against the local clone's git reflog. When the script is re-run with GH_TOKEN set and network reachable, it overwrites this file with the populated audit-log, branch-protection, and exception-labeled-PR inventories; the run_id and extraction_timestamp will then reflect that execution.",

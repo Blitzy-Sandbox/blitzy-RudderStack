@@ -6,6 +6,7 @@
     "generated_by": "scripts/09_compute_metrics.py",
     "rudder_server_head_sha": "97dd6d9deeb42f33b388a909d368814f126dda58",
     "rudder_server_repo_slug": "Blitzy-Sandbox/blitzy-RudderStack",
+    "inflection_date_utc": "2026-02-25T02:58:59Z",
     "source_artifact_hashes": {}
   },
   "m1": {

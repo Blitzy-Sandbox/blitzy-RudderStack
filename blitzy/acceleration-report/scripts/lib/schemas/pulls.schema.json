@@ -2,29 +2,49 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://blitzy.io/acceleration-report/schemas/pulls.schema.json",
   "title": "Pull Request Inventory",
-  "description": "Output of 03_extract_pulls.py. Records every pull request observed for the target repository plus the commit list, review timeline, and event timeline referenced from this artifact. Consumed by 09_compute_metrics.py for Metrics 1, 2, 4, 5, 6, 7.",
+  "description": "Output of 03_extract_pulls.py. Records every pull request observed for the target repository plus the commit list, review timeline, and event timeline referenced from this artifact. Consumed by 09_compute_metrics.py for Metrics 1, 2, 4, 5, 6, 7. The schema enumerates every root-level field used by both (a) the hand-authored seed (network unavailable) and (b) the live extraction output. This satisfies AAP \u00a70.9.2 (Schema-Driven Validation) for the seed-document contract while preserving the explanatory richness of the hand-authored artifact.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["fetched_at", "repo_slug", "api_available", "pulls"],
+  "required": ["_metadata", "github_api", "pulls"],
   "properties": {
-    "fetched_at": {
-      "type": "string",
-      "format": "date-time",
-      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
-      "description": "Wall-clock timestamp at which the GitHub Pulls API (or local-git fallback) was queried."
+    "_metadata": {"$ref": "#/$defs/metadata"},
+    "github_api": {"$ref": "#/$defs/githubApi"},
+    "excluded_authors": {
+      "type": "array",
+      "description": "Email addresses excluded from Flow Velocity per AAP \u00a70.5.3.3 (dependency-management bots; canonical dependabot[bot] App email).",
+      "items": {"type": "string", "minLength": 1}
     },
-    "repo_slug": {
+    "excluded_authors_note": {
       "type": "string",
-      "pattern": "^[^/\\s]+/[^/\\s]+$",
-      "description": "GitHub repository slug in 'owner/name' form (e.g., 'Blitzy-Sandbox/blitzy-RudderStack')."
+      "minLength": 1,
+      "description": "Free-text justification for the excluded_authors list."
     },
-    "api_available": {
-      "type": "boolean",
-      "description": "True when the GitHub Pulls API responded successfully; false when 03_extract_pulls.py fell back to local-git PR reconstruction. Drives Metric 1/2/4/5/6/7 confidence downgrade from High to Medium per AAP §0.2.4."
+    "excluded_authors_emails_verification": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["method", "matched_emails_in_repo_history", "decision"],
+      "properties": {
+        "method": {"type": "string", "minLength": 1},
+        "matched_emails_in_repo_history": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "decision": {"type": "string", "minLength": 1}
+      }
+    },
+    "blitzy_actor_emails": {
+      "type": "array",
+      "description": "Union of email identities treated as the single 'Blitzy' engineering actor per AAP \u00a70.1.5.",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "blitzy_actor_emails_note": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-text justification for the blitzy_actor_emails list."
     },
     "pulls": {
       "type": "array",
-      "description": "Inventory of pull requests. May be empty if api_available is true but the repository has no PRs in the queried date range.",
+      "description": "Inventory of pull requests. May be empty if api_available is true but the repository has no PRs in the queried date range, or if the API is unreachable in the seed run.",
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -112,6 +132,210 @@
             }
           }
         }
+      }
+    },
+    "pulls_note": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-text note explaining the pulls[] population state (e.g., empty in the seed run vs populated post-extraction)."
+    },
+    "per_pr_schema_documentation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schema_note", "required_fields", "field_types"],
+      "description": "Self-documenting per-PR schema reference embedded in the artifact for downstream consumers and reviewers.",
+      "properties": {
+        "schema_note": {"type": "string", "minLength": 1},
+        "required_fields": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "field_types": {"type": "object", "additionalProperties": {"type": "string"}},
+        "classification_priority_per_AAP_0_5_3_7": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "phase_assignment_rule": {"type": "string", "minLength": 1}
+      }
+    },
+    "observed_merge_commits_on_main": {
+      "type": "array",
+      "description": "Local-git fallback inventory of explicit merge commits on the default branch (extracted via `git log main --merges`). Provides a lower bound on merged-PR count when github_api.available is false.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["merge_sha", "merge_iso", "merge_subject", "pr_number_extracted", "phase"],
+        "properties": {
+          "merge_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
+          "merge_iso": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+          "merge_subject": {"type": "string", "minLength": 1},
+          "pr_number_extracted": {"type": ["integer", "null"], "minimum": 1},
+          "phase": {"type": "string", "enum": ["baseline", "post_introduction", "outside_window"]},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "observed_merge_commits_on_main_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Authoritative count derived from observed_merge_commits_on_main[]. Cross-checked against commits.csv multi-parent count."
+    },
+    "observed_merge_commits_on_main_note": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-text justification of the local-git merge-commit count and its semantic distinction from the merged-PR count."
+    },
+    "observed_merge_commits_on_main_phase_distribution": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["baseline_count", "post_introduction_count"],
+      "properties": {
+        "baseline_count": {"type": "integer", "minimum": 0},
+        "post_introduction_count": {"type": "integer", "minimum": 0},
+        "baseline_phase_window_iso": {"type": "string"},
+        "post_introduction_phase_window_iso": {"type": "string"},
+        "note": {"type": "string"}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Roll-up counts derived from pulls[] and observed_merge_commits_on_main[]. All zeros are valid when pulls[] is empty in the seed run.",
+      "required": [
+        "total_prs_in_inventory",
+        "open_prs_count",
+        "merged_prs_count",
+        "closed_without_merge_prs_count",
+        "draft_prs_count",
+        "excluded_dependency_bot_prs_count",
+        "blitzy_authored_prs_count",
+        "human_authored_prs_count",
+        "merged_to_main_prs_count",
+        "merged_to_other_branches_prs_count"
+      ],
+      "properties": {
+        "total_prs_in_inventory": {"type": "integer", "minimum": 0},
+        "open_prs_count": {"type": "integer", "minimum": 0},
+        "merged_prs_count": {"type": "integer", "minimum": 0},
+        "closed_without_merge_prs_count": {"type": "integer", "minimum": 0},
+        "draft_prs_count": {"type": "integer", "minimum": 0},
+        "excluded_dependency_bot_prs_count": {"type": "integer", "minimum": 0},
+        "blitzy_authored_prs_count": {"type": "integer", "minimum": 0},
+        "human_authored_prs_count": {"type": "integer", "minimum": 0},
+        "merged_to_main_prs_count": {"type": "integer", "minimum": 0},
+        "merged_to_other_branches_prs_count": {"type": "integer", "minimum": 0},
+        "prs_per_2week_window_baseline": {"type": "array"},
+        "prs_per_2week_window_post_introduction": {"type": "array"},
+        "summary_note": {"type": "string"},
+        "prs_per_2week_window_baseline_note": {"type": "string"},
+        "prs_per_2week_window_post_introduction_note": {"type": "string"}
+      }
+    },
+    "rule_compliance": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Per-Rule (1-6) compliance attestation for this artifact, supporting AAP \u00a70.9.1 quality gates.",
+      "properties": {
+        "rule_1_data_provenance": {"type": "string"},
+        "rule_3_confidence_transparency": {"type": "string"},
+        "rule_4_internal_consistency": {"type": "string"},
+        "rule_5_reproducibility": {"type": "string"},
+        "rule_6_environment_first": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Standard _metadata envelope shared by hand-authored seed artifacts. The inflection_date_utc field is the canonical phase-partition key referenced in every downstream metric per AAP \u00a70.5.6, and is enforced as a required field here so the Rule-4 Internal Consistency contract is mechanically satisfied.",
+      "required": [
+        "extraction_timestamp",
+        "run_id",
+        "repository_slug",
+        "default_branch",
+        "analysis_period_start",
+        "analysis_period_end",
+        "inflection_date_utc"
+      ],
+      "properties": {
+        "extraction_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "Wall-clock UTC timestamp at which the GitHub Pulls API (or local-git fallback) was queried. Equivalent to the schema's pre-fix root-level `fetched_at` field; relocated under `_metadata` for consistency with the other seed artifacts (per_engineer.json, pulls.json, reviews.json, etc.)."
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+          "description": "Per-run correlation ID (UUID4) generated by 00_environment.sh and propagated via BLITZY_RUN_ID."
+        },
+        "repository_slug": {
+          "type": "string",
+          "pattern": "^[^/\\s]+/[^/\\s]+$",
+          "description": "GitHub repository slug in 'owner/name' form. Equivalent to the schema's pre-fix root-level `repo_slug` field."
+        },
+        "default_branch": {"type": "string", "minLength": 1},
+        "analysis_period_start": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "analysis_period_end": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "inflection_date_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "Canonical AI-introduction inflection point. Module-scope constant per AAP \u00a70.5.6: identical across inflection.json#date_utc, metrics.json#_metadata.inflection_date_utc, per_engineer.json#_metadata.inflection_date_utc, and pulls.json#_metadata.inflection_date_utc. Rule 4 (Internal Consistency) requires all four values to be equal."
+        },
+        "artifact_kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional discriminator (e.g., 'hand_authored_seed', 'live_extraction')."
+        },
+        "artifact_kind_note": {"type": "string"},
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "source_files_referenced": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "githubApi": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "GitHub Pulls API connection state. The `available` boolean is equivalent to the schema's pre-fix root-level `api_available` field; relocated under `github_api` so the seed file can attach the endpoint, fallback, and pagination details in a single coherent block.",
+      "required": ["available", "endpoint"],
+      "properties": {
+        "available": {
+          "type": "boolean",
+          "description": "True when the GitHub Pulls API responded successfully; false when 03_extract_pulls.py fell back to local-git PR reconstruction. Drives Metric 1/2/4/5/6/7 confidence downgrade from High to Medium per AAP \u00a70.2.4."
+        },
+        "endpoint": {"type": "string", "minLength": 1},
+        "endpoint_note": {"type": "string"},
+        "supplementary_endpoints": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "supplementary_endpoints_note": {"type": "string"},
+        "fetched_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+        "unavailable_reason": {"type": ["string", "null"]},
+        "pagination": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "pages_fetched": {"type": "integer", "minimum": 0},
+            "items_fetched": {"type": "integer", "minimum": 0},
+            "per_page_used": {"type": "integer", "minimum": 1},
+            "rate_limit_remaining_at_end": {"type": ["integer", "null"]}
+          }
+        },
+        "fallback_used": {"type": ["string", "null"]},
+        "fallback_note": {"type": "string"}
       }
     }
   }

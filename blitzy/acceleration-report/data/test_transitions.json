@@ -6,6 +6,7 @@
     "default_branch": "main",
     "analysis_period_start": "2026-02-23T00:00:00Z",
     "analysis_period_end": "2026-05-21T23:59:59Z",
+    "inflection_date_utc": "2026-02-25T02:58:59Z",
     "schema_version": "1.0.0",
     "artifact_kind": "hand_authored_seed",
     "artifact_kind_note": "Hand-authored seed artifact produced by scripts/06_extract_ci_history.py for the no-network-access analysis sandbox. The transitions[] array is intentionally empty because no JUnit XML test-result artifacts are emitted by any workflow in .github/workflows/ at HEAD (see junit_unavailable_reason below) and the GitHub Actions Runs API was not reachable during this extraction (see companion artifact ci_runs.json#github_api). The head_skip_scan[] array is fully populated from a direct grep of *_test.go files in the local clone and is accurate at the documented extraction_timestamp regardless of API availability. When the script is re-run with GH_TOKEN set, network reachable, AND a CI workflow that emits JUnit XML (gotestsum --junitfile, test2json + go-junit-report, or equivalent), the script overwrites this file with the populated per-window transitions[] array; run_id and extraction_timestamp will then reflect that execution.",

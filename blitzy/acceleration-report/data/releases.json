@@ -1,12 +1,13 @@
 {
   "_metadata": {
     "extraction_timestamp": "2026-05-22T00:00:00Z",
-    "run_id": "00000000-0000-4000-8000-000000000000",
+    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
     "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
     "default_branch": "main",
     "analysis_period_start": "2026-02-23T00:00:00Z",
     "analysis_period_end": "2026-05-21T23:59:59Z",
-    "seed_note": "Hand-authored seed produced before scripts/04_extract_releases.py is executed against a live network. The script will overwrite this file with extraction_timestamp set to time.time() and run_id set to the per-run UUID4 exported via BLITZY_RUN_ID. The seed values present here are the deterministic fallback when no live extraction has been performed yet."
+    "inflection_date_utc": "2026-02-25T02:58:59Z",
+    "seed_note": "Hand-authored seed produced before scripts/04_extract_releases.py is executed against a live network. The script will overwrite this file with extraction_timestamp set to time.time() under the per-run UUID4. run_id is the canonical per-run correlation ID exported via BLITZY_RUN_ID and is identical across all 14 raw data artifacts in this directory per Rule 1 (Data Provenance) and the AAP \u00a70.5.6 Observability discipline; the placeholder UUID that previously held the run_id slot has been replaced with the canonical value to satisfy the cross-file run_id propagation contract. inflection_date_utc is the canonical AI-introduction inflection point sourced from data/inflection.json#date_utc and is identical across all artifacts that carry it (per Rule 4 Internal Consistency)."
   },
   "tier_availability": {
     "tier_1_github_releases_api": {
