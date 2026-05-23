@@ -1,53 +1,92 @@
 %% Title: Data Source Topology
-%% Legend: Solid arrows = read-only data flow from a source into an extraction script.
-%% Dashed arrows = source available but not exercised in this run (no token / no access).
-%% Solid rectangles = sources accessed. Dashed rectangles = sources unavailable in this run.
-
+%% Legend:
+%%   Solid arrows (-->)   = primary data flow into extraction scripts
+%%   Dotted arrows (-.->) = optional / fallback paths (Linear without LINEAR_API_KEY,
+%%                          admin audit log without admin access, JUnit XML when absent)
+%%   Plain rectangles     = read-only data sources (external APIs or local files)
+%%   Rounded rectangles   = extraction scripts under blitzy/acceleration-report/scripts/
+%%   Cylinders ([(...)])  = raw data artifacts under blitzy/acceleration-report/data/
+%%   Subgraphs            = data-source modality (External APIs vs Local Filesystem)
+%%                          and downstream stages (Extraction Scripts vs Raw Data Sinks)
+%%   Mirrors AAP §0.2.1 Data Source Inventory.
+%%   All data flow is READ-ONLY: scripts perform HTTP GET only; no POST/PUT/PATCH/DELETE.
 flowchart LR
-    subgraph LOCAL["Local Repository (read-only)"]
-        L1["git log / rev-list / for-each-ref"]
-        L2[".github/workflows/*.yaml (13 files)"]
-        L3[".github/dependabot.yml"]
-        L4[".github/labeler.yml"]
-        L5[".github/pull_request_template.md"]
-        L6[".golangci.yml / .snyk / .truffleignore / .deepsource.toml"]
-        L7["codecov.yml / Makefile / go.mod"]
-        L8["*_test.go (497 files, HEAD scan)"]
+    subgraph EXT["External APIs (read-only HTTP GET)"]
+        API1[GitHub Pulls API]
+        API2[GitHub Reviews API]
+        API3[GitHub Pull-Commits API]
+        API4[GitHub Pull-Events API]
+        API5[GitHub Releases API]
+        API6[GitHub Actions Runs API]
+        API7[GitHub Branches API]
+        API8[Linear GraphQL API]
     end
-
-    subgraph EXTERNAL_AVAIL["External APIs — Accessed"]
-        E1["GitHub Pulls API (unauthenticated, 60 req/hr)"]
-        E2["GitHub Releases API (unauthenticated)"]
+    subgraph LOCAL["Local Filesystem (read-only)"]
+        F1[".git/ history refs tags reflog"]
+        F2[".github/workflows/ *.yml *.yaml"]
+        F3[".golangci.yml .snyk .truffleignore .deepsource.toml"]
+        F4["CHANGELOG.md releases.md"]
+        F5["**/*_test.go 497 files"]
+        F6["docs/ blitzy-docs/ blitzy/documentation/"]
+        F7[".github/labeler.yml .github/dependabot.yml"]
+        F8[".github/pull_request_template.md .github/ISSUE_TEMPLATE/"]
     end
-
-    subgraph EXTERNAL_UNAVAIL["External APIs — Unavailable"]
-        U1["Linear GraphQL API (LINEAR_API_KEY absent)"]
-        U2["GitHub Actions Runs API (rate-limit risk without GH_TOKEN)"]
-        U3["GitHub Admin Audit Log (admin token required)"]
+    subgraph SCRIPTS["Extraction Scripts (blitzy/acceleration-report/scripts/)"]
+        S0[00_environment.sh]
+        S1[01_detect_inflection.py]
+        S2[02_extract_commits.sh]
+        S3[03_extract_pulls.py]
+        S4[04_extract_releases.py]
+        S5[05_extract_reverts.sh]
+        S6[06_extract_ci_history.py]
+        S7[07_extract_exceptions.py]
+        S8[08_extract_linear.py]
     end
-
-    subgraph SCRIPTS["Extraction Scripts (analysis env)"]
-        S1["00_environment.sh"]
-        S2["01_detect_inflection.py"]
-        S3["02_extract_commits.sh"]
-        S4["03_extract_pulls.py"]
-        S5["04_extract_releases.py"]
-        S6["05_extract_reverts.sh"]
-        S7["06_extract_ci_history.py"]
-        S8["07_extract_exceptions.py"]
-        S9["08_extract_linear.py"]
+    subgraph SINKS["Raw Data Artifacts (blitzy/acceleration-report/data/)"]
+        D1[(environment.json)]
+        D2[(inflection.json)]
+        D3[(commits.csv)]
+        D4[(pulls.json)]
+        D5[(reviews.json)]
+        D6[(pull_events.json)]
+        D7[(releases.json)]
+        D8[(reverts.json)]
+        D9[(ci_runs.json)]
+        D10[(exceptions.json)]
+        D11[(issues.json)]
+        D12[(slas.json)]
     end
-
-    L1 --> S1
-    L1 --> S2
-    L1 --> S3
-    L1 --> S6
-    L2 --> S7
-    L3 --> S4
-    L6 --> S8
-    L8 --> S7
-    E1 --> S4
-    E2 --> S5
-    U1 -.-> S9
-    U2 -.-> S7
-    U3 -.-> S8
+    F1 --> S0
+    F1 --> S1
+    F1 --> S2
+    F1 --> S5
+    F1 --> S7
+    F2 --> S6
+    F2 --> S7
+    F3 --> S7
+    F4 --> S4
+    F5 --> S6
+    F6 -.-> S8
+    F7 --> S3
+    F7 --> S7
+    F8 --> S3
+    API1 --> S3
+    API2 --> S3
+    API3 --> S3
+    API4 --> S3
+    API5 --> S4
+    API6 --> S6
+    API7 --> S7
+    API8 -.-> S8
+    S0 --> D1
+    S1 --> D2
+    S2 --> D3
+    S3 --> D4
+    S3 --> D5
+    S3 --> D6
+    S4 --> D7
+    S5 --> D8
+    S6 --> D9
+    S7 --> D10
+    S8 -.-> D11
+    S8 -.-> D12
