@@ -13,7 +13,7 @@ Read-only enforcement
 
 Every public helper is built on the private ``_run_git`` and
 ``_run_git_checked`` wrappers, which in turn run every argument vector through
-the module-level :func:`_validate_command` gate. The gate enforces three
+the module-level :func:`_validate_command` gate. The gate enforces four
 distinct invariants before any subprocess fork:
 
 1. The first positional token of ``argv`` must appear in
@@ -26,6 +26,13 @@ distinct invariants before any subprocess fork:
    :data:`DENY_SUBCOMMANDS`. This catches nested mutating verbs such as
    ``git submodule update`` or ``git submodule add`` when the outer verb is
    allowed but the nested verb would mutate state.
+4. When ``argv[0] == "submodule"``, the second positional token must not
+   appear in :data:`DENY_SUBMODULE_VERBS`. This is the submodule-specific
+   safety net that rejects every mutating sub-verb of ``git submodule``
+   (``deinit``, ``sync``, ``foreach``, ``update``, ``add``, ``set-branch``,
+   ``set-url``, ``absorbgitdirs``, ``init``). The only permitted submodule
+   sub-verb is ``status``, which ``00_environment.sh`` consumes for the
+   Rule-6 environment snapshot.
 
 Violations of the allow-list / deny-list gate raise
 :class:`GitReadOnlyViolation`, a dedicated exception subclass of
@@ -168,6 +175,59 @@ DENY_FLAGS: frozenset[str] = frozenset(
 )
 
 
+#: Nested sub-verbs of ``git submodule`` that are explicitly mutating. The
+#: outer verb ``submodule`` is in :data:`ALLOWED_SUBCOMMANDS` because
+#: ``git submodule status`` is the read-only enumeration that
+#: ``00_environment.sh`` consumes for the Rule-6 ``submodule_state`` field.
+#: Every other ``git submodule <verb>`` invocation either writes to the
+#: working tree, mutates ``.gitmodules``, or executes user-supplied commands
+#: in submodule directories and is therefore rejected by
+#: :func:`_validate_command` when ``argv[0] == "submodule"`` and
+#: ``argv[1]`` appears in this set.
+#:
+#: The entries are:
+#:
+#: * ``add`` — clone a new submodule and stage ``.gitmodules`` changes.
+#: * ``absorbgitdirs`` — move submodule ``.git`` directories into the
+#:   superproject's ``modules/`` tree (mutating).
+#: * ``deinit`` — unregister submodules, removing them from the working
+#:   tree and clearing their ``.git/config`` entries.
+#: * ``foreach`` — execute an arbitrary shell command in every submodule.
+#:   Even read-only commands violate the read-only contract because the
+#:   command string itself is untrusted from the validator's perspective.
+#: * ``init`` — register submodules into ``.git/config`` (mutating).
+#: * ``set-branch`` — change the recorded branch a submodule tracks
+#:   (mutates ``.gitmodules``).
+#: * ``set-url`` — change the recorded URL of a submodule (mutates
+#:   ``.gitmodules``).
+#: * ``sync`` — write the recorded submodule URLs into ``.git/config``.
+#: * ``update`` — fetch the submodule and check out its recorded SHA into
+#:   the working tree.
+#:
+#: ``add`` and ``update`` are also entries in :data:`DENY_SUBCOMMANDS` (as
+#: outer verbs); their presence here is defence-in-depth so that the
+#: nested-verb check fires even if a future contributor expands
+#: :data:`ALLOWED_SUBCOMMANDS` or otherwise reorders the validator gate.
+#:
+#: ``status`` is intentionally absent. ``git submodule status`` is the
+#: single read-only sub-verb on the ``submodule`` verb and is the
+#: invocation produced by ``00_environment.sh`` for the Rule-6 environment
+#: snapshot.
+DENY_SUBMODULE_VERBS: frozenset[str] = frozenset(
+    {
+        "absorbgitdirs",
+        "add",
+        "deinit",
+        "foreach",
+        "init",
+        "set-branch",
+        "set-url",
+        "sync",
+        "update",
+    }
+)
+
+
 #: Outer sub-commands the validator will accept as ``argv[0]``. Every helper
 #: function in this module emits a vector whose first token is in this set.
 #: Adding a new verb here without also exposing a typed public helper for it
@@ -219,6 +279,7 @@ __all__ = [
     "git_version",
     "DENY_SUBCOMMANDS",
     "DENY_FLAGS",
+    "DENY_SUBMODULE_VERBS",
     "ALLOWED_SUBCOMMANDS",
 ]
 
@@ -238,8 +299,11 @@ class GitReadOnlyViolation(ValueError):
     * an empty ``argv``,
     * an ``argv[0]`` (outer sub-command) that is not in
       :data:`ALLOWED_SUBCOMMANDS`,
-    * any token in ``argv`` that is in :data:`DENY_FLAGS`, or
-    * an ``argv[1]`` (nested sub-command) that is in :data:`DENY_SUBCOMMANDS`.
+    * any token in ``argv`` that is in :data:`DENY_FLAGS`,
+    * an ``argv[1]`` (nested sub-command) that is in :data:`DENY_SUBCOMMANDS`,
+      or
+    * ``argv[0] == "submodule"`` and ``argv[1]`` is in
+      :data:`DENY_SUBMODULE_VERBS` (the submodule-specific safety net).
 
     The class subclasses :class:`ValueError` for backward compatibility with
     callers that broadly catch ``except ValueError`` (such legacy code
@@ -257,12 +321,19 @@ class GitReadOnlyViolation(ValueError):
 def _validate_command(argv: Sequence[str]) -> None:
     """Apply the read-only allow-list / deny-list gate to a git argument vector.
 
-    The gate enforces three invariants on ``argv``:
+    The gate enforces four invariants on ``argv``:
 
     * ``argv`` is non-empty.
     * ``argv[0]`` is a member of :data:`ALLOWED_SUBCOMMANDS`.
     * No token in ``argv`` is a member of :data:`DENY_FLAGS`.
     * ``argv[1]`` (when present) is not a member of :data:`DENY_SUBCOMMANDS`.
+    * When ``argv[0] == "submodule"`` and ``argv[1]`` is present, ``argv[1]``
+      is not a member of :data:`DENY_SUBMODULE_VERBS`. This is the
+      submodule-specific safety net that rejects mutating nested verbs such
+      as ``deinit``, ``sync``, ``foreach``, ``update``, ``add``,
+      ``set-branch``, ``set-url``, and ``absorbgitdirs`` even though they
+      do not appear in :data:`DENY_SUBCOMMANDS` (the outer-verb deny list).
+      The only permitted submodule sub-verb is ``status``.
 
     The function returns ``None`` if every invariant holds and raises
     :class:`GitReadOnlyViolation` (a :class:`ValueError` subclass) otherwise.
@@ -276,9 +347,11 @@ def _validate_command(argv: Sequence[str]) -> None:
 
     Raises:
         GitReadOnlyViolation: When ``argv`` is empty, when ``argv[0]`` is not
-            in the allow list, when any token is in :data:`DENY_FLAGS`, or
-            when ``argv[1]`` is in :data:`DENY_SUBCOMMANDS`. The exception
-            subclasses :class:`ValueError`, so legacy callers that catch
+            in the allow list, when any token is in :data:`DENY_FLAGS`, when
+            ``argv[1]`` is in :data:`DENY_SUBCOMMANDS`, or when
+            ``argv[0] == "submodule"`` and ``argv[1]`` is in
+            :data:`DENY_SUBMODULE_VERBS`. The exception subclasses
+            :class:`ValueError`, so legacy callers that catch
             :class:`ValueError` continue to work without modification. Every
             error message contains either the substring ``"allow list"`` or
             ``"deny list"`` so callers can pattern-match without parsing
@@ -304,6 +377,18 @@ def _validate_command(argv: Sequence[str]) -> None:
         if nested in DENY_SUBCOMMANDS:
             raise GitReadOnlyViolation(
                 f"git nested sub-command {nested!r} is in the deny list"
+            )
+        # Submodule-specific safety net: reject every mutating sub-verb of
+        # ``git submodule`` even though those verbs do not appear in the
+        # outer-verb deny list. The only permitted nested verb is
+        # ``status``, which is what ``00_environment.sh`` invokes for the
+        # Rule-6 environment snapshot. Any other nested verb is rejected
+        # with a message that explicitly references the submodule deny
+        # list so the failure is unambiguous downstream.
+        if subcommand == "submodule" and nested in DENY_SUBMODULE_VERBS:
+            raise GitReadOnlyViolation(
+                f"git submodule sub-verb {nested!r} is in the deny list "
+                f"(submodule deny list)"
             )
 
 

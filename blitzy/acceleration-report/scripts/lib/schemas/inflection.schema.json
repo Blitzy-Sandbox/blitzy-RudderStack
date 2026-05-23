@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://blitzy.io/acceleration-report/schemas/inflection.schema.json",
   "title": "AI Inflection-Point Detection Result",
-  "description": "Output of 01_detect_inflection.py. Records which of the three detection tiers (trailer / ai_actor_email / velocity_inflection -- AAP §0.5.3.1) yielded the AI introduction date that partitions every metric into baseline and after periods.",
+  "description": "Output of 01_detect_inflection.py. Records which of the three detection tiers (trailer / ai_actor_email / velocity_inflection -- AAP §0.5.3.1) yielded the AI introduction date that partitions every metric into baseline and after periods. The schema cross-validates the `evidence` shape against the `tier_used` value: a velocity_inflection result MUST carry velocity-shaped evidence, a trailer result MUST carry trailer-shaped evidence, and an ai_actor_email result MUST carry ai_actor_email-shaped evidence. This closes the semantic-consistency gap surfaced at INC-1.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -28,42 +28,11 @@
     },
     "evidence": {
       "type": "object",
-      "description": "Structured evidence supporting the chosen tier. Shape varies by tier; the oneOf clause enforces per-tier shape.",
+      "description": "Structured evidence supporting the chosen tier. Shape varies by tier; the surrounding `oneOf` clause enforces that evidence matches ONE of the three known shapes, and the schema-level `allOf` cross-validates that the shape corresponds to `tier_used`.",
       "oneOf": [
-        {
-          "title": "trailer evidence",
-          "type": "object",
-          "additionalProperties": true,
-          "required": ["commit_sha", "trailer_value", "author_date"],
-          "properties": {
-            "commit_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
-            "trailer_value": {"type": "string", "minLength": 1},
-            "author_date": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"}
-          }
-        },
-        {
-          "title": "ai_actor_email evidence",
-          "type": "object",
-          "additionalProperties": true,
-          "required": ["commit_sha", "author_email", "author_date"],
-          "properties": {
-            "commit_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
-            "author_email": {"type": "string", "minLength": 1},
-            "author_date": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"}
-          }
-        },
-        {
-          "title": "velocity_inflection evidence",
-          "type": "object",
-          "additionalProperties": true,
-          "required": ["week_start", "pre_window_mean", "post_window_mean", "ratio"],
-          "properties": {
-            "week_start": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
-            "pre_window_mean": {"type": "number", "minimum": 0},
-            "post_window_mean": {"type": "number", "minimum": 0},
-            "ratio": {"type": "number", "minimum": 0}
-          }
-        }
+        {"$ref": "#/$defs/trailerEvidence"},
+        {"$ref": "#/$defs/aiActorEmailEvidence"},
+        {"$ref": "#/$defs/velocityInflectionEvidence"}
       ]
     },
     "justification": {
@@ -94,6 +63,83 @@
       "format": "date-time",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
       "description": "Wall-clock timestamp of detection."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Cross-validation: when tier_used=='trailer', evidence MUST conform to the trailer evidence shape (commit_sha + trailer_value + author_date).",
+      "if": {
+        "properties": {"tier_used": {"const": "trailer"}},
+        "required": ["tier_used"]
+      },
+      "then": {
+        "properties": {
+          "evidence": {"$ref": "#/$defs/trailerEvidence"}
+        }
+      }
+    },
+    {
+      "description": "Cross-validation: when tier_used=='ai_actor_email', evidence MUST conform to the ai_actor_email evidence shape (commit_sha + author_email + author_date).",
+      "if": {
+        "properties": {"tier_used": {"const": "ai_actor_email"}},
+        "required": ["tier_used"]
+      },
+      "then": {
+        "properties": {
+          "evidence": {"$ref": "#/$defs/aiActorEmailEvidence"}
+        }
+      }
+    },
+    {
+      "description": "Cross-validation: when tier_used=='velocity_inflection', evidence MUST conform to the velocity_inflection evidence shape (week_start + pre_window_mean + post_window_mean + ratio).",
+      "if": {
+        "properties": {"tier_used": {"const": "velocity_inflection"}},
+        "required": ["tier_used"]
+      },
+      "then": {
+        "properties": {
+          "evidence": {"$ref": "#/$defs/velocityInflectionEvidence"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "trailerEvidence": {
+      "title": "trailer evidence",
+      "description": "Evidence shape for Tier 1 (Co-authored-by: trailer search). The trailer_value field MUST be present; it is the discriminator that distinguishes trailer evidence from the other two shapes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit_sha", "trailer_value", "author_date"],
+      "properties": {
+        "commit_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
+        "trailer_value": {"type": "string", "minLength": 1},
+        "author_date": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"}
+      }
+    },
+    "aiActorEmailEvidence": {
+      "title": "ai_actor_email evidence",
+      "description": "Evidence shape for Tier 2 (AI-actor author-email pattern match). The author_email field MUST be present; it is the discriminator that distinguishes ai_actor_email evidence from the other two shapes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit_sha", "author_email", "author_date"],
+      "properties": {
+        "commit_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{7,40}$"},
+        "author_email": {"type": "string", "minLength": 1},
+        "author_date": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"}
+      }
+    },
+    "velocityInflectionEvidence": {
+      "title": "velocity_inflection evidence",
+      "description": "Evidence shape for Tier 3 (rolling-mean ratio inflection detection). The week_start + pre_window_mean + post_window_mean + ratio fields together describe the inflection week and its statistical signal.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["week_start", "pre_window_mean", "post_window_mean", "ratio"],
+      "properties": {
+        "week_start": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+        "pre_window_mean": {"type": "number", "minimum": 0},
+        "post_window_mean": {"type": "number", "minimum": 0},
+        "ratio": {"type": "number", "minimum": 0}
+      }
     }
   }
 }

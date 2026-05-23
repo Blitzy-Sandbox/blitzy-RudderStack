@@ -91,7 +91,7 @@ import re
 import time
 from pathlib import Path
 from typing import Any, Iterator
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import requests
 
@@ -173,6 +173,32 @@ _LINK_NEXT_PATTERN: re.Pattern[str] = re.compile(
 #: URL. Used by :func:`redact_url` to remove credentials before any URL is
 #: passed to the logger or otherwise written to an artifact.
 _BASIC_AUTH_PATTERN: re.Pattern[str] = re.compile(r"https?://[^@/\s]+@")
+
+#: Case-insensitive pattern matching URL query-string KEY NAMES whose
+#: associated value MUST be redacted before the URL is logged or otherwise
+#: surfaced. The pattern mirrors the field-name pattern enforced by
+#: :data:`lib.observability.REDACT_PATTERN` (``token|key|secret|password|
+#: credential|bearer|auth``) so that the redaction discipline is consistent
+#: across the field-name layer of the logger and the URL-layer redaction
+#: applied here. Defence in depth: even though :class:`GithubClient` sends
+#: credentials via the ``Authorization: Bearer`` header rather than via
+#: URL query parameters, third-party redirects, mis-configured callers, or
+#: future code paths could plausibly emit URLs that carry credentials in
+#: the query string. :func:`redact_url` walks every ``(key, value)`` pair
+#: from :func:`urllib.parse.parse_qsl`, replaces the value with
+#: ``***REDACTED***`` when the key matches this pattern, and rebuilds the
+#: URL using :func:`urllib.parse.urlencode` and :func:`urllib.parse.urlunparse`.
+_REDACT_QUERY_KEY_PATTERN: re.Pattern[str] = re.compile(
+    r"(?i)(token|key|secret|password|credential|bearer|auth)"
+)
+
+#: String placed in the URL query string in place of any value whose key
+#: matches :data:`_REDACT_QUERY_KEY_PATTERN`. Kept aligned with
+#: :data:`lib.observability.REDACTED_PLACEHOLDER` so that downstream log
+#: aggregation can locate every redaction point with a single substring
+#: match regardless of whether the redaction happened at the field-name
+#: layer (in observability.py) or at the URL layer (here).
+_REDACTED_QUERY_PLACEHOLDER: str = "***REDACTED***"
 
 #: Maximum length of the response body excerpt embedded in the
 #: ``github_api_4xx`` log event. Long bodies are truncated so the JSON
@@ -1142,21 +1168,66 @@ def parse_repo_slug(slug: str) -> tuple[str, str]:
 
 
 def redact_url(url: str) -> str:
-    """Remove any embedded basic-auth or token segment from a URL.
+    """Remove any embedded basic-auth or query-string credential from a URL.
 
-    URLs constructed by upstream tooling occasionally carry credentials
-    in the ``https://user:password@host/...`` or ``https://token@host/...``
-    form. Such URLs are unsafe to write to a log line or persisted
-    artifact because the credential is then exposed downstream. This
-    helper strips the credential segment while preserving the scheme,
-    host, path, and query string, and is the canonical sanitiser called
+    URLs constructed by upstream tooling occasionally carry credentials in
+    two distinct positions: the userinfo segment
+    (``https://user:password@host/...`` or ``https://token@host/...``)
+    and the query string
+    (``https://host/path?access_token=ghs_…`` or ``?api_key=…``). Such
+    URLs are unsafe to write to a log line or persisted artifact because
+    the credential is then exposed downstream. This helper redacts BOTH
+    positions while preserving the scheme, host, path, and any
+    non-sensitive query parameters, and is the canonical sanitiser called
     by every URL-bearing log event emitted from :class:`GithubClient`.
 
-    The implementation pattern is documented in the AAP §0.4.2 entry
-    for the ``re`` standard-library import: a single regex substitution
-    of ``r"https?://[^@/]+@"`` with ``f"{scheme}://"`` extracted from
-    :func:`urllib.parse.urlparse`. When the URL has no embedded
-    credential the input is returned unchanged.
+    Redaction at the userinfo position
+    ----------------------------------
+
+    The userinfo segment (everything between ``scheme://`` and the
+    leading ``@`` of the host) is stripped entirely via a single regex
+    substitution of :data:`_BASIC_AUTH_PATTERN` with ``f"{scheme}://"``
+    extracted from :func:`urllib.parse.urlparse`. This is the historical
+    behaviour of the helper and is preserved for backward compatibility.
+
+    Redaction at the query-string position
+    --------------------------------------
+
+    Every ``(key, value)`` pair returned by
+    :func:`urllib.parse.parse_qsl` is inspected. When the key (case
+    insensitively) matches :data:`_REDACT_QUERY_KEY_PATTERN`
+    (``token|key|secret|password|credential|bearer|auth``), the value is
+    replaced with :data:`_REDACTED_QUERY_PLACEHOLDER`
+    (``***REDACTED***``). Non-sensitive query parameters such as
+    ``per_page``, ``state``, ``sort``, ``direction`` pass through
+    verbatim. The URL is then reconstructed via
+    :func:`urllib.parse.urlencode` and :func:`urllib.parse.urlunparse`.
+
+    Defence-in-depth rationale
+    --------------------------
+
+    :class:`GithubClient` sends credentials via the
+    ``Authorization: Bearer`` header rather than via URL query
+    parameters (the GitHub REST best practice), so the query-string
+    redaction is not exercised by any current code path emitted by this
+    workspace. The redaction exists to close two defensive gaps:
+
+    * Third-party redirects (e.g. pre-signed S3 URLs returned by the
+      GitHub artifact-download endpoint) can carry signed-URL tokens in
+      the query string. These signed URLs are not secrets in the same
+      sense as a long-lived PAT, but logging them at info level still
+      surfaces an authentication artefact that downstream log retention
+      should not capture.
+    * Future code paths or hypothetical third-party callers that pass a
+      ``?access_token=`` URL would otherwise leak the token through any
+      log statement that includes the URL.
+
+    The structured logger's value-pattern redaction
+    (:data:`lib.observability.REDACT_VALUE_PATTERN`) already catches
+    GitHub ``ghp_``/``ghs_``/``ghu_``/``ghr_``/``gho_`` and Linear
+    ``lin_api_`` prefixes at the LogRecord layer, so the practical risk
+    of a leaked token via a logged URL was already low before this
+    enhancement. URL-layer redaction is the additive defence.
 
     Args:
         url: A URL string. ``None`` and non-string inputs raise
@@ -1164,7 +1235,10 @@ def redact_url(url: str) -> str:
             that mis-typed callers surface their bug immediately.
 
     Returns:
-        The URL with any embedded credential segment removed.
+        The URL with any embedded basic-auth segment stripped and any
+        sensitive query-parameter values replaced with
+        ``***REDACTED***``. When the URL has neither a userinfo segment
+        nor a sensitive query parameter, the input is returned unchanged.
 
     Raises:
         TypeError: If ``url`` is not a string.
@@ -1174,20 +1248,65 @@ def redact_url(url: str) -> str:
         'https://api.github.com/repos/octocat'
         >>> redact_url("https://api.github.com/rate_limit")
         'https://api.github.com/rate_limit'
+        >>> redact_url("https://api.github.com/repos/foo/bar?access_token=ghs_AAAABBBBCCCCDDDDEEEEFFFF")
+        'https://api.github.com/repos/foo/bar?access_token=%2A%2A%2AREDACTED%2A%2A%2A'
+        >>> redact_url("https://api.github.com/repos/foo/bar?per_page=100&state=closed")
+        'https://api.github.com/repos/foo/bar?per_page=100&state=closed'
     """
     if not isinstance(url, str):
         raise TypeError(
             f"redact_url expected a string, got {type(url).__name__}"
         )
-    if _BASIC_AUTH_PATTERN.search(url) is None:
-        return url
-    # Derive the scheme from the URL parser so that the replacement
-    # honours whatever scheme the caller used (http vs https) without
-    # hardcoding either. The parsed result is otherwise unused; the
-    # regex substitution does the real work.
+
+    # Step 1 — strip any ``user:pass@`` or ``token@`` userinfo segment.
+    # The regex substitution preserves the scheme so that both ``http``
+    # and ``https`` URLs are handled by the same code path.
+    if _BASIC_AUTH_PATTERN.search(url) is not None:
+        parsed_for_scheme = urlparse(url)
+        scheme = parsed_for_scheme.scheme if parsed_for_scheme.scheme else "https"
+        url = _BASIC_AUTH_PATTERN.sub(f"{scheme}://", url, count=1)
+
+    # Step 2 — redact sensitive query-string values. The redaction is
+    # short-circuited when the URL has no query string at all, which is
+    # the common case for GitHub Bearer-authenticated requests. The
+    # short-circuit also preserves the byte-identical pass-through that
+    # existing callers depend on when their URL has no userinfo and no
+    # query string.
     parsed = urlparse(url)
-    scheme = parsed.scheme if parsed.scheme else "https"
-    return _BASIC_AUTH_PATTERN.sub(f"{scheme}://", url, count=1)
+    if not parsed.query:
+        return url
+
+    # ``parse_qsl(keep_blank_values=True)`` preserves
+    # ``?some_key=`` even when the value is empty so that we do not
+    # silently rewrite the URL structure beyond redaction. The result
+    # is a list of ``(key, value)`` tuples preserving order, which
+    # ``urlencode`` then serialises with the standard
+    # ``application/x-www-form-urlencoded`` quoting.
+    pairs = parse_qsl(parsed.query, keep_blank_values=True)
+
+    # Determine whether ANY pair needs redacting before allocating a new
+    # list and rebuilding the URL. This keeps the function a no-op for
+    # the common GitHub case (only ``per_page``, ``state``, ``sort``,
+    # ``page`` are present) so the cost of the redaction is paid only
+    # when actually required.
+    needs_redact = any(
+        _REDACT_QUERY_KEY_PATTERN.search(key) is not None
+        for key, _ in pairs
+    )
+    if not needs_redact:
+        return url
+
+    redacted_pairs = [
+        (
+            key,
+            _REDACTED_QUERY_PLACEHOLDER
+            if _REDACT_QUERY_KEY_PATTERN.search(key) is not None
+            else value,
+        )
+        for key, value in pairs
+    ]
+    redacted_query = urlencode(redacted_pairs)
+    return urlunparse(parsed._replace(query=redacted_query))
 
 
 # ---------------------------------------------------------------------------
