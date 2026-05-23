@@ -1,0 +1,88 @@
+{
+  "_metadata": {
+    "extraction_timestamp": "2026-05-23T05:54:20Z",
+    "run_id": "ff490c72-43fb-4c05-b466-b9355cab917f",
+    "repository_slug": "Blitzy-Sandbox/blitzy-RudderStack",
+    "default_branch": "main",
+    "analysis_period_start": "2026-02-23T00:00:00Z",
+    "analysis_period_end": "2026-05-21T23:59:59Z",
+    "schema_version": "1.0.0",
+    "artifact_kind": "hand_authored_seed",
+    "artifact_kind_note": "This is a hand-authored seed artifact produced for the no-network-access analysis sandbox. The runs[], runs_by_workflow[*], artifacts.junit_xml_artifacts[], artifacts.deploy_artifacts[], summary.failing_check_merged_prs[], and ci_deploy_events.events[] arrays are intentionally empty because scripts/06_extract_ci_history.py could not reach the GitHub Actions Runs API. When the script is re-run with GH_TOKEN set and network reachable, it overwrites this file with the populated CI workflow run inventory; the run_id and extraction_timestamp will then reflect that execution. The workflows_in_repo[] and junit_emitting_workflows[] fields are populated from the in-repo source-of-truth scan of .github/workflows/ and are accurate at the documented extraction_timestamp regardless of API availability.",
+    "workflows_in_repo": [
+      "builds.yml",
+      "tests.yaml",
+      "verify.yml",
+      "release-please.yaml",
+      "prerelease.yaml",
+      "sync-release.yaml",
+      "dispatch-deploy-event-dev.yaml",
+      "docker-build-dockerhub.yml",
+      "docker-build-ecr.yml",
+      "housekeeping.yaml",
+      "labeler.yaml",
+      "pr-description-enforcer.yaml",
+      "semantic-pr.yaml"
+    ],
+    "workflows_in_repo_count": 13,
+    "workflows_in_repo_source_command": "ls .github/workflows/*.{yml,yaml}",
+    "junit_emitting_workflows": [],
+    "junit_emitting_workflows_note": "tests.yaml does not include -json output or junit-report upload steps; no JUnit XML artifacts are emitted by any workflow at HEAD. M11 falls back to HEAD-only in-repo scan.",
+    "junit_emitting_workflows_detection_command": "grep -niE 'junit|gotestsum|test2json|--json|-json|test-report' .github/workflows/*.{yml,yaml}",
+    "junit_emitting_workflows_detection_result_summary": "Zero matches for junit/gotestsum/test2json/test-report across all 13 workflows. One unrelated -json match in sync-release.yaml line 43 ('gh pr view ... --json mergeCommit') which is metadata extraction, not test output."
+  },
+  "github_api": {
+    "available": false,
+    "unavailable_reason": "GH_TOKEN environment variable not set or rate limit exceeded",
+    "endpoints_attempted": [
+      "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/actions/runs?branch=main&per_page=100",
+      "GET /repos/Blitzy-Sandbox/blitzy-RudderStack/actions/runs/{run_id}/artifacts"
+    ],
+    "endpoints_attempted_note": "Per AAP \u00a70.2.1.2 the CI history extraction targets two endpoints: (1) the workflow Runs API for the per-run inventory, and (2) the Run Artifacts API for JUnit XML attachments. Both endpoints are documented here because both would be exercised when github_api.available flips to true. When the live script (scripts/06_extract_ci_history.py) runs, the first endpoint is paginated by 100 with the branch filter set to the default branch; the second is invoked once per run id returned by the first.",
+    "fetched_at": null,
+    "rate_limit_remaining_at_fetch": null,
+    "pagination": {
+      "per_page": 100,
+      "pages_fetched": 0,
+      "last_page_seen": null
+    }
+  },
+  "runs": [],
+  "runs_by_workflow": {
+    "tests.yaml": [],
+    "verify.yml": [],
+    "builds.yml": [],
+    "release-please.yaml": [],
+    "prerelease.yaml": [],
+    "sync-release.yaml": [],
+    "dispatch-deploy-event-dev.yaml": [],
+    "docker-build-dockerhub.yml": [],
+    "docker-build-ecr.yml": [],
+    "housekeeping.yaml": [],
+    "labeler.yaml": [],
+    "pr-description-enforcer.yaml": [],
+    "semantic-pr.yaml": []
+  },
+  "artifacts": {
+    "junit_xml_artifacts": [],
+    "junit_xml_artifacts_count": 0,
+    "deploy_artifacts": [],
+    "deploy_artifacts_count": 0
+  },
+  "summary": {
+    "total_runs_fetched": 0,
+    "runs_per_workflow": {},
+    "success_count": 0,
+    "failure_count": 0,
+    "cancelled_count": 0,
+    "in_progress_count": 0,
+    "failing_check_merged_prs": [],
+    "failing_check_merged_prs_count": 0
+  },
+  "ci_deploy_events": {
+    "source_workflow": "dispatch-deploy-event-dev.yaml",
+    "events": [],
+    "events_count": 0,
+    "note": "Used as Metric 9 (Releases) third-tier source per AAP \u00a70.5.3.10 when no git tags and Releases API also unavailable."
+  }
+}
