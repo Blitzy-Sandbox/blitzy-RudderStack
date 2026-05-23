@@ -68,8 +68,25 @@ REDACT_PATTERN: re.Pattern[str] = re.compile(
 #: plus the Linear API ``lin_api_`` prefix. The 20-or-more-character suffix
 #: discriminates between the real tokens and legitimate strings that happen
 #: to start with these letters.
+#:
+#: NOTE: Use :func:`re.fullmatch` against this pattern when the value is the
+#: entire string (no anchors needed in the pattern itself).
 REDACT_VALUE_PATTERN: re.Pattern[str] = re.compile(
-    r"^(ghp_|gho_|ghu_|ghs_|ghr_|lin_api_)[A-Za-z0-9_]{20,}$"
+    r"(ghp_|gho_|ghu_|ghs_|ghr_|lin_api_)[A-Za-z0-9_]{20,}"
+)
+
+#: Substring pattern on FIELD VALUES that catches token-shaped material
+#: embedded inside larger strings such as URLs, JSON bodies, or shell-style
+#: ``key=value`` pairs. The pattern is the same as
+#: :data:`REDACT_VALUE_PATTERN` but applied with :py:meth:`re.Pattern.search`
+#: rather than :py:meth:`re.Pattern.fullmatch`, and the producer
+#: replaces each match in place rather than masking the whole value. This
+#: closes the redaction gap identified by CP2 review item where a URL of
+#: the form ``https://api.github.com/?token=ghp_<realtoken>`` was emitted
+#: verbatim because the token sat inside a URL value rather than being the
+#: entire field value.
+REDACT_VALUE_SUBSTRING_PATTERN: re.Pattern[str] = re.compile(
+    r"(ghp_|gho_|ghu_|ghs_|ghr_|lin_api_)[A-Za-z0-9_]{20,}"
 )
 
 #: String emitted in place of any redacted field value.
@@ -300,14 +317,20 @@ def _redact_fields(payload: dict[str, Any]) -> dict[str, Any]:
     1. If the key (case-insensitively) matches :data:`REDACT_PATTERN`, the
        associated value is replaced with :data:`REDACTED_PLACEHOLDER`
        regardless of its content or type.
-    2. Otherwise, if the value is a string matching
-       :data:`REDACT_VALUE_PATTERN`, it is replaced with
+    2. Otherwise, if the value is a string whose entire content matches
+       :data:`REDACT_VALUE_PATTERN` (via fullmatch), it is replaced with
        :data:`REDACTED_PLACEHOLDER`. This catches the common case of a
        credential being passed under a benign field name.
-    3. Otherwise, if the value is a ``dict``, this function recurses.
-    4. Otherwise, if the value is a ``list`` or ``tuple``, each element is
+    3. Otherwise, if the value is a string containing a token-shaped
+       substring (via :data:`REDACT_VALUE_SUBSTRING_PATTERN`), each
+       matching substring is replaced in-place with
+       :data:`REDACTED_PLACEHOLDER` and the surrounding characters are
+       preserved. This closes the gap where a credential appears inside a
+       larger value such as a URL or a ``key=value`` log line.
+    4. Otherwise, if the value is a ``dict``, this function recurses.
+    5. Otherwise, if the value is a ``list`` or ``tuple``, each element is
        passed through a per-element recursion that treats dicts the same way.
-    5. Otherwise, the value is preserved as-is.
+    6. Otherwise, the value is preserved as-is.
 
     Args:
         payload: Mapping of field name to field value.
@@ -333,16 +356,45 @@ def _redact_value(value: Any) -> Any:
     values (handled by :func:`_redact_fields`) and list elements share the
     same logic without duplicating the recursion.
 
+    Redaction order for strings:
+
+    1. If the entire value matches :data:`REDACT_VALUE_PATTERN` via
+       :py:meth:`re.Pattern.fullmatch`, the whole value is replaced with
+       :data:`REDACTED_PLACEHOLDER`. This is the canonical "the value IS a
+       token" case (e.g. ``token: "ghp_abcdef..."``).
+    2. Otherwise, if :data:`REDACT_VALUE_SUBSTRING_PATTERN` matches any
+       substring via :py:meth:`re.Pattern.search`, the token-shaped
+       substring is replaced in-place with :data:`REDACTED_PLACEHOLDER`
+       and surrounding characters are preserved. This catches token-bearing
+       URLs (``https://.../?token=ghp_...``), shell-style
+       ``GH_TOKEN=ghp_...`` strings, JSON-encoded bodies that include a
+       token, and any other case where the credential is embedded inside
+       a larger non-credential value. The substring replacement uses the
+       same placeholder so that downstream regression tests can still
+       grep for ``***REDACTED***``.
+    3. Otherwise, the string is preserved verbatim.
+
     Args:
         value: The value to inspect and potentially redact.
 
     Returns:
-        Either the redacted placeholder string, a recursively-redacted
-        container, or the input value unchanged.
+        Either the redacted placeholder string, a string with embedded
+        token substrings replaced by the placeholder, a recursively
+        redacted container, or the input value unchanged.
     """
     if isinstance(value, str):
-        if REDACT_VALUE_PATTERN.match(value) is not None:
+        # Case 1: the entire value is a single token — mask the whole value.
+        if REDACT_VALUE_PATTERN.fullmatch(value) is not None:
             return REDACTED_PLACEHOLDER
+        # Case 2: a token-shaped substring is embedded inside a larger
+        # value (URL, key=value, JSON body, log line, etc.). Replace each
+        # such substring with the placeholder; preserve the surrounding
+        # characters so the redacted log line is still readable as a URL
+        # and the redaction is locally explicit.
+        if REDACT_VALUE_SUBSTRING_PATTERN.search(value) is not None:
+            return REDACT_VALUE_SUBSTRING_PATTERN.sub(
+                REDACTED_PLACEHOLDER, value
+            )
         return value
     if isinstance(value, dict):
         return _redact_fields(value)
@@ -750,5 +802,8 @@ __all__ = [
     "JsonFormatter",
     "BLITZY_RUN_ID_ENV",
     "REDACTED_PLACEHOLDER",
+    "REDACT_PATTERN",
+    "REDACT_VALUE_PATTERN",
+    "REDACT_VALUE_SUBSTRING_PATTERN",
 ]
 

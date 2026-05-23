@@ -3,10 +3,18 @@
 # This file is scoped to the acceleration-report workspace. The repository-root
 # .gitignore is not modified by this deliverable.
 #
-# The data/ directory is the per-run output area for extraction scripts. The
-# JSON/CSV artifacts inside it are reproducible from the scripts and are NOT
-# committed; subsequent agents regenerate them by running `make all`. The
-# directory itself is preserved via .gitkeep so the path exists on a fresh clone.
+# Data-artifact tracking policy (revised for CP2 review remediation):
+#   The data/ directory contains TWO classes of artifact:
+#     (a) Committed seed artifacts (deliverable evidence). These are
+#         explicitly UN-ignored below via "!data/<name>" entries. They are
+#         the provenance trail required by Rule 1 (Data Provenance), Rule 5
+#         (Reproducibility), and Rule 6 (Environment First), and they
+#         underpin the Reproducibility Appendix in acceleration-report.md.
+#     (b) Per-run regenerable artifacts not currently listed below. Anything
+#         NOT explicitly un-ignored falls under the generic data/* glob and
+#         is treated as transient output.
+#   The directory marker .gitkeep is preserved so the path exists on a fresh
+#   clone.
 
 # --- Python virtual environment (workspace-local) ---
 .venv/
@@ -27,12 +35,34 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# --- Per-run extraction artifacts (regenerable) ---
+# --- Per-run extraction artifacts (regenerable; un-ignore deliverables below) ---
 data/*.json
 data/*.csv
 data/*.jsonl
 data/.cursor.json
 !data/.gitkeep
+
+# --- Committed deliverable artifacts (CP2 scope; tracked) ---
+# Each line below un-ignores a single required artifact. New committed
+# artifacts are added one per line; do NOT broaden these globs because the
+# directory-level glob above is the safety net for per-run transient files.
+!data/environment.json
+!data/inflection.json
+!data/commits.csv
+!data/revert_candidates.csv
+!data/pulls.json
+!data/reviews.json
+!data/pull_events.json
+!data/releases.json
+!data/reverts.json
+!data/ci_runs.json
+!data/test_transitions.json
+!data/exceptions.json
+!data/issues.json
+!data/slas.json
+!data/metrics.json
+!data/per_engineer.json
+!data/run.log.jsonl
 
 # --- Rendered intermediate artifacts (deterministic; regenerable) ---
 # The final acceleration-report.md and executive-summary.html ARE committed.
