@@ -2126,15 +2126,37 @@ def slide_14_risks(metrics: dict[str, Any]) -> dict[str, Any]:
         m = metrics.get(k, {})
         confidence = m.get("confidence", "insufficient")
         value = m.get("value")
-        # Surface Low and insufficient.
-        if confidence not in ("low", "insufficient"):
+        # Surface Low confidence metrics AND any metric whose value is
+        # the "insufficient_signal" sentinel, regardless of the metric's
+        # expected-condition confidence tier. Per Quality Gate 7 (AAP
+        # §0.9.1) and decision-log row DL-039, an `insufficient_signal`
+        # value is itself a signal gap and must appear in the Risk
+        # Assessment table on the report (§9) AND on this deck slide
+        # (slide 14); the two surfaces are kept in lock-step via this
+        # union predicate. The canonical case is M7 Flow Time, whose
+        # expected confidence is Medium (so the prior simple "in
+        # (low, insufficient)" predicate excluded it) but whose actual
+        # value in this run is insufficient_signal because both the
+        # GitHub Pulls API and the local-git fallback are unavailable.
+        if confidence not in ("low", "insufficient") and value != "insufficient_signal":
             continue
         # Pull the explanation: prefer caveat, then reason, then a placeholder.
         explanation = m.get("caveat") or m.get("reason") or "See metric deep-dive."
-        severity = "Low" if confidence == "low" else "Insufficient"
-        severity_class = (
-            "confidence-low" if confidence == "low" else "confidence-insufficient"
-        )
+        # Severity classification mirrors the report renderer per
+        # DL-039: any metric whose value is the insufficient_signal
+        # sentinel carries Insufficient severity (a complete
+        # information gap) regardless of its expected-condition
+        # confidence tier. Low-confidence metrics carry Low severity.
+        # The classification is disjoint by construction — a Low
+        # confidence metric must have a derived value, never the
+        # sentinel string — so the order of checks below does not
+        # affect the outcome.
+        if confidence == "insufficient" or value == "insufficient_signal":
+            severity = "Insufficient"
+            severity_class = "confidence-insufficient"
+        else:
+            severity = "Low"
+            severity_class = "confidence-low"
         # QA-FIN-3 Issue 4 (MAJOR): the caveat is truncated to 110
         # characters (was 200) so each row fits a single visual line in
         # the compact table and the full 8-row table fits inside the

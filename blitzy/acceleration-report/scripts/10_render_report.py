@@ -1999,7 +1999,17 @@ def render_risk_assessment(metrics: dict[str, Any]) -> str:
     for k in metric_keys(metrics):
         m = metrics[k]
         conf = m.get("confidence", "insufficient")
-        if conf in ("low", "insufficient"):
+        val = m.get("value")
+        # Per Quality Gate 7 (AAP §0.9.1): "Risk Assessment covers all
+        # Low-confidence metrics AND insufficient-signal gaps."
+        # A metric whose value is the sentinel string "insufficient_signal"
+        # is an insufficient-signal gap even when its expected-condition
+        # confidence tier is Medium or High (e.g., M7 Flow Time has
+        # confidence=medium because the Pulls API + local-git fallback
+        # would normally yield Medium, but in this run both upstream paths
+        # are unavailable and the actual value is insufficient_signal).
+        # The filter therefore unions the two predicates.
+        if conf in ("low", "insufficient") or val == "insufficient_signal":
             qualifying.append((k, m))
     if not qualifying:
         lines.append(
@@ -2015,9 +2025,21 @@ def render_risk_assessment(metrics: dict[str, Any]) -> str:
     lines.append("|---|---|---|---|---|")
     for k, m in qualifying:
         conf = m.get("confidence", "insufficient")
-        severity = "High" if conf == "insufficient" else "Medium"
+        val = m.get("value")
+        # Severity tiering: a metric whose value is the
+        # insufficient_signal sentinel is a complete information gap
+        # and carries High severity regardless of the metric's
+        # expected-condition confidence tier. Low-confidence metrics
+        # have at least a derived value (so partial signal is
+        # available) and carry Medium severity. Per Quality Gate 7,
+        # both categories are enumerated in the Risk Assessment.
+        if conf == "insufficient" or val == "insufficient_signal":
+            severity = "High"
+        else:
+            severity = "Medium"
         # Risk description: prefer caveat (for low) or reason (for
-        # insufficient), falling back to boundary_conditions.
+        # insufficient or insufficient_signal value), falling back
+        # to boundary_conditions.
         if conf == "low":
             description = (
                 m.get("caveat")
@@ -2041,13 +2063,25 @@ def render_risk_assessment(metrics: dict[str, Any]) -> str:
             f"{mitigation_cell} |"
         )
     lines.append("")
+    # Cardinality tiers: a qualifying metric is classified as
+    # Insufficient if either its confidence is "insufficient" OR its
+    # value is the "insufficient_signal" sentinel (the latter is the
+    # observed-gap case for metrics whose expected-condition confidence
+    # is Medium/High but whose actual signal is unavailable in this
+    # run — e.g., M7 Flow Time). Low-confidence metrics are tracked
+    # separately. The classification is disjoint by construction
+    # (low and insufficient_signal cannot both be true at once because
+    # a Low-confidence metric must have a derived value rather than the
+    # sentinel string).
     insufficient_count = sum(
         1 for _, m in qualifying
         if m.get("confidence") == "insufficient"
+        or m.get("value") == "insufficient_signal"
     )
     low_count = sum(
         1 for _, m in qualifying
         if m.get("confidence") == "low"
+        and m.get("value") != "insufficient_signal"
     )
     lines.append(
         f"**Cardinality**: {len(qualifying)} qualifying metrics "

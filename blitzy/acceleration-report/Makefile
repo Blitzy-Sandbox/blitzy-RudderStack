@@ -233,10 +233,27 @@ $(VENV)/.touch: requirements.txt
 	@# The `command -v` check on virtualenv runs before the invocation so the
 	@# error message can distinguish "venv broken AND virtualenv missing" from
 	@# "venv broken AND virtualenv failed".
+	@#
+	@# DL-030 follow-up: when virtualenv was installed via `pip install --user`,
+	@# the binary lands at $HOME/.local/bin/virtualenv (or /root/.local/bin/virtualenv
+	@# under sudo / root), which is NOT on the default PATH that `make`
+	@# inherits in some container shells. The fallback chain therefore also
+	@# probes the user-local install location before declaring the tool
+	@# unavailable. The PATH-augmented branch executes the binary directly
+	@# from its absolute resolved path so the lookup is deterministic.
 	@if ! $(PYTHON) -m venv $(VENV) 2>/dev/null; then \
 		echo "[setup] python -m venv failed; trying standalone virtualenv..."; \
+		venv_tool=""; \
 		if command -v virtualenv >/dev/null 2>&1; then \
-			virtualenv --python=$(PYTHON) $(VENV); \
+			venv_tool="$$(command -v virtualenv)"; \
+		elif [ -x "$$HOME/.local/bin/virtualenv" ]; then \
+			venv_tool="$$HOME/.local/bin/virtualenv"; \
+		elif [ -x "/root/.local/bin/virtualenv" ]; then \
+			venv_tool="/root/.local/bin/virtualenv"; \
+		fi; \
+		if [ -n "$$venv_tool" ]; then \
+			echo "[setup] using virtualenv at $$venv_tool"; \
+			"$$venv_tool" --python=$(PYTHON) $(VENV); \
 		else \
 			echo "[setup] FATAL: both 'python3 -m venv' and 'virtualenv' are unavailable." >&2; \
 			echo "[setup]        Install the standalone virtualenv tool:" >&2; \
