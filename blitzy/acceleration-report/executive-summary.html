@@ -247,9 +247,13 @@
     }
     /* QA-FIN-3 Issue 2 (MAJOR) follow-up: the renderer also configures
        `flowchart.htmlLabels: false` in mermaid.initialize() above, but
-       Mermaid 11.4.0 silently ignores that key for flowchart node labels
-       in some contexts and continues to render labels as
-       <foreignObject><div>…</div></foreignObject>. Mermaid then applies
+       Mermaid 11.4.0 silently ignored that key for flowchart node labels
+       in some contexts and continued to render labels as
+       <foreignObject><div>…</div></foreignObject>. (Historical: the bug
+       was observed at the 11.4.0 pin; this defensive CSS is preserved
+       after the CP-FIN-5 upgrade to Mermaid 11.15.0 — see DL-037 — as
+       belt-and-braces against the same regression class.) Mermaid then
+       applies
        `overflow: hidden` to the foreignObject, which clips the inner
        <div> because the inner div's actual rendered width is 2.9-5.8px
        wider than the foreignObject's measured width (a Mermaid label-
@@ -432,7 +436,7 @@
     </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.min.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script>
     mermaid.initialize({
@@ -447,17 +451,22 @@
         tertiaryColor: '#F4EFF6',
         fontFamily: 'Inter, sans-serif'
       },
-      /* QA-FIN-3 Issue 2 (MAJOR): Mermaid 11.4.0 underestimates
-         foreignObject width by ~3-7px when node labels use HTML
+      /* QA-FIN-3 Issue 2 (MAJOR): Mermaid 11.4.0 underestimated
+         foreignObject width by ~3-7px when node labels used HTML
          (htmlLabels:true is the default for the 'base' theme).
-         Symptom: every node label on slides 4 and 5 is clipped
+         Symptom: every node label on slides 4 and 5 was clipped
          at the right edge (e.g. '00_environmen', 'GitHub AP'). Fix
          strategy: switch htmlLabels OFF so labels render as SVG
          <text> nodes whose width is measured directly, and add
          generous node-padding so wider glyphs have room. The
          flowchart block here governs slides 4 and 5; xychart-beta
          (slide 8) and pie (slide 9) are unaffected because they
-         use a separate sub-configuration. */
+         use a separate sub-configuration. Historical: the bug
+         was observed at the 11.4.0 pin; this configuration is
+         preserved after the CP-FIN-5 upgrade to Mermaid 11.15.0
+         (see decision-log.md DL-037) as defense-in-depth and
+         because htmlLabels:false also reduces the surface area
+         affected by Mermaid CVEs that operate on HTML-label DOM. */
       flowchart: {
         htmlLabels: false,
         padding: 20,

@@ -24,7 +24,7 @@ CRITICAL CONSTRAINTS (per AAP §0.7.1.5 and the agent prompt)
 * **Single self-contained HTML file**: no external file dependencies beyond
   CDN-pinned libraries. The full Blitzy theme is embedded inline in a
   ``<style>`` tag inside ``<head>``.
-* **CDN-pinned versions** (exact): reveal.js 5.1.0, Mermaid 11.4.0,
+* **CDN-pinned versions** (exact): reveal.js 5.1.0, Mermaid 11.15.0,
   Lucide 0.460.0. Hard-coded as module-level constants and verified by a
   pre-write guard.
 * **Slide count**: 12-18 slides (target 16). Pre-write guard enforces range.
@@ -164,7 +164,15 @@ DECK_INPUT_SCHEMAS: dict[str, str] = {
 REVEAL_VERSION: str = "5.1.0"
 
 #: Mermaid — diagram engine. Pinned major.minor.patch per the rule.
-MERMAID_VERSION: str = "11.4.0"
+#: Upgraded from 11.4.0 → 11.15.0 to close 4 known CVEs identified in the
+#: CP-FIN-5 SECURITY checkpoint (CVE-2025-54881 sequenceDiagram XSS, fix
+#: 11.10.0; CVE-2025-54880 architecture XSS, fix 11.10.0; CVE-2026-41149
+#: classDef HTML injection, fix 11.15.0; CVE-2026-41150 Gantt DoS, fix
+#: 11.15.0). 11.15.0 is the smallest version that closes all four. None
+#: of the four CVEs is reachable from the hand-authored, static .mmd
+#: content used by this deck, but defense-in-depth removes the vulnerable
+#: code paths from the bundled library. See decision-log.md DL-037.
+MERMAID_VERSION: str = "11.15.0"
 
 #: Lucide — icon library. Pinned major.minor.patch per the rule.
 LUCIDE_VERSION: str = "0.460.0"
@@ -845,9 +853,13 @@ def render_inline_css() -> str:
     }
     /* QA-FIN-3 Issue 2 (MAJOR) follow-up: the renderer also configures
        `flowchart.htmlLabels: false` in mermaid.initialize() above, but
-       Mermaid 11.4.0 silently ignores that key for flowchart node labels
-       in some contexts and continues to render labels as
-       <foreignObject><div>…</div></foreignObject>. Mermaid then applies
+       Mermaid 11.4.0 silently ignored that key for flowchart node labels
+       in some contexts and continued to render labels as
+       <foreignObject><div>…</div></foreignObject>. (Historical: the bug
+       was observed at the 11.4.0 pin; this defensive CSS is preserved
+       after the CP-FIN-5 upgrade to Mermaid 11.15.0 — see DL-037 — as
+       belt-and-braces against the same regression class.) Mermaid then
+       applies
        `overflow: hidden` to the foreignObject, which clips the inner
        <div> because the inner div's actual rendered width is 2.9-5.8px
        wider than the foreignObject's measured width (a Mermaid label-
@@ -1034,17 +1046,22 @@ def render_scripts() -> str:
         "        tertiaryColor: '#F4EFF6',\n"
         "        fontFamily: 'Inter, sans-serif'\n"
         '      },\n'
-        '      /* QA-FIN-3 Issue 2 (MAJOR): Mermaid 11.4.0 underestimates\n'
-        "         foreignObject width by ~3-7px when node labels use HTML\n"
+        '      /* QA-FIN-3 Issue 2 (MAJOR): Mermaid 11.4.0 underestimated\n'
+        "         foreignObject width by ~3-7px when node labels used HTML\n"
         "         (htmlLabels:true is the default for the 'base' theme).\n"
-        "         Symptom: every node label on slides 4 and 5 is clipped\n"
+        "         Symptom: every node label on slides 4 and 5 was clipped\n"
         "         at the right edge (e.g. '00_environmen', 'GitHub AP'). Fix\n"
         "         strategy: switch htmlLabels OFF so labels render as SVG\n"
         "         <text> nodes whose width is measured directly, and add\n"
         "         generous node-padding so wider glyphs have room. The\n"
         "         flowchart block here governs slides 4 and 5; xychart-beta\n"
         "         (slide 8) and pie (slide 9) are unaffected because they\n"
-        "         use a separate sub-configuration. */\n"
+        "         use a separate sub-configuration. Historical: the bug\n"
+        "         was observed at the 11.4.0 pin; this configuration is\n"
+        "         preserved after the CP-FIN-5 upgrade to Mermaid 11.15.0\n"
+        "         (see decision-log.md DL-037) as defense-in-depth and\n"
+        "         because htmlLabels:false also reduces the surface area\n"
+        "         affected by Mermaid CVEs that operate on HTML-label DOM. */\n"
         '      flowchart: {\n'
         '        htmlLabels: false,\n'
         '        padding: 20,\n'
@@ -2341,7 +2358,7 @@ def pre_write_guard(html: str, slides: list[dict[str, Any]]) -> None:
     4. **slide_X_fenced_code_block** — no slide body contains triple-backtick
        fenced code blocks (inline ``<code>`` only).
     5. **missing_cdn_pin** — all three CDN pin strings appear verbatim
-       (``reveal.js@5.1.0``, ``mermaid@11.4.0``, ``lucide@0.460.0``).
+       (``reveal.js@5.1.0``, ``mermaid@11.15.0``, ``lucide@0.460.0``).
     6. **missing_brand_color** — all six Blitzy brand hex codes appear
        somewhere in the rendered HTML.
     7. **blocklist_term_present** — Rule 2 factual-neutral-tone scan via

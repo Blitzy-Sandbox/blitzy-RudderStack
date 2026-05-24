@@ -2,8 +2,19 @@
 # Analysis environment only. Not consumed by rudder-server runtime, build, or CI.
 # Pinned versions per AAP §0.4.2 — match exactly for deterministic re-runs (Rule 5).
 #
-# Security-vetted pins (see decision-log.md DL-014):
-#   - requests==2.32.5 addresses CVE-2024-47081 and CVE-2026-25645 vs 2.32.3
+# Security-vetted pins (see decision-log.md DL-014 and DL-038):
+#   - requests==2.32.5 addresses CVE-2024-47081 (netrc credential leak via
+#     malicious URL; the upstream fix landed in 2.32.4 — bumping from 2.32.3
+#     to 2.32.5 picks up that fix plus subsequent bugfixes).
+#     NOTE: CVE-2026-25645 (insecure temp-file reuse in
+#     ``requests.utils.extract_zipped_paths()``) is NOT fixed at 2.32.5 — the
+#     upstream fix only landed in 2.33.0. The CVE is documented here as
+#     non-exploitable in this codebase because no script under
+#     ``blitzy/acceleration-report/scripts/`` calls ``extract_zipped_paths``;
+#     verified via ``grep -rn extract_zipped_paths scripts/`` returning zero
+#     matches. Standard ``requests.get`` / ``requests.post`` usage is not
+#     affected by CVE-2026-25645 per the upstream advisory (GHSA-gc5v-m9x4-r6x2).
+#     See decision-log.md DL-038 for the CP-FIN-5 documentation correction.
 #   - jinja2==3.1.6 addresses CVE-2024-56201, CVE-2024-56326, and CVE-2025-27516 vs 3.1.4
 #   - defusedxml==0.7.1 provides the safe XML parser used by 06_extract_ci_history.py
 #     when ingesting JUnit XML artifacts from GitHub Actions (semi-trusted input).

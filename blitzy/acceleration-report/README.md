@@ -111,7 +111,7 @@ A full rerun walkthrough — including offline-mode behaviour, rate-limit handli
 ## Deliverables
 
 - **[`acceleration-report.md`](./acceleration-report.md)** — Eleven-section measurement report following the user-prompt Validation Framework section order (Executive Summary → Environment Verification → Data Source Inventory → Methodology → Metric Deep-Dives ×12 → Requirements Traceability Matrix → Per-Engineer Acceleration → Acceleration Curve → Risk Assessment → Limitations → Reproducibility Appendix). Every numeric claim is traceable to a command and a raw data artifact.
-- **[`executive-summary.html`](./executive-summary.html)** — Single self-contained reveal.js deck (12–18 slides, target 16). Opens in any evergreen browser; CDN-pinned libraries (reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0); Blitzy brand theme embedded inline.
+- **[`executive-summary.html`](./executive-summary.html)** — Single self-contained reveal.js deck (12–18 slides, target 16). Opens in any evergreen browser; CDN-pinned libraries (reveal.js 5.1.0, Mermaid 11.15.0, Lucide 0.460.0 — Mermaid was upgraded from 11.4.0 → 11.15.0 in the CP-FIN-5 SECURITY checkpoint to close four published CVEs; see `decision-log.md` `DL-037`); Blitzy brand theme embedded inline.
 - **[`decision-log.md`](./decision-log.md)** — Markdown table of non-trivial decisions per the Explainability rule. Each row records the decision, the alternatives considered, the rationale, and the risks.
 - **[`onboarding/rerun-and-observability.md`](./onboarding/rerun-and-observability.md)** — Clean-machine rerun instructions and observability surfaces per the Onboarding & Continued Development rule.
 

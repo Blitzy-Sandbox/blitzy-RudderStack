@@ -170,7 +170,7 @@ The compute stage is pure (no I/O beyond reading and writing the named files) so
 The render stage consumes ONLY the compute outputs — never the raw extraction artifacts directly. This enforces Rule 4 (Internal Consistency) mechanically: both renderers see the same `metrics.json`:
 
 - `10_render_report.py` — renders `acceleration-report.md` from `data/metrics.json`, `data/per_engineer.json`, and `diagrams/*.mmd`; applies the factual-neutral-tone blocklist guard before write
-- `11_render_deck.py` — renders `executive-summary.html` from the same data artifacts; uses a Jinja2 template with the inline Blitzy theme and CDN-pinned reveal.js 5.1.0, Mermaid 11.4.0, and Lucide 0.460.0
+- `11_render_deck.py` — renders `executive-summary.html` from the same data artifacts; uses a Jinja2 template with the inline Blitzy theme and CDN-pinned reveal.js 5.1.0, Mermaid 11.15.0, and Lucide 0.460.0 (Mermaid was upgraded from 11.4.0 → 11.15.0 in the CP-FIN-5 SECURITY checkpoint to close four published CVEs; see [`../decision-log.md`](../decision-log.md) `DL-037`)
 
 See [`../diagrams/extraction-pipeline.mmd`](../diagrams/extraction-pipeline.mmd) for the Mermaid topology of this pipeline.
 
