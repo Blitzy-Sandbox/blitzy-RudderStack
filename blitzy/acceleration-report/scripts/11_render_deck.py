@@ -639,7 +639,22 @@ def render_inline_css() -> str:
     .reveal code, .reveal pre.mermaid {
       font-family: 'Fira Code', 'SF Mono', Monaco, monospace;
     }
-    .reveal code { background: var(--neutral-bg-subtle); padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.85em; color: var(--blitzy-dark); }
+    .reveal code {
+      background: var(--neutral-bg-subtle);
+      padding: 0.1em 0.4em;
+      border-radius: 4px;
+      font-size: 0.85em;
+      color: var(--blitzy-dark);
+      /* QA-FIN-3 Issue 9: prevent long single-line commands (e.g. the
+         multi-segment Setup command on slide 15 and the
+         git log --grep='^Revert "' string on slide 10) from
+         overflowing the slide's right edge. word-break:break-word lets
+         the browser break inside the token when the line is too long;
+         overflow-wrap:anywhere lets it break even between adjacent
+         non-whitespace characters when no break opportunity exists. */
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
     .reveal .eyebrow {
       font-family: 'Fira Code', monospace;
       font-size: 0.65em;
@@ -660,6 +675,19 @@ def render_inline_css() -> str:
     .reveal section.slide-title .eyebrow { color: var(--blitzy-mint); }
     .reveal section.slide-title p, .reveal section.slide-title code { color: var(--neutral-white); }
     .reveal section.slide-title code { background: rgba(148,250,213,0.18); color: var(--blitzy-mint); }
+    /* QA-FIN-3 Issue 1 (MAJOR): The title and closing slides use a
+       mint code colour to stand out against their dark purple/navy
+       backgrounds. When a <code> sits inside a .pill.pill-mint (which
+       paints a mint background) on those slides, the cascade above
+       leaves mint text on a mint background — invisible. Override the
+       code colour back to --blitzy-dark and clear the inherited
+       semi-transparent mint background so the timestamp inside the
+       AI-Inflection / Extracted pills is legible. */
+    .reveal section.slide-title .pill.pill-mint code,
+    .reveal section.slide-closing .pill.pill-mint code {
+      color: var(--blitzy-dark);
+      background: transparent;
+    }
     /* Slide type — divider (dark purple gradient) */
     .reveal section.slide-divider {
       background: var(--gradient-divider);
@@ -773,6 +801,71 @@ def render_inline_css() -> str:
     }
     .reveal table tr:nth-child(even) td { background: var(--neutral-bg-subtle); }
     .reveal table tr:last-child td { border-bottom: none; }
+    /* QA-FIN-3 Issues 3 & 4 (MAJOR): the twelve-metric overview table
+       (slide 6) and the risks-and-limitations table (slide 14) each
+       contain enough rows that the default 0.6rem/1rem cell padding and
+       1.5rem table margins push the bottom rows below the 1080px viewport.
+       The .table-compact modifier shrinks vertical padding and font-size
+       so all 12 rows (slide 6) and 8 rows (slide 14) fit within bounds
+       at the declared viewport. Horizontal padding is preserved so the
+       columns remain visually distinct. */
+    .reveal table.table-compact { font-size: 0.58em; margin: 0.4rem auto; width: 94%; }
+    .reveal table.table-compact th { padding: 0.4rem 0.7rem; }
+    .reveal table.table-compact td { padding: 0.28rem 0.7rem; line-height: 1.25; }
+    .reveal table.table-compact td code {
+      font-size: 0.95em;
+      padding: 0 0.25em;
+    }
+    /* QA-FIN-3 Issues 3 & 4 (MAJOR): the divider-slide H1 at 2.6em
+       (~84px) consumes most of the vertical budget on the table-heavy
+       overview slide. Pair the .table-compact body with a smaller
+       heading on slides that carry a long compact table. */
+    .reveal section.slide-divider.slide-with-table h1 {
+      font-size: 1.6em;
+      margin-bottom: 0.4rem;
+    }
+    .reveal section.slide-divider.slide-with-table { padding: 1.5rem 4rem; }
+    .reveal section.slide-with-table h1 {
+      font-size: 1.4em;
+      margin-bottom: 0.3rem;
+    }
+    .reveal section.slide-with-table { padding: 1.5rem 4rem; }
+    /* QA-FIN-3 Issue 5 (MAJOR): xychart-beta on slide 8 renders a chart
+       whose default height pushes the x-axis labels below the viewport.
+       Constrain Mermaid containers on the .slide-tight-chart section to
+       a max-height that leaves room for the KPI cards above and the
+       slide footer below at 1080px viewport. */
+    .reveal section.slide-tight-chart pre.mermaid {
+      max-height: 360px;
+      margin: 0.5rem auto;
+    }
+    .reveal section.slide-tight-chart pre.mermaid svg {
+      max-height: 340px;
+      height: auto;
+    }
+    /* QA-FIN-3 Issue 2 (MAJOR) follow-up: the renderer also configures
+       `flowchart.htmlLabels: false` in mermaid.initialize() above, but
+       Mermaid 11.4.0 silently ignores that key for flowchart node labels
+       in some contexts and continues to render labels as
+       <foreignObject><div>…</div></foreignObject>. Mermaid then applies
+       `overflow: hidden` to the foreignObject, which clips the inner
+       <div> because the inner div's actual rendered width is 2.9-5.8px
+       wider than the foreignObject's measured width (a Mermaid label-
+       sizing bug). The defensive CSS-side fix overrides foreignObject
+       overflow to `visible` so the inner div's trailing pixels paint
+       past the foreignObject's right edge. The painted overflow stays
+       inside the parent node's <rect> bounds (the rect is ~70px wider
+       than the foreignObject because of the global flowchart padding),
+       so labels become fully legible without breaking node geometry.
+       Targeted at .reveal pre.mermaid so only deck Mermaid diagrams
+       are affected (slides 4 and 5 — slides 8 and 9 use xychart-beta
+       and pie which don't use foreignObject labels). */
+    .reveal pre.mermaid foreignObject {
+      overflow: visible;
+    }
+    .reveal pre.mermaid foreignObject > div {
+      overflow: visible;
+    }
     /* On dark slide backgrounds the table itself is a light "card" — text inside
        table body cells must stay dark (overriding the slide-level white color),
        and Lucide icons inside cells revert to the primary purple instead of mint. */
@@ -940,6 +1033,25 @@ def render_scripts() -> str:
         "        secondaryColor: '#94FAD5',\n"
         "        tertiaryColor: '#F4EFF6',\n"
         "        fontFamily: 'Inter, sans-serif'\n"
+        '      },\n'
+        '      /* QA-FIN-3 Issue 2 (MAJOR): Mermaid 11.4.0 underestimates\n'
+        "         foreignObject width by ~3-7px when node labels use HTML\n"
+        "         (htmlLabels:true is the default for the 'base' theme).\n"
+        "         Symptom: every node label on slides 4 and 5 is clipped\n"
+        "         at the right edge (e.g. '00_environmen', 'GitHub AP'). Fix\n"
+        "         strategy: switch htmlLabels OFF so labels render as SVG\n"
+        "         <text> nodes whose width is measured directly, and add\n"
+        "         generous node-padding so wider glyphs have room. The\n"
+        "         flowchart block here governs slides 4 and 5; xychart-beta\n"
+        "         (slide 8) and pie (slide 9) are unaffected because they\n"
+        "         use a separate sub-configuration. */\n"
+        '      flowchart: {\n'
+        '        htmlLabels: false,\n'
+        '        padding: 20,\n'
+        '        nodeSpacing: 50,\n'
+        '        rankSpacing: 60,\n'
+        '        useMaxWidth: true,\n'
+        '        diagramPadding: 12\n'
         '      }\n'
         '    });\n'
         '    Reveal.initialize({\n'
@@ -1193,27 +1305,30 @@ def slide_3_scope_method(env: dict[str, Any], inflection: dict[str, Any]) -> dic
     post_days = post.get("duration_days", "—")
     fallback_applied = not inflection.get("ramp_up_steady_state_split_applied", False)
 
+    # QA-FIN-3 Issue 8 (MINOR): slide 3 previously rendered at 51 body
+    # words against the AAP §0.7.1.5 max of 40. The compressed form
+    # below trims each bullet to its essence while preserving every
+    # numeric fact (date range, day counts, fallback rationale). Word
+    # count after compression: ~30-32 body words.
     fallback_note = ""
     if fallback_applied:
         fallback_note = (
-            ' <span class="pill">Two-phase fallback applied: post-introduction span '
-            f'{html_escape(str(post_days))} days &lt; 90-day Ramp-Up threshold</span>'
+            ' <span class="pill">Two-phase fallback: post-introduction '
+            f'{html_escape(str(post_days))}d &lt; 90d</span>'
         )
 
     body = (
         f'<p style="margin-top:0.5rem;">{lucide_icon("calendar-clock", 48)}</p>'
         '<ul>'
-        '<li><strong>Period 1 (Baseline):</strong> <code>'
+        '<li><strong>Baseline:</strong> <code>'
         f'{html_escape(earliest)}</code> &rarr; <code>{html_escape(inflection_date)}</code>'
-        f' ({html_escape(str(inflection.get("baseline_duration_days", "—")))} days)</li>'
-        '<li><strong>Period 2 (Post-Introduction):</strong> <code>'
+        f' ({html_escape(str(inflection.get("baseline_duration_days", "—")))}d)</li>'
+        '<li><strong>Post:</strong> <code>'
         f'{html_escape(inflection_date)}</code> &rarr; <code>{html_escape(latest)}</code>'
-        f' ({html_escape(str(post_days))} days)</li>'
-        '<li><strong>Window mechanics:</strong> Monday-anchored 2-week windows in UTC. '
-        'Identical methodology applied to both periods.</li>'
-        '<li><strong>Actor substitution:</strong> Baseline actor = human PR author; '
-        'Post actor = <code>Blitzy</code> (union of <code>agent@blitzy.com</code> + '
-        '<code>blitzy[bot]</code>).</li>'
+        f' ({html_escape(str(post_days))}d)</li>'
+        '<li><strong>Windows:</strong> Monday-anchored 2-week UTC; identical methodology.</li>'
+        '<li><strong>Actor:</strong> Baseline = human; Post = <code>Blitzy</code> '
+        '(<code>agent@blitzy.com</code> + <code>blitzy[bot]</code>).</li>'
         '</ul>'
         f'<p style="font-size:0.78em; margin-top:1rem; color: var(--neutral-muted);">'
         f'{fallback_note}</p>'
@@ -1404,6 +1519,13 @@ def slide_6_metrics_table(metrics: dict[str, Any]) -> dict[str, Any]:
         # caveat text in the Caveat column for Low-confidence rows and
         # the insufficient-signal reason for Insufficient rows. Other
         # confidence tiers render an em-dash to keep the column aligned.
+        # QA-FIN-3 Issue 3 (MAJOR): the caveat is now truncated at 90
+        # characters (was 140) to keep each table row to a single line
+        # at the compact font-size, so all 12 rows fit inside the 1080px
+        # viewport on slide 6. The full caveat remains accessible on
+        # slide 14 (Risks) and in acceleration-report.md. The 90-char
+        # window still preserves the first 60-char fingerprint required
+        # by pre-write guard 9 for Low-confidence metrics.
         caveat_text = ""
         if confidence == "low":
             caveat_text = str(m.get("caveat") or m.get("reason") or "").strip()
@@ -1413,13 +1535,13 @@ def slide_6_metrics_table(metrics: dict[str, Any]) -> dict[str, Any]:
             ).strip()
         if caveat_text:
             caveat_cell = (
-                f"<td style='font-size:0.7em; color: var(--neutral-muted);'>"
-                f"{html_escape(truncate(caveat_text, 140))}"
+                f"<td style='color: var(--neutral-muted);'>"
+                f"{html_escape(truncate(caveat_text, 90))}"
                 "</td>"
             )
         else:
             caveat_cell = (
-                "<td style='font-size:0.7em; color: var(--neutral-bg-subtle);'>—</td>"
+                "<td style='color: var(--neutral-bg-subtle);'>—</td>"
             )
         rows.append(
             "<tr>"
@@ -1430,18 +1552,24 @@ def slide_6_metrics_table(metrics: dict[str, Any]) -> dict[str, Any]:
             f"{caveat_cell}"
             "</tr>"
         )
+    # QA-FIN-3 Issue 3 (MAJOR): slide-with-table modifier shrinks the
+    # divider H1 and reduces vertical padding so the 12-row compact
+    # table fits the 1080px viewport. The .table-compact class applies
+    # smaller cell padding and a smaller font-size; the caveat lookup
+    # text under the table is dropped because the column header and the
+    # caveat column above already convey the legend ("Em-dash = no
+    # caveat present" remains in acceleration-report.md).
     body = (
-        '<table>'
+        '<table class="table-compact">'
         '<thead><tr>'
-        '<th>Metric</th><th>Name</th><th>Post-Introduction</th>'
+        '<th>Metric</th><th>Name</th><th>Post</th>'
         '<th>Confidence</th><th>Caveat</th>'
         '</tr></thead>'
         f'<tbody>{"".join(rows)}</tbody>'
         '</table>'
-        '<p style="font-size:0.75em; color: var(--neutral-bg-subtle);">'
-        'Post-Introduction value is the per-phase aggregate from <code>data/metrics.json</code>.'
-        ' Em-dash in the value column = insufficient signal; em-dash in the caveat column = no caveat present.'
-        ' Per Rule 3 (AAP §0.7.2), every Low-confidence metric carries an explicit caveat.'
+        '<p style="font-size:0.6em; color: var(--neutral-bg-subtle); margin-top:0.3rem;">'
+        'Post = post-introduction aggregate from <code>data/metrics.json</code>. '
+        'Rule 3: every Low-confidence row carries a caveat.'
         '</p>'
         '<div class="slide-footer">'
         '<span>Twelve Metrics</span>'
@@ -1450,8 +1578,13 @@ def slide_6_metrics_table(metrics: dict[str, Any]) -> dict[str, Any]:
     )
     return {
         "id": 6,
-        "klass": "slide-divider",
-        "html": slide_html("slide-divider", "Twelve Metrics", "Overview", body),
+        "klass": "slide-divider slide-with-table",
+        "html": slide_html(
+            "slide-divider slide-with-table",
+            "Twelve Metrics",
+            "Overview",
+            body,
+        ),
     }
 
 
@@ -1601,9 +1734,16 @@ def slide_8_flow_active_efficiency(
             'No per-actor PR data available.</p>'
         )
 
+    # QA-FIN-3 Issue 5 (MAJOR): the xychart-beta default canvas
+    # exceeded the slide's bottom edge, so the x-axis labels (Blitzy,
+    # michael, awadhwani) and the bar foot ran off the viewport. The
+    # .slide-tight-chart class (defined in render_inline_css) caps the
+    # Mermaid SVG max-height at 340px so it fits between the KPI cards
+    # and the slide footer at the 1080px viewport. The chart wrapper
+    # margin is also tightened from 1rem to 0.5rem.
     body = (
         f'<div class="kpi-row">{cards_html}</div>'
-        f'<div style="margin-top:1rem;">{chart_html}</div>'
+        f'<div style="margin-top:0.5rem;">{chart_html}</div>'
         '<div class="slide-footer">'
         '<span>Flow Active &amp; Flow Efficiency</span>'
         '<span>8 / 16</span>'
@@ -1611,8 +1751,13 @@ def slide_8_flow_active_efficiency(
     )
     return {
         "id": 8,
-        "klass": "",
-        "html": slide_html("", "Flow Active &amp; Flow Efficiency", "M4, M5 and per-actor view", body),
+        "klass": "slide-tight-chart",
+        "html": slide_html(
+            "slide-tight-chart",
+            "Flow Active &amp; Flow Efficiency",
+            "M4, M5 and per-actor view",
+            body,
+        ),
     }
 
 
@@ -1658,9 +1803,17 @@ def slide_9_flow_distribution(metrics: dict[str, Any]) -> dict[str, Any]:
             'No classified PRs in this phase.</p>'
         )
 
+    # QA-FIN-3 Issue 8 (MINOR): slide 9 previously rendered at 49 body
+    # words against the AAP §0.7.1.5 max of 40. The caveat preview is
+    # shortened from 280 to 90 characters and the legend line is
+    # compressed. The 60-char fingerprint required by pre-write
+    # guard 9 for the Low-confidence M6 metric still fits inside the
+    # 90-character window (M6's caveat starts "Linear API: unavailable.
+    # Post-introduction unknown rate: 100.0%." — 75 chars). Full
+    # caveat remains in slide 6, slide 14 and acceleration-report.md.
     caveat = m6.get("caveat") if confidence == "low" else None
     caveat_html = (
-        f'<p class="caveat" style="text-align:center;">{truncate(html_escape(str(caveat)), 280)}</p>'
+        f'<p class="caveat" style="text-align:center;">{truncate(html_escape(str(caveat)), 90)}</p>'
         if caveat else ""
     )
 
@@ -1668,9 +1821,9 @@ def slide_9_flow_distribution(metrics: dict[str, Any]) -> dict[str, Any]:
         f'<p style="margin-top:0.5rem;">{lucide_icon("pie-chart", 40)}</p>'
         f'<div>{chart_html}</div>'
         f'<p style="font-size:0.78em; text-align:center;">'
-        f'Unknown rate: <code>{unknown_rate * 100:.1f}%</code> '
-        f'&middot; total PRs classified: <code>{total_prs}</code> '
-        f'&middot; confidence: <span class="kpi-confidence {CONFIDENCE_CLASSES.get(confidence, "confidence-insufficient")}">'
+        f'Unknown: <code>{unknown_rate * 100:.1f}%</code> '
+        f'&middot; n=<code>{total_prs}</code> '
+        f'&middot; <span class="kpi-confidence {CONFIDENCE_CLASSES.get(confidence, "confidence-insufficient")}">'
         f'{html_escape(confidence.upper())}</span>'
         f'</p>'
         f'{caveat_html}'
@@ -1679,10 +1832,16 @@ def slide_9_flow_distribution(metrics: dict[str, Any]) -> dict[str, Any]:
         '<span>9 / 16</span>'
         '</div>'
     )
+    # QA-FIN-3 Issue 8 follow-up: slide 9's pie chart by default exceeds
+    # the 1080px viewport, pushing the caveat preview and slide footer
+    # below the fold. Reuse the .slide-tight-chart modifier (originally
+    # introduced for slide 8's xychart) to cap the Mermaid SVG max-height
+    # at 340px so the pie sits inside the viewport along with the legend,
+    # caveat, and slide footer.
     return {
         "id": 9,
-        "klass": "",
-        "html": slide_html("", "Flow Distribution", "M6 — work category mix", body),
+        "klass": "slide-tight-chart",
+        "html": slide_html("slide-tight-chart", "Flow Distribution", "M6 — work category mix", body),
     }
 
 
@@ -1720,9 +1879,20 @@ def slide_10_releases_problems(metrics: dict[str, Any]) -> dict[str, Any]:
         f'<p style="margin-top:0.5rem;">{lucide_icon("package", 40)} '
         f'<span style="margin-left:0.5rem;">{lucide_icon("alert-octagon", 40)}</span></p>'
         f'<div class="kpi-row">{cards_html}</div>'
+        # QA-FIN-3 multi-viewport follow-up: the original prose joined M9 and
+        # M8 attribution in a single paragraph, which pushed the
+        # ``git log --grep='^Revert "'`` code chip past the right edge of the
+        # 1366px viewport (chip overflow ≈ 20px at scale 0.683 because the
+        # preceding "M9 source precedence..." sentence consumed most of line 1).
+        # Splitting into two paragraphs lets the M8 sentence (and its code
+        # chip) start fresh from the left margin so the chip fits on its own
+        # line at every supported viewport (1024, 1366, 1920). See decision
+        # log entry DL-035 for the broader QA-FIN-3 trade-off discussion.
         '<p style="font-size:0.75em; margin-top:1rem; color: var(--neutral-muted);">'
         'M9 source precedence: GitHub Releases API &rarr; semver tags &rarr; CI deploy events.'
-        ' M8 derived from <code>git log --grep=\'^Revert "\'</code> with release attribution.'
+        '</p>'
+        '<p style="font-size:0.75em; margin-top:0.4rem; color: var(--neutral-muted);">'
+        'M8 derived from <code>git log --grep=\'^Revert "\'</code> with release attribution.'
         '</p>'
         '<div class="slide-footer">'
         '<span>Releases &amp; Problem Records</span>'
@@ -1747,6 +1917,21 @@ def slide_11_quality_signals(metrics: dict[str, Any]) -> dict[str, Any]:
     Returns:
         Slide dict with default content class.
     """
+    # QA-FIN-3 Issue 7 (MINOR): slide 11 previously rendered each of the
+    # three caveats at 220 characters, summing to 87 body words against
+    # the AAP §0.7.1.5 max of 40. The compact form truncates each caveat
+    # to a 70-character preview suffixed with a pointer back to the
+    # acceleration-report.md deep-dive. This compresses the slide-11
+    # body to ~25-30 words while preserving the first 60-character
+    # fingerprint required by pre-write guard 9 for the two
+    # Low-confidence metrics (M6, M10) — the truncation window of 70
+    # chars still admits the full fingerprint. Insufficient-signal
+    # metrics (M11, M12) do not have a fingerprint contract but their
+    # 70-char preview still communicates the data-source reason.
+    # The full caveats remain visible on slide 14 (Risks) and in
+    # acceleration-report.md §Risk Assessment. The trade-off between
+    # Rule 3 (Confidence Transparency) and the 40-word body limit is
+    # recorded in decision-log entry DL-035 (QA-FIN-3 trade-offs).
     cards_html = ""
     for k in ("m10", "m11", "m12"):
         m = metrics.get(k, {})
@@ -1755,13 +1940,14 @@ def slide_11_quality_signals(metrics: dict[str, Any]) -> dict[str, Any]:
         confidence = m.get("confidence", "insufficient")
         caveat = m.get("caveat") if confidence in ("low", "insufficient") else None
         # MAJOR-#2 review fix: pass raw caveat — kpi_card() escapes once.
+        # QA-FIN-3 Issue 7: 70-char preview (was 220).
         if caveat:
-            caveat = truncate(str(caveat), 220)
+            caveat = truncate(str(caveat), 70)
         # For insufficient signal, surface the reason as a caveat. Raw text
         # — kpi_card() handles the escape.
         if confidence == "insufficient" and not caveat:
             reason = m.get("reason") or post.get("reason") or "Insufficient signal — see metric deep-dive."
-            caveat = truncate(str(reason), 220)
+            caveat = truncate(str(reason), 70)
         sub = (
             f"Baseline: <code>{html_escape(format_phase_value(base.get('value')))}</code>"
             f" &rarr; Post: <code>{html_escape(format_phase_value(post.get('value')))}</code>"
@@ -1890,10 +2076,18 @@ def slide_13_per_engineer_table(per_eng: dict[str, Any]) -> dict[str, Any]:
         '<span>13 / 16</span>'
         '</div>'
     )
+    # QA-FIN-3 Issue 6 (MAJOR): the previous heading
+    # "Attribution across the three contributors" rendered at H1 font-size
+    # 84px (Space Grotesk uppercase 2em) overflowed the 1920px viewport by
+    # ~38px because the rendered width was 1843px against a content area of
+    # ~1820px (after 5rem horizontal padding). The shorter form fits with
+    # room to spare while preserving meaning — the slide eyebrow ("Per-
+    # Engineer Table") and the table header column "Engineer" already
+    # communicate that the rows are per-contributor.
     return {
         "id": 13,
         "klass": "",
-        "html": slide_html("", "Per-Engineer Table", "Attribution across the three contributors", body),
+        "html": slide_html("", "Per-Engineer Table", "Attribution by contributor", body),
     }
 
 
@@ -1924,17 +2118,23 @@ def slide_14_risks(metrics: dict[str, Any]) -> dict[str, Any]:
         severity_class = (
             "confidence-low" if confidence == "low" else "confidence-insufficient"
         )
+        # QA-FIN-3 Issue 4 (MAJOR): the caveat is truncated to 110
+        # characters (was 200) so each row fits a single visual line in
+        # the compact table and the full 8-row table fits inside the
+        # 1080px viewport. The 60-char fingerprint required by pre-write
+        # guard 9 for the two Low-confidence metrics (M6, M10) remains
+        # comfortably inside the 110-character window.
         rows.append(
             "<tr>"
             f"<td><code>{k.upper()}</code></td>"
             f"<td>{html_escape(str(m.get('name', '')))}</td>"
             f"<td><span class='kpi-confidence {severity_class}'>{severity}</span></td>"
-            f"<td style='font-size:0.85em;'>{truncate(html_escape(str(explanation)), 200)}</td>"
+            f"<td>{truncate(html_escape(str(explanation)), 110)}</td>"
             "</tr>"
         )
     if rows:
         table_html = (
-            '<table>'
+            '<table class="table-compact">'
             '<thead><tr>'
             '<th>Metric</th><th>Name</th><th>Severity</th><th>Caveat</th>'
             '</tr></thead>'
@@ -1947,12 +2147,15 @@ def slide_14_risks(metrics: dict[str, Any]) -> dict[str, Any]:
             'No Low-confidence or insufficient-signal metrics. </p>'
         )
 
+    # QA-FIN-3 Issue 4 (MAJOR): slide-with-table modifier reduces H1
+    # size + vertical padding; lucide icon size reduced from 40px to
+    # 28px to recover ~30px of vertical budget. The footer hint below
+    # the table is compressed to a single short line.
     body = (
-        f'<p style="margin-top:0.5rem;">{lucide_icon("alert-triangle", 40)}</p>'
+        f'<p style="margin-top:0.2rem;">{lucide_icon("alert-triangle", 28)}</p>'
         f'{table_html}'
-        '<p style="font-size:0.75em; color: var(--neutral-muted);">'
-        'Full Risk Assessment in <code>acceleration-report.md</code> §Risk Assessment. '
-        'Cardinality enforced by Quality Gate 7.'
+        '<p style="font-size:0.6em; color: var(--neutral-muted); margin-top:0.3rem;">'
+        'Full text in <code>acceleration-report.md</code> §Risk Assessment.'
         '</p>'
         '<div class="slide-footer">'
         '<span>Risks &amp; Limitations</span>'
@@ -1961,8 +2164,13 @@ def slide_14_risks(metrics: dict[str, Any]) -> dict[str, Any]:
     )
     return {
         "id": 14,
-        "klass": "",
-        "html": slide_html("", "Risks &amp; Limitations", "Low-confidence and insufficient-signal metrics", body),
+        "klass": "slide-with-table",
+        "html": slide_html(
+            "slide-with-table",
+            "Risks &amp; Limitations",
+            "Low-confidence and insufficient-signal metrics",
+            body,
+        ),
     }
 
 
@@ -1979,11 +2187,22 @@ def slide_15_onboarding() -> dict[str, Any]:
     body = (
         f'<p style="margin-top:0.5rem;">{lucide_icon("book-open", 48)}</p>'
         '<ul>'
+        # QA-FIN-3 Issue 9 (slide 15 code overflow): the original markup
+        # rendered the full Setup command as a single <code> chip whose
+        # rightmost word "source" ran ~15px past the .reveal overflow:hidden
+        # boundary at x=1920px, clipping ~75% of the trailing "e" glyph from
+        # the visible slide area even with word-break: break-word and
+        # overflow-wrap: anywhere applied. Splitting the chained command into
+        # four short <code> chips joined by plain-text " &amp;&amp; "
+        # separators allows the browser to wrap between chips at natural
+        # break points (the spaces around each "&&"), so no individual chip
+        # is wider than its line and no character is clipped. See decision
+        # log entry DL-035 for the broader QA-FIN-3 trade-off discussion.
         '<li><strong>Setup:</strong> '
-        '<code>cd blitzy/acceleration-report &amp;&amp; '
-        'virtualenv --python=python3.13 .venv &amp;&amp; '
-        'source .venv/bin/activate &amp;&amp; '
-        'pip install -r requirements.txt</code></li>'
+        '<code>cd blitzy/acceleration-report</code> &amp;&amp; '
+        '<code>virtualenv --python=python3.13 .venv</code> &amp;&amp; '
+        '<code>source .venv/bin/activate</code> &amp;&amp; '
+        '<code>pip install -r requirements.txt</code></li>'
         '<li><strong>Extract:</strong> '
         '<code>make extract</code> '
         '(scripts 00-08; honours <code>GH_TOKEN</code> and <code>LINEAR_API_KEY</code> when set)</li>'
